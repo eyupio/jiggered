@@ -65,9 +65,10 @@ func (s *server) adminBackup(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Length", strconv.FormatInt(st.Size(), 10))
 	w.Header().Set("Cache-Control", "no-store")
 	http.NewResponseController(w).SetWriteDeadline(time.Now().Add(5 * time.Minute))
+	// Recorded before the first byte goes out: a download that is cut short has still handed over part of everyone's
+	// data, and must not leave no trace.
+	s.audit(r.Context(), a.u.Username, "backup_downloaded", "", "whole database", s.clientIP(r))
 	if _, err := io.Copy(w, f); err != nil {
 		log.Printf("backup: sending: %v", err)
-		return
 	}
-	s.audit(r.Context(), a.u.Username, "backup_downloaded", "", "whole database", s.clientIP(r))
 }

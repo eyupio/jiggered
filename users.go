@@ -254,8 +254,15 @@ func (s *server) revokeSessions(ctx context.Context, userID int64, exceptSID str
 
 const (
 	auditKeepFor = 180 * 24 * time.Hour
-	auditMaxRows = 10000
+	auditMaxRows = 10000 // for each of the two kinds of event below
 )
+
+// auditSelfService matches the events a person can cause at will about themselves: signing in or failing to,
+// changing their own password, signing their devices out, importing. They are kept under a cap of their own, so
+// a flood of them can't push the record of what an admin did out of the log. Everything else (admin and
+// command-line actions, settings, backups) has a cap that only an admin can fill.
+const auditSelfService = `(action IN ('login', 'login_failed', 'login_refused', 'password_check_failed', 'password_changed', 'session_revoked', 'import')
+	OR (action = 'sessions_revoked' AND actor = target))`
 
 // audit records who did what. Best effort: a failure to log never fails the request.
 func (s *server) audit(ctx context.Context, actor, action, target, detail, ip string) {
@@ -267,10 +274,12 @@ func (s *server) audit(ctx context.Context, actor, action, target, detail, ip st
 	}
 }
 
-// prune drops expired sessions and old audit entries.
+// prune drops expired sessions and old audit entries (by age, and by count within each kind of event).
 func (s *server) prune() {
 	now := time.Now()
 	s.db.Exec("DELETE FROM sessions WHERE expires_at < ?", now.Unix())
 	s.db.Exec("DELETE FROM audit_log WHERE at < ?", now.Add(-auditKeepFor).Unix())
-	s.db.Exec("DELETE FROM audit_log WHERE id <= (SELECT id FROM audit_log ORDER BY id DESC LIMIT 1 OFFSET ?)", auditMaxRows)
+	for _, kind := range []string{auditSelfService, "NOT " + auditSelfService} {
+		s.db.Exec("DELETE FROM audit_log WHERE "+kind+" AND id <= (SELECT id FROM audit_log WHERE "+kind+" ORDER BY id DESC LIMIT 1 OFFSET ?)", auditMaxRows)
+	}
 }

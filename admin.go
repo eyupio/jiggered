@@ -59,6 +59,10 @@ func (s *server) adminCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := normUsername(in.Username)
+	if reservedUsernames[name] {
+		jsonError(w, http.StatusBadRequest, "That name is reserved. Choose another.")
+		return
+	}
 	if !validUsername(name) {
 		jsonError(w, http.StatusBadRequest, "Usernames use letters, digits and . _ @ + - (up to 64 characters).")
 		return

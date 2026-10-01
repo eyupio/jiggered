@@ -371,6 +371,9 @@ func (s *server) runUserCommand(ctx context.Context, args []string, out io.Write
 	name, flags := normUsername(rest[0]), rest[1:]
 
 	if cmd == "add" {
+		if reservedUsernames[name] {
+			return fmt.Errorf("%q is reserved (the activity log uses it for the app and the command line); choose another name", name)
+		}
 		if !validUsername(name) {
 			return errors.New("usernames use letters, digits and . _ @ + - (up to 64 characters)")
 		}

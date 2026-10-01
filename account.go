@@ -116,14 +116,17 @@ func (s *server) listSessions(w http.ResponseWriter, r *http.Request) {
 func (s *server) revokeSession(w http.ResponseWriter, r *http.Request) {
 	a := authOf(r)
 	sid := r.PathValue("sid")
-	if _, err := s.db.ExecContext(r.Context(), "DELETE FROM sessions WHERE user_id = ? AND sid = ?", a.u.ID, sid); err != nil {
+	res, err := s.db.ExecContext(r.Context(), "DELETE FROM sessions WHERE user_id = ? AND sid = ?", a.u.ID, sid)
+	if err != nil {
 		http.Error(w, "server error", http.StatusInternalServerError)
 		return
 	}
 	if sid == a.sid {
 		s.clearSessionCookie(w)
 	}
-	s.audit(r.Context(), a.u.Username, "session_revoked", a.u.Username, "", s.clientIP(r))
+	if n, _ := res.RowsAffected(); n > 0 { // revoking what isn't there changes nothing, so it isn't an event
+		s.audit(r.Context(), a.u.Username, "session_revoked", a.u.Username, "", s.clientIP(r))
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -134,7 +137,9 @@ func (s *server) revokeOtherSessions(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "server error", http.StatusInternalServerError)
 		return
 	}
-	s.audit(r.Context(), a.u.Username, "sessions_revoked", a.u.Username, "other devices", s.clientIP(r))
+	if n > 0 {
+		s.audit(r.Context(), a.u.Username, "sessions_revoked", a.u.Username, "other devices", s.clientIP(r))
+	}
 	writeJSON(w, http.StatusOK, map[string]int64{"revoked": n})
 }
 
@@ -146,7 +151,9 @@ func (s *server) revokeAllSessions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.clearSessionCookie(w)
-	s.audit(r.Context(), a.u.Username, "sessions_revoked", a.u.Username, "everywhere", s.clientIP(r))
+	if n > 0 {
+		s.audit(r.Context(), a.u.Username, "sessions_revoked", a.u.Username, "everywhere", s.clientIP(r))
+	}
 	writeJSON(w, http.StatusOK, map[string]int64{"revoked": n})
 }
 

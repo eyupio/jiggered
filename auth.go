@@ -35,7 +35,11 @@ var usernamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._@+-]{0,63}$`)
 
 func normUsername(s string) string { return strings.ToLower(strings.TrimSpace(s)) }
 
-func validUsername(s string) bool { return usernamePattern.MatchString(s) }
+// reservedUsernames are what the activity log calls the app itself and the command line; a person with one of
+// them would be indistinguishable from those in the log.
+var reservedUsernames = map[string]bool{"system": true, "cli": true}
+
+func validUsername(s string) bool { return usernamePattern.MatchString(s) && !reservedUsernames[s] }
 
 func checkPassword(pw, username string) error {
 	switch {
