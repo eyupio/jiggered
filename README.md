@@ -28,15 +28,23 @@ Jiggered behaves, live in the database; the environment only says where that is.
 
 **What an admin can see:** who has an account, their role, when they last signed in, how many entries they have
 and how much space it takes, and how many devices they're signed in on. **What they can't:** anyone's check-ins,
-episodes or notes. There is no "sign in as", and no admin screen or endpoint returns the contents of someone's
-log.
+episodes or notes **through the Admin screens**: no admin screen or endpoint returns the contents of someone's
+log, and there is no "sign in as". The activity log, which admins can read, also shows when and from which address
+each person signed in.
 
-Two honest limits. A backup is a copy of the whole database, so whoever downloads one can read everything in
-it. And the database file isn't encrypted, so anyone with access to the server or its volume can read it
-regardless of what the app shows. This is a boundary in the app, not encryption: host it somewhere you trust,
-and tell people who is running it.
+That is a boundary in the app, not encryption, and it has limits you should know about:
 
-- An admin can't disable, demote or delete themselves, and the last active admin can never be removed.
+- An admin can reset anyone's password and then sign in with the temporary one, which shows them that person's
+  data (and signs the person out). The activity log records the reset, but then records what they do as that
+  person.
+- A backup is a copy of the whole database: everyone's logs, password hashes and the activity log. Any admin can
+  download one.
+- The database file isn't encrypted, so anyone with access to the server or its volume can read it.
+
+So host it somewhere you trust, give the admin role only to someone the others trust, and tell people who that is.
+
+- An admin can't disable or demote themselves, or delete themselves from the Admin tab. They can delete their own
+  account from Account while another active admin remains, and the last active admin can never be removed.
 - Resetting a password, disabling an account or changing a password signs the affected devices out.
 - Each person can store up to 10,000 entries and 25 MB.
 - If you lose the admin's password, reset it from the command line (below). That works even when the web page
@@ -50,8 +58,8 @@ GitHub Actions builds `ghcr.io/jnnngs/jiggered` for amd64 and arm64:
 
 | Trigger | Tags |
 |---|---|
-| Push to `main` | `dev`, short commit SHA |
-| Tag `v1.2.3` | `latest`, `1.2.3`, `1.2`, short commit SHA |
+| Push to `main` | `dev`, `sha-` and the short commit |
+| Tag `v1.2.3` (not `v1.2.3-rc1`) | `latest`, `1.2.3`, `1.2`, `sha-` and the short commit |
 
 Pick which one to run with `JIGGERED_TAG` in `.env` (default `latest`).
 To cut a release:
@@ -115,7 +123,9 @@ Leave `APP_USERNAME` and the password line in place for that first start: a data
 won't open without them (the log says so, and nothing is changed). Once `docker compose exec jiggered /jiggered
 user list` shows your account, they can go.
 
-Change your password in **Account**. An older version can't read the upgraded database; to go back, restore the
+Change your password in **Account**. Don't start an older version on an upgraded data folder: a build that knows about schema versions refuses it, but the
+original single-user one opens it without complaint, shows everyone's entries merged, and can delete them. To go back,
+stop Jiggered, restore the
 `pre-upgrade` copy (see **Backup and restore**).
 
 ## Configuration
@@ -125,7 +135,7 @@ The environment only has to say where things are, and both have sensible default
 | Variable | Default | Purpose |
 |---|---|---|
 | `APP_DB` | `/data/jiggered.db` | The SQLite file. Everything else lives in it. |
-| `APP_ADDR` | `:8080` | Listen address |
+| `APP_ADDR` | `:8080` | Listen address (in Docker leave it: the port mapping in `compose.yaml` points at 8080) |
 
 Everything else is stored in the database, so it survives upgrades, travels with a backup, and an admin can change
 it while the app runs:
@@ -165,11 +175,13 @@ docker compose exec jiggered /jiggered settings                  # show the inst
 
 If the container is stopped, use `docker compose run --rm jiggered user list` instead.
 
-Sign-in lockouts are kept in memory, so `docker compose restart jiggered` clears them.
+Sign-in lockouts are kept in memory, so `docker compose restart jiggered` clears them. (Resetting a password in the Admin
+tab clears that account's lockout; the command line can't reach the running server, so after `user reset-password` for
+someone locked out, restart too.) Restoring a backup brings back its accounts, roles, password hashes and sessions as they were then.
 
 ## Backup and restore
 
-The data is a single SQLite file in the `jiggered-data` volume, plus a `-wal` file beside it while the app runs.
+The data is a single SQLite file in the `jiggered-data` volume, plus `-wal` and `-shm` files beside it while the app runs.
 **Don't back it up by copying `jiggered.db` alone**: recent changes live in the `-wal` file, so that copy can be
 stale or even empty. Use these instead, which take a consistent copy while the app is running:
 
@@ -206,13 +218,16 @@ It checks the file first, keeps the database it replaces as `/data/backups/pre-r
   attacker signing you in to their own account. A strict Content-Security-Policy; fonts are served from the app,
   so it makes no requests to third parties.
 - Temporary passwords are random, shown once, and must be replaced at first sign-in.
-- Everything an admin does, and every sign-in, is in the activity log.
+- Everything an admin or the command line does, and every successful sign-in and wrong password for an existing account,
+  is in the activity log (180 days; the newest 10,000 events of each kind). Attempts with unknown names, and attempts
+  refused by a lockout, appear only in the server's own log.
 - Runs as non-root on a read-only distroless image with all capabilities dropped.
 
 ## Development
 
 ```sh
-go vet ./... && go test -race ./...     # server: accounts, isolation, upgrade from the old schema, CLI, backups
+go vet ./... && go test -race ./...     # -race needs a C compiler; Node 22+ for the front-end tests below
+#     # server: accounts, isolation, upgrade from the old schema, CLI, backups
 node --test "test/*.test.mjs"           # front-end logic: sync engine, settings, trends, CSV
 ```
 

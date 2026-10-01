@@ -470,7 +470,7 @@ func (s *server) runUserCommand(ctx context.Context, args []string, out io.Write
 			return err
 		}
 		s.audit(ctx, "cli", "password_reset", t.Username, "signed out everywhere", "")
-		fmt.Fprintf(out, "New temporary password for %q: %s\nThey were signed out everywhere and choose a new password at next sign-in.\n", t.Username, pw)
+		fmt.Fprintf(out, "New temporary password for %q: %s\nThey were signed out everywhere and choose a new password at next sign-in.\nIf wrong guesses had locked them out, restart the server too (docker compose restart jiggered); lockouts live in its memory.\n", t.Username, pw)
 	case "disable":
 		if err := note(s.setDisabled(ctx, t.ID, true)); err != nil {
 			return err
