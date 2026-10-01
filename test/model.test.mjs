@@ -238,3 +238,25 @@ test("settings merge disjoint fields and row fields; same-field and order confli
  assert.deepEqual(operationConflicts(patch,remote),[]);const merged=applyOp(patch,remote);assert.equal(merged.budget,12);assert.deepEqual(merged.activities[0],{id:'a',a:'Long walk',c:-2});
  patch.arg.activities[0].a='Another walk';assert.ok(operationConflicts(patch,remote).some(x=>x.includes('name')));
 });
+
+test("defaultsGap finds only what the shared defaults add, ignoring case, and mergeDefaults appends it", () => {
+  const mine = m.normaliseSettings({ activities: [{ a: "Housework", c: 5 }], symptoms: ["headache"], triggers: [] });
+  const shared = m.normaliseSettings({ activities: [{ a: "housework", c: 2, g: "Home" }, { a: "Cooking", c: 1, g: "Home" }], symptoms: ["Headache", "Tremor"], triggers: ["Cold"] });
+  const gap = m.defaultsGap(mine, shared);
+  assert.deepEqual(gap.acts.map(x => x.a), ["Cooking"]);
+  assert.deepEqual(gap.sym, ["Tremor"]);
+  assert.deepEqual(gap.trig, ["Cold"]);
+  assert.equal(gap.total, 3);
+  const merged = m.mergeDefaults(mine, shared);
+  assert.deepEqual(merged.activities.map(x => [x.a, x.c]), [["Housework", 5], ["Cooking", 1]]); // their points are kept
+  assert.ok(merged.activities.every(x => x.id));
+  assert.equal(m.defaultsGap(merged, shared).total, 0);
+  assert.equal(m.gapSignature(m.defaultsGap(merged, shared)), "");
+  assert.notEqual(m.gapSignature(gap), "");
+});
+
+test("a settings change is not a conflict just because stored rows list their keys in another order", () => {
+  const row = { a: "Housework", c: 2, g: "Home" }, stored = { activities: [{ ...row, id: "x1" }] };
+  const op = { type: "settingsPatch", before: { activities: [{ id: "x1", ...row }] }, arg: { activities: [] } };
+  assert.deepEqual(m.operationConflicts(op, stored), []);
+});

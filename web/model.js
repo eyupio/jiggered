@@ -90,7 +90,25 @@ export function identifyEntries(entries = []) {
   return (Array.isArray(entries) ? entries : []).map((e, i) => e.id ? e : { ...e, id: `legacy-entry:${i}:${JSON.stringify([e.a,e.c,e.t])}` });
 }
 export const identifyActivities = rows => (Array.isArray(rows) ? rows : []).map(e => e.id ? e : { ...e, id: `legacy-activity:${encodeURIComponent(e.a)}` });
-const equal = (a,b) => JSON.stringify(a) === JSON.stringify(b);
+// Compared by value, not by the order keys happen to be written in: {id,a} and {a,id} are the same row.
+const canon = v => Array.isArray(v) ? v.map(canon) : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map(k => [k, canon(v[k])])) : v;
+const equal = (a,b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
+// defaultsGap lists what the shared defaults have that a person's own lists lack, matched by name and ignoring case.
+// It never looks at points or groups of items they already have, so their own choices are not second-guessed.
+const same = (a, b) => String(a).trim().toLocaleLowerCase() === String(b).trim().toLocaleLowerCase();
+export function defaultsGap(mine, shared) {
+  const missing = (have, want, nameOf) => (want || []).filter(w => !(have || []).some(h => same(nameOf(h), nameOf(w))));
+  const acts = missing(mine?.activities, shared?.activities, x => x.a), sym = missing(mine?.symptoms, shared?.symptoms, x => x), trig = missing(mine?.triggers, shared?.triggers, x => x);
+  return { acts, sym, trig, total: acts.length + sym.length + trig.length };
+}
+// mergeDefaults adds the missing shared items to the end of each list and changes nothing else.
+export function mergeDefaults(mine, shared) {
+  const gap = defaultsGap(mine, shared);
+  return { ...mine, activities: [...identifyActivities(mine.activities), ...identifyActivities(gap.acts)], symptoms: [...mine.symptoms, ...gap.sym], triggers: [...mine.triggers, ...gap.trig] };
+}
+// gapSignature is a short stable string for a gap, so "not now" can be remembered until the shared defaults change again.
+export const gapSignature = gap => [...gap.acts.map(x => x.a), ...gap.sym, ...gap.trig].map(x => x.trim().toLocaleLowerCase()).sort().join("|");
+
 export function operationConflicts(op, body) {
   if (!op.before) return [];
   if (body == null) return ["deleted record"];

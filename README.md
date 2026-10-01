@@ -31,8 +31,11 @@ show an explanation instead of silently changing it.
 Admins maintain the same lists, budget, sleep cost and date format under **Admin → Shared product defaults**.
 Defaults live in the existing instance-settings table, are included in database backups, and changes appear
 in the activity log. Conflicting admin saves are refused rather than overwriting newer defaults. New users
-start with that version; existing personal settings are preserved. Users explicitly choose **Use shared
-defaults**, review the draft, then Save to adopt a later version. **Use factory defaults** in Admin fills a
+start with that version; existing personal settings are preserved. When the shared defaults gain items a person
+lacks, a notice on every tab offers **Add all to my lists** (new items go on the end; nothing of theirs
+changes; Undo is offered), **Review in Account** or **Not now** (remembered until the defaults change again).
+Account also has **Add new shared items** and **Replace with shared defaults**; both fill a draft to review,
+then Save. On Today, group pills (Work, Home, ...) narrow the activity buttons to one group. **Use factory defaults** in Admin fills a
 draft; publishing it still requires Save. No new hosted service or production dependency is introduced.
 
 ### Drafts and recovery

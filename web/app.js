@@ -10,6 +10,7 @@ import * as historyView from "./history.js";
 import * as accountView from "./account.js";
 import * as helpView from "./help.js";
 import { initTooltips } from "./tooltips.js";
+import { initDefaultsNotice } from "./defaults-notice.js";
 // admin.js is only loaded, and its tab only created, for admins: see syncAdmin
 
 const ME_KEY = "jiggered:me";
@@ -121,6 +122,7 @@ function fatal(text) {
     editEpisode(id) { views.episode.edit(id) },
     editSettings(section) { go("account"); views.account.focus(section) },
   };
+  const notice = initDefaultsNotice(ctx, { canWrite: () => coordination.writable && !store.status().restoring });
   const hintKey = `jiggered:onboarding:${me.id}:${me.username}`;
   $("onboarding-dismiss").addEventListener("click", () => { $("onboarding").hidden = true; try { Promise.resolve(storage?.setItem(hintKey, "dismissed")).catch(() => {}) } catch { /* harmless preference */ } });
   const tooltips = initTooltips();
@@ -142,7 +144,7 @@ function fatal(text) {
     $("t-" + tab).scrollIntoView({ block: "nearest", inline: "nearest" }); // on a narrow phone the tab bar scrolls sideways
     scrollTo(0, tab === "history" ? historyScroll : 0);
   }
-  const renderActive = () => views[active] && views[active].render();
+  const renderActive = () => { notice.update(); views[active] && views[active].render() };
   $("tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) go(b.dataset.tab) });
 
   $("tabs").addEventListener("keydown", e => {
@@ -251,7 +253,7 @@ function fatal(text) {
     renderHeader();
     if (ctx.today() !== lastToday) { lastToday = ctx.today(); renderActive() }
   }
-  const refresh = async () => { tick(); if (!coordination.writable) { await storage?.refresh?.(); store.refreshDevice() } store.load(); refreshMe() };
+  const refresh = async () => { tick(); loadDefaults().then(() => notice.update()); if (!coordination.writable) { await storage?.refresh?.(); store.refreshDevice() } store.load(); refreshMe() };
   setInterval(tick, 30_000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refresh() });
   addEventListener("focus", tick);
@@ -290,6 +292,7 @@ function fatal(text) {
   tick();
   await loadDefaults();
   await store.load();
+  notice.update();
   // Freeze the starting defaults into this account so future shared edits do not replace personal choices.
   if (coordination.writable && defaultsTag && store.status().loaded && !store.view("settings")) { $("onboarding").hidden = storage?.getItem(hintKey) === "dismissed"; store.dispatch({ id: "settings", type: "replace", arg: normaliseSettings(sharedDefaults) }) }
 })();

@@ -27,6 +27,7 @@
   <div class="banner" id="banner" hidden></div>
   <p class="sync" id="sync" data-state="attention" role="status" aria-live="polite">Connecting…</p>
   <section class="panel recovery" id="recovery" hidden aria-label="Recover unsaved changes"></section>
+  <section class="panel defaults-notice" id="defaults-notice" hidden aria-label="Shared defaults updated" role="region"></section>
   <nav role="tablist" id="tabs" aria-label="Main views">
     <button role="tab" id="t-today" aria-controls="today-panel" tabindex="0" aria-selected="true" data-tab="today">Today</button>
     <button role="tab" id="t-episode" aria-controls="episode-panel" tabindex="-1" aria-selected="false" data-tab="episode">Episode</button>
@@ -71,6 +72,7 @@
       <div class="label-row"><h2>Tap what you've done</h2><button class="help-link x" data-help="activities">How it works</button></div><button class="x" data-settings="set-acts">Edit activities</button>
       <label class="timerow" id="act-time-row" hidden>Time, if you remember <input type="time" id="act-time"></label>
       <label class="field act-search" id="act-search-row" hidden><span class="sr-only">Search activities</span><input type="search" id="act-search" placeholder="Search activities" autocomplete="off"></label>
+      <div class="group-filter" id="act-filter" role="group" aria-label="Show activities from" hidden></div>
       <div class="act-groups" id="acts"></div>
       <button class="secondary" id="other-activity">Other activity</button>
       <p class="empty" id="noacts" hidden>No activities yet. Use Edit activities above to add your own.</p>

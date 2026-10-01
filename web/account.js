@@ -2,7 +2,8 @@
 
 import { $, api, html, setHTML, appendHTML, describeUA, ago, saveFeedback, withBusy, downloadFile } from "./util.js";
 import { createEditor, editorMarkup } from "./editor.js";
-import { dayId, normaliseSettings, identifyActivities } from "./model.js";
+import { dayId, normaliseSettings, identifyActivities, defaultsGap, mergeDefaults } from "./model.js";
+import { describeGap, previewGap } from "./defaults-notice.js";
 
 function say(el, text, bad = false) {
   el.textContent = text;
@@ -69,14 +70,29 @@ export function init(ctx) {
   editor.fill(savedDraft?.value || savedDraft || baseline);
   if (savedDraft?.baseline) baseline = savedDraft.baseline; dirty = !!savedDraft;
   if (dirty) say($("set-msg"), "Unfinished settings draft restored from this device.");
+  queueMicrotask(() => paintGap());
   form.querySelector('[data-discard]').addEventListener("click", () => {
     if (dirty && !confirm("Discard the unfinished settings draft?")) return;
-    dirty = false; ctx.drafts?.remove("settings"); baseline = { ...ctx.settings(), activities: identifyActivities(ctx.settings().activities) }; editor.fill(baseline); say($("set-msg"), "Draft discarded.");
+    dirty = false; ctx.drafts?.remove("settings"); baseline = { ...ctx.settings(), activities: identifyActivities(ctx.settings().activities) }; editor.fill(baseline); paintGap(); say($("set-msg"), "Draft discarded.");
+  });
+  // Says what the shared defaults have that this draft lacks, so the choice between adding and replacing is clear.
+  function paintGap() {
+    const el = form.querySelector("[data-gap]"), merge = form.querySelector("[data-merge]"), gap = defaultsGap(normaliseSettings(editor.read()), ctx.defaults?.());
+    el.hidden = !gap.total; merge.disabled = !gap.total;
+    el.textContent = gap.total ? `The shared defaults have ${describeGap(gap)} you don't have: ${previewGap(gap, 6)}. Add new shared items keeps everything of yours; Replace with shared defaults starts again from theirs.` : "";
+  }
+  form.addEventListener("input", paintGap);
+  form.addEventListener("click", e => { if (e.target.closest("[data-remove]")) paintGap() });
+  form.querySelector("[data-merge]").addEventListener("click", async () => {
+    const shared = await ctx.loadDefaults(), mine = normaliseSettings(editor.read()), gap = defaultsGap(mine, shared.body);
+    if (!gap.total) { paintGap(); say($("set-msg"), "You already have everything in the shared defaults."); return }
+    editor.fill(mergeDefaults(mine, shared.body)); dirty = true; ctx.drafts?.put("settings", { value: editor.read(), baseline }); paintGap();
+    say($("set-msg"), `Added ${gap.total} new ${gap.total === 1 ? "item" : "items"} at the end of your lists${shared.fresh ? "" : " (from the last-known defaults; you're offline)"}. Review, then Save.`);
   });
   form.querySelector('[data-reset]').addEventListener("click", async () => {
     if (dirty && !confirm("Replace this draft with the current shared defaults?")) return;
     const shared = await ctx.loadDefaults();
-    editor.fill(shared.body); dirty = true; ctx.drafts?.put("settings", { value: editor.read(), baseline }); say($("set-msg"), shared.fresh ? "Latest shared defaults filled in. Save to adopt them." : "Offline: last-known defaults filled in. Save to adopt this version.");
+    editor.fill(shared.body); dirty = true; ctx.drafts?.put("settings", { value: editor.read(), baseline }); paintGap(); say($("set-msg"), shared.fresh ? "Latest shared defaults filled in. Save to adopt them." : "Offline: last-known defaults filled in. Save to adopt this version.");
   });
   form.addEventListener("submit", e => {
     e.preventDefault(); if (ticket) return;
@@ -165,7 +181,7 @@ export function init(ctx) {
     recover(value) { baseline = { ...ctx.settings(), activities: identifyActivities(ctx.settings().activities) }; editor.fill(normaliseSettings(value)); dirty = true; ticket = null; ctx.drafts?.put("settings", { value: editor.read(), baseline }); say($("set-msg"), "Recovered copy opened. Save it, then resolve or discard the old recovery item."); editor.focus("set-acts") },
     show() {
       if (!dirty && !ticket) { baseline = { ...ctx.settings(), activities: identifyActivities(ctx.settings().activities) }; editor.fill(baseline) }
-      renderSettings();
+      renderSettings(); paintGap();
       loadSessions();
     },
   };

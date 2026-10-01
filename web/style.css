@@ -289,3 +289,17 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
 .checkin button,.cell,.act{transition:background-color .18s ease,border-color .18s ease,color .18s ease,transform .1s ease}
 .cell{transition:background-color .25s ease,border-color .25s ease}
 @media(prefers-reduced-motion:reduce){.sync,.checkin button,.cell,.act{transition:none!important}}
+
+/* Group filter on Today, and the shared-defaults notice */
+.group-filter{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.group-filter[hidden]{display:none}
+.pill{font:inherit;font-size:.9rem;white-space:nowrap;flex:none;min-height:40px;padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.pill .meta{font-variant-numeric:tabular-nums}
+.pill:hover{border-color:var(--accent)}
+.pill[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);font-weight:700}
+.pill:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.defaults-notice{border-left:4px solid var(--accent)}
+.defaults-notice h2{margin:0 0 6px}
+.defaults-notice p{margin:0 0 12px}
+.defaults-notice p .meta{font-size:inherit;font-weight:700}
+.defaults-notice .row{flex-wrap:wrap}
