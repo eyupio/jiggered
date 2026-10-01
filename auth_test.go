@@ -35,7 +35,8 @@ func TestLoginAndLogout(t *testing.T) {
 }
 
 func TestSessionCookieIsHardened(t *testing.T) {
-	e := newTestServer(t, func(c *config) { c.secureCookie = true })
+	e := newTestServer(t)
+	e.set("secure_cookie", "true")
 	form := strings.NewReader("username=admin&password=" + adminPass)
 	req, _ := http.NewRequest("POST", e.ts.URL+"/login", form)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -133,7 +134,8 @@ func TestSuccessfulLoginDoesNotRefillTheIPBudget(t *testing.T) {
 }
 
 func TestTrustProxyCountsFromTheRight(t *testing.T) {
-	e := newTestServer(t, func(c *config) { c.trustProxy = true })
+	e := newTestServer(t)
+	e.set("trust_proxy", "true")
 	// The client rotates the leftmost entries; our proxy appends the real address on the right.
 	for i := 0; i < 10; i++ {
 		xff := fmt.Sprintf("10.9.9.%d, 198.51.100.7", i)
@@ -150,7 +152,9 @@ func TestTrustProxyCountsFromTheRight(t *testing.T) {
 }
 
 func TestTrustProxyHops(t *testing.T) {
-	e := newTestServer(t, func(c *config) { c.trustProxy = true; c.proxyHops = 2 })
+	e := newTestServer(t)
+	e.set("trust_proxy", "true")
+	e.set("proxy_hops", "2")
 	for i := 0; i < 10; i++ {
 		e.newClient().login("nobody", "wrong-wrong", "X-Forwarded-For", fmt.Sprintf("192.0.2.1, 198.51.100.7, 10.0.0.%d", i))
 	}
@@ -160,7 +164,8 @@ func TestTrustProxyHops(t *testing.T) {
 }
 
 func TestAccountLockoutCoversEveryAddress(t *testing.T) {
-	e := newTestServer(t, func(c *config) { c.trustProxy = true })
+	e := newTestServer(t)
+	e.set("trust_proxy", "true")
 	e.addUser("alice", roleUser)
 	for i := 0; i < 10; i++ { // spread across addresses so no single IP hits its own limit
 		e.newClient().login(adminName, "wrong-wrong", "X-Forwarded-For", fmt.Sprintf("198.51.100.%d", i))
@@ -218,7 +223,7 @@ func TestClientIP(t *testing.T) {
 		{"no header", true, 1, "127.0.0.1:1", nil, "127.0.0.1"},
 	}
 	for _, c := range cases {
-		s := &server{cfg: config{trustProxy: c.trust, proxyHops: c.hops}}
+		s := serverWithSettings(instanceSettings{TrustProxy: c.trust, ProxyHops: c.hops})
 		r := httptest.NewRequest("GET", "/", nil)
 		r.RemoteAddr = c.remote
 		for _, v := range c.xff {

@@ -21,6 +21,7 @@
       <h1>Jiggered</h1>
       <p class="tag">How much have you got left today?</p>
     </div>
+    <p class="setup" id="setup" hidden>No one has an account yet. On the server, run <code>docker compose exec jiggered /jiggered user add NAME --admin</code>, then sign in here with the password it prints.</p>
     <label for="username">Username<input id="username" name="username" autocomplete="username" autocapitalize="none" required></label>
     <label for="password">Password<input id="password" name="password" type="password" autocomplete="current-password" required></label>
     <p class="err" id="err" aria-live="polite"></p>

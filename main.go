@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -18,7 +19,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -40,14 +40,15 @@ const (
 	maxBodySize = 256 << 10
 )
 
+// config is what has to come from outside the database: where it is and where to listen. The rest is
+// optional and only seeds the database. Older versions needed a username and password here for the first
+// admin, and the proxy and cookie settings; they are read once to fill in what the database doesn't have yet.
 type config struct {
 	addr         string
 	dbPath       string
-	username     string // first admin; only used while no accounts exist
-	passwordHash []byte // bcrypt; same
-	secureCookie bool
-	trustProxy   bool
-	proxyHops    int
+	username     string            // seed: the first admin, while there are no accounts
+	passwordHash []byte            // seed: bcrypt
+	seeds        map[string]string // seed: instance settings, from APP_SECURE_COOKIE, APP_TRUST_PROXY, APP_PROXY_HOPS
 }
 
 type server struct {
@@ -58,6 +59,7 @@ type server struct {
 	hashSem   chan struct{}
 	dummyHash []byte // compared against when the username doesn't exist
 	backupMu  sync.Mutex
+	cache     settingsCache
 }
 
 func main() {
@@ -84,6 +86,9 @@ func main() {
 
 	s, err := newServer(cfg, db)
 	if err != nil {
+		log.Fatal(err)
+	}
+	if err := s.seedSettings(context.Background()); err != nil {
 		log.Fatal(err)
 	}
 	if err := s.ensureFirstAdmin(context.Background()); err != nil {
@@ -129,25 +134,33 @@ func newServer(cfg config, db *sql.DB) (*server, error) {
 	}, nil
 }
 
-// ensureFirstAdmin creates the first account from the environment when there are none yet.
+// ensureFirstAdmin creates the first account from the environment, if it was given one and there are none.
+// With neither, the server still starts: the person creates the first admin from the command line.
 // (Databases from before accounts existed get theirs during the upgrade, see migrateAccounts.)
 func (s *server) ensureFirstAdmin(ctx context.Context) error {
 	n, err := s.userCount(ctx)
-	if err != nil || n > 0 {
+	if err != nil {
 		return err
+	}
+	if n > 0 {
+		if s.cfg.passwordHash != nil {
+			log.Printf("ignoring APP_USERNAME and APP_PASSWORD*: accounts already exist, and the database is the source of truth (manage people in Admin, or with `jiggered user`)")
+		}
+		return nil
 	}
 	seed, err := s.cfg.seed()
 	if err != nil {
 		return err
 	}
 	if seed == nil {
-		return errors.New("no accounts exist yet: set APP_PASSWORD_HASH (recommended) or APP_PASSWORD to create the first admin")
+		log.Printf("no accounts yet. Create the first admin with: jiggered user add NAME --admin (in Docker: docker compose exec jiggered /jiggered user add NAME --admin)")
+		return nil
 	}
 	if _, err := s.createUser(ctx, seed.name, seed.hash, roleAdmin, false); err != nil {
 		return err
 	}
 	s.audit(ctx, "system", "admin_created", seed.name, "from APP_USERNAME", "")
-	log.Printf("created the first admin %q", seed.name)
+	log.Printf("created the first admin %q from APP_USERNAME", seed.name)
 	return nil
 }
 
@@ -165,21 +178,21 @@ func (s *server) maintain() {
 
 func loadConfig() (config, error) {
 	cfg := config{
-		addr:         envOr("APP_ADDR", ":8080"),
-		dbPath:       envOr("APP_DB", defaultDB),
-		username:     envOr("APP_USERNAME", "paul"),
-		secureCookie: os.Getenv("APP_SECURE_COOKIE") != "false",
-		trustProxy:   os.Getenv("APP_TRUST_PROXY") == "true",
-		proxyHops:    1,
+		addr:     envOr("APP_ADDR", ":8080"),
+		dbPath:   envOr("APP_DB", defaultDB),
+		username: envOr("APP_USERNAME", "paul"),
+		seeds:    map[string]string{},
 	}
-	if v := os.Getenv("APP_PROXY_HOPS"); v != "" {
-		n, err := strconv.Atoi(v)
-		if err != nil || n < 1 || n > 10 {
-			return cfg, errors.New("APP_PROXY_HOPS must be a number from 1 to 10")
+	for _, k := range settingKeys {
+		v, ok := seedFromEnv(k, os.Getenv(settingEnv[k]))
+		if !ok {
+			continue
 		}
-		cfg.proxyHops = n
+		if _, err := parseSetting(k, v); err != nil {
+			return cfg, fmt.Errorf("%s: %w", settingEnv[k], err)
+		}
+		cfg.seeds[k] = v
 	}
-	// The password is only needed to create the first admin, so it is optional here.
 	switch {
 	case os.Getenv("APP_PASSWORD_HASH") != "":
 		cfg.passwordHash = []byte(os.Getenv("APP_PASSWORD_HASH"))
@@ -235,7 +248,16 @@ func (s *server) routes() http.Handler {
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
 		}
-		serveFile(w, r, static, "login.html")
+		page, err := fs.ReadFile(static, "login.html")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		if n, err := s.userCount(r.Context()); err == nil && n == 0 {
+			// Nobody has an account yet: say how to make the first one.
+			page = bytes.Replace(page, []byte(`id="setup" hidden`), []byte(`id="setup"`), 1)
+		}
+		serveHTML(w, page)
 	})
 	mux.HandleFunc("POST /login", s.handleLogin)
 	mux.HandleFunc("POST /logout", s.handleLogout)
@@ -266,6 +288,8 @@ func (s *server) routes() http.Handler {
 	mux.Handle("POST /api/admin/users/{id}/reset-password", admin(s.adminResetPassword))
 	mux.Handle("POST /api/admin/users/{id}/revoke-sessions", admin(s.adminRevokeSessions))
 	mux.Handle("GET /api/admin/audit", admin(s.adminAudit))
+	mux.Handle("GET /api/admin/settings", admin(s.adminGetSettings))
+	mux.Handle("PATCH /api/admin/settings", admin(s.adminPatchSettings))
 	mux.Handle("POST /api/admin/backup", admin(s.adminBackup))
 
 	mux.Handle("GET /", auth(func(w http.ResponseWriter, r *http.Request) {
@@ -295,9 +319,13 @@ func serveFile(w http.ResponseWriter, r *http.Request, fsys fs.FS, name string) 
 		http.NotFound(w, r)
 		return
 	}
+	serveHTML(w, b)
+}
+
+func serveHTML(w http.ResponseWriter, page []byte) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	w.Write(b)
+	w.Write(page)
 }
 
 // static serves the embedded web files. Each gets an ETag and no-cache, so

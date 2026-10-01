@@ -8,10 +8,15 @@ function say(el, text, bad = false) {
   el.classList.toggle("err", bad);
 }
 
-export function init(ctx) {
-  const { me } = ctx;
+// identity says who you are and, for an admin, what that allows. It is re-run when the role changes.
+export function identity({ me }) {
   $("acc-name").textContent = me.username;
   $("acc-role").textContent = me.role === "admin" ? "You're an admin: you can add people and manage accounts." : "";
+}
+
+export function init(ctx) {
+  const { me } = ctx;
+  identity(ctx);
 
   // ---- password ----
   $("pwform").addEventListener("submit", async e => {

@@ -168,9 +168,9 @@ func (s *server) clientIP(r *http.Request) string {
 	if err != nil {
 		host = r.RemoteAddr
 	}
-	if s.cfg.trustProxy {
+	if st := s.settings(); st.TrustProxy {
 		parts := strings.Split(strings.Join(r.Header.Values("X-Forwarded-For"), ","), ",")
-		if i := len(parts) - s.cfg.proxyHops; i >= 0 {
+		if i := len(parts) - st.ProxyHops; i >= 0 {
 			if v := strings.TrimSpace(parts[i]); net.ParseIP(v) != nil {
 				host = v
 			}
@@ -298,12 +298,12 @@ func (s *server) newSession(ctx context.Context, userID int64, ip, ua string) (s
 func (s *server) setSessionCookie(w http.ResponseWriter, token string, exp time.Time) {
 	http.SetCookie(w, &http.Cookie{
 		Name: cookieName, Value: token, Path: "/", Expires: exp,
-		HttpOnly: true, Secure: s.cfg.secureCookie, SameSite: http.SameSiteLaxMode,
+		HttpOnly: true, Secure: s.settings().SecureCookie, SameSite: http.SameSiteLaxMode,
 	})
 }
 
 func (s *server) clearSessionCookie(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{Name: cookieName, Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: s.cfg.secureCookie, SameSite: http.SameSiteLaxMode})
+	http.SetCookie(w, &http.Cookie{Name: cookieName, Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: s.settings().SecureCookie, SameSite: http.SameSiteLaxMode})
 }
 
 func (s *server) handleLogout(w http.ResponseWriter, r *http.Request) {

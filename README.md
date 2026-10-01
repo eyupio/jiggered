@@ -14,16 +14,17 @@ people (a household, a support group), each with their own account.
 - **Account:** change your password, see and sign out your devices, set your own budget, activities, symptoms,
   triggers and date format, download or restore your data, delete your account.
 - **Admin:** add people, reset passwords, disable or remove accounts, sign devices out, read the activity log,
-  download a backup.
+  say whether a reverse proxy sits in front, download a backup. The tab exists only for admins.
 
 Add it to your phone's home screen and it opens like an app, even with no signal. What you log while offline
 waits on the phone and is sent when you're back online.
 
 ## People and the admin
 
-There is no sign-up page. The first account is created from `APP_USERNAME` and `APP_PASSWORD_HASH` and is an
-admin. Admins add everyone else from the **Admin** tab (or with the command line, below): the new person gets a
-random temporary password, shown once, and must choose their own the first time they sign in.
+There is no sign-up page. You create the first account, an admin, from the command line (see **Run it**). Admins
+add everyone else from the **Admin** tab or the command line: the new person gets a random temporary password,
+shown once, and must choose their own the first time they sign in. Accounts, and everything else about how
+Jiggered behaves, live in the database; the environment only says where that is.
 
 **What an admin can see:** who has an account, their role, when they last signed in, how many entries they have
 and how much space it takes, and how many devices they're signed in on. **What they can't:** anyone's check-ins,
@@ -40,6 +41,8 @@ and tell people who is running it.
 - Each person can store up to 10,000 entries and 25 MB.
 - If you lose the admin's password, reset it from the command line (below). That works even when the web page
   is out of reach.
+- The Admin tab doesn't exist for anyone else: the page only loads it, and the server only answers its requests,
+  for admins, and a change of role takes effect as soon as the app is next opened.
 
 ## Image
 
@@ -67,15 +70,17 @@ echo "$GHCR_TOKEN" | docker login ghcr.io -u jnnngs --password-stdin
 ## Run it
 
 ```sh
-cp .env.example .env
-docker compose pull
-docker compose run --rm jiggered hash 'your-password'
-# paste the hash into .env as APP_PASSWORD_HASH='…' (keep the single quotes)
 docker compose up -d
+docker compose exec jiggered /jiggered user add paul --admin     # prints a temporary password
 ```
 
-It listens on `127.0.0.1:8080`. Put it behind your reverse proxy with HTTPS
-(Caddy, Traefik, nginx). Session cookies are HTTPS-only by default.
+That's all the setup there is: no `.env` to edit. Open the page, sign in as `paul` with the temporary password,
+and choose your own. Until someone has an account, the sign-in page says how to make one.
+
+It listens on `127.0.0.1:8080`. Put it behind your reverse proxy with HTTPS (Caddy, Traefik, nginx), then tick
+**Jiggered runs behind a reverse proxy** in **Admin, Connection** so sign-in lockouts and the device list see
+real addresses (the page shows what Jiggered thinks your address is, so you can check it's right). Session
+cookies are HTTPS-only by default.
 
 Caddy example:
 
@@ -90,37 +95,54 @@ jiggered.example.com {
 ### Local test without HTTPS
 
 ```sh
-APP_PASSWORD=testpass123 APP_SECURE_COOKIE=false APP_DB=./jiggered.db go run .
+APP_PASSWORD=testpass123 APP_SECURE_COOKIE=false APP_DB=./jiggered.db go run .   # the old variables still work for a first run
 # or build the image yourself: docker build -t ghcr.io/jnnngs/jiggered:latest .
 ```
 
-Then open http://localhost:8080 and sign in as `paul`.
+Then open http://localhost:8080 and sign in as `paul`. (Plain-http testing is the one time to turn secure cookies
+off, with `go run . settings set secure_cookie false` after the first run, or `APP_SECURE_COOKIE=false` on the very
+first run.)
 
 ### Upgrading from the single-user version
 
 Pull and start with your existing `.env`. Your `APP_USERNAME` becomes the first admin and keeps all your data, and
 you stay signed in. Before it changes anything it saves a copy of your database as
-`/data/backups/pre-upgrade-*.db`.
+`/data/backups/pre-upgrade-*.db`. Your `APP_TRUST_PROXY`, `APP_SECURE_COOKIE` and `APP_PROXY_HOPS` are copied into
+the database once; from then on the database is the source, and you can delete those lines (and
+`APP_PASSWORD_HASH`) from `.env`.
 
-After that, `APP_PASSWORD_HASH` is only used if the database ever has no accounts at all. Change your password in
-**Account**. An older version can't read the upgraded database; to go back, restore the `pre-upgrade` copy
-(see **Backup and restore**).
+Change your password in **Account**. An older version can't read the upgraded database; to go back, restore the
+`pre-upgrade` copy (see **Backup and restore**).
 
 ## Configuration
 
+The environment only has to say where things are, and both have sensible defaults:
+
 | Variable | Default | Purpose |
 |---|---|---|
-| `APP_USERNAME` | `paul` | Name of the first admin. Used once, to create it. |
-| `APP_PASSWORD_HASH` | | bcrypt hash for the first admin (recommended). Used once. |
-| `APP_PASSWORD` | | Plain password for the first admin, if no hash is set (min 8 chars). Used once. |
-| `APP_SECURE_COOKIE` | `true` | Set `false` only for plain-HTTP testing |
-| `APP_TRUST_PROXY` | `false` | Take the client address from `X-Forwarded-For`, for sign-in lockouts and the device list |
-| `APP_PROXY_HOPS` | `1` | How many trusted proxies sit in front of Jiggered (only with `APP_TRUST_PROXY`) |
+| `APP_DB` | `/data/jiggered.db` | The SQLite file. Everything else lives in it. |
 | `APP_ADDR` | `:8080` | Listen address |
-| `APP_DB` | `/data/jiggered.db` | SQLite file |
 
-With `APP_TRUST_PROXY`, the address is read from the **right-hand** end of `X-Forwarded-For`, which is the entry
-your own proxy added. Anything further left was sent by the client and is ignored.
+Everything else is stored in the database, so it survives upgrades, travels with a backup, and an admin can change
+it while the app runs:
+
+| Setting | Default | What it does | Change it in |
+|---|---|---|---|
+| `trust_proxy` | off | Take the client's address from `X-Forwarded-For` (needed behind a reverse proxy) | Admin, Connection |
+| `proxy_hops` | `1` | How many proxies sit in front. The address is read from the **right-hand** end of `X-Forwarded-For`: the entry your own proxy added. Anything further left was sent by the client and is ignored. | Admin, Connection |
+| `secure_cookie` | on | Sign-in cookies only travel over HTTPS. Turn off only to test over plain http. | `jiggered settings set secure_cookie false` |
+
+`secure_cookie` isn't in the web page on purpose: turning it on while you're using plain http would lock you out.
+From the command line, `jiggered settings` lists all three and `jiggered settings set KEY VALUE` changes one; a
+running server notices within a couple of seconds.
+
+### Environment variables from earlier versions
+
+`APP_USERNAME`, `APP_PASSWORD_HASH`, `APP_PASSWORD`, `APP_SECURE_COOKIE`, `APP_TRUST_PROXY` and `APP_PROXY_HOPS`
+are not needed any more. If they are set they are read **once**, to fill in something the database doesn't have
+yet (the first admin, while there are no accounts, and the settings above), and the log says when it does. After
+that the database wins: an environment value that disagrees is ignored, and the log says so. `docker compose run
+--rm jiggered hash 'password'` still prints a bcrypt hash if you want to seed the first admin that way.
 
 ## Looking after it
 
@@ -134,6 +156,7 @@ docker compose exec jiggered /jiggered user add bob --admin
 docker compose exec jiggered /jiggered user reset-password alice # new temporary password; signs her out everywhere
 docker compose exec jiggered /jiggered user disable alice        # also enable, promote, demote
 docker compose exec jiggered /jiggered user delete alice --yes   # her account and everything she logged
+docker compose exec jiggered /jiggered settings                  # show the instance settings
 ```
 
 If the container is stopped, use `docker compose run --rm jiggered user list` instead.

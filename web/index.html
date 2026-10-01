@@ -29,7 +29,6 @@
     <button role="tab" id="t-episode" aria-selected="false" data-tab="episode">Episode</button>
     <button role="tab" id="t-history" aria-selected="false" data-tab="history">History</button>
     <button role="tab" id="t-account" aria-selected="false" data-tab="account">Account</button>
-    <button role="tab" id="t-admin" aria-selected="false" data-tab="admin" hidden>Admin</button>
   </nav>
 
   <section id="today-panel">
@@ -195,42 +194,6 @@
         <button class="danger" type="submit">Delete my account</button>
         <p class="msg" id="del-msg" aria-live="polite"></p>
       </form>
-    </div>
-  </section>
-
-  <section id="admin-panel" hidden>
-    <div class="panel">
-      <h2>People</h2>
-      <p class="meta">You can add people, reset passwords, sign devices out and remove accounts. You can't read anyone's check-ins or episodes here, only how many they have.</p>
-      <ul class="list people" id="users"></ul>
-      <p class="msg" id="users-msg" aria-live="polite"></p>
-    </div>
-    <div class="panel">
-      <h2>Add someone</h2>
-      <form id="adduser">
-        <label class="field">Username<input type="text" id="new-name" autocomplete="off" autocapitalize="none" maxlength="64" required></label>
-        <label class="radio"><input type="checkbox" id="new-admin"> Can manage people (admin)</label>
-        <button class="primary" type="submit">Create account</button>
-        <p class="msg" id="adduser-msg" aria-live="polite"></p>
-      </form>
-      <div class="reveal" id="reveal" hidden>
-        <p><b id="reveal-who"></b> can sign in with this temporary password. It is shown once. They'll choose their own at first sign-in.</p>
-        <code id="reveal-pw"></code>
-        <button class="secondary" id="reveal-copy" type="button">Copy</button>
-        <button class="x" id="reveal-hide" type="button">Hide</button>
-      </div>
-    </div>
-    <div class="panel">
-      <h2>Activity</h2>
-      <ul class="list audit" id="audit"></ul>
-      <button class="secondary" id="audit-more" hidden>Show older</button>
-    </div>
-    <div class="panel">
-      <h2>Backup</h2>
-      <p class="meta">Downloads a copy of the whole database. It includes everyone's check-ins and episodes, so keep it somewhere private. Restoring means putting the file back in the data folder (see the README).</p>
-      <button class="secondary" id="backup">Download backup</button>
-      <p class="msg" id="backup-msg" aria-live="polite"></p>
-      <p class="meta" id="admin-version"></p>
     </div>
   </section>
 

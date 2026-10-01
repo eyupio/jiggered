@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -242,4 +244,63 @@ func (s *server) adminAudit(w http.ResponseWriter, r *http.Request) {
 		out = append(out, e)
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// settingsOut is the instance settings plus what Jiggered makes of the admin's own connection, so they can
+// tell whether the reverse-proxy setting is right: if "client_ip" is their own address, it is.
+func (s *server) settingsOut(r *http.Request) map[string]any {
+	st := s.settings()
+	remote, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		remote = r.RemoteAddr
+	}
+	return map[string]any{
+		"secure_cookie": st.SecureCookie, // shown, not changed here: turning it on over plain http would lock you out
+		"trust_proxy":   st.TrustProxy,
+		"proxy_hops":    st.ProxyHops,
+		"seen": map[string]string{
+			"remote_addr":   remote,
+			"forwarded_for": cleanText(strings.Join(r.Header.Values("X-Forwarded-For"), ", "), 200),
+			"client_ip":     s.clientIP(r),
+		},
+	}
+}
+
+func (s *server) adminGetSettings(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, s.settingsOut(r))
+}
+
+func (s *server) adminPatchSettings(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		TrustProxy *bool `json:"trust_proxy"`
+		ProxyHops  *int  `json:"proxy_hops"`
+	}
+	if !readJSON(w, r, &in) {
+		return
+	}
+	ctx, me := r.Context(), authOf(r).u
+	before := s.settings().strings()
+	change := func(key, value string) bool {
+		canon, err := parseSetting(key, value)
+		if err != nil {
+			jsonError(w, http.StatusBadRequest, err.Error())
+			return false
+		}
+		if canon == before[key] {
+			return true
+		}
+		if _, err := s.setSetting(ctx, key, canon); err != nil {
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return false
+		}
+		s.audit(ctx, me.Username, "settings_changed", "", fmt.Sprintf("%s: %s -> %s", key, before[key], canon), s.clientIP(r))
+		return true
+	}
+	if in.TrustProxy != nil && !change("trust_proxy", strconv.FormatBool(*in.TrustProxy)) {
+		return
+	}
+	if in.ProxyHops != nil && !change("proxy_hops", strconv.Itoa(*in.ProxyHops)) {
+		return
+	}
+	writeJSON(w, http.StatusOK, s.settingsOut(r))
 }

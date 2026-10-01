@@ -7,7 +7,7 @@ import * as todayView from "./today.js";
 import * as episodesView from "./episodes.js";
 import * as historyView from "./history.js";
 import * as accountView from "./account.js";
-import * as adminView from "./admin.js";
+// admin.js is only loaded, and its tab only created, for admins: see syncAdmin
 
 const ME_KEY = "jiggered:me";
 const storage = (() => {
@@ -34,8 +34,6 @@ function fatal(text) {
   document.querySelector(".wrap").replaceChildren(p);
 }
 
-const TABS = ["today", "episode", "history", "account", "admin"];
-
 (async function boot() {
   const me = await getMe();
   if (me === SIGN_IN) return;
@@ -46,7 +44,7 @@ const TABS = ["today", "episode", "history", "account", "admin"];
   // A temporary password was just handed out: nothing else works until it is changed.
   if (me.must_change_password) {
     $("tabs").hidden = true;
-    for (const t of TABS) if (t !== "account") $(t + "-panel").hidden = true;
+    document.querySelectorAll("section[id$=-panel]").forEach(p => { p.hidden = p.id !== "account-panel" });
     document.querySelectorAll("#account-panel > .panel:not(#pw-panel)").forEach(p => { p.hidden = true });
     $("sync").hidden = true;
     $("banner").hidden = false;
@@ -57,10 +55,14 @@ const TABS = ["today", "episode", "history", "account", "admin"];
     return;
   }
 
+  // Several things can notice at once that the session has ended; the browser should be sent to sign in only once.
+  let leaving = false;
+  const toSignIn = () => { if (!leaving) { leaving = true; location.href = "/login" } };
+
   const store = createStore({
     storage,
     onChange: () => { renderHeader(); renderActive(); updateSync() },
-    onAuthLost: () => { location.href = "/login" },
+    onAuthLost: toSignIn,
   });
 
   let settingsKey, settingsVal;
@@ -74,26 +76,59 @@ const TABS = ["today", "episode", "history", "account", "admin"];
     },
     toast,
     go,
-    leave() { store.clear(); forget(); location.href = "/login" }, // wipe this device's copy, then go to the sign-in page
+    leave() { leaving = true; store.clear(); forget(); location.href = "/login" }, // wipe this device's copy, then go to the sign-in page
     openDay(date) { go("today"); views.today.open(date) },
     editEpisode(id) { views.episode.edit(id) },
   };
   const views = {
     today: todayView.init(ctx), episode: episodesView.init(ctx), history: historyView.init(ctx),
-    account: accountView.init(ctx), admin: adminView.init(ctx),
+    account: accountView.init(ctx),
   };
 
   let active = "today";
   function go(tab) {
-    if (tab === "admin" && me.role !== "admin") tab = "today";
+    if (!views[tab]) tab = "today"; // e.g. the Admin tab of someone who has just stopped being an admin
     active = tab;
-    for (const t of TABS) { $("t-" + t).setAttribute("aria-selected", t === tab); $(t + "-panel").hidden = t !== tab }
+    for (const b of document.querySelectorAll("#tabs button")) b.setAttribute("aria-selected", b.dataset.tab === tab);
+    for (const t of Object.keys(views)) $(t + "-panel").hidden = t !== tab;
     views[tab].show();
+    $("t-" + tab).scrollIntoView({ block: "nearest", inline: "nearest" }); // on a narrow phone the tab bar scrolls sideways
     scrollTo(0, 0);
   }
   const renderActive = () => views[active] && views[active].render();
   $("tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) go(b.dataset.tab) });
-  $("t-admin").hidden = me.role !== "admin";
+
+  // The Admin tab isn't hidden for everyone else, it doesn't exist: the button, the panel and the code behind
+  // them are only added while the server says this person is an admin, and taken away again if that changes.
+  let adminSync = Promise.resolve();
+  const syncAdmin = () => (adminSync = adminSync.then(async () => {
+    if (me.role === "admin" && !views.admin) {
+      try {
+        const { mount } = await import("./admin.js");
+        if (me.role === "admin" && !views.admin) views.admin = mount(ctx);
+      } catch (e) { console.error("couldn't load the admin tab", e) }
+    } else if (me.role !== "admin" && views.admin) {
+      const open = active === "admin";
+      views.admin.destroy();
+      delete views.admin;
+      if (open) go("today");
+    }
+  }));
+
+  // Roles can change while the app is open (an admin promotes or demotes you, resets your password, removes you).
+  async function refreshMe() {
+    let r;
+    try { r = await fetch("/api/me", { credentials: "same-origin" }) } catch { return } // offline: keep what we know
+    if (r.status === 401) { forget(); toSignIn(); return }
+    if (!r.ok) return;
+    const fresh = await r.json();
+    if (fresh.must_change_password) { location.reload(); return } // a reset password: show the change-it screen
+    remember(fresh);
+    Object.assign(me, fresh);
+    $("who").textContent = me.username;
+    accountView.identity(ctx);
+    await syncAdmin();
+  }
 
   // ---- the line at the bottom: are my changes safe? ----
   function updateSync() {
@@ -130,12 +165,12 @@ const TABS = ["today", "episode", "history", "account", "admin"];
     renderHeader();
     if (ctx.today() !== lastToday) { lastToday = ctx.today(); renderActive() }
   }
-  const refresh = () => { tick(); store.load() };
+  const refresh = () => { tick(); store.load(); refreshMe() };
   setInterval(tick, 30_000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refresh() });
   addEventListener("focus", tick);
   addEventListener("pageshow", refresh);
-  addEventListener("online", () => { store.flush(); store.load() });
+  addEventListener("online", () => { store.flush(); store.load(); refreshMe() });
 
   // ---- sign out: never silently throw away changes that haven't reached the server ----
   $("signout").addEventListener("submit", async e => {
@@ -155,6 +190,7 @@ const TABS = ["today", "episode", "history", "account", "admin"];
   }
 
   store.hydrate(me.id); // after everything its change listener touches exists
+  await syncAdmin();
   go("today");
   updateSync();
   tick();
