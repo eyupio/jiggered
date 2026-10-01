@@ -196,9 +196,12 @@ It checks the file first, keeps the database it replaces as `/data/backups/pre-r
 ## Security
 
 - bcrypt password check. Ten failed sign-ins per address and ten per account in 15 minutes lock that address or
-  account out for the rest of the window, and only a few passwords are checked at once.
-- Random session tokens, stored hashed, HttpOnly cookies, 30-day expiry. Signing out, changing the password,
-  disabling or deleting the account ends sessions; you can also sign out other devices yourself.
+  account out for the rest of the window, and only a few passwords are checked at once. A guess is counted as it
+  starts, so a burst of requests gets no more tries than a slow trickle. A locked account answers exactly like a
+  wrong password, so the sign-in page can't be used to find out which usernames exist.
+- Random session tokens, stored hashed, HttpOnly cookies, 30-day expiry, at most 25 signed-in devices per account
+  (the oldest are signed out beyond that). Signing out, changing the password, disabling or deleting the account
+  ends sessions, including one whose sign-in was already under way; you can also sign out other devices yourself.
 - Writes need a same-origin header, and browsers' `Sec-Fetch-Site` is checked on every write, which also stops an
   attacker signing you in to their own account. A strict Content-Security-Policy; fonts are served from the app,
   so it makes no requests to third parties.

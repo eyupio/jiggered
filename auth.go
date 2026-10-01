@@ -171,12 +171,28 @@ func (s *server) clientIP(r *http.Request) string {
 	if st := s.settings(); st.TrustProxy {
 		parts := strings.Split(strings.Join(r.Header.Values("X-Forwarded-For"), ","), ",")
 		if i := len(parts) - st.ProxyHops; i >= 0 {
-			if v := strings.TrimSpace(parts[i]); net.ParseIP(v) != nil {
+			if v := forwardedAddr(parts[i]); v != "" {
 				host = v
 			}
 		}
 	}
 	return host
+}
+
+// forwardedAddr reads one X-Forwarded-For entry: a bare address, or one with a port as some proxies add it
+// ("198.51.100.7:51234", "[2001:db8::7]:443"). It returns "" for anything else.
+func forwardedAddr(v string) string {
+	v = strings.TrimSpace(v)
+	if net.ParseIP(v) != nil {
+		return v
+	}
+	if host, _, err := net.SplitHostPort(v); err == nil && net.ParseIP(host) != nil {
+		return host
+	}
+	if strings.HasPrefix(v, "[") && strings.HasSuffix(v, "]") && net.ParseIP(v[1:len(v)-1]) != nil {
+		return v[1 : len(v)-1]
+	}
+	return ""
 }
 
 // ipKey is what the limiter counts: a whole /64 for IPv6, since one machine
@@ -221,36 +237,47 @@ func (s *server) hashPassword(pw string) (string, error) {
 
 func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	ip := s.clientIP(r)
-	if !s.ipLimit.allow(ipKey(ip)) {
-		http.Redirect(w, r, "/login?e=locked", http.StatusSeeOther)
-		return
-	}
 	r.Body = http.MaxBytesReader(w, r.Body, 4096)
 	if err := r.ParseForm(); err != nil {
 		http.Redirect(w, r, "/login?e=bad", http.StatusSeeOther)
 		return
 	}
 	ctx := r.Context()
-	u, hash, err := s.loginUser(ctx, normUsername(r.PostFormValue("username")))
-	if err != nil {
-		http.Error(w, "server error", http.StatusInternalServerError)
-		return
-	}
-	if u == nil {
-		hash = s.dummyHash // unknown name: still spend the bcrypt time, so timing doesn't reveal which names exist
-	} else if !s.userLimit.allow(u.Username) {
+
+	// Each guess is counted the moment it is allowed to start, not when its answer comes back. Otherwise a burst of
+	// requests all pass the check before any failure is recorded, and "ten tries" turn into dozens. The count stands
+	// as the failure; giveBack takes it out again when the password was right or was never checked.
+	giveBackIP, ok := s.ipLimit.take(ipKey(ip))
+	if !ok {
 		http.Redirect(w, r, "/login?e=locked", http.StatusSeeOther)
 		return
 	}
-	ok, err := s.checkHash(hash, r.PostFormValue("password"))
+	u, hash, err := s.loginUser(ctx, normUsername(r.PostFormValue("username")))
 	if err != nil {
+		giveBackIP()
+		http.Error(w, "server error", http.StatusInternalServerError)
+		return
+	}
+	giveBackUser := func() {}
+	locked := false
+	if u == nil {
+		hash = s.dummyHash // unknown name: still spend the bcrypt time, so timing doesn't reveal which names exist
+	} else if give, ok := s.userLimit.take(u.Username); ok {
+		giveBackUser = give
+	} else {
+		// A locked account answers exactly like a wrong password, after the same wait. Saying "locked" would tell
+		// anyone who can send ten guesses which usernames exist.
+		locked, hash = true, s.dummyHash
+	}
+	good, err := s.checkHash(hash, r.PostFormValue("password"))
+	if err != nil {
+		giveBackIP()
+		giveBackUser()
 		http.Redirect(w, r, "/login?e=busy", http.StatusSeeOther)
 		return
 	}
-	if !ok || u == nil {
-		s.ipLimit.fail(ipKey(ip))
-		if u != nil {
-			s.userLimit.fail(u.Username)
+	if locked || !good || u == nil {
+		if u != nil && !locked {
 			s.audit(ctx, u.Username, "login_failed", u.Username, "", ip)
 			log.Printf("failed login for %q from %s", u.Username, ip)
 		} else {
@@ -259,16 +286,23 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login?e=bad", http.StatusSeeOther)
 		return
 	}
+	// The password was right, so this was not a failed guess. The address's earlier failures are left to age out
+	// rather than cleared: otherwise anyone with an account could sign in between guesses to get unlimited tries
+	// at other people's.
+	giveBackIP()
+	s.userLimit.reset(u.Username)
 	if u.Disabled {
 		s.audit(ctx, u.Username, "login_refused", u.Username, "account is disabled", ip)
 		http.Redirect(w, r, "/login?e=disabled", http.StatusSeeOther)
 		return
 	}
-	s.userLimit.reset(u.Username)
-	// The IP's failures are left to age out rather than cleared: otherwise anyone
-	// with an account could log in between guesses to get unlimited tries at others.
 
-	token, exp, err := s.newSession(ctx, u.ID, ip, r.UserAgent())
+	token, exp, err := s.newSession(ctx, u.ID, hash, ip, r.UserAgent())
+	if errors.Is(err, errStaleLogin) {
+		log.Printf("sign-in for %q dropped: the account changed while the password was being checked", u.Username)
+		http.Redirect(w, r, "/login?e=bad", http.StatusSeeOther)
+		return
+	}
 	if err != nil {
 		http.Error(w, "server error", http.StatusInternalServerError)
 		return
@@ -279,7 +313,18 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-func (s *server) newSession(ctx context.Context, userID int64, ip, ua string) (string, time.Time, error) {
+// maxSessionsPerUser is how many signed-in devices one account keeps; the oldest are signed out beyond it, so
+// neither a login loop nor a forgotten script can make the table (or the device list) grow without bound.
+const maxSessionsPerUser = 25
+
+// errStaleLogin means the account changed between checking its password and creating the session.
+var errStaleLogin = errors.New("the account changed while signing in")
+
+// newSession starts a session for a sign-in that checked the password against `verified`. Checking takes ~300ms of
+// bcrypt, and a password change, reset or disable that lands meanwhile has already ended the account's sessions;
+// without this check the late one would be created anyway and outlive the revocation. So the insert only happens
+// if the account still has the password that was checked and is still enabled.
+func (s *server) newSession(ctx context.Context, userID int64, verified []byte, ip, ua string) (string, time.Time, error) {
 	token, err := randomHex(32)
 	if err != nil {
 		return "", time.Time{}, err
@@ -290,9 +335,21 @@ func (s *server) newSession(ctx context.Context, userID int64, ip, ua string) (s
 	}
 	now := time.Now()
 	exp := now.Add(sessionTTL)
-	_, err = s.db.ExecContext(ctx, `INSERT INTO sessions(token_hash, sid, user_id, created_at, last_seen_at, expires_at, ip, user_agent)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?)`, hashToken(token), sid, userID, now.Unix(), now.Unix(), exp.Unix(), ip, cleanText(ua, 200))
-	return token, exp, err
+	res, err := s.db.ExecContext(ctx, `INSERT INTO sessions(token_hash, sid, user_id, created_at, last_seen_at, expires_at, ip, user_agent)
+		SELECT ?, ?, id, ?, ?, ?, ?, ? FROM users WHERE id = ? AND password_hash = ? AND disabled = 0`,
+		hashToken(token), sid, now.Unix(), now.Unix(), exp.Unix(), ip, cleanText(ua, 200), userID, string(verified))
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	if n, _ := res.RowsAffected(); n != 1 {
+		return "", time.Time{}, errStaleLogin
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = ? AND token_hash NOT IN
+		(SELECT token_hash FROM sessions WHERE user_id = ? ORDER BY last_seen_at DESC, rowid DESC LIMIT ?)`,
+		userID, userID, maxSessionsPerUser); err != nil {
+		log.Printf("trimming old sessions: %v", err) // the new session is fine; the next sign-in trims again
+	}
+	return token, exp, nil
 }
 
 func (s *server) setSessionCookie(w http.ResponseWriter, token string, exp time.Time) {
@@ -358,22 +415,42 @@ func (l *loginLimiter) recent(key string) []time.Time {
 	return kept
 }
 
-func (l *loginLimiter) allow(key string) bool {
+// take reserves one attempt for key before the password is checked, so that a burst of requests can't all pass a
+// check that only counts finished failures. It reports false when the key has used up its budget. The reservation
+// stands as the recorded failure; call giveBack when the attempt turns out fine (the password was right) or was
+// never checked (the server was too busy).
+func (l *loginLimiter) take(key string) (giveBack func(), ok bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	return len(l.recent(key)) < l.max
-}
-
-func (l *loginLimiter) fail(key string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	if len(l.recent(key)) >= l.max {
+		return nil, false
+	}
 	if _, known := l.fails[key]; !known && len(l.fails) >= limiterMaxKeys {
 		l.sweepLocked()
 		if len(l.fails) >= limiterMaxKeys {
-			return // full of live entries: stop tracking newcomers rather than grow without bound
+			return func() {}, true // full of live entries: let it through untracked rather than grow without bound
 		}
 	}
-	l.fails[key] = append(l.recent(key), time.Now())
+	at := time.Now()
+	l.fails[key] = append(l.recent(key), at)
+	return func() { l.give(key, at) }, true
+}
+
+func (l *loginLimiter) give(key string, at time.Time) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	ts := l.fails[key]
+	for i, t := range ts {
+		if t.Equal(at) {
+			ts = append(ts[:i], ts[i+1:]...)
+			break
+		}
+	}
+	if len(ts) == 0 {
+		delete(l.fails, key)
+		return
+	}
+	l.fails[key] = ts
 }
 
 func (l *loginLimiter) reset(key string) {

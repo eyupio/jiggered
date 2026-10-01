@@ -21,26 +21,29 @@ func (s *server) handleMe(w http.ResponseWriter, r *http.Request) {
 // the per-account failure budget with login, so a stolen cookie can't be used
 // to guess the password here without limit.
 func (s *server) verifyOwnPassword(w http.ResponseWriter, r *http.Request, u *user, pw string) bool {
-	if !s.userLimit.allow(u.Username) {
+	giveBack, ok := s.userLimit.take(u.Username) // counted as it starts, like a sign-in: see handleLogin
+	if !ok {
 		jsonError(w, http.StatusTooManyRequests, "Too many wrong passwords. Wait 15 minutes, then try again.")
 		return false
 	}
 	hash, err := s.passwordHash(r.Context(), u.ID)
 	if err != nil {
+		giveBack()
 		http.Error(w, "server error", http.StatusInternalServerError)
 		return false
 	}
-	ok, err := s.checkHash(hash, pw)
+	good, err := s.checkHash(hash, pw)
 	if err != nil {
+		giveBack()
 		jsonError(w, http.StatusServiceUnavailable, "Busy right now. Try again in a moment.")
 		return false
 	}
-	if !ok {
-		s.userLimit.fail(u.Username)
+	if !good {
 		s.audit(r.Context(), u.Username, "password_check_failed", u.Username, r.Method+" "+r.URL.Path, s.clientIP(r))
 		jsonError(w, http.StatusForbidden, "That isn't your current password.")
 		return false
 	}
+	giveBack()
 	return true
 }
 
