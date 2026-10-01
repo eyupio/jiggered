@@ -1,9 +1,10 @@
 // The Today tab: morning check-in, the points gauge, tapping activities. It can also show and edit a past day.
 
 import { $, html, setHTML, uid, fmtLongDay } from "./util.js";
-import { ADVICE, dayId, emptyDay, used, capOf, hhmm, addDays } from "./model.js";
+import { renderOngoing } from "./episodes.js";
+import { readableDay, balanceLabel, ADVICE, dayId, emptyDay, used, capOf, hhmm, addDays } from "./model.js";
 
-const costLabel = c => c > 0 ? "−" + c : "+" + -c;
+const costLabel = c => c > 0 ? "−" + c : c < 0 ? "+" + -c : "0";
 
 export function init(ctx) {
   let viewDate = null; // null follows the clock, so the screen moves on by itself at midnight
@@ -11,7 +12,7 @@ export function init(ctx) {
 
   const key = () => viewDate ?? ctx.today();
   const id = () => dayId(key());
-  const day = () => ctx.store.view(id()) ?? emptyDay(key());
+  const day = () => readableDay(ctx.store.view(id()), key());
   // Each change is an operation on the day, stamped with the budget in force so history keeps its own numbers.
   const op = (type, arg) => {
     const S = ctx.settings();
@@ -69,6 +70,8 @@ export function init(ctx) {
     $("sleep").checked = !!d.poorSleep;
     $("sleep-label").textContent = `Poor sleep last night (−${d.sleepPenalty ?? S.sleepPenalty} off ${past ? "this day" : "today"})`;
     setHTML($("left"), html`${left} <small>of ${cap}</small>`);
+    $("balance-label").textContent = balanceLabel(left, cap);
+    renderOngoing(ctx, $("today-ongoing"));
     $("spentline").textContent = spent >= 0 ? `${spent} spent` : `${-spent} recovered`;
 
     const cells = $("cells");
@@ -89,3 +92,4 @@ export function init(ctx) {
 
   return { render, open, show() { render() } };
 }
+

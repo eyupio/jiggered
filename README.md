@@ -8,16 +8,50 @@ people (a household, a support group), each with their own account.
 - **Today:** green, amber or red check-in, a points budget (10 by default), a poor-sleep penalty, and one-tap
   activity costs. Open any earlier day to fill it in or correct it.
 - **Episode:** when it started, symptoms, onset, duration, likely triggers and notes. Edit it later, for example
-  to record when it ended.
+  to record an approximate duration or exact local end time. Ongoing episodes are shown on Today and Episode.
 - **History:** a tappable 14-day strip, 30-day trends, every day and episode, CSV downloads, and a printable
-  summary (save it as a PDF) to show a doctor.
+  summary (save it as a PDF) to show a doctor. Search and filter by date, check-in, symptom or ongoing status; CSV uses the same selection. Preview the summary and optionally omit private notes.
 - **Account:** change your password, see and sign out your devices, set your own budget, activities, symptoms,
   triggers and date format, download or restore your data, delete your account.
 - **Admin:** add people, reset passwords, disable or remove accounts, sign devices out, read the activity log,
-  say whether a reverse proxy sits in front, download a backup. The tab exists only for admins.
+  maintain shared starting activities, symptoms, triggers and budgets, say whether a reverse proxy sits in front, download a backup. The tab exists only for admins.
 
 Add it to your phone's home screen and it opens like an app, even with no signal. What you log while offline
-waits on the phone and is sent when you're back online.
+waits on the phone and is sent when you're back online. The status distinguishes a queued device copy from
+server acknowledgement; blocked/full device storage warns you to keep the page open and download recovery.
+
+### Personal lists and shared defaults
+
+In **Account → Settings**, drag the dotted handle to put frequently used activities, symptoms and triggers
+first. Mouse and touch dragging show a floating preview and drop placeholder; handles also support arrow
+keys, Home/End and move buttons. Save publishes the order to your account, so Today/Episode use it on every
+device. Zero-point activities are supported. Invalid names, duplicates and list limits keep your input and
+show an explanation instead of silently changing it.
+
+Admins maintain the same lists, budget, sleep cost and date format under **Admin → Shared product defaults**.
+Defaults live in the existing instance-settings table, are included in database backups, and changes appear
+in the activity log. Conflicting admin saves are refused rather than overwriting newer defaults. New users
+start with that version; existing personal settings are preserved. Users explicitly choose **Use shared
+defaults**, review the draft, then Save to adopt a later version. **Use factory defaults** in Admin fills a
+draft; publishing it still requires Save. No new hosted service or production dependency is introduced.
+
+### Drafts and recovery
+
+New episodes, individual episode edits, personal settings and admin defaults keep separate drafts on this
+device for seven days. Navigation preserves them; unfinished episode edits have a Continue action. Explicit
+discard, acknowledged save or deliberate sign-out clears the relevant drafts. A different account cannot
+open them. These copies contain sensitive data: use a device you trust.
+
+The large cache/outbox uses IndexedDB, with localStorage fallback where unavailable. Migration removes the
+old name-bound cache only after its IndexedDB transaction completes. Server refusals keep their content in
+**Recovery**, even when other changes save successfully. Retry, edit a recovered copy, discard, or download
+a private device recovery file; up to 100 refusals are retained until explicitly resolved. At that limit new
+refusals stay queued, with a warning, rather than dropping content. Recovery files include unfinished drafts
+and unsent operations and are for manual recovery/support, **not** the account Restore form. Server exports
+and restores require queued/refused changes to be resolved first. A session expiry retains same-user recovery;
+deliberate sign-out warns before removing it. Browser eviction or a device failure can still remove local
+copies, so acknowledged server saves and private backups remain important.
+
 
 ## People and the admin
 
@@ -228,8 +262,22 @@ It checks the file first, keeps the database it replaces as `/data/backups/pre-r
 ```sh
 go vet ./... && go test -race ./...     # -race needs a C compiler; Node 22+ for the front-end tests below
 #     # server: accounts, isolation, upgrade from the old schema, CLI, backups
-node --test "test/*.test.mjs"           # front-end logic: sync engine, settings, trends, CSV
+node --test "test/*.test.mjs"           # front-end logic: sync, recovery/drafts, ordering, settings, trends, CSV
 ```
+
+An optional real-browser walkthrough covers admin and user accounts, desktop/touch ordering, offline reload,
+refusal recovery, shared-default isolation and IndexedDB migration/large copies:
+
+```sh
+npm install --no-save --package-lock=false playwright
+npx playwright install chromium
+node test/browser.cjs
+```
+
+It builds a temporary binary/database and cleans them up. `JIGGERED_BROWSER_PATH` selects a preinstalled browser;
+`JIGGERED_BROWSER_ARGS` is an optional JSON array of launch arguments. `JIGGERED_SCREENSHOT_DIR` saves review
+screenshots; `GO_BINARY` or `JIGGERED_TEST_BINARY` selects the build tool or an already-built app. The optional
+browser dependency is only for development; it is not served or added to the container.
 
 The page is plain ES modules with no build step. `web/sync.js` is the part to read first: edits are queued as
 operations and replayed on the server's latest copy, which is why two devices can edit the same day without

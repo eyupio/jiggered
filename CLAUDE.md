@@ -46,6 +46,7 @@ frontend build step.
 | `users.go` | Account store, last-admin guard, audit log, pruning |
 | `account.go`, `admin.go` | `/api/me/...` (self-service) and `/api/admin/...` (admins only) |
 | `docs.go` | The per-person docs API: revisions, id allow-list, quotas, import and export |
+| `defaults.go` | Validated shared product defaults, authenticated read, admin-only compare-and-swap write |
 | `settings.go` | Instance settings stored in the database, and seeding them from old env vars |
 | `backup.go`, `cli.go` | Snapshot helpers; the subcommands (`user`, `settings`, `backup`, `restore`, ...) |
 | `*_test.go`, `test/*.test.mjs` | Go tests (real server on a temp DB) and Node tests for the frontend logic |
@@ -55,7 +56,8 @@ frontend build step.
 | `.env.example` | Template for compose's optional `.env` |
 | `.github/workflows/image.yml` | gofmt, vet, build, `go test -race`, `node --test`, then build and push the image |
 
-`web/`: `app.js` boots and owns the tabs; `sync.js` is the sync engine; `model.js`
+`web/`: `app.js` boots and owns the tabs; `sync.js` is the sync engine;
+`device.js` provides IndexedDB-backed cache/drafts; `editor.js` shares accessible list ordering. `model.js`
 holds the data rules (settings, a day's budget, operations, trends, CSV); `util.js`
 has `html` and `api()`; `today.js`, `episodes.js`, `history.js`, `account.js` are
 the tabs; `admin.js` is mounted only for admins; `sw.js` is the service worker;
@@ -107,7 +109,12 @@ the tabs; `admin.js` is mounted only for admins; `sw.js` is the service worker;
   `migrate_test.go` upgrades a real legacy-shaped database.
 - **Everything about docs and sessions is scoped to the signed-in person**, using
   `authOf(r)`, never an id from the request.
-- **Admin endpoints return metadata only, never a doc body.** There is a test
+- **Admin endpoints return account metadata only, never a personal doc body.**
+  Shared product defaults (`product_defaults` in `instance_settings`) are intentionally visible to signed-in users;
+  edits require admin plus a current ETag and never rewrite existing personal lists.
+- **Drafts expire after seven days.** Refused operations are retained explicitly in recovery, not presented as saved.
+  Keep persistence acknowledgements distinct from network acknowledgements.
+- **Admin endpoints do not expose personal doc bodies.** There is a test
   (`TestAdminCannotReadAnyonesLogs`); a new admin endpoint must not weaken it. The
   backup download is the one documented exception (it is the whole database).
 - **The Admin tab does not exist for non-admins**: `app.js` imports `admin.js` and

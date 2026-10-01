@@ -48,7 +48,7 @@ test("normaliseSettings: validates and clamps", () => {
   assert.equal(s.budget, 14);
   assert.equal(s.sleepPenalty, 3, "an out-of-range penalty falls back to the default");
   assert.equal(s.locale, "en-GB");
-  assert.deepEqual(s.activities, [{ a: "Gym", c: 4 }, { a: "Rest", c: -3 }]);
+  assert.deepEqual(s.activities, [{ a: "Gym", c: 4 }, { a: "Free", c: 0 }, { a: "Rest", c: -3 }]);
   assert.deepEqual(s.symptoms, ["Cough", "cough", "Sore throat"].filter((x, i, l) => l.indexOf(x) === i));
   assert.deepEqual(s.triggers, [], "a list that is present but empty stays empty");
   assert.equal(m.normaliseSettings({ budget: 0 }).budget, 10);
@@ -170,8 +170,8 @@ test("CSV exports", () => {
   assert.equal(days[2], "2026-10-01,amber,yes,1,7,10:15 Meeting or call (-2); Quiet break (+1)");
   assert.equal(days[3], "");
   const eps = m.episodesCsv(docs).split("\r\n");
-  assert.equal(eps[0], "started,symptoms,how_it_came_on,how_long,in_the_day_or_two_before,notes");
-  assert.equal(eps[1], `2026-10-01T09:00,Headache; Weakness,Sudden,Still going,Poor sleep,"'=HYPERLINK(""x""), café"`);
+  assert.equal(eps[0], "started,symptoms,how_it_came_on,how_long,in_the_day_or_two_before,notes,ended_local,start_time_zone,start_utc_offset_minutes,end_time_zone,end_utc_offset_minutes");
+  assert.equal(eps[1], `2026-10-01T09:00,Headache; Weakness,Sudden,Still going,Poor sleep,"'=HYPERLINK(""x""), café",,,,,`);
 });
 
 test("clinician summary", () => {
@@ -198,4 +198,29 @@ test("csvCell leaves numbers alone: -2 is a number, not a formula", () => {
   assert.equal(m.csvCell(-2), "-2");
   assert.equal(m.csvCell("-2"), "'-2");
   assert.equal(m.csvCell("=SUM(A1)"), "'=SUM(A1)");
+});
+
+
+test("reports exclude future episodes and all-time dates include episode-only history", () => {
+  const docs = {"e-1":{when:"2024-01-01T10:00",symptoms:["Headache"]},"e-2":{when:"2026-10-02T00:00",symptoms:["Future"]},"e-3":{when:"2026-10-01T23:59",before:["Poor sleep"]}};
+  assert.equal(m.trends(docs,m.normaliseSettings(),"2026-10-01").episodes30,1);
+  const sm=m.summary(docs,m.normaliseSettings(),"all","2026-10-01");assert.equal(sm.from,"2024-01-01");assert.equal(sm.episodes.length,2);
+});
+test("settings validation preserves zero but rejects silent truncation, duplicates and rounding", () => {
+  const good={...m.normaliseSettings(),activities:[{a:"Observe",c:0}],symptoms:[],triggers:[]};
+  assert.deepEqual(m.validateSettings(good),[]);
+  for(const patch of [{budget:"2.5"},{budget:""},{sleepPenalty:11},{activities:[{a:"Walk",c:1},{a:"walk",c:2}]},{symptoms:["x".repeat(61)]},{triggers:Array.from({length:41},(_,i)=>String(i))}])assert.ok(m.validateSettings({...good,...patch}).length);
+});
+test("history filters use the same interval and never mutate source data",()=>{
+ const docs={"d-2026-10-01":{date:"2026-10-01",status:"amber",entries:[{a:"Work",c:1}]},"e-1":{when:"2026-10-01T10:00",symptoms:["Headache"],duration:"Still going",notes:"Work"},"e-2":{when:"2026-09-01T10:00",symptoms:["Headache"],duration:"Under 15 min"}};
+ assert.equal(m.selectHistory(docs,{from:"2026-10-01",to:"2026-10-01",query:"work",status:"amber",ongoing:true,symptom:"Headache"}).episodes.length,1);
+ assert.equal(m.selectHistory(docs,{query:"no-match"}).days.length,0);
+ assert.equal(m.ongoingEpisodes(docs).length,1);assert.equal(m.ongoingEpisodes({...docs,"e-1":{...docs["e-1"],endedAt:"2026-10-01T12:00"}}).length,0);
+ assert.equal(m.balanceLabel(-2,10),"2 over your planned budget");assert.equal(m.balanceLabel(30,10),"20 above the starting budget");
+});
+
+test('episode chronology uses recorded offsets across zones and supports overnight completion',()=>{
+ const original={when:'2026-10-01T09:00',whenOffset:-240};
+ assert.equal(m.validateEpisodeTimes({when:original.when,endedAt:m.nowLocal(new Date('2026-10-01T12:00Z'))},original,new Date('2026-10-01T20:00Z'))?.[0],'ep-ended');
+ assert.equal(m.validateEpisodeTimes({when:'2026-09-30T23:00',endedAt:'2026-10-01T01:00'},{},new Date('2026-10-01T20:00Z')),null);
 });

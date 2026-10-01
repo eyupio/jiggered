@@ -248,7 +248,7 @@ test("a corrupt or unavailable cache is not fatal", async () => {
   assert.equal(s.docs.get(DAY).body.status, "green", "works in memory when storage throws");
 });
 
-test("a change the server refuses is dropped with a reason, not retried forever", async () => {
+test("a refused change leaves the optimistic view but remains recoverable", async () => {
   const s = new FakeServer(), d = device(s);
   s.status = 413;
   d.store.dispatch(op(DAY, "setStatus", "red"));
@@ -260,7 +260,8 @@ test("a change the server refuses is dropped with a reason, not retried forever"
   s.status = null;
   d.store.dispatch(op(DAY, "setStatus", "green"));
   await d.store.flush();
-  assert.equal(d.store.status().error, "", "a later success clears the message");
+  assert.match(d.store.status().error, /forced 413/, "unrelated saves must not hide recovery");
+  assert.equal(d.store.failures()[0].body.status, "red");
 });
 
 test("server trouble is retried with growing delays, then recovers", async () => {
@@ -344,7 +345,7 @@ test("settings are just another doc", async () => {
 
 test("status reports what the page needs to show", async () => {
   const s = new FakeServer(), d = device(s);
-  assert.deepEqual(d.store.status(), { pending: 0, flushing: false, offline: false, error: "", loaded: false });
+  assert.deepEqual(d.store.status(), { pending: 0, failed: 0, flushing: false, offline: false, error: "", loaded: false, durable: true, localError: "", localWrites: 0 });
   await d.store.load();
   assert.equal(d.store.status().loaded, true);
   const before = d.changes;
@@ -377,4 +378,21 @@ test("every request says whose page it is, so a page that outlived its person is
   s.fetch = (url, opts = {}) => { seen.push((opts.headers || {})["X-Jiggered-User"]); return real(url, opts) };
   d.store.dispatch(op(DAY, "setStatus", "red")); await d.store.flush(); await d.store.load();
   assert.deepEqual(seen, ["7", "7"]);
+});
+
+
+test("failed edits survive reload; retries preserve ticket identity until acknowledged", async () => {
+ const server=new FakeServer(),storage=new MemStorage(),a=device(server,{storage});server.status=413;
+ const ticket=a.store.dispatch(op("e-1","replace",{when:"2026-10-01T10:00",notes:"keep this"}));await ticket;assert.equal(a.store.outcome(ticket.n),"failed");
+ const b=device(server,{storage});assert.equal(b.store.failures()[0].body.notes,"keep this");server.status=null;let release;server.gate=new Promise(r=>release=r);
+ const retry=b.store.retryFailed(b.store.failures()[0].key);assert.equal(b.store.outcome(ticket.n),"pending");release();await retry;assert.equal(b.store.outcome(ticket.n),"saved");assert.equal(b.store.status().failed,0);
+});
+test("asynchronous persistence must acknowledge before claiming device durability",async()=>{
+ const server=new FakeServer();server.down=true;let resolve;const storage=new MemStorage();storage.setItem=()=>new Promise(r=>resolve=r);const d=device(server,{storage});
+ const ticket=d.store.dispatch(op(DAY,"setStatus","red"));await ticket;assert.equal(d.store.status().durable,false);resolve();await new Promise(r=>setImmediate(r));assert.equal(d.store.status().durable,true);
+ const broken=new MemStorage();broken.setItem=()=>Promise.reject(new Error("full"));const b=device(server,{storage:broken});await b.store.dispatch(op(DAY,"setStatus","red"));await new Promise(r=>setImmediate(r));assert.equal(b.store.status().durable,false);assert.match(b.store.status().localError,/could not save/);assert.equal(b.store.recoveryExport().pending[0].arg,"red");
+});
+test("episode field patches preserve another device's notes while finishing",async()=>{
+ const server=new FakeServer(),a=device(server),b=device(server);await a.store.dispatch(op("e-1","replace",{when:"2026-10-01T10:00",notes:"original",duration:"Still going"}));await b.store.load();
+ await a.store.dispatch(op("e-1","patch",{notes:"new notes"}));await b.store.dispatch(op("e-1","patch",{duration:"1–4 hours"}));assert.equal(server.docs.get("e-1").body.notes,"new notes");assert.equal(server.docs.get("e-1").body.duration,"1–4 hours");
 });

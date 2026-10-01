@@ -316,6 +316,8 @@ func (s *server) routes() http.Handler {
 	mux.Handle("POST /api/me/sessions/revoke-all", auth(s.revokeAllSessions))
 	mux.Handle("DELETE /api/me/sessions/{sid}", auth(s.revokeSession))
 
+	mux.Handle("GET /api/defaults", auth(s.productGetDefaults))
+	mux.Handle("PUT /api/admin/defaults", admin(s.productPutDefaults))
 	mux.Handle("GET /api/docs", auth(s.listDocs))
 	mux.Handle("PUT /api/docs/{id}", auth(s.putDoc))
 	mux.Handle("DELETE /api/docs/{id}", auth(s.deleteDoc))
