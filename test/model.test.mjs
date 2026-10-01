@@ -286,3 +286,20 @@ test("a settings field the stored copy never had is not a conflict when it is fi
   assert.deepEqual(m.operationConflicts(op, { budget: 10 }), []);
   assert.deepEqual(m.operationConflicts(op, { symptomGroups: { Headache: "Theirs" } }), ["symptomGroups"]);
 });
+
+test("resolveSettings gives existing symptoms and triggers their shared group unless the person chose one", () => {
+  const shared = m.normaliseSettings({ symptoms: ["Headache", "Tremor", "Jaw pain"], triggers: ["Cold"], symptomGroups: { Headache: "Head", Tremor: "Nerves", "Jaw pain": "Head" }, triggerGroups: { Cold: "Surroundings" } });
+  const nothing = m.resolveSettings({ symptoms: ["Headache", "Tremor", "Mine"], triggers: ["Cold"], symptomGroups: {}, triggerGroups: {} }, shared);
+  assert.deepEqual(nothing.symptomGroups, { Headache: "Head", Tremor: "Nerves" }, "an empty stored map still picks up shared groups; custom items stay ungrouped");
+  assert.deepEqual(nothing.triggerGroups, { Cold: "Surroundings" });
+  const chose = m.resolveSettings({ symptoms: ["Headache", "Tremor"], symptomGroups: { Headache: "Mine" } }, shared);
+  assert.deepEqual(chose.symptomGroups, { Headache: "Mine", Tremor: "Nerves" });
+  assert.deepEqual(m.resolveSettings(undefined, shared).symptomGroups, shared.symptomGroups);
+});
+
+test("group maps conflict only where the stored copy holds a different group for a name", () => {
+  const op = { type: "settingsPatch", before: { symptomGroups: { A: "x", B: "y" } }, arg: { symptomGroups: { A: "z", B: "y" } } };
+  assert.deepEqual(m.operationConflicts(op, { symptomGroups: {} }), [], "stored copy has no entries yet");
+  assert.deepEqual(m.operationConflicts(op, { symptomGroups: { A: "x" } }), []);
+  assert.deepEqual(m.operationConflicts(op, { symptomGroups: { A: "other" } }), ["symptomGroups"]);
+});

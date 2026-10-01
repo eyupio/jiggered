@@ -3,7 +3,7 @@
 import { $, fmtLongDay, setPageUser, html, setHTML, downloadFile, withBusy } from "./util.js";
 import { openDeviceStorage, createDrafts, claimEditingTab } from "./device.js";
 import { createStore } from "./sync.js";
-import { normaliseSettings, DEFAULTS, dkey } from "./model.js";
+import { normaliseSettings, resolveSettings, DEFAULTS, dkey } from "./model.js";
 import * as todayView from "./today.js";
 import * as episodesView from "./episodes.js";
 import * as historyView from "./history.js";
@@ -112,7 +112,7 @@ function fatal(text) {
     today: () => dkey(new Date()),
     settings() { // the same object until the stored settings change
       const raw = store.view("settings"), k = JSON.stringify([raw ?? null, sharedDefaults]);
-      if (k !== settingsKey) { settingsKey = k; settingsVal = normaliseSettings({ ...sharedDefaults, ...(raw || {}) }) }
+      if (k !== settingsKey) { settingsKey = k; settingsVal = resolveSettings(raw, sharedDefaults) }
       return settingsVal;
     },
     toast,

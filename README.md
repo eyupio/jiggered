@@ -37,7 +37,8 @@ changes; Undo is offered), **Review in Account** or **Not now** (remembered unti
 Account also has **Add new shared items** and **Replace with shared defaults**; both fill a draft to review,
 then Save. On Today, group pills (Work, Home, ...) narrow the activity buttons to one group. Symptoms and triggers can have
 groups too (stored as a name-to-group map beside the plain lists, so episodes are unaffected); they become the same
-pills on the Episode tab. Accounts that haven't set their own groups pick up the shared defaults' groups. **Use factory defaults** in Admin fills a
+pills on the Episode tab. Groups are decided per name: an item without a group of its own takes the shared defaults' group for that name
+(so existing lists are grouped without any reset), and a group you set yourself always wins. **Use factory defaults** in Admin fills a
 draft; publishing it still requires Save. No new hosted service or production dependency is introduced.
 
 ### Drafts and recovery

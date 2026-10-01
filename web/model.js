@@ -101,6 +101,15 @@ export function normaliseSettings(raw) {
   };
 }
 
+// resolveSettings is what the app shows for a person: their stored settings over the shared defaults. Groups for
+// symptoms and triggers are decided per name, so an item with no group of its own takes the shared defaults' group
+// for that name, while a group they chose themselves always wins.
+export function resolveSettings(raw, shared) {
+  const own = raw && typeof raw === "object" ? raw : {}, base = shared || {};
+  const maps = Object.fromEntries(["symptomGroups", "triggerGroups"].map(k => [k, { ...(base[k] || {}), ...(own[k] && typeof own[k] === "object" ? own[k] : {}) }]));
+  return normaliseSettings({ ...base, ...own, ...maps });
+}
+
 // ---- a day ----
 
 export const emptyDay = key => ({ date: key, status: null, poorSleep: false, entries: [] });
@@ -146,9 +155,17 @@ export function operationConflicts(op, body) {
     if (!current) return ["deleted activity"];
     return Object.keys(op.arg.changes).filter(k => !equal(current[k],op.before[k]) && !equal(current[k],op.arg.changes[k]));
   }
-  const fields = Object.keys(op.arg).filter(k => k !== "activities");
+  const GROUPS = ["symptomGroups", "triggerGroups"];
+  const fields = Object.keys(op.arg).filter(k => k !== "activities" && !GROUPS.includes(k));
   // A settings field the server copy has never had (an older account) can't have been changed by anyone else.
   const conflicts = fields.filter(k => !(op.type === "settingsPatch" && body[k] === undefined) && !equal(body[k],op.before[k]) && !equal(body[k],op.arg[k]));
+  // Group maps are compared name by name: a name the stored copy doesn't list is unchanged, not a conflict.
+  for (const k of GROUPS) if (op.type === "settingsPatch" && op.arg[k]) {
+    for (const name of new Set([...Object.keys(op.arg[k]), ...Object.keys(op.before[k] || {})])) {
+      const mine = op.arg[k][name], was = op.before[k]?.[name], now = body[k]?.[name];
+      if (now !== undefined && now !== was && now !== mine) { conflicts.push(k); break }
+    }
+  }
   if (op.type === "settingsPatch" && op.arg.activities) {
     const current = identifyActivities(body.activities || []), before = identifyActivities(op.before.activities || []), next = op.arg.activities;
     for (const row of before) {
