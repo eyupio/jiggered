@@ -124,7 +124,9 @@ func main() {
 	<-ctx.Done()
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	_ = srv.Shutdown(shutdownCtx)
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Printf("shutdown did not finish cleanly: %v", err) // requests still running after 10s are cut off
+	}
 }
 
 func newServer(cfg config, db *sql.DB) (*server, error) {
@@ -360,6 +362,13 @@ func (s *server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
 		return
 	}
+	// A reachable file is not enough: with the core table gone every save would fail while this said ok.
+	var n int
+	if err := s.db.QueryRowContext(ctx, "SELECT count(*) FROM (SELECT 1 FROM docs LIMIT 1)").Scan(&n); err != nil {
+		http.Error(w, "database unavailable", http.StatusServiceUnavailable) // the reason goes to the log, not to the caller
+		log.Printf("healthz: %v", err)
+		return
+	}
 	w.Write([]byte("ok"))
 }
 
@@ -467,6 +476,7 @@ func securityHeaders(next http.Handler) http.Handler {
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Referrer-Policy", "same-origin")
+		h.Set("X-Robots-Tag", "noindex, nofollow") // a private log: nothing here should be indexed
 		h.Set("Content-Security-Policy", "default-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; script-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'")
 		next.ServeHTTP(w, r)
 	})
