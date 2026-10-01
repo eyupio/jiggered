@@ -54,6 +54,7 @@ func (s *server) adminBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer f.Close()
+	os.Remove(tmp) // open handle keeps it readable; nothing is left behind however this ends
 	st, err := f.Stat()
 	if err != nil {
 		serverError(w, r, err)

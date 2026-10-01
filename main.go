@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -107,6 +108,7 @@ func main() {
 		IdleTimeout:       120 * time.Second,
 	}
 
+	sweepTempBackups(s.cfg.dbPath)
 	go s.maintain()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -489,4 +491,13 @@ func readJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 		return false
 	}
 	return true
+}
+
+// sweepTempBackups removes half-finished copies a killed backup left in the backups folder; they are whole copies
+// of the database and nothing else ever deletes them.
+func sweepTempBackups(dbPath string) {
+	old, _ := filepath.Glob(filepath.Join(backupDir(dbPath), ".tmp-*"))
+	for _, f := range old {
+		os.Remove(f)
+	}
 }

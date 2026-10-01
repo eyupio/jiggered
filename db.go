@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -20,11 +21,25 @@ var errNeedFirstAdmin = errors.New("this database holds data from before Jiggere
 // versionAccounts is the schema version that introduced accounts, and with them the need for a first admin.
 const versionAccounts = 2
 
-const dsnPragmas = "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(ON)&_txlock=immediate"
+// temp_store(2) keeps SQLite's scratch space in memory: the shipped container has a read-only root and no /tmp, so
+// a big upgrade (dropping a 20 MB table) otherwise fails with "unable to open database file". secure_delete(ON)
+// overwrites deleted rows, so a deleted account's data doesn't linger in the file.
+const dsnPragmas = "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(ON)&_pragma=temp_store(2)&_pragma=secure_delete(ON)&_txlock=immediate"
+
+// sqliteURI turns a file path into the file: URI SQLite wants. A path may hold %, ? and #, which would otherwise
+// change which file is opened ("my#data.db" became "my").
+func sqliteURI(path string) string {
+	return "file:" + strings.NewReplacer("%", "%25", "?", "%3f", "#", "%23").Replace(path)
+}
 
 // openRaw opens the database without touching its schema.
 func openRaw(path string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", "file:"+path+dsnPragmas)
+	// Everything in it is private. SQLite gives -wal and -shm the mode of the main file, so make that 0600 first.
+	if f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600); err == nil {
+		f.Close()
+		os.Chmod(path, 0o600)
+	}
+	db, err := sql.Open("sqlite", sqliteURI(path)+dsnPragmas)
 	if err != nil {
 		return nil, err
 	}
@@ -140,8 +155,17 @@ func snapshotBeforeMigrating(db *sql.DB, path string, from int) error {
 // snapshot writes a consistent copy of a live database. Copying the .db file
 // alone is not enough in WAL mode: recent writes live in the -wal file.
 func snapshot(db *sql.DB, dest string) error {
-	_, err := db.Exec("VACUUM INTO ?", dest)
-	return err
+	if dest == "" || dest == ":memory:" || strings.HasPrefix(dest, "file:") {
+		return fmt.Errorf("%q isn't a file name SQLite would write a file for", dest) // it would "succeed" and write nothing
+	}
+	if _, err := db.Exec("VACUUM INTO ?", dest); err != nil {
+		os.Remove(dest) // a partial copy is worse than none
+		return err
+	}
+	if st, err := os.Stat(dest); err != nil || st.Size() == 0 {
+		return fmt.Errorf("the copy at %s wasn't written", dest)
+	}
+	return os.Chmod(dest, 0o600)
 }
 
 // v1: the original single-user schema.
