@@ -85,7 +85,7 @@ export function init(ctx) {
       <p>${label}: ${fmtLongDay(sm.from, L)} to ${fmtLongDay(sm.to, L)}. Printed ${fmtLongDay(ctx.today(), L)}.</p>
       <h2>Check-ins</h2>
       <p>${plural(sm.days.filter(d => d.status).length, "day")} with a check-in: ${sm.green} green, ${sm.amber} amber, ${sm.red} red.
-        ${sm.avgUsed === null ? "" : `On average ${sm.avgUsed} points were spent on the days that were logged.`}
+        ${sm.avgUsed === null ? "" : `On the ${plural(sm.activityDays, "day")} with activities, the average net points were ${sm.avgUsed} (activities minus recovery; days with only a check-in are not counted).`}
         ${sm.poorSleepDays ? `Poor sleep was recorded on ${plural(sm.poorSleepDays, "day")}.` : ""}</p>
       <h2>Episodes (${sm.episodes.length})</h2>
       ${sm.episodes.length ? html`
