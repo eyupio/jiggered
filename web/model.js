@@ -25,7 +25,7 @@ export const ADVICE = {
 export const LOCALES = [["en-GB", "English (UK)"], ["en-US", "English (US)"], ["en-AU", "English (Australia)"], ["en-CA", "English (Canada)"],
   ["de-DE", "Deutsch"], ["fr-FR", "Français"], ["es-ES", "Español"], ["nl-NL", "Nederlands"], ["", "Browser default"]];
 
-export const LIMITS = { budget: [1, 30], cost: [-10, 10], items: 40, text: 60 };
+export const LIMITS = { budget: [1, 30], cost: [-10, 10], items: 200, text: 60, group: 30 };
 
 // ---- dates ----
 
@@ -54,7 +54,7 @@ export function normaliseSettings(raw) {
   const r = raw && typeof raw === "object" ? raw : {};
   const budget = int(r.budget, ...LIMITS.budget, DEFAULTS.budget);
   const activities = Array.isArray(r.activities)
-    ? r.activities.map(x => ({ ...(typeof x?.id === "string" ? { id: x.id } : {}), a: text(x && x.a), c: int(x && x.c, ...LIMITS.cost, NaN) })).filter(x => x.a && Number.isFinite(x.c)).slice(0, LIMITS.items)
+    ? r.activities.map(x => ({ ...(typeof x?.id === "string" ? { id: x.id } : {}), a: text(x && x.a), c: int(x && x.c, ...LIMITS.cost, NaN), ...(text(x && x.g, LIMITS.group) ? { g: text(x && x.g, LIMITS.group) } : {}) })).filter(x => x.a && Number.isFinite(x.c)).slice(0, LIMITS.items)
     : DEFAULTS.activities.map(x => ({ ...x }));
   return {
     budget,
@@ -98,7 +98,7 @@ export function operationConflicts(op, body) {
     for (const row of before) {
       const n = next.find(x => x.id === row.id), c = current.find(x => x.id === row.id);
       if (!n || !c) { if (!equal(n,row) && !equal(c,row) && !equal(c,n)) conflicts.push(`activity: ${row.a}`) }
-      else for (const k of ["a","c"]) if (!equal(n[k],row[k]) && !equal(c[k],row[k]) && !equal(c[k],n[k])) conflicts.push(`activity: ${row.a} (${k === "a" ? "name" : "points"})`);
+      else for (const k of ["a","c","g"]) if (!equal(n[k],row[k]) && !equal(c[k],row[k]) && !equal(c[k],n[k])) conflicts.push(`activity: ${row.a} (${k === "a" ? "name" : k === "g" ? "group" : "points"})`);
     }
     const common = new Set(before.filter(x => current.some(c=>c.id===x.id) && next.some(n=>n.id===x.id)).map(x=>x.id));
     const order = rows => rows.filter(x=>common.has(x.id)).map(x => x.id);
@@ -111,7 +111,10 @@ function mergeActivities(current, before, next) {
   const deleted = old.filter(x => !next.some(n => n.id === x.id)).map(x => x.id);
   const out = rows.filter(x => !deleted.includes(x.id)).map(x => {
     const n = next.find(n => n.id === x.id), b = old.find(b => b.id === x.id);
-    return n ? { ...x, ...Object.fromEntries(Object.entries(n).filter(([k,v]) => !equal(v,b?.[k]))) } : x;
+    if (!n) return x;
+    const merged = { ...x, ...Object.fromEntries(Object.entries(n).filter(([k,v]) => !equal(v,b?.[k]))) };
+    if (b?.g !== undefined && n.g === undefined && x.g === b.g) delete merged.g;
+    return merged;
   });
   for (const n of next) if (!old.some(b => b.id === n.id) && !out.some(x => x.id === n.id)) out.push(n);
   if (!equal(next.map(x=>x.id),old.map(x=>x.id))) {
@@ -260,6 +263,7 @@ export function validateSettings(r) {
     if (values.some(x => !x || [...x].length > LIMITS.text)) errors.push([field, `Each ${label} name needs 1–${LIMITS.text} characters.`]);
     if (new Set(values.map(x => x.toLowerCase())).size !== values.length) errors.push([field, `Use distinct ${label} names (including capitalisation).`]);
   }
+  if (r.activities.some(x => [...String(x.g || "").trim()].length > LIMITS.group)) errors.push(["set-acts", `Group names are at most ${LIMITS.group} characters.`]);
   if (r.activities.some(x => !integer(x.c, ...LIMITS.cost))) errors.push(["set-acts", "Activity points must be whole numbers from −10 to 10. Zero is allowed."]);
   return errors;
 }

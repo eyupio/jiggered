@@ -57,7 +57,7 @@ frontend build step.
 | `.github/workflows/image.yml` | gofmt, vet, build, `go test -race`, `node --test`, then build and push the image |
 
 `web/`: `app.js` boots and owns the tabs; `sync.js` is the sync engine;
-`device.js` provides IndexedDB-backed cache/drafts; `editor.js` shares accessible list ordering. `model.js`
+`device.js` provides IndexedDB-backed cache/drafts; `editor.js` shares accessible list ordering. `picker.js` is the pure long-list logic (search, favourites by recent use, groups, paging) used by Today and Episodes; lists show none of it until they pass `PICKER.searchFrom` items. Activities carry an optional `g` group; symptoms and triggers stay plain strings. List limit is 200 (`LIMITS` in `model.js`, mirrored in `defaults.go`). `model.js`
 holds the data rules (settings, a day's budget, operations, trends, CSV); `util.js`
 has `html` and `api()`; `today.js`, `episodes.js`, `history.js`, `account.js` are
 the tabs; `admin.js` is mounted only for admins; `sw.js` is the service worker;
