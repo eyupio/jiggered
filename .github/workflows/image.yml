@@ -22,8 +22,16 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
       - run: go vet ./...
       - run: CGO_ENABLED=0 go build ./...
+      - run: go test -race ./...
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: front-end logic tests
+        run: node --test "test/*.test.mjs"
 
   image:
     needs: test
@@ -52,6 +60,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
+          build-args: VERSION=${{ steps.meta.outputs.version }}
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
