@@ -260,3 +260,29 @@ test("a settings change is not a conflict just because stored rows list their ke
   const op = { type: "settingsPatch", before: { activities: [{ id: "x1", ...row }] }, arg: { activities: [] } };
   assert.deepEqual(m.operationConflicts(op, stored), []);
 });
+
+test("symptom and trigger groups: defaults supply them, a person's own map wins, renames and removals drop them", () => {
+  const d = m.normaliseSettings();
+  assert.equal(d.symptomGroups["Headache"], "Head and senses");
+  assert.equal(Object.keys(d.triggerGroups).length, d.triggers.length, "every built-in trigger is grouped");
+  assert.ok(Object.keys(d.symptomGroups).length === d.symptoms.length);
+  const own = m.normaliseSettings({ symptoms: ["Headache", "Cough"], symptomGroups: { Headache: "Mine", Gone: "x", constructor: "y" } });
+  assert.deepEqual(own.symptomGroups, { Headache: "Mine" });
+  assert.deepEqual(m.normaliseSettings({ symptoms: ["Headache"], symptomGroups: {} }).symptomGroups, {}, "an empty map is a choice to have no groups");
+  assert.deepEqual(m.normaliseSettings({ symptoms: ["Headache"], symptomGroups: null }).symptomGroups, { Headache: "Head and senses" });
+  assert.ok(m.validateSettings({ ...own, symptomGroups: { Headache: "x".repeat(31) } }).length);
+});
+
+test("mergeDefaults brings new symptoms and triggers in with their shared group, keeping the person's own groups", () => {
+  const mine = m.normaliseSettings({ symptoms: ["Headache"], triggers: [], symptomGroups: { Headache: "Mine" }, triggerGroups: {} });
+  const shared = m.normaliseSettings({ symptoms: ["Headache", "Tremor"], triggers: ["Cold"], symptomGroups: { Headache: "Theirs", Tremor: "Nerves" }, triggerGroups: { Cold: "Surroundings" } });
+  const merged = m.mergeDefaults(mine, shared);
+  assert.deepEqual(merged.symptomGroups, { Tremor: "Nerves", Headache: "Mine" });
+  assert.deepEqual(merged.triggerGroups, { Cold: "Surroundings" });
+});
+
+test("a settings field the stored copy never had is not a conflict when it is first saved", () => {
+  const op = { type: "settingsPatch", before: { symptomGroups: { Headache: "Head" } }, arg: { symptomGroups: { Headache: "Mine" } } };
+  assert.deepEqual(m.operationConflicts(op, { budget: 10 }), []);
+  assert.deepEqual(m.operationConflicts(op, { symptomGroups: { Headache: "Theirs" } }), ["symptomGroups"]);
+});

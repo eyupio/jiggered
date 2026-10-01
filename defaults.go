@@ -23,6 +23,40 @@ type productDefaults struct {
 	} `json:"activities"`
 	Symptoms []string `json:"symptoms"`
 	Triggers []string `json:"triggers"`
+	// Optional group for a symptom or trigger, by name. Lists stay plain strings so every stored episode still matches.
+	SymptomGroups map[string]string `json:"symptomGroups"`
+	TriggerGroups map[string]string `json:"triggerGroups"`
+}
+
+// pruneGroups drops groups for names that are no longer in the list (renamed or removed), and never returns nil.
+func pruneGroups(groups map[string]string, names []string) map[string]string {
+	known := map[string]bool{}
+	for _, n := range names {
+		known[n] = true
+	}
+	out := map[string]string{}
+	for name, g := range groups {
+		if known[name] {
+			out[name] = g
+		}
+	}
+	return out
+}
+
+func validGroups(groups map[string]string, names []string) error {
+	known := map[string]bool{}
+	for _, n := range names {
+		known[n] = true
+	}
+	for name, g := range groups {
+		if !known[name] {
+			return fmt.Errorf("A group was set for %q, which is not in the list", name)
+		}
+		if g == "" || strings.TrimSpace(g) != g || utf8.RuneCountInString(g) > 30 {
+			return fmt.Errorf("Group names have 1–30 characters and no surrounding spaces")
+		}
+	}
+	return nil
 }
 
 func (d productDefaults) validate() error {
@@ -69,7 +103,10 @@ func (d productDefaults) validate() error {
 			seen[key] = true
 		}
 	}
-	return nil
+	if err := validGroups(d.SymptomGroups, d.Symptoms); err != nil {
+		return err
+	}
+	return validGroups(d.TriggerGroups, d.Triggers)
 }
 func defaultsTag(raw string) string { return fmt.Sprintf(`"%x"`, sha256.Sum256([]byte(raw))) }
 func (s *server) getDefaults(r *http.Request) (string, bool, error) {
@@ -107,6 +144,8 @@ func (s *server) productPutDefaults(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &in) {
 		return
 	}
+	in.SymptomGroups = pruneGroups(in.SymptomGroups, in.Symptoms)
+	in.TriggerGroups = pruneGroups(in.TriggerGroups, in.Triggers)
 	if err := in.validate(); err != nil {
 		jsonError(w, 400, err.Error())
 		return
@@ -120,6 +159,8 @@ func (s *server) productPutDefaults(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, 409, "Defaults changed elsewhere. Reload them before saving; your draft is kept.")
 		return
 	}
+	// pruneGroups above made both maps non-nil, so they are stored even when empty: an absent map means
+	// "use the factory groups", an empty one means none.
 	b, err := json.Marshal(in)
 	if err != nil {
 		serverError(w, r, err)

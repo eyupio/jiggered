@@ -35,7 +35,9 @@ start with that version; existing personal settings are preserved. When the shar
 lacks, a notice on every tab offers **Add all to my lists** (new items go on the end; nothing of theirs
 changes; Undo is offered), **Review in Account** or **Not now** (remembered until the defaults change again).
 Account also has **Add new shared items** and **Replace with shared defaults**; both fill a draft to review,
-then Save. On Today, group pills (Work, Home, ...) narrow the activity buttons to one group. **Use factory defaults** in Admin fills a
+then Save. On Today, group pills (Work, Home, ...) narrow the activity buttons to one group. Symptoms and triggers can have
+groups too (stored as a name-to-group map beside the plain lists, so episodes are unaffected); they become the same
+pills on the Episode tab. Accounts that haven't set their own groups pick up the shared defaults' groups. **Use factory defaults** in Admin fills a
 draft; publishing it still requires Save. No new hosted service or production dependency is introduced.
 
 ### Drafts and recovery
