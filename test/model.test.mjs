@@ -193,3 +193,9 @@ test("clinician summary", () => {
   assert.equal(all.from, "2026-06-01", "'everything' starts at the first day with data");
   assert.equal(m.summary({}, S, "all", "2026-10-01").from, "2026-10-01");
 });
+
+test("csvCell leaves numbers alone: -2 is a number, not a formula", () => {
+  assert.equal(m.csvCell(-2), "-2");
+  assert.equal(m.csvCell("-2"), "'-2");
+  assert.equal(m.csvCell("=SUM(A1)"), "'=SUM(A1)");
+});

@@ -1,6 +1,6 @@
 // The page: who is signed in, the tabs, and the wiring between the views and the sync store.
 
-import { $, fmtLongDay } from "./util.js";
+import { $, fmtLongDay, setPageUser } from "./util.js";
 import { createStore } from "./sync.js";
 import { normaliseSettings, dkey } from "./model.js";
 import * as todayView from "./today.js";
@@ -23,7 +23,7 @@ const SIGN_IN = "sign-in"; // getMe's answer when the browser is being sent to t
 // null means nobody is known here and the server can't be reached.
 async function getMe() {
   let r = null;
-  try { r = await fetch("/api/me", { credentials: "same-origin" }) } catch { /* offline */ }
+  try { r = await fetch("/api/me", { credentials: "same-origin", signal: AbortSignal.timeout(6000) }) } catch { /* offline, or too slow to wait for */ }
   if (r && r.status === 401) { forget(); location.href = "/login"; return SIGN_IN }
   if (r && r.ok) { const me = await r.json(); remember(me); return me }
   return recall();
@@ -38,6 +38,7 @@ function fatal(text) {
   const me = await getMe();
   if (me === SIGN_IN) return;
   if (!me) { fatal("Can't reach the server, and nobody has signed in on this device yet. Connect once to get started."); return }
+  setPageUser(me.id);
   $("who").textContent = me.username;
   $("today").textContent = fmtLongDay(dkey(new Date()), "en-GB");
 
@@ -88,6 +89,7 @@ function fatal(text) {
   let active = "today";
   function go(tab) {
     if (!views[tab]) tab = "today"; // e.g. the Admin tab of someone who has just stopped being an admin
+    if (tab !== active && views[active] && views[active].hide) views[active].hide();
     active = tab;
     for (const b of document.querySelectorAll("#tabs button")) b.setAttribute("aria-selected", b.dataset.tab === tab);
     for (const t of Object.keys(views)) $(t + "-panel").hidden = t !== tab;
@@ -119,6 +121,7 @@ function fatal(text) {
   async function refreshMe() {
     let r;
     try { r = await fetch("/api/me", { credentials: "same-origin" }) } catch { return } // offline: keep what we know
+    if (r.ok) { const peek = await r.clone().json().catch(() => null); if (peek && peek.id !== me.id) { location.reload(); return } } // another tab signed in as someone else
     if (r.status === 401) { forget(); toSignIn(); return }
     if (!r.ok) return;
     const fresh = await r.json();
@@ -178,8 +181,10 @@ function fatal(text) {
     await store.flush();
     const n = store.status().pending;
     if (n && !confirm(`${n} ${n === 1 ? "change hasn't" : "changes haven't"} reached the server yet and will be lost if you sign out now. Sign out anyway?`)) return;
-    try { await fetch("/logout", { method: "POST", credentials: "same-origin" }) }
-    catch { toast("You're offline, so Jiggered can't sign you out right now."); return }
+    try {
+      const r = await fetch("/logout", { method: "POST", credentials: "same-origin" });
+      if (!r.ok) throw new Error("HTTP " + r.status); // a proxy error page is not a sign-out
+    } catch { toast("Jiggered can't sign you out right now (offline, or the server isn't answering)."); return }
     ctx.leave();
   });
 

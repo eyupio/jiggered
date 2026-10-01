@@ -353,3 +353,28 @@ test("status reports what the page needs to show", async () => {
   assert.equal(d.store.status().pending, 1);
   await d.store.flush();
 });
+
+test("a busy or rate-limiting server (408, 425, 429) is retried, not treated as a refusal", async () => {
+  for (const code of [408, 425, 429]) {
+    const s = new FakeServer(), d = device(s);
+    s.status = code;
+    await d.store.dispatch(op(DAY, "setStatus", "red"));
+    assert.equal(d.store.status().pending, 1, `${code}: the change is kept`);
+    assert.equal(d.store.status().offline, true, `${code}: and retried later`);
+    assert.equal(d.store.status().error, "");
+    s.status = null;
+    d.timers.at(-1).f();
+    await d.store.flush();
+    assert.equal(d.store.status().pending, 0);
+    assert.equal(s.docs.get(DAY).body.status, "red");
+  }
+});
+
+test("every request says whose page it is, so a page that outlived its person is refused", async () => {
+  const s = new FakeServer(), d = device(s, { uid: 7 });
+  const seen = [];
+  const real = s.fetch;
+  s.fetch = (url, opts = {}) => { seen.push((opts.headers || {})["X-Jiggered-User"]); return real(url, opts) };
+  d.store.dispatch(op(DAY, "setStatus", "red")); await d.store.flush(); await d.store.load();
+  assert.deepEqual(seen, ["7", "7"]);
+});

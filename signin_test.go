@@ -135,3 +135,29 @@ func TestALockedAccountLooksLikeAnUnknownOne(t *testing.T) {
 		t.Errorf("a locked account answers %q but an unknown name %q: that tells a stranger which names exist", locked, unknown)
 	}
 }
+
+// A page left open as alice must not read or write bob's data after bob signs in from another tab.
+func TestAPageOpenedAsSomeoneElseIsRefused(t *testing.T) {
+	e := newTestServer(t)
+	e.addUser("alice", roleUser)
+	bob, _ := e.addUser("bob", roleUser)
+	var alice struct{ ID int64 }
+	a := e.newClient()
+	a.mustLogin("alice", "password-alice")
+	a.getJSON("/api/me", &alice)
+	// the same browser profile now signs in as bob: its cookie is bob's, the old page still says alice
+	if st := bob.do("GET", "/api/docs", nil, "X-Jiggered-User", fmt.Sprint(alice.ID)); st != 401 {
+		t.Errorf("GET as the wrong person: %d, want 401", st)
+	}
+	if st := bob.do("PUT", "/api/docs/d-2026-10-01", `{"x":1}`, "X-Jiggered-User", fmt.Sprint(alice.ID)); st != 401 {
+		t.Errorf("PUT as the wrong person: %d, want 401", st)
+	}
+	if n := len(bob.docs()); n != 0 {
+		t.Errorf("bob has %d docs written by alice's page", n)
+	}
+	var me struct{ ID int64 }
+	bob.getJSON("/api/me", &me)
+	if st := bob.do("GET", "/api/docs", nil, "X-Jiggered-User", fmt.Sprint(me.ID)); st != 200 {
+		t.Errorf("the right person: %d", st)
+	}
+}

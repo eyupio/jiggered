@@ -8,12 +8,15 @@
 
 import { applyOp } from "./model.js";
 
-const HEADERS = { "X-Requested-With": "jiggered" };
+const BASE_HEADERS = { "X-Requested-With": "jiggered" };
 const PREFIX = "jiggered:v1:";
 const BACKOFF = [2000, 5000, 15000, 30000, 60000];
 const MAX_CONFLICTS = 6;
 
 class Stop extends Error {}
+
+// A request that hangs (a proxy that accepted it and went quiet) must fail, so the outbox retries instead of waiting forever.
+const timeout = () => (typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(20000) : undefined);
 
 export function createStore({
   fetch: doFetch = (...a) => globalThis.fetch(...a),
@@ -35,6 +38,9 @@ export function createStore({
   const exclusive = fn => { const run = tail.then(fn); tail = run.catch(() => {}); return run };
   const notify = () => { try { onChange() } catch (e) { console.error(e) } };
   const key = () => PREFIX + uid;
+  // Every request says whose page this is. If the browser has since signed in as someone else (another tab), the
+  // server refuses with 401 rather than reading or writing that other person's data under this page's name.
+  const HEADERS = () => ({ ...BASE_HEADERS, "X-Jiggered-User": String(uid) });
 
   function persist() {
     if (!storage || uid == null) return;
@@ -96,11 +102,11 @@ export function createStore({
   async function send(id, body, rev) {
     const url = "/api/docs/" + encodeURIComponent(id);
     if (body === undefined) {
-      const r = await doFetch(url, { method: "DELETE", headers: HEADERS, credentials: "same-origin" });
+      const r = await doFetch(url, { method: "DELETE", headers: HEADERS(), credentials: "same-origin", signal: timeout() });
       return { status: r.status, rev: 0, message: r.status === 204 ? "" : await reason(r) };
     }
-    const headers = { ...HEADERS, "Content-Type": "application/json", ...(rev > 0 ? { "If-Match": `"${rev}"` } : { "If-None-Match": "*" }) };
-    const r = await doFetch(url, { method: "PUT", headers, body: JSON.stringify(body), credentials: "same-origin" });
+    const headers = { ...HEADERS(), "Content-Type": "application/json", ...(rev > 0 ? { "If-Match": `"${rev}"` } : { "If-None-Match": "*" }) };
+    const r = await doFetch(url, { method: "PUT", headers, body: JSON.stringify(body), credentials: "same-origin", signal: timeout() });
     if (r.status === 200) return { status: 200, rev: (await r.json()).rev };
     if (r.status === 409) { const j = await r.json(); return { status: 409, rev: j.rev, body: j.body } }
     return { status: r.status, message: await reason(r) };
@@ -142,6 +148,7 @@ export function createStore({
             continue;
           }
           if (res.status === 401) { onAuthLost(); throw new Stop() }
+          if ([408, 425, 429].includes(res.status)) throw new Error("HTTP " + res.status); // transient: keep the change and retry
           if (res.status >= 400 && res.status < 500) { dropBatch(id, lastN, res.message); break }
           throw new Error("HTTP " + res.status);
         }
@@ -164,7 +171,7 @@ export function createStore({
   function load() {
     return exclusive(async () => {
       let r;
-      try { r = await doFetch("/api/docs", { credentials: "same-origin", headers: { Accept: "application/json" } }) }
+      try { r = await doFetch("/api/docs", { credentials: "same-origin", headers: { Accept: "application/json", "X-Jiggered-User": String(uid) }, signal: timeout() }) }
       catch { offline = true; notify(); return false }
       if (r.status === 401) { onAuthLost(); return false }
       if (!r.ok) { offline = true; notify(); return false }

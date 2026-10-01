@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -149,6 +150,11 @@ func (s *server) guard(next http.Handler, adminOnly bool) http.Handler {
 			return
 		}
 		isAPI := strings.HasPrefix(r.URL.Path, "/api/")
+		if h := r.Header.Get("X-Jiggered-User"); isAPI && h != "" && h != strconv.FormatInt(a.u.ID, 10) {
+			// The page was opened as someone else; the browser has since signed in as this account.
+			http.Error(w, "signed out", http.StatusUnauthorized)
+			return
+		}
 		if a.u.MustChange && isAPI && !mustChangeAllowed[r.Method+" "+r.URL.Path] {
 			jsonError(w, http.StatusForbidden, "Choose a new password before doing anything else.")
 			return
