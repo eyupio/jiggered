@@ -76,15 +76,17 @@ export function init(ctx) {
   setHTML(form, editorMarkup("set"));
   let baseline = { ...ctx.settings(), activities: identifyActivities(ctx.settings().activities) };
   let dirty = false, ticket = null, savedSettings = null, stampDone = false;
-  const editor = createEditor(form, "set", () => { dirty = true; ctx.drafts?.put("settings", { value: editor.read(), baseline }) });
+  const setDirty = v => { dirty = v; form.querySelector("[data-discard]").disabled = !v }; // nothing to discard until something is typed
+  setDirty(false);
+  const editor = createEditor(form, "set", () => { setDirty(true); ctx.drafts?.put("settings", { value: editor.read(), baseline }) });
   const savedDraft = ctx.drafts?.get("settings");
   editor.fill(savedDraft?.value || savedDraft || baseline);
-  if (savedDraft?.baseline) baseline = savedDraft.baseline; dirty = !!savedDraft;
+  if (savedDraft?.baseline) baseline = savedDraft.baseline; setDirty(!!savedDraft);
   if (dirty) say($("set-msg"), "Unfinished settings draft restored from this device.");
   queueMicrotask(() => paintGap());
   form.querySelector('[data-discard]').addEventListener("click", () => {
     if (dirty && !confirm("Discard the unfinished settings draft?")) return;
-    dirty = false; ctx.drafts?.remove("settings"); baseline = { ...ctx.settings(), activities: identifyActivities(ctx.settings().activities) }; editor.fill(baseline); paintGap(); say($("set-msg"), "Draft discarded.");
+    setDirty(false); ctx.drafts?.remove("settings"); baseline = { ...ctx.settings(), activities: identifyActivities(ctx.settings().activities) }; editor.fill(baseline); paintGap(); say($("set-msg"), "Draft discarded.");
   });
   // Says what the shared defaults have that this draft lacks, so the choice between adding and replacing is clear.
   function paintGap() {
@@ -97,13 +99,13 @@ export function init(ctx) {
   form.querySelector("[data-merge]").addEventListener("click", async () => {
     const shared = await ctx.loadDefaults(), mine = normaliseSettings(editor.read()), gap = defaultsGap(mine, shared.body);
     if (!gap.total) { paintGap(); say($("set-msg"), "You already have everything in the shared defaults."); return }
-    editor.fill(mergeDefaults(mine, shared.body)); dirty = true; ctx.drafts?.put("settings", { value: editor.read(), baseline }); paintGap();
+    editor.fill(mergeDefaults(mine, shared.body)); setDirty(true); ctx.drafts?.put("settings", { value: editor.read(), baseline }); paintGap();
     say($("set-msg"), `Added ${gap.total} new ${gap.total === 1 ? "item" : "items"} at the end of your lists${shared.fresh ? "" : " (from the last-known defaults; you're offline)"}. Review, then Save.`);
   });
   form.querySelector('[data-reset]').addEventListener("click", async () => {
     if (dirty && !confirm("Replace this draft with the current shared defaults?")) return;
     const shared = await ctx.loadDefaults();
-    editor.fill(shared.body); dirty = true; ctx.drafts?.put("settings", { value: editor.read(), baseline }); paintGap(); say($("set-msg"), shared.fresh ? "Latest shared defaults filled in. Save to adopt them." : "Offline: last-known defaults filled in. Save to adopt this version.");
+    editor.fill(shared.body); setDirty(true); ctx.drafts?.put("settings", { value: editor.read(), baseline }); paintGap(); say($("set-msg"), shared.fresh ? "Latest shared defaults filled in. Save to adopt them." : "Offline: last-known defaults filled in. Save to adopt this version.");
   });
   form.addEventListener("submit", e => {
     e.preventDefault(); if (ticket) return;
@@ -119,7 +121,7 @@ export function init(ctx) {
     form.querySelector('[type=submit]').disabled = state === "pending";
     if (state === "saved") {
       // Clear the acknowledged draft only if no new input was added during the request.
-      if (JSON.stringify(normaliseSettings(editor.read())) === JSON.stringify(savedSettings)) { dirty = false; ctx.drafts?.remove("settings") }
+      if (JSON.stringify(normaliseSettings(editor.read())) === JSON.stringify(savedSettings)) { setDirty(false); ctx.drafts?.remove("settings") }
       const S = ctx.settings(); baseline = dirty ? savedSettings : { ...S, activities: identifyActivities(S.activities) }; ticket = null; if (!dirty) editor.fill(baseline);
       if (!stampDone) { stampDone = true; const id = dayId(ctx.today()); if (ctx.store.view(id)) ctx.store.dispatch({ id, type: "restamp", arg: { budget: S.budget, sleepPenalty: S.sleepPenalty } }) }
     } else if (state === "failed") ticket = null;
@@ -189,7 +191,7 @@ export function init(ctx) {
   return {
     render() { renderSettings(); profile.render() },
     focus: key => editor.focus(key),
-    recover(value) { baseline = { ...ctx.settings(), activities: identifyActivities(ctx.settings().activities) }; editor.fill(normaliseSettings(value)); dirty = true; ticket = null; ctx.drafts?.put("settings", { value: editor.read(), baseline }); say($("set-msg"), "Recovered copy opened. Save it, then resolve or discard the old recovery item."); editor.focus("set-acts"); if (value.profile) profile.recover(value.profile) },
+    recover(value) { baseline = { ...ctx.settings(), activities: identifyActivities(ctx.settings().activities) }; editor.fill(normaliseSettings(value)); setDirty(true); ticket = null; ctx.drafts?.put("settings", { value: editor.read(), baseline }); say($("set-msg"), "Recovered copy opened. Save it, then resolve or discard the old recovery item."); editor.focus("set-acts"); if (value.profile) profile.recover(value.profile) },
     show() {
       if (!dirty && !ticket) { baseline = { ...ctx.settings(), activities: identifyActivities(ctx.settings().activities) }; editor.fill(baseline) }
       renderSettings(); paintGap();

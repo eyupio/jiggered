@@ -21,9 +21,10 @@ function download(name, text, type) {
 export function init(ctx) {
   let shown = PAGE, episodesShown = PAGE, rangeMode = "30", initialised = false, rangeToday = ctx.today(), chartWindow = "";
   const matrix = initMatrix($("history-matrix"), ctx, date => {
-    $("hist-from").value = $("hist-to").value = date; rangeMode = "custom"; shown = episodesShown = PAGE; render();
+    $("hist-from").value = $("hist-to").value = date; rangeMode = "custom"; shown = episodesShown = PAGE; openFilters(); render();
     $("eps").scrollIntoView({ block: "start" }); $("hist-from").focus({ preventScroll: true });
   });
+  const openFilters = () => { $("history-filter-panel").open = true };
   const setRange = key => {
     rangeMode = key; rangeToday = ctx.today();
     const dates = historyRange(ctx.store.all(), ctx.today(), key);
@@ -35,7 +36,7 @@ export function init(ctx) {
     const b = e.target.closest("[data-symptom],[data-query]"); if (!b) return;
     if (b.dataset.symptom) $("hist-symptom").value = b.dataset.symptom;
     else $("hist-query").value = b.dataset.query;
-    shown = episodesShown = PAGE; render(); $("history-filters").scrollIntoView({ block: "start" });
+    shown = episodesShown = PAGE; openFilters(); render(); $("history-filters").scrollIntoView({ block: "start" });
     $(b.dataset.symptom ? "hist-symptom" : "hist-query").focus({ preventScroll: true });
   });
   const filters = () => ({from: $("hist-from").value, to: $("hist-to").value, status: $("hist-status").value, symptom: $("hist-symptom").value, ongoing: $("hist-ongoing").checked, query: $("hist-query").value});
@@ -67,6 +68,7 @@ export function init(ctx) {
   $("more-eps").addEventListener("click", () => { episodesShown += PAGE; render() });
   $("sum-preview").addEventListener("click", () => { renderSummary(); $("summary-preview").innerHTML = $("print-view").innerHTML; $("summary-preview").hidden = !$("summary-preview").hidden });
   $("sum-range").addEventListener("change", () => { if (!$("summary-preview").hidden) { renderSummary(); $("summary-preview").innerHTML = $("print-view").innerHTML } });
+  $("sum-focus").addEventListener("change", () => { if (!$("summary-preview").hidden) { renderSummary(); $("summary-preview").innerHTML = $("print-view").innerHTML } });
   $("sum-notes").addEventListener("change", () => { if (!$("summary-preview").hidden) { renderSummary(); $("summary-preview").innerHTML = $("print-view").innerHTML } });
   setHTML($("sum-range"), html`${RANGES.map(([v, label]) => html`<option value="${v}">${label}</option>`)}`);
 
@@ -104,6 +106,7 @@ export function init(ctx) {
     setHTML($("print-view"), html`
       <h1>Jiggered summary</h1>
       <p>${label}: ${fmtLongDay(sm.from, L)} to ${fmtLongDay(sm.to, L)}. Printed ${fmtLongDay(ctx.today(), L)}.</p>
+      ${focus() && $("sum-focus").checked ? html`<p><b>What I'm tracking:</b> ${focus()}</p>` : ""}
       <h2>Check-ins</h2>
       <p>${plural(sm.days.filter(d => d.status).length, "day")} with a check-in: ${sm.green} green, ${sm.amber} amber, ${sm.red} red.
         ${sm.avgUsed === null ? "" : `On the ${plural(sm.activityDays, "day")} with activities, the average net points were ${sm.avgUsed} (activities minus recovery; days with only a check-in are not counted).`}
@@ -122,8 +125,26 @@ export function init(ctx) {
       <p class="small-print">Times are local as recorded; CSV includes any recorded time-zone offsets. Older records may have none. This is a personal log kept by the person it belongs to. It is not a medical record or a medical device.</p>`);
   }
 
+  const focus = () => normaliseProfile(ctx.store.view("settings")?.profile).focus;
+  // With fewer than 3 check-ins and no episodes, the graphs and patterns would only be empty boxes: one panel says
+  // how close the person is instead, and the records and sharing stay just below it.
+  const STARTER = 3;
+  let lastActive = "";
+  function renderStarter(docs) {
+    const checkins = listDays(docs).filter(d => d.status).length, thin = checkins < STARTER && !listEpisodes(docs).length;
+    for (const id of ["history-filter-panel", "history-shortcuts", "trends-panel", "history-matrix", "history-graphs", "history-patterns"]) $(id).classList.toggle("starter-hidden", thin);
+    $("history-starter").hidden = !thin;
+    if (thin) setHTML($("history-starter"), html`<h2>Your patterns appear after ${STARTER} check-ins</h2><p class="meta">You have ${plural(checkins, "check-in")} so far. Graphs, a calendar and patterns appear here once there's enough to show. Your days and sharing are below.</p><div class="starter-progress" role="img" aria-label="${checkins} of ${STARTER} check-ins">${Array.from({ length: STARTER }, (_, i) => html`<span class="${i < checkins ? "on" : ""}"></span>`)}</div><button class="secondary" data-go-today>Go to today's check-in</button>`);
+    return thin;
+  }
+  $("history-starter").addEventListener("click", e => { if (e.target.closest("[data-go-today]")) ctx.go("today") });
+
   function render() {
     const S = ctx.settings(), L = S.locale, docs = ctx.store.all(), today = ctx.today();
+    renderStarter(docs);
+    const f = focus();
+    $("history-lens").textContent = f ? `You wanted to notice: “${f}”` : "Explore what you've recorded, notice patterns, and take a clearer picture to your next conversation.";
+    $("sum-focus-row").hidden = !f; $("sum-focus-text").textContent = f ? `“${f}”` : "";
     if (!initialised && ctx.store.status().loaded) { initialised = true; setRange(normaliseProfile(ctx.store.view("settings")?.profile).historyRange) }
     if (rangeMode !== "custom" && rangeToday !== today) setRange(rangeMode);
     $("hist-from").max = $("hist-to").max = today;
@@ -131,6 +152,10 @@ export function init(ctx) {
     const selected = selectHistory(docs, filters()), days = selected.days, byDate = Object.fromEntries(listDays(docs).map(d => [d.date, d]));
     const symptom = $("hist-symptom").value, options = [...new Set([...S.symptoms, ...listEpisodes(docs).flatMap(([,e]) => e.symptoms)])];
     setHTML($("hist-symptom"), html`<option value="">Any</option>${options.map(name => html`<option value="${name}">${name}</option>`)}`); $("hist-symptom").value = symptom;
+    const active = [filters().status && `check-in: ${filters().status}`, filters().symptom && `symptom: ${filters().symptom}`, filters().ongoing && "ongoing only", filters().query.trim() && `“${filters().query.trim()}”`, rangeMode === "custom" && "custom dates"].filter(Boolean);
+    $("history-filter-summary").textContent = active.length ? active.join(" · ") : "None";
+    if (active.join() !== lastActive && active.length) $("history-filter-panel").open = true; // a newly applied filter is never hidden
+    lastActive = active.join();
     $("history-count").textContent = filters().from && filters().to && filters().from > filters().to ? "Choose an end date on or after the start date." : `${plural(days.length,"day")} and ${plural(selected.episodes.length,"episode")} match. Check-in filters apply to days; symptom/ongoing filters apply to episodes.`;
 
     setHTML($("strip"), html`${Array.from({ length: 14 }, (_, i) => {
@@ -165,7 +190,7 @@ export function init(ctx) {
       setHTML($("history-charts"), html`${chartMarkup(data, "energy", L)}${chartMarkup(data, "episodes", L)}`);
       connectCharts($("history-charts"), data, L, bucket => {
         if (bucket.from === bucket.to) ctx.openDay(bucket.from);
-        else { $("hist-from").value = bucket.from; $("hist-to").value = bucket.to; rangeMode = "custom"; shown = episodesShown = PAGE; render(); $("history-filters").scrollIntoView({ block: "start" }); $("hist-from").focus({ preventScroll: true }) }
+        else { $("hist-from").value = bucket.from; $("hist-to").value = bucket.to; rangeMode = "custom"; shown = episodesShown = PAGE; openFilters(); render(); $("history-filters").scrollIntoView({ block: "start" }); $("hist-from").focus({ preventScroll: true }) }
       });
       for (const [kind, value] of remembered) { const select = $("history-charts").querySelector(`[data-chart="${kind}"] [data-inspect]`); if (select && Number(value) < data.buckets.length) { select.value = value; select.dispatchEvent(new Event("change")) } }
       renderPatterns(data, L);

@@ -1,5 +1,6 @@
-// Real-browser check of the Today activity picker: groups start closed, a logged activity turns green with a count
-// and -/+ buttons, and it stays pinned at the top however the groups below are opened or closed.
+// Real-browser check of Today: the first-run checklist, the check-in that collapses to one line with Undo, and the
+// activity picker: groups start open so a new list shows buttons, a logged activity turns green with a count
+// and -/+ buttons in place, and groups the person opens stay open.
 // Needs Playwright (see the README); run with `node test/browser-today.cjs`. It builds a temporary binary and database.
 const { chromium } = require('playwright');
 const { spawn, execFileSync } = require('node:child_process');
@@ -41,24 +42,47 @@ const groups = page => page.evaluate(() => [...document.querySelectorAll('#acts 
     await page.locator('#acts details.act-group').first().waitFor();
     await saved(page);
 
-    // Groups start closed, and nothing is pinned yet.
+    // A new account gets the first-run checklist, with nothing ticked yet.
+    await page.locator('#onboarding').waitFor();
+    assert.equal(await page.locator('#onboarding li.done').count(), 0, 'nothing is ticked before anything is logged');
+
+    // The check-in collapses to one line once chosen; changing or clearing it offers Undo.
+    await page.locator('#checkin [data-s="amber"]').click();
+    await saved(page);
+    assert.ok(await page.locator('#checkin-done').isVisible(), 'a chosen check-in becomes one line');
+    assert.equal(await page.locator('#checkin').isVisible(), false);
+    assert.match(await page.locator('#checkin-done-text').textContent(), /Amber/);
+    assert.ok(await page.locator('#step-checkin.done').count(), 'the check-in step ticks itself');
+    await page.locator('#checkin-change').click();
+    await page.locator('#checkin [data-s="amber"]').click(); // tapping the chosen one clears it
+    await saved(page);
+    assert.match(await page.locator('#advice').textContent(), /Pick one/);
+    await page.locator('#toastbar button', { hasText: 'Undo' }).click();
+    await saved(page);
+    assert.match(await page.locator('#checkin-done-text').textContent(), /Amber/, 'Undo restores the cleared check-in');
+
+    // Groups start open, so a new list shows buttons straight away; nothing is pinned yet.
     const initial = await groups(page);
     assert.ok(initial.length >= 2, 'the default list has several groups');
-    assert.deepEqual(initial.filter(Boolean), [], 'every group starts closed');
-    assert.equal(await page.locator('.act-picked').count(), 0, 'nothing is logged, so nothing is pinned');
+    assert.deepEqual(initial.filter(x => !x), [], 'every group starts open');
+    assert.equal(await page.locator('#acts .act.on').count(), 0, 'nothing is logged yet');
 
-    // Open the first group and log its first activity.
-    await page.locator('#acts details.act-group summary').first().click();
+    // Log the first group's first activity.
     const firstButton = page.locator('#acts details.act-group[open] button.act').first();
     const name = (await firstButton.locator('span').first().textContent()).trim();
+    const inList = el => el.evaluate(e => { const a = e.getBoundingClientRect(), b = document.getElementById('acts').getBoundingClientRect(); return { x: a.x - b.x, y: a.y - b.y } });
+    const before = await inList(firstButton);
     await firstButton.click();
     await saved(page);
 
-    const card = page.locator('.act-picked .act.on', { hasText: name });
+    const card = page.locator('#acts details.act-group .act.on', { hasText: name }).first();
     await card.waitFor();
+    const after = await inList(card);
+    assert.ok(Math.abs(after.y - before.y) < 2 && Math.abs(after.x - before.x) < 2, 'a logged activity changes in place instead of moving');
+    assert.equal(await page.locator('#onboarding li.done').count(), 2, 'both first steps are ticked');
+    assert.match(await page.locator('#onboarding-title').textContent(), /set up/, 'the finished checklist stays up for now');
     assert.equal((await card.locator('.count').textContent()).trim(), '×1');
-    assert.match(await page.locator('.act-picked .label').textContent(), /Logged today/);
-    assert.equal(await page.locator('#acts details.act-group button.act', { hasText: name }).count(), 0, 'a logged activity is not shown twice');
+    assert.equal(await page.locator('#acts details.act-group button.act', { hasText: name }).count(), 0, 'the plain button became the logged card');
     const green = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--green').trim());
     const border = await card.evaluate(el => getComputedStyle(el).borderTopColor);
     assert.ok(green && border !== 'rgba(0, 0, 0, 0)', 'the card has a visible green border');
@@ -80,27 +104,29 @@ const groups = page => page.evaluate(() => [...document.querySelectorAll('#acts 
     await saved(page);
     assert.equal((await card.locator('.count').textContent()).trim(), '×2', 'Undo puts the removed one back');
 
-    // Pinned means pinned: closing every group leaves it in view.
-    for (const open of await page.locator('#acts details.act-group[open] summary').all()) await open.click();
+    // Closing every group hides everything, logged or not; reopening shows the card where it was.
+    while (await page.locator('#acts details.act-group[open] summary').count()) await page.locator('#acts details.act-group[open] summary').first().click();
     assert.deepEqual((await groups(page)).filter(Boolean), []);
-    assert.ok(await card.isVisible(), 'a logged activity stays visible with every group closed');
+    assert.equal(await card.isVisible(), false, 'a logged activity lives in its group');
+    await page.locator('#acts details.act-group summary').first().click();
+    assert.ok(await card.isVisible());
 
     // A group the person opened stays open after tapping inside it.
     await page.locator('#acts details.act-group summary').nth(1).click();
     await page.locator('#acts details.act-group[open] button.act').first().click();
     await saved(page);
-    assert.equal((await groups(page)).filter(Boolean).length, 1, 'the opened group stays open');
+    assert.equal((await groups(page)).filter(Boolean).length, 2, 'the opened groups stay open after tapping');
 
     // Taking the last one off returns the plain button.
     await card.locator('[data-step="-1"]').click();
     await card.locator('[data-step="-1"]').click();
     await saved(page);
-    assert.equal(await page.locator('.act-picked .act.on', { hasText: name }).count(), 0);
+    assert.equal(await page.locator('#acts .act.on', { hasText: name }).count(), 0);
     assert.equal(await page.locator('#acts button.act', { hasText: name }).count(), 1, 'the plain button is back');
 
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false, 'no horizontal overflow at phone width');
     assert.deepEqual(errors, []);
-    console.log('PASS: Today picker: groups start closed, logged activities turn green with a count, -/+ and Undo, pinned with groups closed, opened group stays open, plain button returns');
+    console.log('PASS: Today: checklist ticks itself, check-in collapses with Undo, groups start open, logged activities turn green with a count, -/+ and Undo, logged in place, opened groups stay open, plain button returns');
   } catch (e) {
     console.error(e.stack);
     if (logs) console.error(logs);

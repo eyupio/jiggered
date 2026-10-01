@@ -18,14 +18,19 @@
 <div class="wrap">
   <header>
     <div class="title"><img src="/icon.svg" alt="" width="36" height="36"><div><h1>Jiggered</h1><span class="date" id="today"></span></div></div>
-    <form class="head-actions" method="post" action="/logout" id="signout">
-      <span class="who" id="who"></span>
+    <div class="head-actions">
       <button class="ghost" type="button" data-help="" data-tooltip="Find answers about logging, settings, sharing and saving problems.">Help</button>
-      <button class="ghost" type="submit">Sign out</button>
-    </form>
+      <details class="menu" id="account-menu">
+        <summary aria-label="Account menu"><span class="avatar" id="who-initials" aria-hidden="true"></span><span class="who" id="who"></span></summary>
+        <div class="menu-pop">
+          <button class="menu-item" type="button" data-menu-go="account">Account and settings</button>
+          <form method="post" action="/logout" id="signout"><button class="menu-item" type="submit">Sign out</button></form>
+        </div>
+      </details>
+    </div>
+    <p class="sync" id="sync" data-state="attention" role="status" aria-live="polite">Connecting…</p>
   </header>
   <div class="banner" id="banner" hidden></div>
-  <p class="sync" id="sync" data-state="attention" role="status" aria-live="polite">Connecting…</p>
   <section class="panel recovery" id="recovery" hidden aria-label="Recover unsaved changes"></section>
   <section class="panel defaults-notice" id="defaults-notice" hidden aria-label="Shared defaults updated" role="region"></section>
   <nav role="tablist" id="tabs" aria-label="Main views">
@@ -33,22 +38,29 @@
     <button role="tab" id="t-episode" aria-controls="episode-panel" tabindex="-1" aria-selected="false" data-tab="episode">Episode</button>
     <button role="tab" id="t-history" aria-controls="history-panel" tabindex="-1" aria-selected="false" data-tab="history">History</button>
     <button role="tab" id="t-account" aria-controls="account-panel" tabindex="-1" aria-selected="false" data-tab="account">Account</button>
-    <button role="tab" id="t-help" aria-controls="help-panel" tabindex="-1" aria-selected="false" data-tab="help">Help</button>
   </nav>
 
   <section role="tabpanel" aria-labelledby="t-today" id="today-panel">
-    <div class="panel" id="onboarding" hidden><h2>Make this fit your day</h2><p>Points are personal planning estimates. Change the starting budget and move your most useful activities to the top.</p><button class="secondary" data-settings="set-acts">Personalise my activities</button> <button class="x" id="onboarding-dismiss">Dismiss</button></div>
-    <div class="panel" id="today-ongoing" hidden></div>
-    <div class="panel daynav">
-      <button class="ghost" id="day-prev" aria-label="Previous day">‹</button>
-      <div class="mid"><b id="day-label">Today</b><input type="date" id="day-pick" aria-label="Choose a day"></div>
-      <button class="ghost" id="day-next" aria-label="Next day">›</button>
+    <div class="panel onboarding" id="onboarding" role="region" hidden aria-labelledby="onboarding-title">
+      <div class="label-row"><h2 id="onboarding-title">Get started in under a minute</h2><button class="x" id="onboarding-dismiss">Hide</button></div>
+      <ol class="steps">
+        <li id="step-checkin"><span class="tick" aria-hidden="true"></span><span>Pick green, amber or red for how you're starting today</span></li>
+        <li id="step-activity"><span class="tick" aria-hidden="true"></span><span>Tap one thing you've done so far</span></li>
+        <li id="step-budget"><span class="tick" aria-hidden="true"></span><label class="step-budget">Optional: points you plan around each day <input type="number" id="onboarding-budget" min="1" max="30" inputmode="numeric"></label></li>
+      </ol>
     </div>
+    <div class="panel" id="today-ongoing" hidden></div>
     <p class="notice" id="day-notice" hidden>You're looking at a past day. Changes here are saved to that day. <button class="x" id="day-back">Back to today</button></p>
 
+    <div class="today-side">
     <div class="panel">
-      <div class="label" id="checkin-label">Morning check-in</div>
-      <p class="hint">How are you feeling as the day starts? Pick one to set today's plan. Tap it again to clear.</p>
+      <div class="daynav">
+        <button class="ghost" id="day-prev" aria-label="Previous day">‹</button>
+        <label class="mid" for="day-pick"><b id="day-label">Today</b><span class="day-date" id="day-date"></span><input type="date" id="day-pick" class="day-pick" aria-label="Choose a day"></label>
+        <button class="ghost" id="day-next" aria-label="Next day">›</button>
+      </div>
+      <div class="label-row"><div class="label" id="checkin-label">Morning check-in</div><button type="button" class="help-tip" aria-label="Help with the check-in" data-tooltip="How are you feeling as the day starts? Your pick sets today's plan. Tap the selected one again to clear it.">?</button></div>
+      <div class="checkin-done" id="checkin-done" hidden><span id="checkin-done-text"></span><button type="button" class="x" id="checkin-change">Change</button></div>
       <div class="checkin" id="checkin" role="group" aria-labelledby="checkin-label">
         <button data-s="green" aria-pressed="false"><b>Green</b><span class="mood">Good day</span><span class="cost">Full points</span></button>
         <button data-s="amber" aria-pressed="false"><b>Amber</b><span class="mood">Shaky</span><span class="cost">−3 points</span></button>
@@ -63,13 +75,13 @@
         <div class="meta" id="spentline">0 spent</div>
       </div>
       <div class="cells" id="cells" aria-hidden="true"></div>
-      <p class="hint">Your energy allowance for the day. Tap an activity below to spend points; rest gives them back.</p>
       <label class="switch-row" for="sleep"><span class="switch-text"><b id="sleep-title">Slept badly last night</b><small id="sleep-label">Takes 3 points off today</small></span><input type="checkbox" role="switch" id="sleep" class="switch"><span class="switch-ui" aria-hidden="true"></span></label>
       <details class="hint"><summary>How points work</summary><p>Points are your own planning aid. Demanding activities spend points; recovery gives points back. Your morning check-in sets the day's allowance: Green keeps your full budget, while Amber and Red take off the amounts you set in Account. Poor sleep takes off its own amount too. Zero-cost activities just record what happened. You can go below zero or above your starting budget. This is a log, not a recommendation to do more.</p><div class="row"><button class="x" data-settings="set-budget">Edit my budget</button> <button class="x" data-settings="set-acts">Edit my activities</button></div></details>
     </div>
+    </div>
 
     <div class="panel">
-      <div class="label-row"><h2>Tap what you've done</h2><button class="help-link x" data-help="activities">How it works</button></div><button class="x" data-settings="set-acts">Edit activities</button>
+      <div class="label-row"><h2>Tap what you've done</h2><span class="row"><button class="help-link x" data-help="activities">How it works</button><button class="x" data-settings="set-acts">Edit</button></span></div>
       <label class="timerow" id="act-time-row" hidden>Time, if you remember <input type="time" id="act-time"></label>
       <label class="field act-search" id="act-search-row" hidden><span class="sr-only">Search activities</span><input type="search" id="act-search" placeholder="Search activities" autocomplete="off"></label>
       <div class="group-filter" id="act-filter" role="group" aria-label="Show activities from" hidden></div>
@@ -98,21 +110,19 @@
     <details class="panel" id="episode-drafts" hidden><summary>Unfinished episode drafts on this device</summary><div id="episode-draft-list"></div></details>
     <div class="panel" id="episode-ongoing" hidden></div>
     <div class="panel">
-      <button class="x" data-settings="set-sym">Edit symptoms and triggers</button>
-      <div class="label-row"><h2 id="ep-title">Log an episode</h2><button class="help-link x" data-help="episodes">Help</button></div>
+      <div class="label-row"><h2 id="ep-title">Log an episode</h2><button class="help-link x" data-settings="set-sym">Edit lists</button></div>
       <form id="epform">
-        <p class="hint">New times use this device's local time zone. Existing start times keep their recorded offset; older records may have no offset.</p>
-        <div><label class="label" for="ep-when">When it started</label><input type="datetime-local" id="ep-when" required></div>
+        <div class="field-block"><label class="legend" for="ep-when">When it started</label><input type="datetime-local" id="ep-when" required></div>
         <fieldset><legend>What you noticed</legend><label class="field chip-search" id="ep-sym-q-row" hidden><span class="sr-only">Search symptoms</span><input type="search" id="ep-sym-q" placeholder="Search symptoms" autocomplete="off"></label><div class="chip-status" id="ep-sym-status" hidden><span id="ep-sym-count" role="status" aria-live="polite"></span><button type="button" class="x" id="ep-sym-clear" hidden>Clear selection</button></div><div class="group-filter" id="ep-sym-filter" role="group" aria-label="Show symptoms from" hidden></div><div class="chips" id="ep-sym"></div><button type="button" class="secondary small" id="ep-sym-more" hidden></button></fieldset>
         <fieldset><legend>How it came on</legend><div class="chips" id="ep-onset"></div></fieldset>
-        <div><label class="label" for="ep-dur">How long it lasted</label><select id="ep-dur"></select></div>
+        <div class="field-block"><label class="legend" for="ep-dur">How long it lasted</label><select id="ep-dur"></select></div>
         <label class="field" id="ep-ended-row" hidden>When it ended (optional)<input type="datetime-local" id="ep-ended"></label>
         <fieldset><legend>In the day or two before</legend><label class="field chip-search" id="ep-trig-q-row" hidden><span class="sr-only">Search triggers</span><input type="search" id="ep-trig-q" placeholder="Search triggers" autocomplete="off"></label><div class="chip-status" id="ep-trig-status" hidden><span id="ep-trig-count" role="status" aria-live="polite"></span><button type="button" class="x" id="ep-trig-clear" hidden>Clear selection</button></div><div class="group-filter" id="ep-trig-filter" role="group" aria-label="Show triggers from" hidden></div><div class="chips" id="ep-trig"></div><button type="button" class="secondary small" id="ep-trig-more" hidden></button></fieldset>
-        <div><label class="label" for="ep-notes">Notes</label><textarea id="ep-notes" maxlength="20000" placeholder="Anything else: BP reading, what helped, where you were"></textarea></div>
-        <button class="primary" type="submit" id="ep-save">Save episode</button>
+        <div class="field-block"><label class="legend" for="ep-notes">Notes</label><textarea id="ep-notes" maxlength="20000" placeholder="Anything else: BP reading, what helped, where you were"></textarea></div>
+        <div class="save-bar"><button class="primary" type="submit" id="ep-save">Save episode</button>
         <button class="secondary" type="button" id="ep-cancel" hidden>Back to new episode</button>
         <button class="secondary" type="button" id="ep-discard" hidden>Discard draft</button>
-        <p class="toast" id="eptoast" aria-live="polite"></p>
+        <p class="toast" id="eptoast" aria-live="polite"></p></div>
       </form>
     </div>
   </section>
@@ -121,14 +131,16 @@
     <div class="panel history-intro">
       <p class="help-eyebrow">Your days, with a little perspective</p>
       <div class="label-row"><h2>History &amp; insights</h2><button class="help-link x" data-help="history">How to read this</button></div>
-      <p class="meta">Explore what you've recorded, notice patterns, and take a clearer picture to your next conversation.</p>
+      <p class="meta" id="history-lens">Explore what you've recorded, notice patterns, and take a clearer picture to your next conversation.</p>
       <div class="range-presets" id="history-presets" role="group" aria-label="History period">
         <button type="button" data-range="7" aria-pressed="false">7 days</button><button type="button" data-range="30" aria-pressed="true">30 days</button><button type="button" data-range="90" aria-pressed="false">90 days</button><button type="button" data-range="365" aria-pressed="false">1 year</button><button type="button" data-range="all" aria-pressed="false">All time</button>
       </div>
       <p class="meta" id="history-period" role="status"></p>
     </div>
-    <div class="panel history-filter-panel">
-      <div class="label-row"><h2>Find your perspective</h2><button class="help-tip" aria-label="About history filters" data-tooltip="Dates and search apply to all graphs, insights, lists and CSV exports. Check-in filters affect days; symptom and ongoing filters affect episodes. The printed summary has its own period.">?</button></div>
+    <div class="panel history-starter" id="history-starter" hidden></div>
+    <details class="panel history-filter-panel" id="history-filter-panel">
+      <summary><h2>Filter and search</h2><span class="meta" id="history-filter-summary"></span></summary>
+      <p class="hint">Dates and search apply to graphs, insights, lists and CSV files. Check-in filters affect days; symptom and ongoing filters affect episodes. The printed summary has its own period.</p>
       <form id="history-filters" class="filters">
         <label class="field">From<input type="date" id="hist-from"></label>
         <label class="field">Through<input type="date" id="hist-to"></label>
@@ -139,7 +151,7 @@
         <button class="secondary" type="reset">Clear filters</button>
       </form>
       <p id="history-count" class="meta" role="status"></p>
-    </div>
+    </details>
     <div class="panel account-shortcuts" id="history-shortcuts" role="navigation" aria-label="History sections">
       <button type="button" class="secondary small" data-history-target="trends-panel">Overview</button><button type="button" class="secondary small" data-history-target="history-records">Records</button><button type="button" class="secondary small" data-history-target="history-share">Share</button>
     </div>
@@ -173,6 +185,7 @@
       <div class="label-row"><h2 tabindex="-1">Share with your doctor</h2><button class="help-link x" data-help="history">Help</button></div>
       <label class="field">Period for the printed summary<select id="sum-range"></select></label>
       <label class="toggle"><input type="checkbox" id="sum-notes" checked> Include private episode notes in the summary</label>
+      <label class="toggle" id="sum-focus-row" hidden><input type="checkbox" id="sum-focus"> Include what you'd like to notice: <span id="sum-focus-text"></span></label>
       <button class="secondary" id="sum-preview">Preview summary</button>
       <div id="summary-preview" hidden></div>
       <div class="row"><button class="primary" id="sum-print">Print or save as PDF</button></div>
@@ -276,8 +289,8 @@
     </div>
   </section>
 
-  <section role="tabpanel" aria-labelledby="t-help" id="help-panel" hidden>
-    <div class="panel help-intro"><p class="help-eyebrow">A little guidance, when you need it</p><h2>Help with Jiggered</h2><p>Get started, make the log fit your day, and keep your data safe.</p><div class="row"><button class="secondary" data-help="points">Understand points</button><button class="secondary" data-help="offline">Fix a saving problem</button></div></div>
+  <section role="region" aria-label="Help" id="help-panel" hidden>
+    <div class="panel help-intro"><button class="ghost" type="button" id="help-back">‹ Back</button><p class="help-eyebrow">A little guidance, when you need it</p><h2>Help with Jiggered</h2><p>Get started, make the log fit your day, and keep your data safe.</p><div class="row"><button class="secondary" data-help="points">Understand points</button><button class="secondary" data-help="offline">Fix a saving problem</button></div></div>
     <div class="panel"><label class="field" for="help-search">Find an answer<input type="search" id="help-search" placeholder="Try points, reorder, restore or offline" autocomplete="off"></label><p class="meta" id="help-count" role="status"></p><div id="help-empty" hidden><p>No matching topics. Try a shorter phrase, or browse all answers.</p><button class="secondary" id="help-clear">Show all topics</button></div><div id="help-topics"></div></div>
   </section>
 

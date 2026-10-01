@@ -21,7 +21,7 @@ export function profileIdentity(ctx) {
   $("acc-title").textContent = name; $("acc-avatar").textContent = profileInitials(name);
   $("acc-focus").textContent = p.focus || "A little clarity about your days, on your terms.";
   $("acc-badge").textContent = ctx.me.role === "admin" ? "Administrator" : "Personal account";
-  $("who").textContent = name;
+  $("who").textContent = name; $("who-initials").textContent = profileInitials(name);
   applyAppearance(p);
 }
 
