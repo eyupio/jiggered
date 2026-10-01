@@ -84,6 +84,7 @@ const MARKUP = `
     <div class="panel">
       <h2>Backup</h2>
       <p class="meta">Downloads a copy of the whole database. It includes everyone's check-ins and episodes, so keep it somewhere private. To put one back, see "Backup and restore" in the README.</p>
+      <label>Your password, to confirm<input type="password" id="backup-pw" autocomplete="current-password" aria-describedby="backup-msg"></label>
       <button class="secondary" id="backup">Download backup</button>
       <p class="msg" id="backup-msg" aria-live="polite"></p>
       <p class="meta" id="admin-version"></p>
@@ -227,15 +228,17 @@ function wire(ctx) {
   $("audit-more").addEventListener("click", () => loadAudit(false));
 
   $("backup").addEventListener("click", async () => withBusy($("backup"), "Preparing…", async () => {
-    const msg = $("backup-msg");
+    const msg = $("backup-msg"), pw = $("backup-pw");
+    if (!pw.value) { pw.focus(); return say(msg, "Enter your password to download a backup.", true) }
     say(msg, "Preparing the backup…");
     let r;
-    try { r = await fetch("/api/admin/backup", { method: "POST", signal: AbortSignal.timeout(300000), credentials: "same-origin", headers: { "X-Requested-With": "jiggered", "X-Jiggered-User": String(me.id) } }) }
+    try { r = await fetch("/api/admin/backup", { method: "POST", body: JSON.stringify({ password: pw.value }), signal: AbortSignal.timeout(300000), credentials: "same-origin", headers: { "Content-Type": "application/json", "X-Requested-With": "jiggered", "X-Jiggered-User": String(me.id) } }) }
     catch { return say(msg, "Couldn't reach the server. Check your connection and try again.", true) }
     if (!r.ok) {
       const why = await r.json().then(j => j.error, () => "");
       return say(msg, why || `The backup failed (${r.status}).`, true);
     }
+    pw.value = ""; // asked for again next time
     const url = URL.createObjectURL(await r.blob());
     const name = (/filename="([^"]+)"/.exec(r.headers.get("Content-Disposition") || "") || [])[1] || "jiggered-backup.db";
     const a = Object.assign(document.createElement("a"), { href: url, download: name });

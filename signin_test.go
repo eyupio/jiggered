@@ -175,3 +175,42 @@ func TestADatabaseHiccupDoesNotSignAnyoneOut(t *testing.T) {
 		t.Errorf("once it is back the same session works: %d", st)
 	}
 }
+
+// A browser without Fetch Metadata gives us only Origin or Referer to go on.
+func TestLoginRefusesAnotherSitesOriginWhenThereIsNoFetchMetadata(t *testing.T) {
+	e := newTestServer(t)
+	host := strings.TrimPrefix(e.ts.URL, "http://")
+	for _, tc := range []struct {
+		name    string
+		headers []string
+		want    string
+	}{
+		{"no Origin or Referer (a script)", nil, "/"},
+		{"same Origin", []string{"Origin", "http://" + host}, "/"},
+		{"same host in the Referer only", []string{"Referer", "http://" + host + "/login"}, "/"},
+		{"another site's Origin", []string{"Origin", "https://evil.example"}, "403"},
+		{"opaque Origin", []string{"Origin", "null"}, "403"},
+		{"another site's Referer only", []string{"Referer", "https://evil.example/page"}, "403"},
+		{"Origin wins over a matching Referer", []string{"Origin", "https://evil.example", "Referer", "http://" + host + "/"}, "403"},
+		{"Fetch Metadata present: left to rejectCrossSite", []string{"Sec-Fetch-Site", "same-origin", "Origin", "https://evil.example"}, "/"},
+	} {
+		if got := e.newClient().login(adminName, adminPass, tc.headers...); got != tc.want {
+			t.Errorf("%s: login went to %q, want %q", tc.name, got, tc.want)
+		}
+	}
+	if n := countRows(t, e, "SELECT count(*) FROM sessions"); n != 4 {
+		t.Errorf("sessions = %d: only the four allowed sign-ins should have made one", n)
+	}
+}
+
+func TestLoginBehindAProxyAcceptsTheForwardedHost(t *testing.T) {
+	e := newTestServer(t)
+	hdr := []string{"Origin", "https://log.example.org", "X-Forwarded-Host", "log.example.org"}
+	if got := e.newClient().login(adminName, adminPass, hdr...); got != "403" {
+		t.Errorf("a forwarded host nobody trusts = %q, want 403", got)
+	}
+	e.set("trust_proxy", "true")
+	if got := e.newClient().login(adminName, adminPass, hdr...); got != "/" {
+		t.Errorf("a trusted proxy's forwarded host = %q, want /", got)
+	}
+}

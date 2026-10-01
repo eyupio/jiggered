@@ -298,7 +298,8 @@ docker compose exec jiggered /jiggered backup                     # saved in the
 docker compose exec -T jiggered /jiggered backup - > jiggered-backup.db   # or straight to a file on this machine
 ```
 
-Admins can also use **Download backup** in the Admin tab. A copy of your own data alone is **Download everything**
+Admins can also use **Download backup** in the Admin tab. It asks for the admin's own password every time, so a
+signed-in session left open can't be used to take everyone's data. A copy of your own data alone is **Download everything**
 in Account, which can be restored from the same page.
 
 To restore a backup, stop the app first:
@@ -323,7 +324,8 @@ It checks the file first, keeps the database it replaces as `/data/backups/pre-r
   (the oldest are signed out beyond that). Signing out, changing the password, disabling or deleting the account
   ends sessions, including one whose sign-in was already under way; you can also sign out other devices yourself.
 - Writes need a same-origin header, and browsers' `Sec-Fetch-Site` is checked on every write, which also stops an
-  attacker signing you in to their own account. A strict Content-Security-Policy; fonts are served from the app,
+  attacker signing you in to their own account. A browser that sends no `Sec-Fetch-Site` is covered at sign-in by
+  its `Origin` (or `Referer`) having to match the host it asked, or the one a trusted proxy forwards. A strict Content-Security-Policy; fonts are served from the app,
   so it makes no requests to third parties.
 - Temporary passwords are random, shown once, and must be replaced at first sign-in.
 - Everything an admin or the command line does, and every successful sign-in and wrong password for an existing account,

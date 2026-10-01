@@ -32,10 +32,18 @@ func snapshotToTemp(db *sql.DB, dbPath string) (string, error) {
 }
 
 // adminBackup streams a consistent copy of the whole database. It contains
-// everyone's data, which is why only admins can ask for it and each download
-// is logged.
+// everyone's data, which is why only admins can ask for it, they must confirm
+// their password each time, and each download is logged.
 func (s *server) adminBackup(w http.ResponseWriter, r *http.Request) {
 	a := authOf(r)
+	// A session alone is not enough to take everyone's data: the admin types their password for each download, so a
+	// stolen or left-open session can't fetch it. Checked (and rate-limited) like any password entry.
+	var in struct {
+		Password string `json:"password"`
+	}
+	if !readJSON(w, r, &in) || !s.verifyOwnPassword(w, r, a.u, in.Password) {
+		return
+	}
 	if !s.backupMu.TryLock() {
 		jsonError(w, http.StatusTooManyRequests, "A backup is already running.")
 		return
