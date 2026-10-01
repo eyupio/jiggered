@@ -2,3 +2,5 @@
 *.db
 *.db-*
 .git
+*_test.go
+test/
