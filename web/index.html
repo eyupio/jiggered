@@ -17,18 +17,28 @@
 <div class="wrap">
   <header>
     <div class="title"><img src="/icon.svg" alt="" width="36" height="36"><div><h1>Jiggered</h1><span class="date" id="today"></span></div></div>
-    <form class="head-actions" method="post" action="/logout">
-      <a class="ghost" href="/api/export">Export</a>
+    <form class="head-actions" method="post" action="/logout" id="signout">
+      <span class="who" id="who"></span>
       <button class="ghost" type="submit">Sign out</button>
     </form>
   </header>
-  <nav role="tablist">
+  <div class="banner" id="banner" hidden></div>
+  <nav role="tablist" id="tabs">
     <button role="tab" id="t-today" aria-selected="true" data-tab="today">Today</button>
-    <button role="tab" id="t-episode" aria-selected="false" data-tab="episode">Log episode</button>
+    <button role="tab" id="t-episode" aria-selected="false" data-tab="episode">Episode</button>
     <button role="tab" id="t-history" aria-selected="false" data-tab="history">History</button>
+    <button role="tab" id="t-account" aria-selected="false" data-tab="account">Account</button>
+    <button role="tab" id="t-admin" aria-selected="false" data-tab="admin" hidden>Admin</button>
   </nav>
 
   <section id="today-panel">
+    <div class="panel daynav">
+      <button class="ghost" id="day-prev" aria-label="Previous day">‹</button>
+      <div class="mid"><b id="day-label">Today</b><input type="date" id="day-pick" aria-label="Choose a day"></div>
+      <button class="ghost" id="day-next" aria-label="Next day">›</button>
+    </div>
+    <p class="notice" id="day-notice" hidden>You're looking at a past day. Changes here are saved to that day. <button class="x" id="day-back">Back to today</button></p>
+
     <div class="panel">
       <div class="label">Morning check-in</div>
       <div class="checkin" id="checkin">
@@ -45,34 +55,36 @@
         <div class="meta" id="spentline">0 spent</div>
       </div>
       <div class="cells" id="cells"></div>
-      <label class="toggle"><input type="checkbox" id="sleep"> Poor sleep last night (−3 off today)</label>
+      <label class="toggle"><input type="checkbox" id="sleep"> <span id="sleep-label">Poor sleep last night</span></label>
     </div>
 
     <div class="panel">
       <h2>Tap what you've done</h2>
+      <label class="timerow" id="act-time-row" hidden>Time, if you remember <input type="time" id="act-time"></label>
       <div class="acts" id="acts"></div>
+      <p class="empty" id="noacts" hidden>No activities yet. Add some in Account, under Settings.</p>
     </div>
 
     <div class="panel">
-      <h2>Today so far</h2>
+      <h2>So far</h2>
       <ul class="list" id="entries"></ul>
       <p class="empty" id="noentries">Nothing logged yet. Tap an activity above as you go.</p>
     </div>
-    <p class="sync" id="sync">Connecting…</p>
   </section>
 
   <section id="episode-panel" hidden>
     <div class="warn"><b>Call 999</b> if symptoms come on suddenly, or with weakness, face drooping, speech problems or severe headache. Don't log first.</div>
     <div class="panel">
+      <h2 id="ep-title">Log an episode</h2>
       <form id="epform">
         <div><label class="label" for="ep-when">When it started</label><input type="datetime-local" id="ep-when" required></div>
         <fieldset><legend>What you noticed</legend><div class="chips" id="ep-sym"></div></fieldset>
         <fieldset><legend>How it came on</legend><div class="chips" id="ep-onset"></div></fieldset>
-        <div><label class="label" for="ep-dur">How long it lasted</label>
-          <select id="ep-dur"><option>Still going</option><option>Under 15 min</option><option>15–60 min</option><option>1–4 hours</option><option>4–12 hours</option><option>Most of a day</option><option>Over a day</option></select></div>
+        <div><label class="label" for="ep-dur">How long it lasted</label><select id="ep-dur"></select></div>
         <fieldset><legend>In the day or two before</legend><div class="chips" id="ep-trig"></div></fieldset>
         <div><label class="label" for="ep-notes">Notes</label><textarea id="ep-notes" placeholder="Anything else: BP reading, what helped, where you were"></textarea></div>
-        <button class="primary" type="submit">Save episode</button>
+        <button class="primary" type="submit" id="ep-save">Save episode</button>
+        <button class="secondary" type="button" id="ep-cancel" hidden>Cancel</button>
         <p class="toast" id="eptoast" aria-live="polite"></p>
       </form>
     </div>
@@ -82,20 +94,149 @@
     <div class="panel">
       <h2>Last 14 days</h2>
       <div class="strip" id="strip" aria-label="Check-in colour for each of the last 14 days"></div>
-      <p class="meta strip-note">Oldest on the left. Grey means no check-in.</p>
+      <p class="meta strip-note">Oldest on the left. Grey means no check-in. Tap a day to open it.</p>
+    </div>
+    <div class="panel" id="trends-panel" hidden>
+      <h2>Last 30 days</h2>
+      <div id="trends"></div>
     </div>
     <div class="panel">
       <h2>Days</h2>
       <ul class="list" id="days"></ul>
+      <button class="secondary" id="more-days" hidden>Show older days</button>
       <p class="empty" id="nodays">Your days will appear here once you start checking in.</p>
     </div>
     <div class="panel">
       <h2>Episodes</h2>
       <div id="eps"></div>
-      <p class="empty" id="noeps">No episodes logged. Use "Log episode" if one happens; show this list to your neurologist or GP.</p>
+      <p class="empty" id="noeps">No episodes logged. Use "Episode" if one happens; show this list to your neurologist or GP.</p>
+    </div>
+    <div class="panel">
+      <h2>Share with your doctor</h2>
+      <label class="field">Period for the printed summary<select id="sum-range"></select></label>
+      <div class="row"><button class="primary" id="sum-print">Print or save as PDF</button></div>
+      <p class="hint">Spreadsheet files include every day and episode.</p>
+      <div class="row">
+        <button class="secondary" id="csv-days">Days as CSV</button>
+        <button class="secondary" id="csv-eps">Episodes as CSV</button>
+      </div>
     </div>
   </section>
+
+  <section id="account-panel" hidden>
+    <div class="panel">
+      <h2>Signed in as <span id="acc-name"></span></h2>
+      <p class="meta" id="acc-role"></p>
+      <p class="meta">The admin can manage accounts, but can't read your check-ins or episodes through Jiggered. Anyone with access to the server's files could, so host it somewhere you trust.</p>
+    </div>
+
+    <div class="panel" id="pw-panel">
+      <h2>Change password</h2>
+      <form id="pwform">
+        <label class="field">Current password<input type="password" id="pw-cur" autocomplete="current-password" required></label>
+        <label class="field">New password<input type="password" id="pw-new" autocomplete="new-password" minlength="8" maxlength="72" required></label>
+        <label class="field">New password again<input type="password" id="pw-new2" autocomplete="new-password" minlength="8" maxlength="72" required></label>
+        <p class="hint">At least 8 characters. Changing it signs out your other devices.</p>
+        <button class="primary" type="submit">Change password</button>
+        <p class="msg" id="pw-msg" aria-live="polite"></p>
+      </form>
+    </div>
+
+    <div class="panel" id="sessions-panel">
+      <h2>Where you're signed in</h2>
+      <ul class="list" id="sessions"></ul>
+      <button class="secondary" id="revoke-others">Sign out all other devices</button>
+      <p class="msg" id="sessions-msg" aria-live="polite"></p>
+    </div>
+
+    <div class="panel" id="settings-panel">
+      <h2>Settings</h2>
+      <form id="setform">
+        <div class="row2">
+          <label class="field">Points per day<input type="number" id="set-budget" min="1" max="30" inputmode="numeric"></label>
+          <label class="field">Poor sleep costs<input type="number" id="set-penalty" min="0" max="30" inputmode="numeric"></label>
+        </div>
+        <label class="field">Dates shown as<select id="set-locale"></select></label>
+        <fieldset>
+          <legend>Activities</legend>
+          <p class="hint">Points an activity costs. Use a negative number for something that gives energy back.</p>
+          <div id="set-acts"></div>
+          <button class="secondary" type="button" id="set-addact">Add an activity</button>
+        </fieldset>
+        <label class="field">Symptoms to pick from (one per line)<textarea id="set-sym" rows="6"></textarea></label>
+        <label class="field">Possible triggers to pick from (one per line)<textarea id="set-trig" rows="6"></textarea></label>
+        <div class="row">
+          <button class="primary" type="submit">Save settings</button>
+          <button class="secondary" type="button" id="set-reset">Back to the defaults</button>
+        </div>
+        <p class="msg" id="set-msg" aria-live="polite"></p>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h2>Your data</h2>
+      <p class="meta">Download everything you've logged, or load a file you downloaded earlier.</p>
+      <div class="row"><a class="secondary btn" href="/api/export" download>Download everything (JSON)</a></div>
+      <form id="importform">
+        <label class="field">Restore from a file<input type="file" id="import-file" accept=".json,application/json"></label>
+        <label class="radio"><input type="radio" name="import-mode" value="add" checked> Keep what's here, add what's missing</label>
+        <label class="radio"><input type="radio" name="import-mode" value="overwrite"> Replace matching days and episodes with the file's</label>
+        <button class="secondary" type="submit">Restore</button>
+        <p class="msg" id="import-msg" aria-live="polite"></p>
+      </form>
+    </div>
+
+    <div class="panel danger-zone">
+      <h2>Delete my account</h2>
+      <p class="meta">This removes your account and everything you've logged, for good. Download your data first if you want to keep it.</p>
+      <form id="delform">
+        <label class="field">Your password<input type="password" id="del-pw" autocomplete="current-password" required></label>
+        <button class="danger" type="submit">Delete my account</button>
+        <p class="msg" id="del-msg" aria-live="polite"></p>
+      </form>
+    </div>
+  </section>
+
+  <section id="admin-panel" hidden>
+    <div class="panel">
+      <h2>People</h2>
+      <p class="meta">You can add people, reset passwords, sign devices out and remove accounts. You can't read anyone's check-ins or episodes here, only how many they have.</p>
+      <ul class="list people" id="users"></ul>
+      <p class="msg" id="users-msg" aria-live="polite"></p>
+    </div>
+    <div class="panel">
+      <h2>Add someone</h2>
+      <form id="adduser">
+        <label class="field">Username<input type="text" id="new-name" autocomplete="off" autocapitalize="none" maxlength="64" required></label>
+        <label class="radio"><input type="checkbox" id="new-admin"> Can manage people (admin)</label>
+        <button class="primary" type="submit">Create account</button>
+        <p class="msg" id="adduser-msg" aria-live="polite"></p>
+      </form>
+      <div class="reveal" id="reveal" hidden>
+        <p><b id="reveal-who"></b> can sign in with this temporary password. It is shown once. They'll choose their own at first sign-in.</p>
+        <code id="reveal-pw"></code>
+        <button class="secondary" id="reveal-copy" type="button">Copy</button>
+        <button class="x" id="reveal-hide" type="button">Hide</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Activity</h2>
+      <ul class="list audit" id="audit"></ul>
+      <button class="secondary" id="audit-more" hidden>Show older</button>
+    </div>
+    <div class="panel">
+      <h2>Backup</h2>
+      <p class="meta">Downloads a copy of the whole database. It includes everyone's check-ins and episodes, so keep it somewhere private. Restoring means putting the file back in the data folder (see the README).</p>
+      <button class="secondary" id="backup">Download backup</button>
+      <p class="msg" id="backup-msg" aria-live="polite"></p>
+      <p class="meta" id="admin-version"></p>
+    </div>
+  </section>
+
+  <p class="sync" id="sync" aria-live="polite">Connecting…</p>
+  <section id="print-view" aria-hidden="true"></section>
 </div>
-<script src="/app.js"></script>
+<div class="toastbar" id="toastbar" role="status" aria-live="polite" hidden></div>
+<script type="module" src="/app.js"></script>
 </body>
 </html>
