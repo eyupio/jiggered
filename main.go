@@ -290,7 +290,7 @@ func (s *server) routes() http.Handler {
 			// Nobody has an account yet: say how to make the first one.
 			page = bytes.Replace(page, []byte(`id="setup" hidden`), []byte(`id="setup"`), 1)
 		}
-		serveHTML(w, files.versionPage(page))
+		serveHTML(w, r, files, files.versionPage(page))
 	})
 	mux.HandleFunc("POST /login", s.handleLogin)
 	mux.HandleFunc("POST /logout", s.handleLogout)
@@ -350,7 +350,7 @@ func (s *server) routes() http.Handler {
 			http.NotFound(w, r)
 			return
 		}
-		serveHTML(w, files.versionPage(b))
+		serveHTML(w, r, files, files.versionPage(b))
 	}))
 
 	return securityHeaders(rejectCrossSite(mux))
@@ -373,9 +373,17 @@ func (s *server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok"))
 }
 
-func serveHTML(w http.ResponseWriter, page []byte) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+func serveHTML(w http.ResponseWriter, r *http.Request, files *static, page []byte) {
 	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Add("Vary", "Accept-Encoding")
+	if acceptsGzip(r) {
+		tag := pageTag(page)
+		if gz := files.gz.get("page:"+tag, func() ([]byte, error) { return page, nil }); gz != nil {
+			serveCompressed(w, r, "text/html; charset=utf-8", "", gz)
+			return
+		}
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write(page)
 }
 
@@ -383,12 +391,14 @@ func serveHTML(w http.ResponseWriter, page []byte) {
 // browsers revalidate (a cheap 304) instead of running a stale copy after an upgrade.
 type static struct {
 	files   http.Handler
+	fsys    fs.FS
 	etags   map[string]string
 	version string // identifies this build's files; see versionPage
+	gz      gzipCache
 }
 
 func newStatic(fsys fs.FS) *static {
-	st := &static{files: http.FileServer(http.FS(fsys)), etags: map[string]string{}}
+	st := &static{files: http.FileServer(http.FS(fsys)), fsys: fsys, etags: map[string]string{}}
 	all := sha256.New()
 	fs.WalkDir(fsys, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
@@ -465,6 +475,16 @@ func (st *static) serve(w http.ResponseWriter, r *http.Request, cacheControl str
 		w.Header().Set("ETag", e)
 	}
 	w.Header().Set("Cache-Control", cacheControl)
+	if compressibleFile(r.URL.Path) {
+		w.Header().Add("Vary", "Accept-Encoding") // the answer depends on it, so nothing in between may mix the two
+		if _, known := st.etags[r.URL.Path]; known && acceptsGzip(r) && (r.Method == http.MethodGet || r.Method == http.MethodHead) && r.Header.Get("Range") == "" {
+			name := strings.TrimPrefix(r.URL.Path, "/")
+			if gz := st.gz.get(r.URL.Path, func() ([]byte, error) { return fs.ReadFile(st.fsys, name) }); gz != nil {
+				serveCompressed(w, r, contentTypeOf(name), st.etags[r.URL.Path], gz)
+				return
+			}
+		}
+	}
 	if strings.HasSuffix(r.URL.Path, ".webmanifest") {
 		w.Header().Set("Content-Type", "application/manifest+json")
 	}

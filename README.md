@@ -333,6 +333,10 @@ It checks the file first (it must have every table its schema version needs), si
   attacker signing you in to their own account. A browser that sends no `Sec-Fetch-Site` is covered at sign-in by
   its `Origin` (or `Referer`) having to match the host it asked, or the one a trusted proxy forwards. A strict Content-Security-Policy; fonts are served from the app,
   so it makes no requests to third parties.
+- The app's own scripts, styles and pages are sent gzip-compressed (about two thirds smaller) to browsers that accept it.
+  Nothing built from your data is compressed: API answers, exports and the database download are always sent as they
+  are, because compressing a reply that mixes private data with text someone else can influence can leak it through
+  its size. A reverse proxy that compresses as well, or strips `Accept-Encoding`, is harmless.
 - Temporary passwords are random, shown once, and must be replaced at first sign-in.
 - Everything an admin or the command line does, and every successful sign-in and wrong password for an existing account,
   is in the activity log (180 days; the newest 10,000 events of each kind). Attempts with unknown names, and attempts
