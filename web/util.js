@@ -78,7 +78,7 @@ export async function api(method, path, body, headers = {}) {
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
 // A queued attempt resolving is not proof it reached the server. Call from render as the store changes.
-export function saveFeedback(store, ticket, el, success = "Saved on your server.") {
+export function saveFeedback(store, ticket, el, success = "Saved.") {
   if (!ticket) return null;
   const outcome = store.outcome(ticket.n);
   const st = store.status();

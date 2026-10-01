@@ -205,7 +205,9 @@ function fatal(text) {
     $("sync").classList.toggle("err", !!st.failed || !!st.localError || !!draftError);
     $("sync").textContent = st.readOnly ? coordination.reason : st.restoring ? "Restore in progress. Editing is paused." : st.localError || draftError || (st.failed ? `${st.failed} refused ${st.failed === 1 ? "change needs" : "changes need"} recovery below.`
       : n ? !st.durable ? `${n} changes are only in memory while device storage finishes. Keep this page open.` : st.offline ? `${n} changes queued on this device. Will retry when connected.` : `${n} changes queued on this device. Sending…`
-      : st.offline ? "Offline. Showing this device's copy." : st.loaded ? "Saved on your server." : "Connecting…");
+      : st.offline ? "Offline. Showing this device's copy." : st.loaded ? "" : "Connecting…");
+    $("sync").hidden = !$("sync").textContent;
+    $("sync").dataset.state = $("sync").hidden ? "saved" : "attention";
     const failures = store.failures();
     $("recovery").hidden = !failures.length && !st.localError && !draftError;
     setHTML($("recovery"), html`<h2>Recover unsaved changes</h2><p>Download a private copy before leaving this device. This recovery file is for support or manual recovery, not the account restore form.</p><button class="secondary" data-action="download">Download recovery copy</button>${failures.map(f => html`<div class="recovery-item"><b>${f.id}</b><p>${f.message}</p><button class="secondary" data-action="retry" data-key="${f.key}">${f.conflict ? f.deleted || f.deletedEntry ? "Restore my record" : "Use my change" : "Retry"}</button>${f.body && (f.id === "settings" || /^e-/.test(f.id)) ? html`<button class="secondary" data-action="edit" data-key="${f.key}">Edit a recovered copy</button>` : ""}<button class="x" data-action="discard" data-key="${f.key}">${f.conflict ? "Keep server copy" : "Discard"}</button></div>`)}`);
