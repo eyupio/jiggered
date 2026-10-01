@@ -1,5 +1,6 @@
 // New captures and edits have separate device drafts; a server acknowledgement completes a save.
 import { $, html, setHTML, saveFeedback } from "./util.js";
+import { PICKER, usage, favourites, matches } from "./picker.js";
 import { ONSET, DURATIONS, nowLocal, readableEpisode, ongoingEpisodes, validateEpisodeTimes } from "./model.js";
 
 export function renderOngoing(ctx, el) {
@@ -9,22 +10,41 @@ export function renderOngoing(ctx, el) {
 }
 
 export function init(ctx) {
+  const find = { sym: { q: "", all: false }, trig: { q: "", all: false } }; // search text and "show all" per long list
   let editing = null, dirty = false, chipsKey = "", ticket = null, original = {}, submitted = null;
   const form = $("epform"), drafts = ctx.drafts;
   const slot = () => editing ? `episode-edit:${editing}` : "episode-new";
   const picked = name => [...form.querySelectorAll(`input[name=${name}]:checked`)].map(i => i.value);
   const body = () => ({ when: $("ep-when").value, symptoms: picked("sym"), onset: picked("onset")[0] || "", duration: $("ep-dur").value, endedAt: $("ep-ended").value, before: picked("trig"), notes: $("ep-notes").value });
   const remember = () => { if (dirty) drafts?.put(slot(), { body: body(), original, submitted }) };
-  function chips(el, list, name, type, extra = [], keep = picked(name)) {
-    setHTML($(el), html`${[...new Set([...list, ...extra, ...keep])].map((t, i) => html`<label class="chip"><input type="${type}" name="${name}" id="${name}-${i}" value="${t}"${keep.includes(t) ? " checked" : ""}><span>${t}</span></label>`)}`);
+  // Long lists: the most and latest used come first, the rest wait behind "Show all" or a search. Chips that are
+  // selected always stay visible, and every chip stays in the form so nothing selected is ever lost.
+  function chips(el, list, name, type, extra = [], keep = picked(name), favs = []) {
+    const names = [...new Set([...list, ...extra, ...keep])], ordered = [...favs.filter(f => names.includes(f)), ...names.filter(f => !favs.includes(f))];
+    setHTML($(el), html`${ordered.map((t, i) => html`<label class="chip${favs.includes(t) ? " fav" : ""}"><input type="${type}" name="${name}" id="${name}-${i}" value="${t}"${keep.includes(t) ? " checked" : ""}><span>${t}</span></label>`)}`);
+    if (type === "checkbox") narrow(name);
+  }
+  function narrow(name) {
+    const box = $("ep-" + name), all = [...box.querySelectorAll(".chip")], st = find[name], long = all.length > PICKER.searchFrom + 4;
+    $(`ep-${name}-q-row`).hidden = !long;
+    const q = long ? st.q.trim() : "";
+    let shown = 0;
+    for (const c of all) {
+      const on = c.querySelector("input").checked || (q ? matches(q, c.textContent) : !long || st.all || shown < PICKER.page);
+      c.hidden = !on; if (on && !c.querySelector("input").checked) shown++;
+    }
+    const hiddenCount = all.filter(c => c.hidden).length, more = $(`ep-${name}-more`);
+    more.hidden = !long || q || (!st.all && !hiddenCount);
+    more.textContent = st.all ? "Show fewer" : `Show all ${all.length}`;
+    box.dataset.empty = q && all.every(c => c.hidden) ? "1" : "";
   }
   function build(ep = null) {
-    const S = ctx.settings(), k = JSON.stringify([S.symptoms, S.triggers, editing, ep?.symptoms, ep?.before]);
+    const S = ctx.settings(), use = usage(ctx.store.all(), ctx.today()), fs = favourites(S.symptoms, use.sym), ft = favourites(S.triggers, use.trig), k = JSON.stringify([S.symptoms, S.triggers, fs, ft, editing, ep?.symptoms, ep?.before]);
     if (k === chipsKey) return;
     chipsKey = k;
-    chips("ep-sym", S.symptoms, "sym", "checkbox", ep?.symptoms || []);
+    chips("ep-sym", S.symptoms, "sym", "checkbox", ep?.symptoms || [], undefined, fs);
     chips("ep-onset", ONSET, "onset", "radio");
-    chips("ep-trig", S.triggers, "trig", "checkbox", ep?.before || []);
+    chips("ep-trig", S.triggers, "trig", "checkbox", ep?.before || [], undefined, ft);
     const current = $("ep-dur").value || DURATIONS[0];
     setHTML($("ep-dur"), html`${[...new Set([...DURATIONS, ...(ep?.duration ? [ep.duration] : [])])].map(d => html`<option>${d}</option>`)}`);
     $("ep-dur").value = current;
@@ -40,9 +60,11 @@ export function init(ctx) {
     $("ep-dur").value = ep.duration || DURATIONS[0];
     $("ep-ended").value = ep.endedAt || "";
     $("ep-notes").value = ep.notes;
+    narrow("sym"); narrow("trig");
   }
   function restore(id = null) {
     editing = id; ticket = null; submitted = null;
+    for (const name of ["sym", "trig"]) { find[name].q = ""; find[name].all = false }
     const draft = drafts?.get(slot());
     original = draft?.original || (id ? ctx.store.view(id) || {} : {});
     dirty = !!draft;
@@ -70,7 +92,13 @@ export function init(ctx) {
     if (editing) { $("ep-save").disabled = false; original = ctx.store.view(editing) || original }
     else { form.reset(); chipsKey = ""; fill({}); $("ep-save").disabled = false }
   }
-  form.addEventListener("input", () => { if (ticket && ctx.store.outcome(ticket.n) === "failed") ticket = submitted = null; dirty = true; remember(); render() });
+  for (const name of ["sym", "trig"]) {
+    $(`ep-${name}-q`).addEventListener("input", e => { find[name].q = e.target.value; narrow(name) });
+    $(`ep-${name}-q`).addEventListener("keydown", e => { if (e.key === "Enter") e.preventDefault() }); // Enter must not save the episode
+    $(`ep-${name}-more`).addEventListener("click", () => { find[name].all = !find[name].all; narrow(name) });
+  }
+  form.addEventListener("change", e => { if (e.target.name === "sym" || e.target.name === "trig") narrow(e.target.name) });
+  form.addEventListener("input", e => { if (e.target.type === "search") return; if (ticket && ctx.store.outcome(ticket.n) === "failed") ticket = submitted = null; dirty = true; remember(); render() });
   $("episode-draft-list").addEventListener("click", e => { const b = e.target.closest("[data-draft]"); if (!b) return; remember(); restore(b.dataset.draft === "episode-new" ? null : b.dataset.draft.slice(13)) });
   $("ep-cancel").addEventListener("click", () => { remember(); restore(null) });
   $("ep-discard").addEventListener("click", () => {

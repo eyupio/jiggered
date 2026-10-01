@@ -6,12 +6,20 @@ export const DEFAULTS = Object.freeze({
   sleepPenalty: 3,
   locale: "en-GB",
   activities: [
-    { a: "Meeting or call", c: 2 }, { a: "Unplanned interruption", c: 3 },
-    { a: "Context switch", c: 1 }, { a: "Deep focus (2 hours)", c: 1 },
-    { a: "Social or noisy place", c: 3 }, { a: "Travel or commute", c: 2 },
-    { a: "Walk or dog walk", c: -2 }, { a: "Quiet break", c: -1 }],
-  symptoms: ["Face numb or tingling", "Hand or arm numb", "Arm clumsy", "Blurred vision", "Eye discomfort", "Headache", "Speech change", "Weakness"],
-  triggers: ["Poor sleep", "High stress", "Overload or overwhelm", "Long hyperfocus", "Long screen time", "Skipped meals", "Low water", "Noisy or busy place", "Alcohol", "Missed tablets"],
+    { a: "Meeting or call", c: 2, g: "Work" }, { a: "Unplanned interruption", c: 3, g: "Work" },
+    { a: "Context switch", c: 1, g: "Work" }, { a: "Deep focus (2 hours)", c: 1, g: "Work" },
+    { a: "Screen-heavy work (1 hour)", c: 1, g: "Work" }, { a: "Hard conversation", c: 3, g: "Work" },
+    { a: "Presentation or deadline", c: 3, g: "Work" }, { a: "Housework", c: 2, g: "Home" },
+    { a: "Cooking a meal", c: 1, g: "Home" }, { a: "Shopping trip", c: 2, g: "Home" },
+    { a: "Admin or paperwork", c: 2, g: "Home" }, { a: "Looking after others", c: 2, g: "Home" },
+    { a: "Social or noisy place", c: 3, g: "Out and about" }, { a: "Travel or commute", c: 2, g: "Out and about" },
+    { a: "Appointment", c: 2, g: "Out and about" }, { a: "Driving (30 min or more)", c: 2, g: "Out and about" },
+    { a: "Exercise or gym", c: 2, g: "Out and about" }, { a: "Walk or dog walk", c: -2, g: "Recovery" },
+    { a: "Quiet break", c: -1, g: "Recovery" }, { a: "Nap or lie down", c: -2, g: "Recovery" },
+    { a: "Meal or snack break", c: -1, g: "Recovery" }, { a: "Time outside", c: -1, g: "Recovery" },
+    { a: "Stretching or breathing", c: -1, g: "Recovery" }, { a: "Early night", c: -2, g: "Recovery" }],
+  symptoms: ["Face numb or tingling", "Hand or arm numb", "Arm clumsy", "Blurred vision", "Eye discomfort", "Headache", "Speech change", "Weakness", "Brain fog", "Word-finding trouble", "Memory lapse", "Dizziness", "Light-headed on standing", "Palpitations", "Fatigue", "Sudden exhaustion", "Nausea", "Light sensitivity", "Sound sensitivity", "Tinnitus", "Leg numb or heavy", "Balance off", "Muscle aches", "Tremor", "Chest tightness", "Anxiety or panic", "Low mood", "Irritability", "Hot or flushed", "Cold hands or feet"],
+  triggers: ["Poor sleep", "High stress", "Overload or overwhelm", "Long hyperfocus", "Long screen time", "Skipped meals", "Low water", "Noisy or busy place", "Alcohol", "Missed tablets", "Too much caffeine", "Bright or flickering light", "Heat or hot room", "Cold", "Standing for long", "Long drive or travel", "Hard exercise", "Not enough movement", "Illness or infection", "Hormonal changes", "Strong smells", "Sugary or heavy meal", "Late night", "Lots of social contact", "Worry or low mood", "Medication change", "Weather change", "Skipped a break"],
 });
 
 export const ONSET = ["Built up gradually", "Sudden"];
@@ -25,7 +33,7 @@ export const ADVICE = {
 export const LOCALES = [["en-GB", "English (UK)"], ["en-US", "English (US)"], ["en-AU", "English (Australia)"], ["en-CA", "English (Canada)"],
   ["de-DE", "Deutsch"], ["fr-FR", "Français"], ["es-ES", "Español"], ["nl-NL", "Nederlands"], ["", "Browser default"]];
 
-export const LIMITS = { budget: [1, 30], cost: [-10, 10], items: 40, text: 60 };
+export const LIMITS = { budget: [1, 30], cost: [-10, 10], items: 200, text: 60, group: 30 };
 
 // ---- dates ----
 
@@ -54,7 +62,7 @@ export function normaliseSettings(raw) {
   const r = raw && typeof raw === "object" ? raw : {};
   const budget = int(r.budget, ...LIMITS.budget, DEFAULTS.budget);
   const activities = Array.isArray(r.activities)
-    ? r.activities.map(x => ({ ...(typeof x?.id === "string" ? { id: x.id } : {}), a: text(x && x.a), c: int(x && x.c, ...LIMITS.cost, NaN) })).filter(x => x.a && Number.isFinite(x.c)).slice(0, LIMITS.items)
+    ? r.activities.map(x => ({ ...(typeof x?.id === "string" ? { id: x.id } : {}), a: text(x && x.a), c: int(x && x.c, ...LIMITS.cost, NaN), ...(text(x && x.g, LIMITS.group) ? { g: text(x && x.g, LIMITS.group) } : {}) })).filter(x => x.a && Number.isFinite(x.c)).slice(0, LIMITS.items)
     : DEFAULTS.activities.map(x => ({ ...x }));
   return {
     budget,
@@ -98,7 +106,7 @@ export function operationConflicts(op, body) {
     for (const row of before) {
       const n = next.find(x => x.id === row.id), c = current.find(x => x.id === row.id);
       if (!n || !c) { if (!equal(n,row) && !equal(c,row) && !equal(c,n)) conflicts.push(`activity: ${row.a}`) }
-      else for (const k of ["a","c"]) if (!equal(n[k],row[k]) && !equal(c[k],row[k]) && !equal(c[k],n[k])) conflicts.push(`activity: ${row.a} (${k === "a" ? "name" : "points"})`);
+      else for (const k of ["a","c","g"]) if (!equal(n[k],row[k]) && !equal(c[k],row[k]) && !equal(c[k],n[k])) conflicts.push(`activity: ${row.a} (${k === "a" ? "name" : k === "g" ? "group" : "points"})`);
     }
     const common = new Set(before.filter(x => current.some(c=>c.id===x.id) && next.some(n=>n.id===x.id)).map(x=>x.id));
     const order = rows => rows.filter(x=>common.has(x.id)).map(x => x.id);
@@ -111,7 +119,10 @@ function mergeActivities(current, before, next) {
   const deleted = old.filter(x => !next.some(n => n.id === x.id)).map(x => x.id);
   const out = rows.filter(x => !deleted.includes(x.id)).map(x => {
     const n = next.find(n => n.id === x.id), b = old.find(b => b.id === x.id);
-    return n ? { ...x, ...Object.fromEntries(Object.entries(n).filter(([k,v]) => !equal(v,b?.[k]))) } : x;
+    if (!n) return x;
+    const merged = { ...x, ...Object.fromEntries(Object.entries(n).filter(([k,v]) => !equal(v,b?.[k]))) };
+    if (b?.g !== undefined && n.g === undefined && x.g === b.g) delete merged.g;
+    return merged;
   });
   for (const n of next) if (!old.some(b => b.id === n.id) && !out.some(x => x.id === n.id)) out.push(n);
   if (!equal(next.map(x=>x.id),old.map(x=>x.id))) {
@@ -260,6 +271,7 @@ export function validateSettings(r) {
     if (values.some(x => !x || [...x].length > LIMITS.text)) errors.push([field, `Each ${label} name needs 1–${LIMITS.text} characters.`]);
     if (new Set(values.map(x => x.toLowerCase())).size !== values.length) errors.push([field, `Use distinct ${label} names (including capitalisation).`]);
   }
+  if (r.activities.some(x => [...String(x.g || "").trim()].length > LIMITS.group)) errors.push(["set-acts", `Group names are at most ${LIMITS.group} characters.`]);
   if (r.activities.some(x => !integer(x.c, ...LIMITS.cost))) errors.push(["set-acts", "Activity points must be whole numbers from −10 to 10. Zero is allowed."]);
   return errors;
 }

@@ -263,3 +263,19 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
   .acts{gap:10px}
   .toggle{align-items:flex-start}
 }
+
+/* Long lists: search, favourites, groups and paging. Short lists never show any of this. */
+.act-search input{font-weight:400}
+.act-groups{display:grid;gap:14px}
+.act-fav,.act-group{display:grid;gap:8px}
+.act-fav h3{margin:0}
+.act-group > summary{cursor:pointer;font-weight:700;list-style:none;padding:6px 0;display:flex;gap:8px;align-items:baseline}
+.act-group > summary::-webkit-details-marker{display:none}
+.act-group > summary::before{content:"▸";color:var(--accent)}
+.act-group[open] > summary::before{content:"▾"}
+.act-group > .secondary{justify-self:start}
+.chip.fav span{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.chip-search{margin-bottom:2px}
+.chips[data-empty="1"]::after{content:"Nothing matches. Clear the search to see them all.";color:var(--muted);font-size:.9rem}
+@media(max-width:480px){.order-row .order-group{flex:1 1 100%;width:100%;margin-left:48px;max-width:calc(100% - 48px)}}
+.order-row .order-group{flex:0 1 8rem;min-width:0}

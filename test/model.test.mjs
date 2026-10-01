@@ -59,8 +59,8 @@ test("normaliseSettings: validates and clamps", () => {
   const long = m.normaliseSettings({ symptoms: ["x".repeat(200)], activities: [{ a: "y".repeat(200), c: 1 }] });
   assert.equal(long.symptoms[0].length, 60);
   assert.equal(long.activities[0].a.length, 60);
-  const many = m.normaliseSettings({ symptoms: Array.from({ length: 100 }, (_, i) => "s" + i) });
-  assert.equal(many.symptoms.length, 40);
+  const many = m.normaliseSettings({ symptoms: Array.from({ length: 300 }, (_, i) => "s" + i) });
+  assert.equal(many.symptoms.length, 200);
 });
 
 test("a day's budget: spent, cap, poor sleep, and remembered settings", () => {
@@ -209,7 +209,7 @@ test("reports exclude future episodes and all-time dates include episode-only hi
 test("settings validation preserves zero but rejects silent truncation, duplicates and rounding", () => {
   const good={...m.normaliseSettings(),activities:[{a:"Observe",c:0}],symptoms:[],triggers:[]};
   assert.deepEqual(m.validateSettings(good),[]);
-  for(const patch of [{budget:"2.5"},{budget:""},{sleepPenalty:11},{activities:[{a:"Walk",c:1},{a:"walk",c:2}]},{symptoms:["x".repeat(61)]},{triggers:Array.from({length:41},(_,i)=>String(i))}])assert.ok(m.validateSettings({...good,...patch}).length);
+  for(const patch of [{budget:"2.5"},{budget:""},{sleepPenalty:11},{activities:[{a:"Walk",c:1},{a:"walk",c:2}]},{symptoms:["x".repeat(61)]},{triggers:Array.from({length:201},(_,i)=>String(i))}])assert.ok(m.validateSettings({...good,...patch}).length);
 });
 test("history filters use the same interval and never mutate source data",()=>{
  const docs={"d-2026-10-01":{date:"2026-10-01",status:"amber",entries:[{a:"Work",c:1}]},"e-1":{when:"2026-10-01T10:00",symptoms:["Headache"],duration:"Still going",notes:"Work"},"e-2":{when:"2026-09-01T10:00",symptoms:["Headache"],duration:"Under 15 min"}};

@@ -19,6 +19,7 @@ type productDefaults struct {
 		ID string `json:"id,omitempty"`
 		A  string `json:"a"`
 		C  int    `json:"c"`
+		G  string `json:"g,omitempty"`
 	} `json:"activities"`
 	Symptoms []string `json:"symptoms"`
 	Triggers []string `json:"triggers"`
@@ -47,10 +48,13 @@ func (d productDefaults) validate() error {
 		if a.C < -10 || a.C > 10 {
 			return fmt.Errorf("Activity points must be −10 to 10")
 		}
+		if g := strings.TrimSpace(a.G); g != a.G || utf8.RuneCountInString(g) > 30 {
+			return fmt.Errorf("Group names have at most 30 characters and no surrounding spaces")
+		}
 	}
 	for _, list := range [][]string{activities, d.Symptoms, d.Triggers} {
-		if list == nil || len(list) > 40 {
-			return fmt.Errorf("Each list must contain at most 40 items")
+		if list == nil || len(list) > 200 {
+			return fmt.Errorf("Each list must contain at most 200 items")
 		}
 		seen := map[string]bool{}
 		for _, name := range list {
