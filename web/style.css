@@ -264,6 +264,11 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
   .act-groups{gap:20px}
   .act-group,.act-fav{gap:12px}
   .group-filter{gap:12px}
+  .chips{gap:10px 8px}
+  .chip span{padding:10px 14px}
+  .chip-search{margin-bottom:8px}
+  #setform .row{gap:12px;margin-top:14px}
+  #setform [data-gap]{margin-bottom:4px}
   .toggle{align-items:flex-start}
 }
 
