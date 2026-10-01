@@ -149,8 +149,11 @@ export function init(ctx) {
     $("spentline").textContent = spent >= 0 ? `${spent} spent` : `${-spent} recovered`;
 
     const cells = $("cells");
+    // Updated in place so the bar eases between states instead of being rebuilt (which looked like a flash).
     cells.style.gridTemplateColumns = `repeat(${Math.min(budget, 15)},1fr)`;
-    setHTML(cells, html`${Array.from({ length: budget }, (_, i) => html`<div class="${i >= cap ? "cell lost" : i >= Math.max(0, left) ? "cell spent" : "cell"}"></div>`)}`);
+    while (cells.children.length < budget) cells.append(Object.assign(document.createElement("div"), { className: "cell" }));
+    while (cells.children.length > budget) cells.lastChild.remove();
+    [...cells.children].forEach((c, i) => { c.className = i >= cap ? "cell lost" : i >= Math.max(0, left) ? "cell spent" : "cell" });
     cells.className = "cells" + (left <= 0 ? " out" : left <= 3 ? " low" : "");
 
     renderActivities(S);

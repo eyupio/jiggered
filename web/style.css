@@ -279,3 +279,13 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
 .chips[data-empty="1"]::after{content:"Nothing matches. Clear the search to see them all.";color:var(--muted);font-size:.9rem}
 @media(max-width:480px){.order-row .order-group{flex:1 1 100%;width:100%;margin-left:48px;max-width:calc(100% - 48px)}}
 .order-row .order-group{flex:0 1 8rem;min-width:0}
+
+/* Calm interaction: nothing below the header may move when a save starts or finishes. */
+.sync{min-height:1.5em;margin:.5rem 0;line-height:1.5;text-align:left;transition:opacity .2s ease}
+.sync[data-state="saved"]{opacity:0}
+.sync[data-state="attention"]{opacity:1}
+.sync.err{color:var(--red);font-weight:700}
+.advice{min-height:2.9em}
+.checkin button,.cell,.act{transition:background-color .18s ease,border-color .18s ease,color .18s ease,transform .1s ease}
+.cell{transition:background-color .25s ease,border-color .25s ease}
+@media(prefers-reduced-motion:reduce){.sync,.checkin button,.cell,.act{transition:none!important}}
