@@ -5,6 +5,7 @@ import { renderOngoing } from "./episodes.js";
 import { PICKER, usage, favourites, groupItems, matches } from "./picker.js";
 import { readableDay, identifyEntries, balanceLabel, ADVICE, dayId, emptyDay, used, capOf, hhmm, addDays } from "./model.js";
 
+const points = n => `${n} ${n === 1 ? "point" : "points"}`;
 const costLabel = c => c > 0 ? "−" + c : c < 0 ? "+" + -c : "0";
 
 export function init(ctx) {
@@ -156,11 +157,11 @@ export function init(ctx) {
       small.textContent = cost ? `${small.dataset.text}, −${cost} ${cost === 1 ? "point" : "points"}` : small.dataset.text;
     });
     const took = d.statusPenalty || 0;
-    $("advice").textContent = d.status ? ADVICE[d.status] + (took ? ` ${d.status[0].toUpperCase() + d.status.slice(1)} takes ${took} off ${past ? "this day" : "today"}.` : "") : past ? "No check-in for this day." : "How are you starting today? Pick one.";
+    $("advice").textContent = d.status ? ADVICE[d.status] + (took ? ` ${d.status[0].toUpperCase() + d.status.slice(1)} takes ${points(took)} off ${past ? "this day" : "today"}.` : "") : past ? "No check-in for this day." : "How are you starting today? Pick one.";
     $("sleep").checked = !!d.poorSleep;
     const sleepCost = d.sleepPenalty ?? S.sleepPenalty, when = past ? "this day" : "today";
     $("sleep-title").textContent = past ? "Slept badly that night" : "Slept badly last night";
-    $("sleep-label").textContent = !sleepCost ? "Recorded only: costs no points" : d.poorSleep ? `Taking ${sleepCost} off ${when}` : `Takes ${sleepCost} off ${when}`;
+    $("sleep-label").textContent = !sleepCost ? "Recorded only: costs no points" : d.poorSleep ? `Taking ${points(sleepCost)} off ${when}` : `Takes ${points(sleepCost)} off ${when}`;
     setHTML($("left"), html`${left} <small>of ${cap}</small>`);
     $("balance-label").textContent = balanceLabel(left, cap);
     renderOngoing(ctx, $("today-ongoing"));
