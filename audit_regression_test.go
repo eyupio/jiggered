@@ -52,7 +52,6 @@ func TestAuditRevisionsSurviveDeleteAndRecreate(t *testing.T) {
 }
 
 func TestAuditRestoreEndsRevokedSessions(t *testing.T) {
-	pending(t, "safe restore")
 	e := newTestServer(t)
 	c := e.signedInAdmin()
 	backup := filepath.Join(t.TempDir(), "backup.db")
@@ -92,7 +91,6 @@ func TestAuditRestoreEndsRevokedSessions(t *testing.T) {
 }
 
 func TestAuditRestoreRefusesDocsOnlyDatabase(t *testing.T) {
-	pending(t, "safe restore")
 	e := newTestServer(t)
 	e.signedInAdmin().putDoc("d-2026-10-01", `{"a":1}`)
 	bad := filepath.Join(t.TempDir(), "docs-only.db")

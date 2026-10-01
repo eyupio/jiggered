@@ -285,7 +285,9 @@ If the container is stopped, use `docker compose run --rm jiggered user list` in
 
 Sign-in lockouts are kept in memory, so `docker compose restart jiggered` clears them. (Resetting a password in the Admin
 tab clears that account's lockout; the command line can't reach the running server, so after `user reset-password` for
-someone locked out, restart too.) Restoring a backup brings back its accounts, roles, password hashes and sessions as they were then.
+someone locked out, restart too.) Restoring a backup brings back its accounts, roles, password hashes and disabled state as they were then, so a password
+changed or an account disabled since the backup is undone. Everyone is signed out by a restore, including sessions that
+were still valid when the backup was taken.
 
 ## Backup and restore
 
@@ -301,16 +303,17 @@ docker compose exec -T jiggered /jiggered backup - > jiggered-backup.db   # or s
 Admins can also use **Download backup** in the Admin tab. A copy of your own data alone is **Download everything**
 in Account, which can be restored from the same page.
 
-To restore a backup, stop the app first:
+To restore a backup, stop the app first. The backup holds everyone's data, so keep it private. The container runs as a
+non-root user, so give it the file without making it readable by everyone: put it somewhere only you can read and mount
+that folder, or `chown` it to the container's user (uid 65532 in the distroless image). Don't `chmod a+r` it.
 
 ```sh
-chmod a+r jiggered-backup.db                  # the container runs as a non-root user and must be able to read it
 docker compose stop jiggered
 docker compose run --rm -v "$PWD:/backup:ro" jiggered restore /backup/jiggered-backup.db --yes
 docker compose start jiggered
 ```
 
-It checks the file first, keeps the database it replaces as `/data/backups/pre-restore-*.db`, and removes the old
+It checks the file first (it must have every table its schema version needs), signs everyone out, keeps the database it replaces as `/data/backups/pre-restore-*.db`, and removes the old
 `-wal` file. Upgrades also leave a `pre-upgrade-*.db` copy there. Nothing deletes the `backups` folder for you.
 
 ## Security
