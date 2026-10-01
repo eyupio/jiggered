@@ -173,6 +173,6 @@ export function init(ctx) {
     $("noentries").hidden = d.entries.length > 0;
   }
 
-  return { render, open, show() { if (entryForm.hidden) restoreDraft(); render() } };
+  return { render, open, day: () => viewDate, show() { if (entryForm.hidden) restoreDraft(); render() } };
 }
 

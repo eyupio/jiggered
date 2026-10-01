@@ -41,6 +41,12 @@ pills on the Episode tab. Groups are decided per name: an item without a group o
 (so existing lists are grouped without any reset), and a group you set yourself always wins. **Use factory defaults** in Admin fills a
 draft; publishing it still requires Save. No new hosted service or production dependency is introduced.
 
+### Staying where you were
+
+A browser refresh returns you to the same tab (it is in the address, so a link such as `/#history` opens that tab), the
+same scroll position, and the past day you were viewing on Today. The scroll position and day are kept in that browser
+tab's session storage only and are cleared when you sign out.
+
 ### Drafts and recovery
 
 New episodes, individual episode edits, activity corrections, personal settings and admin defaults keep separate drafts on this
