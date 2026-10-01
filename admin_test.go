@@ -430,7 +430,7 @@ func TestBackupDownload(t *testing.T) {
 	if n := countRows(t, e, "SELECT count(*) FROM audit_log WHERE action = 'backup_downloaded'"); n != 0 {
 		t.Error("a refused backup request was treated as a download")
 	}
-	resp, body := admin.req("POST", "/api/admin/backup", nil)
+	resp, body := admin.req("POST", "/api/admin/backup", map[string]any{"password": adminPass})
 	if resp.StatusCode != 200 {
 		t.Fatalf("backup = %d %s", resp.StatusCode, body)
 	}
@@ -466,5 +466,57 @@ func TestBackupDownload(t *testing.T) {
 	}
 	if n := countRows(t, e, "SELECT count(*) FROM audit_log WHERE action = 'backup_downloaded' AND actor = 'admin'"); n != 1 {
 		t.Error("the download is not audited")
+	}
+}
+
+func TestBackupNeedsThePasswordEveryTime(t *testing.T) {
+	e := newTestServer(t)
+	admin := e.signedInAdmin()
+	backups := func() int {
+		return countRows(t, e, "SELECT count(*) FROM audit_log WHERE action = 'backup_downloaded'")
+	}
+
+	if st := admin.do("POST", "/api/admin/backup", nil); st != 400 {
+		t.Errorf("no body = %d, want 400", st)
+	}
+	if st := admin.do("POST", "/api/admin/backup", map[string]any{}); st != 403 {
+		t.Errorf("no password = %d, want 403", st)
+	}
+	resp, body := admin.req("POST", "/api/admin/backup", map[string]any{"password": "not-the-password"})
+	if resp.StatusCode != 403 || bytes.HasPrefix(body, []byte("SQLite format 3")) {
+		t.Fatalf("wrong password = %d, want 403 and no database", resp.StatusCode)
+	}
+	if n := backups(); n != 0 {
+		t.Errorf("a refused request was recorded as a download (%d)", n)
+	}
+	if n := countRows(t, e, "SELECT count(*) FROM audit_log WHERE action = 'password_check_failed'"); n != 2 {
+		t.Errorf("failed checks recorded = %d, want 2", n)
+	}
+	// The right password works, and works again only by giving it again: nothing is remembered between downloads.
+	for i := 0; i < 2; i++ {
+		if st := admin.do("POST", "/api/admin/backup", map[string]any{"password": adminPass}); st != 200 {
+			t.Fatalf("download %d with the password = %d", i+1, st)
+		}
+	}
+	if st := admin.do("POST", "/api/admin/backup", map[string]any{}); st != 403 {
+		t.Errorf("a download after earlier ones, with no password = %d, want 403", st)
+	}
+	if n := backups(); n != 2 {
+		t.Errorf("downloads recorded = %d, want 2", n)
+	}
+}
+
+func TestBackupPasswordGuessesAreRateLimited(t *testing.T) {
+	e := newTestServer(t)
+	admin := e.signedInAdmin()
+	var last int
+	for i := 0; i < 15; i++ {
+		last = admin.do("POST", "/api/admin/backup", map[string]any{"password": "guess"})
+	}
+	if last != 429 {
+		t.Errorf("after many wrong passwords = %d, want 429", last)
+	}
+	if st := admin.do("POST", "/api/admin/backup", map[string]any{"password": adminPass}); st == 200 {
+		t.Error("the lockout should also stop the right password until the window passes")
 	}
 }
