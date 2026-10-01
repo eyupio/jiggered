@@ -14,7 +14,7 @@ Add it to your phone's home screen and it opens like an app.
 ## Image
 
 GitHub Actions builds `ghcr.io/jnnngs/jiggered` for amd64 and arm64 on every push to `main`
-(`latest` plus a short commit tag) and on `v*` tags (`1.2.3`, `1.2`).
+(`latest`, `dev` and a short commit tag) and on `v*` tags (`1.2.3`, `1.2`).
 
 The repo is private, so the image is too. On the server, log in once with a
 personal access token that has `read:packages`:
