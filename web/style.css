@@ -264,8 +264,6 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
 .panel details.hint p{margin:8px 0 0}
 .row{gap:10px}
 .checkin button{padding:14px 6px;text-align:center}
-.checkin button small{font-size:.78rem;line-height:1.25}
-.checkin button[aria-pressed="true"] b::before{content:"✓ "}
 .advice{font-size:.95rem;color:var(--fg)}
 .gauge-head .big{margin-top:6px}
 @media(max-width:480px){
@@ -330,3 +328,17 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
 .chip-status[hidden]{display:none}
 .chip-status .x{min-height:36px;padding:6px 8px;white-space:nowrap}
 #ep-sym-more,#ep-trig-more{width:100%;min-height:44px;margin-top:12px}
+
+/* Morning check-in: status dot and name, a one-word feel, and what it costs as its own badge */
+.checkin button{gap:6px;padding:12px 4px;align-content:start}
+.checkin button b{display:inline-flex;align-items:center;gap:6px}
+.checkin button b::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--dot);flex:none}
+.checkin button[data-s="green"]{--dot:var(--green)}
+.checkin button[data-s="amber"]{--dot:var(--amber)}
+.checkin button[data-s="red"]{--dot:var(--red)}
+.checkin button .mood{color:var(--muted);font-size:.85rem;line-height:1.2}
+.checkin button .cost{font-size:.75rem;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;padding:3px 9px;border-radius:999px;background:color-mix(in srgb,var(--fg) 8%,transparent);color:var(--fg)}
+.checkin button[aria-pressed="true"] b::before{content:"✓";width:auto;height:auto;background:none;color:var(--dot);font-weight:800;line-height:1}
+.checkin button[aria-pressed="true"] .mood{color:var(--fg)}
+.checkin button[aria-pressed="true"] .cost{background:color-mix(in srgb,var(--dot) 28%,transparent)}
+@media(max-width:360px){.checkin{gap:5px}.checkin button .cost{padding:3px 7px}}

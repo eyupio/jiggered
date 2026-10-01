@@ -153,8 +153,8 @@ export function init(ctx) {
 
     document.querySelectorAll("#checkin button").forEach(b => {
       b.setAttribute("aria-pressed", b.dataset.s === d.status);
-      const cost = S[b.dataset.s + "Penalty"], small = b.querySelector("small");
-      small.textContent = cost ? `${small.dataset.text}, −${cost} ${cost === 1 ? "point" : "points"}` : small.dataset.text;
+      const cost = S[b.dataset.s + "Penalty"] || 0; // green never costs anything
+      b.querySelector(".cost").textContent = cost ? `−${points(cost)}` : "Full points";
     });
     const took = d.statusPenalty || 0;
     $("advice").textContent = d.status ? ADVICE[d.status] + (took ? ` ${d.status[0].toUpperCase() + d.status.slice(1)} takes ${points(took)} off ${past ? "this day" : "today"}.` : "") : past ? "No check-in for this day." : "How are you starting today? Pick one.";

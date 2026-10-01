@@ -50,9 +50,9 @@
       <div class="label" id="checkin-label">Morning check-in</div>
       <p class="hint">How are you feeling as the day starts? Pick one to set today's plan. Tap it again to clear.</p>
       <div class="checkin" id="checkin" role="group" aria-labelledby="checkin-label">
-        <button data-s="green" aria-pressed="false"><b>Green</b><small data-text="Good day, normal plan">Good day, normal plan</small></button>
-        <button data-s="amber" aria-pressed="false"><b>Amber</b><small data-text="Shaky, cut the plan">Shaky, cut the plan</small></button>
-        <button data-s="red" aria-pressed="false"><b>Red</b><small data-text="Rough, essentials only">Rough, essentials only</small></button>
+        <button data-s="green" aria-pressed="false"><b>Green</b><span class="mood">Good day</span><span class="cost">Full points</span></button>
+        <button data-s="amber" aria-pressed="false"><b>Amber</b><span class="mood">Shaky</span><span class="cost">−3 points</span></button>
+        <button data-s="red" aria-pressed="false"><b>Red</b><span class="mood">Rough</span><span class="cost">−6 points</span></button>
       </div>
       <p class="advice" id="advice">How are you starting today? Pick one.</p>
     </div>
