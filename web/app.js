@@ -79,7 +79,7 @@ function fatal(text) {
   for (const type of ["click","submit","input","change","pointerdown","keydown"]) document.addEventListener(type, e => {
     if (!store.status().readOnly && !store.status().restoring) return;
     const target = e.target;
-    const safe = target.closest?.("#tabs,#signout,#help-panel,[data-help],.help-tip,.daynav,#history-panel,#export-device,#export-all,#day-back,[data-settings],#entry-cancel,#tab-reload");
+    const safe = target.closest?.("#tabs,#signout,#help-panel,[data-help],.help-tip,.daynav,#history-panel,#account-shortcuts,#export-device,#export-all,#day-back,[data-settings],#entry-cancel,#tab-reload");
     if (safe) return;
     if (target.closest?.("button,input,textarea,select,form,.drag-handle")) { e.preventDefault(); e.stopImmediatePropagation() }
   },true);
@@ -138,6 +138,7 @@ function fatal(text) {
     if (tab !== active && views[active] && views[active].hide) views[active].hide();
     tooltips.hide();
     active = tab;
+    document.body.dataset.view = tab;
     try { history.replaceState(null, "", "#" + tab) } catch { /* the address bar is only a convenience */ }
     for (const b of document.querySelectorAll("#tabs button")) { b.setAttribute("aria-selected", b.dataset.tab === tab); b.tabIndex = b.dataset.tab === tab ? 0 : -1 }
     for (const t of Object.keys(views)) $(t + "-panel").hidden = t !== tab;
@@ -145,7 +146,7 @@ function fatal(text) {
     $("t-" + tab).scrollIntoView({ block: "nearest", inline: "nearest" }); // on a narrow phone the tab bar scrolls sideways
     scrollTo(0, tab === "history" ? historyScroll : 0);
   }
-  const renderActive = () => { notice.update(); views[active] && views[active].render() };
+  const renderActive = () => { accountView.identity(ctx); notice.update(); views[active] && views[active].render() };
   $("tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) go(b.dataset.tab) });
 
   $("tabs").addEventListener("keydown", e => {

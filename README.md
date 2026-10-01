@@ -9,10 +9,13 @@ people (a household, a support group), each with their own account.
   activity costs. Open any earlier day to fill it in or correct it.
 - **Episode:** when it started, symptoms, onset, duration, likely triggers and notes. Edit it later, for example
   to record an approximate duration or exact local end time. Ongoing episodes are shown on Today and Episode.
-- **History:** a tappable 14-day strip, 30-day trends, every day and episode, CSV downloads, and a printable
-  summary (save it as a PDF) to show a doctor. Search and filter by date, check-in, symptom or ongoing status; CSV uses the same selection. Preview the summary and optionally omit private notes.
-- **Account:** change your password, see and sign out your devices, set your own budget, activities, symptoms,
-  triggers and date format, download or restore your data, delete your account.
+- **History:** a calendar activity matrix, interactive energy and episode graphs, recording coverage,
+  period comparisons and patterns. Explore 7 days through all time, or choose your dates. Search and filter
+  by date, check-in, symptom or ongoing status; graphs, insights, lists and CSV use the same selection.
+  A tappable 14-day strip opens recent days. Preview a printable summary (save as PDF), optionally omitting private notes.
+- **Account:** a private display name and focus, light/dark/device appearance, starting history period and
+  lifetime log totals. Jump to your profile, budget and personal lists, password, devices or data tools;
+  download or restore your data, or delete your account.
 - **Admin:** add people, reset passwords, disable or remove accounts, sign devices out, read the activity log,
   maintain shared starting activities, symptoms, triggers and budgets, say whether a reverse proxy sits in front, download a backup. The tab exists only for admins.
 
@@ -22,7 +25,7 @@ server acknowledgement; blocked/full device storage warns you to keep the page o
 
 ### Personal lists and shared defaults
 
-In **Account → Settings**, drag the dotted handle to put frequently used activities, symptoms and triggers
+In **Account → Energy & personal lists**, drag the dotted handle to put frequently used activities, symptoms and triggers
 first. Mouse and touch dragging show a floating preview and drop placeholder; handles also support arrow
 keys, Home/End and move buttons. Save publishes the order to your account, so Today/Episode use it on every
 device. Zero-point activities are supported. Invalid names, duplicates and list limits keep your input and
@@ -54,9 +57,27 @@ A browser refresh returns you to the same tab (it is in the address, so a link s
 same scroll position, and the past day you were viewing on Today. The scroll position and day are kept in that browser
 tab's session storage only and are cleared when you sign out.
 
+### Exploring your history and profile
+
+The calendar can colour days by morning check-in, net activity points, recorded episodes or poor sleep.
+Select a square to pin its details, open that day, or view its episodes. Arrow keys move one day vertically
+or one week horizontally; Enter selects and Escape clears the selection. A day selector offers larger targets
+on small screens. Long histories page through windows of up to 366 days on desktop or 91 on a phone.
+
+Energy graphs subtract recovery from activity costs and use each day's saved allowance. Missing activity logs
+stay gaps, including on days with a check-in. Longer periods group dates into at most 60 points and average
+only days with activities. Inspect a day/period or open **View graph data** for exact values. Comparisons use
+the preceding interval of equal length with the same filters. Sleep and weekday patterns need at least three
+check-ins per displayed group; an unmarked poor-sleep flag does not prove good sleep. These descriptions
+reflect what you recorded and do not establish causes.
+
+**Account → Profile** saves your private name, focus and preferences separately from energy settings and lists.
+Your sign-in username stays the same. Appearance applies on save; the starting history period applies when
+you next open the app. Profile saves use the existing offline queue and conflict recovery.
+
 ### Drafts and recovery
 
-New episodes, individual episode edits, activity corrections, personal settings and admin defaults keep separate drafts on this
+New episodes, individual episode edits, activity corrections, profile, personal settings and admin defaults keep separate drafts on this
 device for seven days. Navigation preserves them; unfinished episode edits have a Continue action. Explicit
 discard, acknowledged save or deliberate sign-out clears the relevant drafts. A different account cannot
 open them. These copies contain sensitive data: use a device you trust.

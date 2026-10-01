@@ -118,17 +118,17 @@
   </section>
 
   <section role="tabpanel" aria-labelledby="t-history" id="history-panel" hidden>
-    <div class="panel">
-      <h2>Last 14 days</h2>
-      <div class="strip" id="strip" aria-label="Check-in colour for each of the last 14 days"></div>
-      <p class="meta strip-note">Oldest on the left. Grey means no check-in. Tap a day to open it.</p>
+    <div class="panel history-intro">
+      <p class="help-eyebrow">Your days, with a little perspective</p>
+      <div class="label-row"><h2>History &amp; insights</h2><button class="help-link x" data-help="history">How to read this</button></div>
+      <p class="meta">Explore what you've recorded, notice patterns, and take a clearer picture to your next conversation.</p>
+      <div class="range-presets" id="history-presets" role="group" aria-label="History period">
+        <button type="button" data-range="7" aria-pressed="false">7 days</button><button type="button" data-range="30" aria-pressed="true">30 days</button><button type="button" data-range="90" aria-pressed="false">90 days</button><button type="button" data-range="365" aria-pressed="false">1 year</button><button type="button" data-range="all" aria-pressed="false">All time</button>
+      </div>
+      <p class="meta" id="history-period" role="status"></p>
     </div>
-    <div class="panel" id="trends-panel" hidden>
-      <h2>Last 30 days</h2>
-      <div id="trends"></div>
-    </div>
-    <div class="panel">
-      <h2>Find days and episodes</h2>
+    <div class="panel history-filter-panel">
+      <div class="label-row"><h2>Find your perspective</h2><button class="help-tip" aria-label="About history filters" data-tooltip="Dates and search apply to all graphs, insights, lists and CSV exports. Check-in filters affect days; symptom and ongoing filters affect episodes. The printed summary has its own period.">?</button></div>
       <form id="history-filters" class="filters">
         <label class="field">From<input type="date" id="hist-from"></label>
         <label class="field">Through<input type="date" id="hist-to"></label>
@@ -139,6 +139,21 @@
         <button class="secondary" type="reset">Clear filters</button>
       </form>
       <p id="history-count" class="meta" role="status"></p>
+    </div>
+    <div class="panel" id="trends-panel">
+      <div class="label-row"><h2>Your period at a glance</h2><span class="badge" id="history-granularity"></span></div>
+      <div id="trends"></div>
+    </div>
+    <div class="panel" id="history-matrix"></div>
+    <div class="panel" id="history-graphs"><div class="history-visuals" id="history-charts"></div></div>
+    <div class="panel" id="history-patterns"><div class="label-row"><h2>Patterns worth a closer look</h2><button class="help-tip" aria-label="About patterns" data-tooltip="These are descriptions of your recorded sample. Missing logs, changed routines and different amounts of logging can affect comparisons. Associations do not establish a cause.">?</button></div><div id="history-insights"></div></div>
+    <div class="panel">
+      <div class="label-row"><h2>Your recent check-ins</h2><span class="meta">Last 14 days</span></div>
+      <div class="strip" id="strip" aria-label="Check-in colour for each of the last 14 days"></div>
+      <p class="meta strip-note">Oldest on the left. Grey means no check-in. Tap a day to open it.</p>
+    </div>
+    <div class="history-records">
+    <div class="panel">
       <h2>Days</h2>
       <ul class="list" id="days"></ul>
       <button class="secondary" id="more-days" hidden>Show older days</button>
@@ -149,6 +164,7 @@
       <div id="eps"></div>
       <button class="secondary" id="more-eps" hidden>Show older episodes</button>
       <p class="empty" id="noeps">No episodes logged. Use "Episode" if one happens; show this list to your neurologist or GP.</p>
+    </div>
     </div>
     <div class="panel">
       <div class="label-row"><h2>Share with your doctor</h2><button class="help-link x" data-help="history">Help</button></div>
@@ -166,12 +182,26 @@
   </section>
 
   <section role="tabpanel" aria-labelledby="t-account" id="account-panel" hidden>
-    <div class="panel">
-      <h2>Signed in as <span id="acc-name"></span></h2>
-      <p class="meta" id="acc-role"></p>
-      <p class="meta">The admin screens don't show your check-ins or episodes. But an admin can reset your password and sign in with it, can download a backup of the whole database, and anyone with access to the server's files can read them, so host it somewhere you trust.</p>
+    <div class="panel profile-hero">
+      <div class="profile-heading"><div class="profile-avatar" id="acc-avatar" aria-hidden="true">J</div><div><p class="help-eyebrow">Your personal space</p><h2 id="acc-title"></h2><span class="meta">Signed in as <b id="acc-name"></b></span> <span class="badge" id="acc-badge"></span></div></div>
+      <p id="acc-focus" class="profile-focus"></p><p class="meta" id="acc-role"></p>
+      <div class="profile-stats" id="profile-stats" aria-label="Your lifetime log totals"></div>
     </div>
-
+    <div class="panel account-shortcuts" id="account-shortcuts" role="navigation" aria-label="Account sections">
+      <button class="secondary small" data-account-target="profile-panel">Profile</button><button class="secondary small" data-account-target="settings-panel">Energy &amp; lists</button><button class="secondary small" data-account-target="pw-panel">Password</button><button class="secondary small" data-account-target="sessions-panel">Devices</button><button class="secondary small" data-account-target="data-panel">Your data</button>
+    </div>
+    <div class="panel" id="profile-panel">
+      <div class="label-row"><h2>Make it yours</h2><button class="help-tip" aria-label="About your profile" data-tooltip="Your display name and focus are private preferences in your account. Your sign-in username stays the same. Profile changes use the same saving and offline recovery as your log.">?</button></div>
+      <form id="profile-form">
+        <label class="field">Display name<input id="profile-name" name="displayName" type="text" maxlength="60" autocomplete="nickname" placeholder="How you'd like to be greeted"></label>
+        <p class="hint">Optional. Leave blank to use your sign-in username.</p>
+        <label class="field">What I'd like to notice<textarea id="profile-focus" name="focus" maxlength="160" rows="2" placeholder="For example, how my energy changes after busy days" aria-describedby="profile-focus-hint profile-focus-count"></textarea></label>
+        <div class="label-row"><p class="hint" id="profile-focus-hint">A private reminder of what matters to you.</p><span class="meta" id="profile-focus-count"></span></div>
+        <div class="row2"><label class="field">Appearance<select id="profile-theme" name="theme"><option value="system">Follow device</option><option value="light">Light</option><option value="dark">Dark</option></select></label><label class="field">Starting history period<select id="profile-range" name="historyRange"></select></label></div>
+        <p class="hint">Appearance applies when you save. Your starting history period applies the next time you open the app.</p>
+        <div class="row"><button class="primary" id="profile-save" type="submit">Save profile</button><button class="secondary" type="button" id="profile-discard" disabled>Discard draft</button></div><p class="msg" id="profile-msg" role="status"></p>
+      </form>
+    </div>
     <div class="panel" id="pw-panel">
       <h2>Change password</h2>
       <form id="pwform">
@@ -192,7 +222,7 @@
     </div>
 
     <div class="panel" id="settings-panel">
-      <h2>Settings</h2>
+      <div class="label-row"><h2>Energy &amp; personal lists</h2><button class="help-link x" data-help="activities">Help with customising</button></div>
       <form id="setform">
         <div class="row2">
           <label class="field">Points per day<input type="number" id="set-budget" min="1" max="30" inputmode="numeric"></label>
@@ -216,7 +246,7 @@
       </form>
     </div>
 
-    <div class="panel">
+    <div class="panel" id="data-panel">
       <div class="label-row"><h2>Your data</h2><button class="help-link x" data-help="restore">Help</button></div>
       <p class="meta">Download everything you've logged, or load a file you downloaded earlier.</p>
       <div class="row"><button class="secondary" id="export-all">Download everything (JSON)</button><button class="secondary" id="export-device">Download device recovery copy</button></div>
@@ -231,6 +261,7 @@
       </form>
     </div>
 
+    <div class="panel account-privacy"><h2>Your privacy</h2><p class="meta">The admin screens don't show your check-ins, episodes or profile. An admin can reset your password and sign in with it, can download a backup of the whole database, and anyone with access to the server's files can read them. Host Jiggered somewhere you trust.</p></div>
     <div class="panel danger-zone">
       <h2>Delete my account</h2>
       <p class="meta">This removes your account and everything you've logged, for good. Download your data first if you want to keep it.</p>

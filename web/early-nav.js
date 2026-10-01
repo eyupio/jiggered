@@ -5,6 +5,7 @@
 (function () {
   var tab = decodeURIComponent(location.hash.slice(1)), panel = document.getElementById(tab + "-panel");
   if (!panel || panel.tagName !== "SECTION" || !document.getElementById("t-" + tab)) return;
+  document.body.dataset.view = tab;
   document.querySelectorAll("section[id$=-panel]").forEach(function (s) { s.hidden = s !== panel });
   document.querySelectorAll("#tabs button").forEach(function (b) {
     var on = b.dataset.tab === tab;
