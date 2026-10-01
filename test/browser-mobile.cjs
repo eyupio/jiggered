@@ -1,7 +1,8 @@
 // Real-browser checks at phone width. Account: the page is short until a list is opened, a shortcut opens exactly the
 // list it names, collapsing keeps what was typed, and a validation error opens the list it is in. History: with almost
 // no data the overview is compact, and the Records and Share shortcuts only scroll and focus (filters stay put) and
-// are not hidden under the sticky tab bar.
+// are not hidden under the sticky tab bar. Episodes: an offline save that is recovered across a reload still ends with
+// a truthful confirmation and reaches the server.
 // Needs Playwright (see the README); run with `node test/browser-mobile.cjs`. It builds a temporary binary and database.
 const { chromium } = require('playwright');
 const { spawn, execFileSync } = require('node:child_process');
@@ -118,8 +119,26 @@ const openKeys = page => page.evaluate(() => [...document.querySelectorAll('#set
     await page.locator('#history-shortcuts [data-history-target="trends-panel"]').click();
     await page.waitForFunction(() => { const t = document.getElementById('trends-panel').getBoundingClientRect().top; return t >= document.querySelector('nav').getBoundingClientRect().bottom && t < window.innerHeight - 40 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false, 'no horizontal overflow on History');
+
+    // 6. An offline episode save, then the connection returns while the page reloads: the save may finish before the
+    // form has restored its draft, and it must still end with a confirmation (and the note must reach the server).
+    const context = page.context();
+    await page.locator('#t-episode').click();
+    await page.locator('#ep-notes').fill('Saved while offline, confirmed after reload');
+    await context.setOffline(true);
+    await page.locator('#ep-save').click();
+    await page.locator('#eptoast').filter({ hasText: 'queued on this device' }).waitFor();
+    assert.ok(!(await page.locator('#eptoast').textContent()).includes('Saved.'), 'queued is not claimed as saved');
+    await context.setOffline(false);
+    await page.reload();
+    await page.locator('#t-episode').click();
+    await page.waitForFunction(() => document.querySelector('#sync')?.dataset.state === 'saved');
+    await page.locator('#eptoast').filter({ hasText: 'Saved.' }).waitFor({ timeout: 10000 });
+    assert.equal(await page.locator('#ep-notes').inputValue(), '', 'the form is clear once the save is confirmed');
+    const exported = await (await context.request.get(base + '/api/export')).json();
+    assert.ok(Object.values(exported).some(d => d.notes === 'Saved while offline, confirmed after reload'), 'the note reached the server');
     assert.deepEqual(errors, []);
-    console.log(`PASS: Account lists (${height}px tall when closed): counts, one list per shortcut, values survive collapsing, an error opens its list. History (${historyHeight}px with one day and one episode): compact overview, Records/Share/Overview shortcuts keep the search and clear the tab bar`);
+    console.log(`PASS: Account lists (${height}px tall when closed): counts, one list per shortcut, values survive collapsing, an error opens its list. History (${historyHeight}px with one day and one episode): compact overview, Records/Share/Overview shortcuts keep the search and clear the tab bar. Offline episode save recovered across a reload ends with Saved.`);
   } catch (e) {
     console.error(e.stack);
     if (logs) console.error(logs);
