@@ -321,13 +321,9 @@ func cmdSettings(args []string, out io.Writer) error {
 	if _, err := os.Stat(cfg.dbPath); err != nil {
 		return fmt.Errorf("no database at %s (is APP_DB set?): %w", cfg.dbPath, err)
 	}
-	seed, err := cfg.seed()
+	db, err := openDB(cfg.dbPath, cfg.seedForOpen())
 	if err != nil {
-		return err
-	}
-	db, err := openDB(cfg.dbPath, seed)
-	if err != nil {
-		return err
+		return cfg.explainOpen(err)
 	}
 	defer db.Close()
 	s := &server{cfg: cfg, db: db}
@@ -371,13 +367,9 @@ func cmdUser(args []string, out io.Writer) error {
 	if _, err := os.Stat(cfg.dbPath); err != nil {
 		return fmt.Errorf("no database at %s (is APP_DB set?): %w", cfg.dbPath, err)
 	}
-	seed, err := cfg.seed()
+	db, err := openDB(cfg.dbPath, cfg.seedForOpen())
 	if err != nil {
-		return err
-	}
-	db, err := openDB(cfg.dbPath, seed)
-	if err != nil {
-		return err
+		return cfg.explainOpen(err)
 	}
 	defer db.Close()
 	s := &server{cfg: cfg, db: db, hashSem: make(chan struct{}, maxHashing)}

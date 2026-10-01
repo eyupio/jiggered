@@ -213,7 +213,10 @@ function wire(ctx) {
     let r;
     try { r = await fetch("/api/admin/backup", { method: "POST", credentials: "same-origin", headers: { "X-Requested-With": "jiggered" } }) }
     catch { return say(msg, "Couldn't reach the server. Check your connection and try again.", true) }
-    if (!r.ok) return say(msg, `The backup failed (${r.status}).`, true);
+    if (!r.ok) {
+      const why = await r.json().then(j => j.error, () => "");
+      return say(msg, why || `The backup failed (${r.status}).`, true);
+    }
     const url = URL.createObjectURL(await r.blob());
     const name = (/filename="([^"]+)"/.exec(r.headers.get("Content-Disposition") || "") || [])[1] || "jiggered-backup.db";
     const a = Object.assign(document.createElement("a"), { href: url, download: name });

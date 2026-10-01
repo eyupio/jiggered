@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"io/fs"
 	"net/http"
 	"regexp"
@@ -176,13 +178,18 @@ func TestLoadConfig(t *testing.T) {
 	if seed, _ := cfg.seed(); seed == nil || seed.name != "alice" {
 		t.Errorf("seed = %+v", seed)
 	}
-	// The old variables meant what they always did: only the word "false" turned secure cookies off,
-	// only the word "true" trusted the proxy.
-	t.Setenv("APP_SECURE_COOKIE", "0")
-	t.Setenv("APP_TRUST_PROXY", "yes")
-	cfg, _ = loadConfig()
-	if cfg.seeds["secure_cookie"] != "true" || cfg.seeds["trust_proxy"] != "false" {
-		t.Errorf("seeds = %v", cfg.seeds)
+	// Booleans are read the usual ways and in any case; anything else keeps the safe default
+	// (secure cookies on, proxy not trusted).
+	for _, c := range []struct{ secure, trust, wantSecure, wantTrust string }{
+		{"False", "True", "false", "true"}, {"0", "1", "false", "true"}, {"no", "yes", "false", "true"}, {"off", "on", "false", "true"},
+		{"garbage", "garbage", "true", "false"}, {" FALSE ", " TRUE ", "false", "true"},
+	} {
+		t.Setenv("APP_SECURE_COOKIE", c.secure)
+		t.Setenv("APP_TRUST_PROXY", c.trust)
+		cfg, _ = loadConfig()
+		if cfg.seeds["secure_cookie"] != c.wantSecure || cfg.seeds["trust_proxy"] != c.wantTrust {
+			t.Errorf("APP_SECURE_COOKIE=%q APP_TRUST_PROXY=%q: seeds = %v", c.secure, c.trust, cfg.seeds)
+		}
 	}
 
 	h, _ := bcrypt.GenerateFromPassword([]byte("hashedpass1"), bcryptCost)
@@ -193,8 +200,6 @@ func TestLoadConfig(t *testing.T) {
 	}
 
 	for name, env := range map[string][2]string{
-		"short password":  {"APP_PASSWORD", "short"},
-		"bad hash":        {"APP_PASSWORD_HASH", "not-a-bcrypt-hash"},
 		"hops not number": {"APP_PROXY_HOPS", "many"},
 		"hops zero":       {"APP_PROXY_HOPS", "0"},
 		"hops too many":   {"APP_PROXY_HOPS", "11"},
@@ -203,6 +208,22 @@ func TestLoadConfig(t *testing.T) {
 		t.Setenv(env[0], env[1])
 		if _, err := loadConfig(); err == nil {
 			t.Errorf("%s: no error", name)
+		}
+	}
+
+	// A bad password or hash isn't an error until something needs it: only the first account does.
+	for name, env := range map[string][2]string{"short password": {"APP_PASSWORD", "short"}, "bad hash": {"APP_PASSWORD_HASH", "not-a-bcrypt-hash"}} {
+		clear()
+		t.Setenv(env[0], env[1])
+		cfg, err := loadConfig()
+		if err != nil {
+			t.Errorf("%s: loadConfig failed, but a leftover variable must not stop an install that has accounts: %v", name, err)
+		}
+		if _, err := cfg.seed(); err == nil {
+			t.Errorf("%s: should be refused when it is needed to create the first account", name)
+		}
+		if cfg.seedForOpen() != nil {
+			t.Errorf("%s: seedForOpen should hand over nothing", name)
 		}
 	}
 
@@ -315,5 +336,22 @@ func TestServiceWorkerIsServedForTheWholeSite(t *testing.T) {
 	resp, _ := e.newClient().req("GET", "/sw.js", nil)
 	if resp.StatusCode != 200 || !strings.Contains(resp.Header.Get("Content-Type"), "javascript") || resp.Header.Get("Cache-Control") != "no-store" {
 		t.Errorf("/sw.js = %d %q cc=%q (it must be revalidated so updates are noticed)", resp.StatusCode, resp.Header.Get("Content-Type"), resp.Header.Get("Cache-Control"))
+	}
+}
+
+func TestAnInstallWithAccountsIgnoresLeftoverBadCredentials(t *testing.T) {
+	e := newTestServer(t) // has the admin already
+	cfg := e.s.cfg
+	cfg.credErr = errors.New("APP_PASSWORD: Password must be at least 8 characters.")
+	cfg.passwordHash = nil
+	e.s.cfg = cfg
+	if err := e.s.ensureFirstAdmin(t.Context()); err != nil {
+		t.Errorf("accounts exist, so a bad leftover password must not matter: %v", err)
+	}
+	// ...but a legacy database that needs the first admin says what's wrong with the variables.
+	path := legacyDB(t, map[string]string{"d-2026-09-29": `{"date":"2026-09-29"}`}, nil)
+	_, err := openDB(path, cfg.seedForOpen())
+	if err = cfg.explainOpen(err); !strings.Contains(fmt.Sprint(err), "at least 8 characters") {
+		t.Errorf("the refusal should explain the bad variable: %v", err)
 	}
 }

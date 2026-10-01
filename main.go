@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -53,6 +54,7 @@ type config struct {
 	username     string            // seed: the first admin, while there are no accounts
 	passwordHash []byte            // seed: bcrypt
 	seeds        map[string]string // seed: instance settings, from APP_SECURE_COOKIE, APP_TRUST_PROXY, APP_PROXY_HOPS
+	credErr      error             // what is wrong with APP_PASSWORD(_HASH), if anything: only matters while there are no accounts
 }
 
 type server struct {
@@ -78,13 +80,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	seed, err := cfg.seed()
+	db, err := openDB(cfg.dbPath, cfg.seedForOpen())
 	if err != nil {
-		log.Fatal(err)
-	}
-	db, err := openDB(cfg.dbPath, seed)
-	if err != nil {
-		log.Fatalf("open database: %v", err)
+		log.Fatalf("open database %s: %v", cfg.dbPath, cfg.explainOpen(err))
 	}
 	defer db.Close()
 
@@ -113,9 +111,13 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	ln, err := net.Listen("tcp", cfg.addr) // bind first, so "listening" is only ever said when it's true
+	if err != nil {
+		log.Fatal(err)
+	}
 	go func() {
 		log.Printf("jiggered %s listening on %s", version, cfg.addr)
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatal(err)
 		}
 	}()
@@ -203,24 +205,26 @@ func loadConfig() (config, error) {
 	case os.Getenv("APP_PASSWORD_HASH") != "":
 		cfg.passwordHash = []byte(os.Getenv("APP_PASSWORD_HASH"))
 		if _, err := bcrypt.Cost(cfg.passwordHash); err != nil {
-			return cfg, fmt.Errorf("APP_PASSWORD_HASH is not a valid bcrypt hash: %w", err)
+			cfg.credErr = fmt.Errorf("APP_PASSWORD_HASH is not a valid bcrypt hash (make one with `jiggered hash 'password'`): %w", err)
 		}
 	case os.Getenv("APP_PASSWORD") != "":
 		pw := os.Getenv("APP_PASSWORD")
 		if err := checkPassword(pw, ""); err != nil {
-			return cfg, fmt.Errorf("APP_PASSWORD: %w", err)
-		}
-		h, err := bcrypt.GenerateFromPassword([]byte(pw), bcryptCost)
-		if err != nil {
+			cfg.credErr = fmt.Errorf("APP_PASSWORD: %w", err)
+		} else if h, err := bcrypt.GenerateFromPassword([]byte(pw), bcryptCost); err != nil {
 			return cfg, err
+		} else {
+			cfg.passwordHash = h
 		}
-		cfg.passwordHash = h
 	}
 	return cfg, nil
 }
 
 // seed is the first admin described by the environment, or nil if no password was given.
 func (c config) seed() (*seedAdmin, error) {
+	if c.credErr != nil {
+		return nil, c.credErr
+	}
 	if c.passwordHash == nil {
 		return nil, nil
 	}
@@ -229,6 +233,26 @@ func (c config) seed() (*seedAdmin, error) {
 		return nil, fmt.Errorf("APP_USERNAME %q is not a valid username (letters, digits and . _ @ + -, up to 64 characters)", c.username)
 	}
 	return &seedAdmin{name: name, hash: string(c.passwordHash)}, nil
+}
+
+// seedForOpen is the first admin to hand the database in case it turns out to need one. A problem with the
+// variables is not fatal on its own: they are only used while there are no accounts, so an install that has
+// moved on must not be stopped by a leftover typo. (If the database does need them, openDB says so.)
+func (c config) seedForOpen() *seedAdmin {
+	seed, err := c.seed()
+	if err != nil {
+		log.Printf("ignoring the first-admin variables (%v); they are only needed to create the first account", err)
+		return nil
+	}
+	return seed
+}
+
+// explainOpen adds what is wrong with the first-admin variables to a refusal that asks for them.
+func (c config) explainOpen(err error) error {
+	if _, serr := c.seed(); serr != nil && errors.Is(err, errNeedFirstAdmin) {
+		return fmt.Errorf("%w (and %v)", err, serr)
+	}
+	return err
 }
 
 func envOr(k, def string) string {

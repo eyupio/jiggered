@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"log"
@@ -104,11 +105,18 @@ func authOf(r *http.Request) *authInfo {
 
 // lookup resolves the session cookie to a signed-in, enabled user, or nil.
 func (s *server) lookup(r *http.Request) *authInfo {
+	a, _ := s.lookupState(r)
+	return a
+}
+
+// lookupState is lookup that also says when it couldn't tell: a database that fails to answer is not a session
+// that doesn't exist, and signing everyone out over a hiccup would make the pages throw away their sign-in.
+func (s *server) lookupState(r *http.Request) (a *authInfo, unavailable bool) {
 	c, err := r.Cookie(cookieName)
 	if err != nil || len(c.Value) != 64 {
-		return nil
+		return nil, false
 	}
-	a := &authInfo{u: &user{}, hash: hashToken(c.Value)}
+	a = &authInfo{u: &user{}, hash: hashToken(c.Value)}
 	var exp, seen int64
 	var disabled, must int
 	err = s.db.QueryRowContext(r.Context(), `
@@ -116,14 +124,18 @@ func (s *server) lookup(r *http.Request) *authInfo {
 		FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?`, a.hash).
 		Scan(&a.u.ID, &a.u.Username, &a.u.Role, &disabled, &must, &a.sid, &exp, &seen)
 	now := time.Now().Unix()
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		log.Printf("looking up a session: %v", err)
+		return nil, true
+	}
 	if err != nil || now >= exp || disabled != 0 {
-		return nil
+		return nil, false
 	}
 	a.u.Disabled, a.u.MustChange = false, must != 0
 	if now-seen > 300 {
 		s.db.ExecContext(r.Context(), "UPDATE sessions SET last_seen_at = ? WHERE token_hash = ?", now, a.hash)
 	}
-	return a
+	return a, false
 }
 
 // While a password change is pending, these are the only API calls that work.
@@ -135,7 +147,11 @@ func (s *server) requireAdmin(next http.Handler) http.Handler { return s.guard(n
 
 func (s *server) guard(next http.Handler, adminOnly bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := s.lookup(r)
+		a, unavailable := s.lookupState(r)
+		if unavailable {
+			http.Error(w, "temporarily unavailable", http.StatusServiceUnavailable)
+			return
+		}
 		if a == nil {
 			if strings.HasPrefix(r.URL.Path, "/api/") {
 				http.Error(w, "signed out", http.StatusUnauthorized)

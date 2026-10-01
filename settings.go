@@ -61,16 +61,29 @@ func parseSetting(key, value string) (string, error) {
 	return "", fmt.Errorf("unknown setting %q (the settings are %s)", key, strings.Join(settingKeys, ", "))
 }
 
+// boolish reads true/false the usual ways, in any case: 1, 0, yes, no, on, off.
+func boolish(v string) (value, ok bool) {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "true", "1", "yes", "y", "on", "t":
+		return true, true
+	case "false", "0", "no", "n", "off", "f":
+		return false, true
+	}
+	return false, false
+}
+
 // seedFromEnv turns an older environment variable into a setting value, or says there is none.
 func seedFromEnv(key, env string) (string, bool) {
 	if env == "" {
 		return "", false
 	}
 	switch key {
-	case "secure_cookie":
-		return strconv.FormatBool(env != "false"), true // as before: only the word "false" turned it off
-	case "trust_proxy":
-		return strconv.FormatBool(env == "true"), true
+	case "secure_cookie": // secure unless clearly told otherwise
+		b, ok := boolish(env)
+		return strconv.FormatBool(!ok || b), true
+	case "trust_proxy": // off unless clearly told otherwise
+		b, ok := boolish(env)
+		return strconv.FormatBool(ok && b), true
 	}
 	return env, true // proxy_hops: validated by loadConfig
 }

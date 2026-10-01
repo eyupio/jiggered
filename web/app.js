@@ -194,7 +194,7 @@ function fatal(text) {
     else addEventListener("load", register);
   }
 
-  store.hydrate(me.id); // after everything its change listener touches exists
+  store.hydrate(me.id, me.username); // after everything its change listener touches exists
   await syncAdmin();
   go("today");
   updateSync();

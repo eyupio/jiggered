@@ -37,7 +37,10 @@ export function createStore({
 
   const exclusive = fn => { const run = tail.then(fn); tail = run.catch(() => {}); return run };
   const notify = () => { try { onChange() } catch (e) { console.error(e) } };
-  const key = () => PREFIX + uid;
+  let who = "";
+  // Keyed by id and name: after restoring an older backup an id can belong to someone else, and their queued changes
+  // must not be sent into that account.
+  const key = () => PREFIX + uid + (who ? ":" + who : "");
   // Every request says whose page this is. If the browser has since signed in as someone else (another tab), the
   // server refuses with 401 rather than reading or writing that other person's data under this page's name.
   const HEADERS = () => ({ ...BASE_HEADERS, "X-Jiggered-User": String(uid) });
@@ -49,8 +52,8 @@ export function createStore({
 
   // hydrate loads what this device remembers for the signed-in person. Anyone else's data is wiped:
   // it must not sit on the device for the next person to find.
-  function hydrate(userId) {
-    uid = userId; base = {}; revs = {}; pending = []; seq = 0;
+  function hydrate(userId, name = "") {
+    uid = userId; who = name; base = {}; revs = {}; pending = []; seq = 0;
     if (storage) {
       try {
         for (let i = storage.length - 1; i >= 0; i--) {

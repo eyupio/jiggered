@@ -161,3 +161,17 @@ func TestAPageOpenedAsSomeoneElseIsRefused(t *testing.T) {
 		t.Errorf("the right person: %d", st)
 	}
 }
+
+// A database that fails to answer is "try again", not "you are signed out".
+func TestADatabaseHiccupDoesNotSignAnyoneOut(t *testing.T) {
+	e := newTestServer(t)
+	c := e.signedInAdmin()
+	e.s.db.Exec("ALTER TABLE sessions RENAME TO sessions_gone")
+	if st := c.do("GET", "/api/me", nil); st != 503 {
+		t.Errorf("with the sessions table unreadable: %d, want 503 (not 401, which makes the page forget its sign-in)", st)
+	}
+	e.s.db.Exec("ALTER TABLE sessions_gone RENAME TO sessions")
+	if st := c.do("GET", "/api/me", nil); st != 200 {
+		t.Errorf("once it is back the same session works: %d", st)
+	}
+}
