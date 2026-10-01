@@ -136,3 +136,24 @@ func TestProductDefaultsKeepSymptomAndTriggerGroups(t *testing.T) {
 		t.Fatal("padded group name should be refused", st)
 	}
 }
+
+func TestProductDefaultsCheckInPenalties(t *testing.T) {
+	three, big := 3, 11
+	ok := productDefaults{Budget: 10, SleepPenalty: 3, Locale: "en-GB", Activities: []struct {
+		ID string `json:"id,omitempty"`
+		A  string `json:"a"`
+		C  int    `json:"c"`
+		G  string `json:"g,omitempty"`
+	}{}, Symptoms: []string{}, Triggers: []string{}, AmberPenalty: &three, RedPenalty: &three}
+	if err := ok.validate(); err != nil {
+		t.Fatal(err)
+	}
+	ok.RedPenalty = &big
+	if ok.validate() == nil {
+		t.Fatal("a red day cannot cost more than the budget")
+	}
+	ok.RedPenalty = nil
+	if err := ok.validate(); err != nil {
+		t.Fatal("absent penalties mean the app defaults", err)
+	}
+}

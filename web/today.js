@@ -19,7 +19,7 @@ export function init(ctx) {
   // Each change is an operation on the day, stamped with the budget in force so history keeps its own numbers.
   const op = (type, arg, before) => {
     const S = ctx.settings();
-    return ctx.store.dispatch({ id: id(), type, arg, before, original: ctx.store.view(id()), stamp: { budget: S.budget, sleepPenalty: S.sleepPenalty } });
+    return ctx.store.dispatch({ id: id(), type, arg, before, original: ctx.store.view(id()), stamp: { budget: S.budget, sleepPenalty: S.sleepPenalty, amberPenalty: S.amberPenalty, redPenalty: S.redPenalty } });
   };
 
   function open(date) {
@@ -150,8 +150,13 @@ export function init(ctx) {
     $("day-notice").hidden = !past;
     $("act-time-row").hidden = !past;
 
-    document.querySelectorAll("#checkin button").forEach(b => b.setAttribute("aria-pressed", b.dataset.s === d.status));
-    $("advice").textContent = d.status ? ADVICE[d.status] : past ? "No check-in for this day." : "How are you starting today? Pick one.";
+    document.querySelectorAll("#checkin button").forEach(b => {
+      b.setAttribute("aria-pressed", b.dataset.s === d.status);
+      const cost = S[b.dataset.s + "Penalty"], small = b.querySelector("small");
+      small.textContent = cost ? `${small.dataset.text}, −${cost} ${cost === 1 ? "point" : "points"}` : small.dataset.text;
+    });
+    const took = d.statusPenalty || 0;
+    $("advice").textContent = d.status ? ADVICE[d.status] + (took ? ` ${d.status[0].toUpperCase() + d.status.slice(1)} takes ${took} off ${past ? "this day" : "today"}.` : "") : past ? "No check-in for this day." : "How are you starting today? Pick one.";
     $("sleep").checked = !!d.poorSleep;
     $("sleep-label").textContent = `Tick if you slept badly: takes ${d.sleepPenalty ?? S.sleepPenalty} off ${past ? "this day" : "today"}`;
     setHTML($("left"), html`${left} <small>of ${cap}</small>`);

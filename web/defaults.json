@@ -1,6 +1,8 @@
 {
   "budget": 10,
   "sleepPenalty": 3,
+  "amberPenalty": 3,
+  "redPenalty": 6,
   "locale": "en-GB",
   "activities": [
     {

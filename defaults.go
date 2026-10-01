@@ -12,8 +12,11 @@ import (
 )
 
 type productDefaults struct {
-	Budget       int    `json:"budget"`
-	SleepPenalty int    `json:"sleepPenalty"`
+	Budget       int `json:"budget"`
+	SleepPenalty int `json:"sleepPenalty"`
+	// Points an amber or red check-in takes off the day. Absent means the app's own defaults.
+	AmberPenalty *int   `json:"amberPenalty,omitempty"`
+	RedPenalty   *int   `json:"redPenalty,omitempty"`
 	Locale       string `json:"locale"`
 	Activities   []struct {
 		ID string `json:"id,omitempty"`
@@ -62,6 +65,11 @@ func validGroups(groups map[string]string, names []string) error {
 func (d productDefaults) validate() error {
 	if d.Budget < 1 || d.Budget > 30 || d.SleepPenalty < 0 || d.SleepPenalty > d.Budget {
 		return fmt.Errorf("Budget must be 1–30 and poor sleep costs 0–budget")
+	}
+	for _, p := range []*int{d.AmberPenalty, d.RedPenalty} {
+		if p != nil && (*p < 0 || *p > d.Budget) {
+			return fmt.Errorf("Amber and red days cost 0–budget points")
+		}
 	}
 	if !map[string]bool{"": true, "en-GB": true, "en-US": true, "en-AU": true, "en-CA": true, "de-DE": true, "fr-FR": true, "es-ES": true, "nl-NL": true}[d.Locale] {
 		return fmt.Errorf("Choose a supported date format")
