@@ -260,7 +260,10 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
   .row > .secondary,.row > .primary{flex:1 1 100%}
   .checkin{gap:6px}
   .checkin button b{font-size:.95rem}
-  .acts{gap:10px}
+  .acts{gap:12px}
+  .act-groups{gap:20px}
+  .act-group,.act-fav{gap:12px}
+  .group-filter{gap:12px}
   .toggle{align-items:flex-start}
 }
 
@@ -291,7 +294,7 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
 @media(prefers-reduced-motion:reduce){.sync,.checkin button,.cell,.act{transition:none!important}}
 
 /* Group filter on Today, and the shared-defaults notice */
-.group-filter{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.group-filter{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 16px}
 .group-filter[hidden]{display:none}
 .pill{font:inherit;font-size:.9rem;white-space:nowrap;flex:none;min-height:40px;padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
 .pill .meta{font-variant-numeric:tabular-nums}
@@ -302,4 +305,5 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
 .defaults-notice h2{margin:0 0 6px}
 .defaults-notice p{margin:0 0 12px}
 .defaults-notice p .meta{font-size:inherit;font-weight:700}
-.defaults-notice .row{flex-wrap:wrap}
+.defaults-notice .row{flex-wrap:wrap;gap:12px}
+.defaults-notice .x{min-height:44px;padding:10px 12px}
