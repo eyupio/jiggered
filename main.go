@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"net"
@@ -514,7 +515,7 @@ func jsonError(w http.ResponseWriter, status int, msg string) {
 func readJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10))
 	dec.DisallowUnknownFields()
-	if err := dec.Decode(dst); err != nil {
+	if err := dec.Decode(dst); err != nil || dec.Decode(&struct{}{}) != io.EOF { // one JSON value, nothing after it
 		jsonError(w, http.StatusBadRequest, "That request wasn't understood.")
 		return false
 	}
