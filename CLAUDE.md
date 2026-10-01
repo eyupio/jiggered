@@ -7,80 +7,115 @@ setup guide; this file is the index and the rules.
 
 Jiggered ("worn out", Yorkshire) is a small self-hosted tracker for daily
 energy check-ins and symptom episodes. One Go binary (module
-`github.com/jnnngs/jiggered`, Go 1.26) serves a static frontend and a tiny JSON
-API backed by SQLite, behind single-user password login. It ships as one
-container image on GHCR.
+`github.com/jnnngs/jiggered`, Go 1.26) serves a static ES-module frontend and a
+JSON API backed by SQLite. Several people can each have an account, with an
+admin to manage them; password login. It ships as one container image on GHCR.
 
 ## Commands
 
 ```sh
-go vet ./...                     # what CI runs
-CGO_ENABLED=0 go build ./...     # what CI runs (the image also builds CGO_ENABLED=0)
-gofmt -l .                       # should print nothing; CI does not check it
-go test ./...                    # passes, but there are no tests yet
+gofmt -l .                       # should print nothing; CI fails if it does
+go vet ./...
+CGO_ENABLED=0 go build ./...     # what the image builds (pure Go, no cgo)
+go test -race ./...              # server tests, about 20s once compiled (-race needs cgo; tests only)
+node --test "test/*.test.mjs"    # frontend logic tests; Node 22, no npm install
 ```
 
-Measured on a cold module cache: `go vet` plus `go build` took about 2m20s
-(pure-Go SQLite compiles slowly), so give the first run a generous timeout.
+Measured on a cold module cache: building took about 2m20s (pure-Go SQLite
+compiles slowly), so give the first run a generous timeout.
 
-Run locally without HTTPS, then open <http://localhost:8080> and sign in as `paul`:
+Run locally without HTTPS, then open <http://localhost:8080>:
 
 ```sh
-APP_PASSWORD=testpass123 APP_SECURE_COOKIE=false APP_DB=./jiggered.db go run .
+APP_DB=./jiggered.db go run .                                   # terminal 1: starts with no accounts, and says so
+APP_DB=./jiggered.db go run . user add paul --admin             # terminal 2: prints a temporary password
+APP_DB=./jiggered.db go run . settings set secure_cookie false  # plain-http testing only
 ```
 
-Generate a password hash for `APP_PASSWORD_HASH`: `go run . hash 'your-password'`
-(in Docker: `docker compose run --rm jiggered hash '...'`).
-
-There is no Makefile, no linter config and no frontend build step.
+`go run . help` lists every subcommand (`user`, `settings`, `backup`, `restore`,
+`healthcheck`, `hash`, `version`). There is no Makefile, no linter config and no
+frontend build step.
 
 ## Layout
 
 | Path | What it is |
 | --- | --- |
-| `main.go` | The entire backend: config, SQLite open and schema, routes, auth, login rate limiter, docs API |
-| `web/` | The whole frontend, hand-written static files (`index.html`, `app.js`, `login.html`, `login.js`, `style.css`, icons, manifest). Embedded with `//go:embed web` |
-| `assets/brand/` | Logo and mark sources (SVG, PNG). Not embedded, not served |
-| `Dockerfile`, `compose.yaml` | Multi-stage build to distroless nonroot; read-only compose service with `cap_drop: ALL` |
-| `.env.example` | Template for compose's `.env` |
-| `.github/workflows/image.yml` | The only workflow: vet and build, then build and push the image |
+| `main.go` | Wiring: config, `server`, `routes()`, security headers, cross-site guard, static files |
+| `db.go` | Opening SQLite, the append-only `migrations` list, the pre-upgrade snapshot |
+| `auth.go` | Sessions, `requireAuth`/`requireAdmin` (`guard`), login, lockouts, client address |
+| `users.go` | Account store, last-admin guard, audit log, pruning |
+| `account.go`, `admin.go` | `/api/me/...` (self-service) and `/api/admin/...` (admins only) |
+| `docs.go` | The per-person docs API: revisions, id allow-list, quotas, import and export |
+| `settings.go` | Instance settings stored in the database, and seeding them from old env vars |
+| `backup.go`, `cli.go` | Snapshot helpers; the subcommands (`user`, `settings`, `backup`, `restore`, ...) |
+| `*_test.go`, `test/*.test.mjs` | Go tests (real server on a temp DB) and Node tests for the frontend logic |
+| `web/` | The frontend, hand-written, embedded with `//go:embed web` (below) |
+| `assets/brand/` | Logo and mark sources. Not embedded, not served |
+| `Dockerfile`, `compose.yaml` | Multi-stage build to distroless nonroot with a `HEALTHCHECK`; read-only compose service, `cap_drop: ALL` |
+| `.env.example` | Template for compose's optional `.env` |
+| `.github/workflows/image.yml` | gofmt, vet, build, `go test -race`, `node --test`, then build and push the image |
+
+`web/`: `app.js` boots and owns the tabs; `sync.js` is the sync engine; `model.js`
+holds the data rules (settings, a day's budget, operations, trends, CSV); `util.js`
+has `html` and `api()`; `today.js`, `episodes.js`, `history.js`, `account.js` are
+the tabs; `admin.js` is mounted only for admins; `sw.js` is the service worker;
+`fonts/` are self-hosted. `sync.js` and `model.js` touch no DOM, which is why
+`test/` can run them.
 
 ## How it works
 
-- **Storage is two tables**: `docs(id, body, updated_at)` holds the app's data as
-  opaque JSON objects keyed by id, and `sessions(token_hash, expires_at)`.
-  The server does not interpret doc contents; the frontend owns that shape.
-- **API** (all behind `requireAuth`): `GET /api/docs`, `PUT|DELETE /api/docs/{id}`,
-  `GET /api/export`. Doc ids must match `^[a-zA-Z0-9_-]{1,64}$`; bodies are
-  capped at 256 KiB and must be a JSON object. `GET /healthz` is public.
+- **Storage** (`db.go`): `users`, `docs(user_id, id, body, rev, size, updated_at)`,
+  `sessions(.., user_id, ..)`, `audit_log`, `instance_settings`. Docs are opaque
+  JSON objects per person; the server does not interpret them, the frontend owns
+  their shape. Ids are allow-listed: `d-YYYY-MM-DD`, `e-<digits>`, `settings`.
+- **Sync**: the frontend queues *operations* ("add this entry"), shows the server
+  copy with them applied, and saves with `If-Match: "<rev>"`. A 409 returns the
+  current doc and the operations are replayed on it, so two devices merge.
+- **Accounts**: created by an admin (temporary password, must be changed before
+  anything else works) or by `jiggered user add`. No sign-up page. The last active
+  admin can't be demoted, disabled or deleted; nobody can do that to themselves
+  through the admin API.
+- **Configuration lives in the database.** The environment only says where it is
+  (`APP_DB`, `APP_ADDR`). `APP_USERNAME`, `APP_PASSWORD(_HASH)`, `APP_SECURE_COOKIE`,
+  `APP_TRUST_PROXY`, `APP_PROXY_HOPS` are one-time seeds, read only to fill in
+  what the database lacks; the database wins after that. The tables in
+  `README.md` are the reference: keep them and `.env.example` in step with
+  `loadConfig` and `settings.go`.
 - **Routes use Go 1.22+ method patterns** on the stdlib `http.ServeMux`. No router
   framework.
-- **Configuration is environment only** (`APP_USERNAME`, `APP_PASSWORD_HASH`,
-  `APP_PASSWORD`, `APP_SECURE_COOKIE`, `APP_TRUST_PROXY`, `APP_ADDR`, `APP_DB`).
-  The table in `README.md` is the reference; keep it and `.env.example` in step
-  with `loadConfig`.
 
 ## Conventions and gotchas
 
-- **A new public static file needs a route.** Only the files listed in the loop
-  in `routes()` are served without login; everything else under `web/` sits
-  behind `requireAuth`. Add a login-page asset to that list or it will redirect
-  to `/login` for a signed-out visitor.
-- **Writes need the `X-Requested-With: jiggered` header** (the CSRF guard in
-  `requireAuth`). Frontend calls go through the helper in `web/app.js`, which
-  sets it. A new write path must keep the check.
-- **The CSP is strict** (`securityHeaders`): scripts and connections are
-  same-origin only, styles and fonts may come from Google Fonts. No inline
-  scripts and no new third-party origins without changing that header
-  deliberately.
-- **SQLite is a single connection** (`SetMaxOpenConns(1)`, WAL, busy timeout).
-  Keep it that way rather than adding a pool.
-- **Schema changes must be additive.** The schema is `CREATE TABLE IF NOT EXISTS`
-  in `openDB`, run on every start against a live user database.
-- **Dependencies are pure Go** (`modernc.org/sqlite`, `golang.org/x/crypto`).
-  The image builds with `CGO_ENABLED=0`; do not add a cgo dependency.
-- **Secrets**: `.env` and `*.db` are gitignored and excluded from the Docker
-  context. Never commit them or a real password hash.
+- **A new public static file needs a route.** Only `publicAssets` (and the
+  `/fonts/` prefix) in `routes()` are served without login; everything else under
+  `web/` sits behind `requireAuth`. Add a login-page asset there or it redirects to
+  `/login` for a signed-out visitor.
+- **Writes need the `X-Requested-With: jiggered` header** (in `guard`), and every
+  non-GET request is checked against `Sec-Fetch-Site` (`rejectCrossSite`). Frontend
+  calls go through `api()` in `web/util.js` or `web/sync.js`, which set the header.
+- **The CSP is strict** (`securityHeaders`): same-origin only, no inline script or
+  style, fonts self-hosted. No new third-party origins without changing it on purpose.
+- **SQLite is a single connection** (`SetMaxOpenConns(1)`, WAL, `_txlock=immediate`).
+  So never use `s.db` while a transaction or open `rows` is held on the same
+  goroutine: it deadlocks. Call `audit()` after the commit, not inside it.
+- **Schema changes append a migration** to `migrations` in `db.go`; never edit one
+  that has shipped. An upgrade snapshots the database to `backups/` first, and
+  `migrate_test.go` upgrades a real legacy-shaped database.
+- **Everything about docs and sessions is scoped to the signed-in person**, using
+  `authOf(r)`, never an id from the request.
+- **Admin endpoints return metadata only, never a doc body.** There is a test
+  (`TestAdminCannotReadAnyonesLogs`); a new admin endpoint must not weaken it. The
+  backup download is the one documented exception (it is the whole database).
+- **The Admin tab does not exist for non-admins**: `app.js` imports `admin.js` and
+  `mount()`s it only while `/api/me` says admin. Keep it out of `index.html`.
+- **Build HTML with the `html` tag in `web/util.js`**, which escapes by default.
+  Never concatenate typed text into `innerHTML`.
+- **`web/sw.js` lists every file the app needs** (`SHELL`); a test fails if a module
+  ships without being listed. It must never cache `/api/`.
+- **Dependencies are pure Go** (`modernc.org/sqlite`, `golang.org/x/crypto`). The
+  image builds with `CGO_ENABLED=0`; do not add a cgo dependency.
+- **Secrets**: `.env`, `*.db` and `/backups/` are gitignored and excluded from the
+  Docker context. Never commit them or a real password hash.
 - This is a personal health log; the README carries a health warning. Keep it.
 
 ## Images and releases
@@ -100,5 +135,5 @@ existing commit messages are short imperative sentences in sentence case.
 Keep every `CLAUDE.md` under 200 lines. This root file is the always-loaded
 index and the universal rules. A `CLAUDE.md` in a subfolder, if one is ever
 justified by that folder's own tooling, appends scoped context and must never
-contradict or overwrite this file. There is none today: the codebase is one Go
-file and one static folder with no tooling of its own.
+contradict or overwrite this file. There is none today: the Go code is one flat
+package and `web/` has no tooling of its own.
