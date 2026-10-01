@@ -46,7 +46,7 @@ frontend build step.
 | `auth.go` | Sessions, `requireAuth`/`requireAdmin` (`guard`), login, lockouts, client address |
 | `users.go` | Account store, last-admin guard, audit log, pruning |
 | `account.go`, `admin.go` | `/api/me/...` (self-service) and `/api/admin/...` (admins only) |
-| `docs.go`, `restore.go` | Personal docs, quotas, legacy import and atomic preview-bound restores |
+| `docs.go`, `restore.go`, `validate.go` | Personal docs, quotas, legacy import and atomic preview-bound restores; `validateDoc` is the one document rule used by saves, imports and restores |
 | `defaults.go` | Validated shared product defaults, authenticated read, admin-only compare-and-swap write |
 | `settings.go` | Instance settings stored in the database, and seeding them from old env vars |
 | `backup.go`, `cli.go` | Snapshot helpers; the subcommands (`user`, `settings`, `backup`, `restore`, ...) |

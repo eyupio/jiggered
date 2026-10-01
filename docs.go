@@ -271,6 +271,12 @@ func (s *server) putDoc(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, http.StatusBadRequest, "Body must be a JSON object.")
 		return
 	}
+	// The same field rules as an import or a restore, so what is saved can always be exported and restored. The client
+	// treats this as a refused change and keeps it in Recovery with this message.
+	if err := validateDoc(id, body); err != nil {
+		jsonError(w, http.StatusUnprocessableEntity, "That isn't valid and was not saved: "+err.Error()+".")
+		return
+	}
 	pre, err := parsePrecondition(r)
 	if err != nil {
 		jsonError(w, http.StatusBadRequest, err.Error())
@@ -388,8 +394,7 @@ func (s *server) importTx(ctx context.Context, tx *sql.Tx, userID int64, in map[
 	now := time.Now().Unix()
 	for _, id := range slices.Sorted(maps.Keys(in)) {
 		body := in[id]
-		var obj map[string]any
-		if !validDocID(id) || len(body) > maxBodySize || json.Unmarshal(body, &obj) != nil || obj == nil {
+		if validateDoc(id, body) != nil {
 			res.Invalid++
 			continue
 		}

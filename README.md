@@ -112,8 +112,11 @@ Keep-existing is the default. Confirmation downloads your current server export 
 known fields reject the whole file with record-specific reasons; legacy optional fields and unrecognised fields
 are preserved. Quotas and the preview fingerprint are checked in the same transaction as writes. If any account
 record, the file or mode changed, preview again. A downloaded backup can restore replaced records; it does not
-remove records added by a restore. The older `/api/import` API remains available for legacy clients with its
-existing permissive skip-invalid contract; the new UI uses `/api/restore/preview` and `/api/restore` exclusively.
+remove records added by a restore. The older `/api/import` API remains available for legacy clients; it still
+skips a record instead of rejecting the file, and the new UI uses `/api/restore/preview` and `/api/restore` exclusively.
+Saves, imports and restores all check records with the same rules (`validate.go`): the fields the app knows are
+checked, anything else is kept exactly as sent, and an older or shorter record is accepted. A save that breaks a rule
+is refused with a 422 and a reason, and the app keeps the change in Recovery.
 
 The browser grants **one editing tab** an exclusive Web Lock; other tabs can browse/download and follow its
 acknowledged device cache, without sending or overwriting its outbox. Close the editing tab, then use **Reload

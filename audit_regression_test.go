@@ -33,7 +33,7 @@ func TestAuditRevisionsSurviveDeleteAndRecreate(t *testing.T) {
 	if _, out := c.putDoc(id, `{"status":"red"}`); out["rev"] == float64(1) {
 		t.Fatalf("recreated doc reused rev 1: %v", out)
 	}
-	if st, _ := c.putDoc(id, `{"status":"stale"}`, "If-Match", `"1"`); st != 409 {
+	if st, _ := c.putDoc(id, `{"status":"amber"}`, "If-Match", `"1"`); st != 409 {
 		t.Errorf("a write holding the pre-delete rev = %d, want 409", st)
 	}
 	if got := c.docs()[id]; string(got.Body) != `{"status":"red"}` {
