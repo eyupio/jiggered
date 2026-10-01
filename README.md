@@ -13,8 +13,19 @@ Add it to your phone's home screen and it opens like an app.
 
 ## Image
 
-GitHub Actions builds `ghcr.io/jnnngs/jiggered` for amd64 and arm64 on every push to `main`
-(`latest`, `dev` and a short commit tag) and on `v*` tags (`1.2.3`, `1.2`).
+GitHub Actions builds `ghcr.io/jnnngs/jiggered` for amd64 and arm64:
+
+| Trigger | Tags |
+|---|---|
+| Push to `main` | `dev`, short commit SHA |
+| Tag `v1.2.3` | `latest`, `1.2.3`, `1.2`, short commit SHA |
+
+Pick which one to run with `JIGGERED_TAG` in `.env` (default `latest`).
+To cut a release:
+
+```sh
+git tag v1.0.0 && git push origin v1.0.0
+```
 
 The repo is private, so the image is too. On the server, log in once with a
 personal access token that has `read:packages`:

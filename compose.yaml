@@ -1,6 +1,6 @@
 services:
   jiggered:
-    image: ghcr.io/jnnngs/jiggered:latest
+    image: ghcr.io/jnnngs/jiggered:${JIGGERED_TAG:-latest}
     container_name: jiggered
     restart: unless-stopped
     env_file: .env
