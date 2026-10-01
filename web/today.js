@@ -107,7 +107,7 @@ export function init(ctx) {
     document.querySelectorAll("#checkin button").forEach(b => b.setAttribute("aria-pressed", b.dataset.s === d.status));
     $("advice").textContent = d.status ? ADVICE[d.status] : past ? "No check-in for this day." : "How are you starting today? Pick one.";
     $("sleep").checked = !!d.poorSleep;
-    $("sleep-label").textContent = `Poor sleep last night (−${d.sleepPenalty ?? S.sleepPenalty} off ${past ? "this day" : "today"})`;
+    $("sleep-label").textContent = `Tick if you slept badly: takes ${d.sleepPenalty ?? S.sleepPenalty} off ${past ? "this day" : "today"}`;
     setHTML($("left"), html`${left} <small>of ${cap}</small>`);
     $("balance-label").textContent = balanceLabel(left, cap);
     renderOngoing(ctx, $("today-ongoing"));

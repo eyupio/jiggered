@@ -46,23 +46,25 @@
     <p class="notice" id="day-notice" hidden>You're looking at a past day. Changes here are saved to that day. <button class="x" id="day-back">Back to today</button></p>
 
     <div class="panel">
-      <div class="label">Morning check-in</div>
-      <div class="checkin" id="checkin">
-        <button data-s="green" aria-pressed="false"><b>Green</b><small>Normal plan</small></button>
-        <button data-s="amber" aria-pressed="false"><b>Amber</b><small>Cut the plan</small></button>
-        <button data-s="red" aria-pressed="false"><b>Red</b><small>Essentials only</small></button>
+      <div class="label" id="checkin-label">Morning check-in</div>
+      <p class="hint">How are you feeling as the day starts? Pick one to set today's plan. Tap it again to clear.</p>
+      <div class="checkin" id="checkin" role="group" aria-labelledby="checkin-label">
+        <button data-s="green" aria-pressed="false"><b>Green</b><small>Good day, normal plan</small></button>
+        <button data-s="amber" aria-pressed="false"><b>Amber</b><small>Shaky, cut the plan</small></button>
+        <button data-s="red" aria-pressed="false"><b>Red</b><small>Rough, essentials only</small></button>
       </div>
       <p class="advice" id="advice">How are you starting today? Pick one.</p>
     </div>
 
     <div class="panel">
       <div class="gauge-head">
-        <div><div class="label-row"><div class="label" id="balance-label">Points left in your plan</div><button type="button" class="help-tip" aria-label="Help with energy points" data-tooltip="Points are personal estimates. Positive activity costs spend points; negative costs record recovery. Your balance can go below zero or above your starting budget.">?</button></div><div class="big" id="left">10 <small>of 10</small></div></div>
+        <div><div class="label-row"><div class="label" id="balance-label">Points left today</div><button type="button" class="help-tip" aria-label="Help with energy points" data-tooltip="Points are personal estimates. Positive activity costs spend points; negative costs record recovery. Your balance can go below zero or above your starting budget.">?</button></div><div class="big" id="left">10 <small>of 10</small></div></div>
         <div class="meta" id="spentline">0 spent</div>
       </div>
       <div class="cells" id="cells" aria-hidden="true"></div>
-      <details class="hint"><summary>How points work</summary><p>Points are your own planning aid. Demanding activities spend points; recovery gives points back. Zero-cost activities just record what happened. You can go below zero or above your starting budget. This is a log, not a recommendation to do more.</p><button class="x" data-settings="set-budget">Edit my budget</button> <button class="x" data-settings="set-acts">Edit my activities</button></details>
+      <p class="hint">Your energy allowance for the day. Tap an activity below to spend points; rest gives them back.</p>
       <label class="toggle"><input type="checkbox" id="sleep"> <span id="sleep-label">Poor sleep last night</span></label>
+      <details class="hint"><summary>How points work</summary><p>Points are your own planning aid. Demanding activities spend points; recovery gives points back. Zero-cost activities just record what happened. You can go below zero or above your starting budget. This is a log, not a recommendation to do more.</p><div class="row"><button class="x" data-settings="set-budget">Edit my budget</button> <button class="x" data-settings="set-acts">Edit my activities</button></div></details>
     </div>
 
     <div class="panel">

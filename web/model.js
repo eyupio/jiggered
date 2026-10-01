@@ -265,7 +265,7 @@ export function validateSettings(r) {
 }
 
 export function balanceLabel(left, cap) {
-  return left < 0 ? `${-left} over your planned budget` : left > cap ? `${left - cap} above the starting budget` : left === 0 ? "No points left in your plan" : "Points left in your plan";
+  return left < 0 ? `${-left} over your planned budget` : left > cap ? `${left - cap} above the starting budget` : left === 0 ? "No points left today" : "Points left today";
 }
 
 export function ongoingEpisodes(docs) {
