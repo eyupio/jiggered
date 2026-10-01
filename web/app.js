@@ -205,17 +205,27 @@ function fatal(text) {
   }
 
   // ---- the line at the bottom: are my changes safe? ----
+  // The line keeps its height whether or not it has anything to say: showing and hiding it used to push the whole
+  // page down and back up on every tap. A routine "Sending…" is held back briefly, so a normal quick save shows nothing.
+  let quietTimer = null, quietSince = 0;
   function updateSync() {
     const st = store.status(), n = st.pending;
+    const routine = !!n && !st.offline && !st.failed && !st.localError && !draftError && !st.readOnly && !st.restoring;
+    if (!routine) { quietSince = 0; clearTimeout(quietTimer); quietTimer = null }
+    else if (!quietSince) quietSince = Date.now();
+    if (routine && Date.now() - quietSince < 700) { if (!quietTimer) quietTimer = setTimeout(() => { quietTimer = null; updateSync() }, 700 - (Date.now() - quietSince)); paintSync(""); return }
+    paintSync(null);
+  }
+  function paintSync(quiet) {
+    const st = store.status(), n = st.pending;
     $("sync").classList.toggle("err", !!st.failed || !!st.localError || !!draftError);
-    $("sync").textContent = st.readOnly ? coordination.reason : st.restoring ? "Restore in progress. Editing is paused." : st.localError || draftError || (st.failed ? `${st.failed} refused ${st.failed === 1 ? "change needs" : "changes need"} recovery below.`
+    $("sync").textContent = quiet === "" ? "" : st.readOnly ? coordination.reason : st.restoring ? "Restore in progress. Editing is paused." : st.localError || draftError || (st.failed ? `${st.failed} refused ${st.failed === 1 ? "change needs" : "changes need"} recovery below.`
       : n ? !st.durable ? `${n} changes are only in memory while device storage finishes. Keep this page open.` : st.offline ? `${n} changes queued on this device. Will retry when connected.` : `${n} changes queued on this device. Sending…`
       : st.offline ? "Offline. Showing this device's copy." : st.loaded ? "" : "Connecting…");
-    $("sync").hidden = !$("sync").textContent;
-    $("sync").dataset.state = $("sync").hidden ? "saved" : "attention";
+    $("sync").dataset.state = $("sync").textContent ? "attention" : "saved";
     const failures = store.failures();
     $("recovery").hidden = !failures.length && !st.localError && !draftError;
-    setHTML($("recovery"), html`<h2>Recover unsaved changes</h2><p>Download a private copy before leaving this device. This recovery file is for support or manual recovery, not the account restore form.</p><button class="secondary" data-action="download">Download recovery copy</button>${failures.map(f => html`<div class="recovery-item"><b>${f.id}</b><p>${f.message}</p><button class="secondary" data-action="retry" data-key="${f.key}">${f.conflict ? f.deleted || f.deletedEntry ? "Restore my record" : "Use my change" : "Retry"}</button>${f.body && (f.id === "settings" || /^e-/.test(f.id)) ? html`<button class="secondary" data-action="edit" data-key="${f.key}">Edit a recovered copy</button>` : ""}<button class="x" data-action="discard" data-key="${f.key}">${f.conflict ? "Keep server copy" : "Discard"}</button></div>`)}`);
+    if (!$("recovery").hidden) setHTML($("recovery"), html`<h2>Recover unsaved changes</h2><p>Download a private copy before leaving this device. This recovery file is for support or manual recovery, not the account restore form.</p><button class="secondary" data-action="download">Download recovery copy</button>${failures.map(f => html`<div class="recovery-item"><b>${f.id}</b><p>${f.message}</p><button class="secondary" data-action="retry" data-key="${f.key}">${f.conflict ? f.deleted || f.deletedEntry ? "Restore my record" : "Use my change" : "Retry"}</button>${f.body && (f.id === "settings" || /^e-/.test(f.id)) ? html`<button class="secondary" data-action="edit" data-key="${f.key}">Edit a recovered copy</button>` : ""}<button class="x" data-action="discard" data-key="${f.key}">${f.conflict ? "Keep server copy" : "Discard"}</button></div>`)}`);
   }
 
   // ---- toast, with an optional Undo ----
