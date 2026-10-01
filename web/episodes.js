@@ -25,16 +25,16 @@ export function init(ctx) {
     if (type === "checkbox") narrow(name);
   }
   function narrow(name) {
-    const box = $("ep-" + name), all = [...box.querySelectorAll(".chip")], st = find[name], long = all.length > PICKER.searchFrom + 4;
+    const box = $("ep-" + name), all = [...box.querySelectorAll(".chip")], st = find[name], long = all.length > PICKER.searchFrom, collapsible = all.length > PICKER.chipsAll;
     $(`ep-${name}-q-row`).hidden = !long;
     const q = long ? st.q.trim() : "";
     let shown = 0;
     for (const c of all) {
-      const on = c.querySelector("input").checked || (q ? matches(q, c.textContent) : !long || st.all || shown < PICKER.page);
+      const on = c.querySelector("input").checked || (q ? matches(q, c.textContent) : !collapsible || st.all || shown < PICKER.chipPage);
       c.hidden = !on; if (on && !c.querySelector("input").checked) shown++;
     }
     const hiddenCount = all.filter(c => c.hidden).length, more = $(`ep-${name}-more`);
-    more.hidden = !long || q || (!st.all && !hiddenCount);
+    more.hidden = !collapsible || q || (!st.all && !hiddenCount);
     more.textContent = st.all ? "Show fewer" : `Show all ${all.length}`;
     box.dataset.empty = q && all.every(c => c.hidden) ? "1" : "";
   }

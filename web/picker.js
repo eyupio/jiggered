@@ -8,6 +8,8 @@ export const PICKER = {
   favouriteWindow: 60, // days of history that count as "use"
   page: 12,           // items shown per group before "Show more"
   searchPage: 24,     // items shown per page of search results
+  chipsAll: 40,       // symptom/trigger lists up to this long show every chip; longer ones collapse to chipPage
+  chipPage: 24,       // chips shown before "Show all" on a list longer than chipsAll
 };
 
 const fold = s => String(s).normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase();
