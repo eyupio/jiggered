@@ -240,3 +240,26 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
 @keyframes tip-appear { from { opacity:0; transform:translateY(3px) } to { opacity:1; transform:translateY(0) } }
 @media(prefers-reduced-motion:reduce) { .tooltip { animation:none } }
 @media print { #jiggered-tooltip { display:none!important } }
+
+/* Panels stack their children with one consistent gap, so adjacent buttons never touch. */
+.panel{display:grid;gap:12px;align-content:start}
+.panel > h2,.panel > .label-row h2{margin-bottom:0}
+.panel > .x,.panel > .secondary,.panel > .primary{justify-self:start}
+.panel .toggle,.panel .advice,.panel .cells,.panel .hint{margin-top:0}
+.panel .hint summary{cursor:pointer;color:var(--accent);font-weight:700}
+.panel details.hint{display:grid;gap:8px}
+.panel details.hint p{margin:8px 0 0}
+.row{gap:10px}
+.checkin button{padding:14px 6px;text-align:center}
+.checkin button small{font-size:.78rem;line-height:1.25}
+.checkin button[aria-pressed="true"] b::before{content:"✓ "}
+.advice{font-size:.95rem;color:var(--fg)}
+.gauge-head .big{margin-top:6px}
+@media(max-width:480px){
+  .panel > .secondary,.panel > .primary{justify-self:stretch}
+  .row > .secondary,.row > .primary{flex:1 1 100%}
+  .checkin{gap:6px}
+  .checkin button b{font-size:.95rem}
+  .acts{gap:10px}
+  .toggle{align-items:flex-start}
+}
