@@ -67,7 +67,8 @@ the tabs; `admin.js` is mounted only for admins; `sw.js` is the service worker;
 ## How it works
 
 - **Storage** (`db.go`): `users`, `docs(user_id, id, body, rev, size, updated_at)`,
-  `sessions(.., user_id, ..)`, `audit_log`, `instance_settings`. Docs are opaque
+  `sessions(.., user_id, ..)`, `audit_log`, `instance_settings`, `doc_revs(user_id, id, rev)` (the last revision of a
+  deleted doc, so recreating it never reuses a revision; a DELETE with `If-Match` of an older revision gets a 409). Docs are opaque
   JSON objects per person; the server does not interpret them, the frontend owns
   their shape. Ids are allow-listed: `d-YYYY-MM-DD`, `e-<digits>`, `settings`.
 - **Sync**: the frontend queues *operations* ("add this entry"), shows the server

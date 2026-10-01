@@ -19,7 +19,6 @@ func pending(t *testing.T, fix string) {
 }
 
 func TestAuditStaleDeleteKeepsNewerDoc(t *testing.T) {
-	pending(t, "conditional delete")
 	e := newTestServer(t)
 	c := e.signedInAdmin()
 	id := "d-2026-10-01"
@@ -34,7 +33,6 @@ func TestAuditStaleDeleteKeepsNewerDoc(t *testing.T) {
 }
 
 func TestAuditRevisionsSurviveDeleteAndRecreate(t *testing.T) {
-	pending(t, "durable revisions")
 	e := newTestServer(t)
 	c := e.signedInAdmin()
 	id := "d-2026-10-01"

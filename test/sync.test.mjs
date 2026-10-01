@@ -29,9 +29,12 @@ class FakeServer {
         return res(200, Object.fromEntries([...this.docs].map(([id, d]) => [id, { rev: d.rev, body: d.body }])));
       }
       const id = decodeURIComponent(path.replace("/api/docs/", ""));
-      if (method === "DELETE") { this.docs.delete(id); return res(204, null) }
       const cur = this.docs.get(id), curRev = cur ? cur.rev : 0;
       const h = opts.headers || {};
+      if (method === "DELETE") {
+        if (cur && h["If-Match"] !== undefined && Number(String(h["If-Match"]).replaceAll('"', "")) !== curRev) return res(409, { rev: curRev, body: cur.body });
+        this.docs.delete(id); return res(204, null);
+      }
       if ((h["If-None-Match"] === "*" && cur) || (h["If-Match"] !== undefined && Number(String(h["If-Match"]).replaceAll('"', "")) !== curRev)) {
         return res(409, { rev: curRev, body: cur ? cur.body : null });
       }
@@ -191,6 +194,29 @@ test("delete, and undo of a delete", async () => {
   await d.fireTimer();
   assert.deepEqual(s.requests, [`PUT /api/docs/${EP}`]);
   assert.deepEqual(s.docs.get(EP).body, body);
+});
+
+test("a delete names the revision it saw, and never erases a copy saved elsewhere since", async () => {
+  const s = new FakeServer(), a = device(s), b = device(s, { storage: new MemStorage() });
+  const EP = "e-1790000000000", body = { when: "2026-10-01T09:00", symptoms: ["Headache"], notes: "first" };
+  a.store.dispatch({ id: EP, type: "replace", arg: body }); await a.store.flush();
+  await b.store.load();
+  a.store.dispatch({ id: EP, type: "replace", arg: { ...body, notes: "edited on A" } }); await a.store.flush();
+  assert.equal(s.docs.get(EP).rev, 2);
+
+  s.requests.length = 0;
+  b.store.dispatch({ id: EP, type: "remove" }); await b.store.flush(); // B still holds revision 1
+  assert.ok(s.requests.includes(`DELETE /api/docs/${EP}`));
+  const kept = s.docs.get(EP)?.body.notes === "edited on A";
+  const recoverable = b.store.recoveryExport().failed.some(f => f.id === EP);
+  assert.ok(kept || recoverable, "the stale delete must not silently erase A's edit");
+  assert.equal(b.store.status().pending, 0);
+
+  // "Use my change" then deletes it, now that B has seen the current revision.
+  const f = b.store.recoveryExport().failed.find(x => x.id === EP);
+  assert.ok(f && f.conflict, "a changed-elsewhere delete waits in Recovery");
+  await b.store.retryFailed(f.key);
+  assert.equal(s.docs.has(EP), false);
 });
 
 test("deleting something the server never had is fine", async () => {

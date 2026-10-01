@@ -174,11 +174,14 @@ func (s *server) storeDoc(ctx context.Context, userID int64, id string, body []b
 	}
 	defer tx.Rollback()
 
-	var oldSize int64
+	var oldSize, floor int64
 	exists := true
 	err = tx.QueryRowContext(ctx, "SELECT rev, size FROM docs WHERE user_id = ? AND id = ?", userID, id).Scan(&rev, &oldSize)
 	if errors.Is(err, sql.ErrNoRows) {
 		exists = false
+		if floor, err = deletedRev(ctx, tx, userID, id); err != nil {
+			return 0, nil, err
+		}
 	} else if err != nil {
 		return 0, nil, err
 	}
@@ -203,13 +206,53 @@ func (s *server) storeDoc(ctx context.Context, userID int64, id string, body []b
 		return 0, nil, errStorageLimit
 	}
 
-	rev++
+	rev = max(rev, floor) + 1
 	if _, err := tx.ExecContext(ctx, `INSERT INTO docs(user_id, id, body, rev, size, updated_at) VALUES(?, ?, ?, ?, ?, ?)
 		ON CONFLICT(user_id, id) DO UPDATE SET body = excluded.body, rev = excluded.rev, size = excluded.size, updated_at = excluded.updated_at`,
 		userID, id, string(body), rev, len(body), time.Now().Unix()); err != nil {
 		return 0, nil, err
 	}
 	return rev, nil, tx.Commit()
+}
+
+// deletedRev is the last revision a deleted document had, or 0 if it never existed.
+func deletedRev(ctx context.Context, tx *sql.Tx, userID int64, id string) (int64, error) {
+	var rev int64
+	err := tx.QueryRowContext(ctx, "SELECT rev FROM doc_revs WHERE user_id = ? AND id = ?", userID, id).Scan(&rev)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
+	}
+	return rev, err
+}
+
+// removeDoc deletes one document under the caller's precondition, in one transaction, and remembers its revision.
+// With If-Match it only deletes that revision; otherwise (older clients) it deletes whatever is there. A document
+// that is already gone is not an error. conflict is set instead when the revision has moved on.
+func (s *server) removeDoc(ctx context.Context, userID int64, id string, pre precondition) (conflict *docOut, err error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	var rev int64
+	var cur string
+	err = tx.QueryRowContext(ctx, "SELECT rev, body FROM docs WHERE user_id = ? AND id = ?", userID, id).Scan(&rev, &cur)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	if pre.match != nil && *pre.match != rev {
+		return &docOut{Rev: rev, Body: json.RawMessage(cur)}, nil
+	}
+	if _, err := tx.ExecContext(ctx, "DELETE FROM docs WHERE user_id = ? AND id = ?", userID, id); err != nil {
+		return nil, err
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO doc_revs(user_id, id, rev) VALUES(?, ?, ?)
+		ON CONFLICT(user_id, id) DO UPDATE SET rev = excluded.rev`, userID, id, rev); err != nil {
+		return nil, err
+	}
+	return nil, tx.Commit()
 }
 
 func (s *server) putDoc(w http.ResponseWriter, r *http.Request) {
@@ -257,11 +300,20 @@ func (s *server) deleteDoc(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, http.StatusBadRequest, "Unknown document id.")
 		return
 	}
-	if _, err := s.db.ExecContext(r.Context(), "DELETE FROM docs WHERE user_id = ? AND id = ?", u.ID, id); err != nil {
-		serverError(w, r, err)
+	pre, err := parsePrecondition(r)
+	if err != nil {
+		jsonError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	conflict, err := s.removeDoc(r.Context(), u.ID, id, pre)
+	switch {
+	case err != nil:
+		serverError(w, r, err)
+	case conflict != nil:
+		writeJSON(w, http.StatusConflict, conflict)
+	default:
+		w.WriteHeader(http.StatusNoContent)
+	}
 }
 
 type importResult struct {
@@ -313,6 +365,26 @@ func (s *server) importTx(ctx context.Context, tx *sql.Tx, userID int64, in map[
 		return res, err
 	}
 
+	floors := map[string]int64{}
+	lrows, err := tx.QueryContext(ctx, "SELECT id, rev FROM doc_revs WHERE user_id = ?", userID)
+	if err != nil {
+		return res, err
+	}
+	for lrows.Next() {
+		var id string
+		var rev int64
+		if err := lrows.Scan(&id, &rev); err != nil {
+			lrows.Close()
+			return res, err
+		}
+		floors[id] = rev
+	}
+	err = lrows.Err()
+	lrows.Close()
+	if err != nil {
+		return res, err
+	}
+
 	now := time.Now().Unix()
 	for _, id := range slices.Sorted(maps.Keys(in)) {
 		body := in[id]
@@ -327,14 +399,15 @@ func (s *server) importTx(ctx context.Context, tx *sql.Tx, userID int64, in map[
 			continue
 		}
 		total += int64(len(body)) - old.size
-		existing[id] = have{old.rev + 1, int64(len(body))}
+		rev := max(old.rev, floors[id]) + 1
+		existing[id] = have{rev, int64(len(body))}
 		if len(existing) > maxDocsPerUser || total > maxBytesPerUser {
 			return res, errImportTooBig
 		}
 		if !preview {
 			if _, err := tx.ExecContext(ctx, `INSERT INTO docs(user_id, id, body, rev, size, updated_at) VALUES(?, ?, ?, ?, ?, ?)
 			ON CONFLICT(user_id, id) DO UPDATE SET body = excluded.body, rev = excluded.rev, size = excluded.size, updated_at = excluded.updated_at`,
-				userID, id, string(body), old.rev+1, len(body), now); err != nil {
+				userID, id, string(body), rev, len(body), now); err != nil {
 				return res, err
 			}
 		}
