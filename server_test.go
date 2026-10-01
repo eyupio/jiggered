@@ -105,8 +105,13 @@ func TestEnsureFirstAdmin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.ensureFirstAdmin(t.Context()); err == nil || !strings.Contains(err.Error(), "APP_PASSWORD_HASH") {
-		t.Errorf("with no accounts and no password: %v", err)
+	// Nothing in the environment is fine: the server starts with no accounts and the first admin is made
+	// from the command line.
+	if err := s.ensureFirstAdmin(t.Context()); err != nil {
+		t.Fatalf("no accounts and no seed must not stop the server: %v", err)
+	}
+	if n, _ := s.userCount(t.Context()); n != 0 {
+		t.Fatalf("%d users from nothing", n)
 	}
 	h, _ := bcrypt.GenerateFromPassword([]byte("firstpass1"), bcryptCost)
 	s.cfg = config{username: "  Paul ", passwordHash: h}
@@ -118,7 +123,7 @@ func TestEnsureFirstAdmin(t *testing.T) {
 		t.Fatalf("first admin = %+v %v", u, err)
 	}
 	// Now that accounts exist, the environment is ignored, whatever it says.
-	s.cfg = config{username: "someone-else", passwordHash: nil}
+	s.cfg = config{username: "someone-else", passwordHash: h}
 	if err := s.ensureFirstAdmin(t.Context()); err != nil {
 		t.Errorf("second call: %v", err)
 	}
@@ -141,9 +146,9 @@ func TestLoadConfig(t *testing.T) {
 	clear()
 	cfg, err := loadConfig()
 	if err != nil {
-		t.Fatalf("no env at all must be fine now (the password only seeds the first admin): %v", err)
+		t.Fatalf("no environment at all must be fine: %v", err)
 	}
-	if cfg.addr != ":8080" || cfg.dbPath != "/data/jiggered.db" || cfg.username != "paul" || !cfg.secureCookie || cfg.trustProxy || cfg.proxyHops != 1 || cfg.passwordHash != nil {
+	if cfg.addr != ":8080" || cfg.dbPath != "/data/jiggered.db" || cfg.username != "paul" || cfg.passwordHash != nil || len(cfg.seeds) != 0 {
 		t.Errorf("defaults = %+v", cfg)
 	}
 	if seed, err := cfg.seed(); seed != nil || err != nil {
@@ -156,14 +161,28 @@ func TestLoadConfig(t *testing.T) {
 	t.Setenv("APP_TRUST_PROXY", "true")
 	t.Setenv("APP_PROXY_HOPS", "2")
 	cfg, err = loadConfig()
-	if err != nil || cfg.secureCookie || !cfg.trustProxy || cfg.proxyHops != 2 {
-		t.Fatalf("%+v %v", cfg, err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{"secure_cookie": "false", "trust_proxy": "true", "proxy_hops": "2"}
+	for k, v := range want {
+		if cfg.seeds[k] != v {
+			t.Errorf("seed %s = %q, want %q", k, cfg.seeds[k], v)
+		}
 	}
 	if bcrypt.CompareHashAndPassword(cfg.passwordHash, []byte("plainpass1")) != nil {
 		t.Error("APP_PASSWORD should be hashed")
 	}
 	if seed, _ := cfg.seed(); seed == nil || seed.name != "alice" {
 		t.Errorf("seed = %+v", seed)
+	}
+	// The old variables meant what they always did: only the word "false" turned secure cookies off,
+	// only the word "true" trusted the proxy.
+	t.Setenv("APP_SECURE_COOKIE", "0")
+	t.Setenv("APP_TRUST_PROXY", "yes")
+	cfg, _ = loadConfig()
+	if cfg.seeds["secure_cookie"] != "true" || cfg.seeds["trust_proxy"] != "false" {
+		t.Errorf("seeds = %v", cfg.seeds)
 	}
 
 	h, _ := bcrypt.GenerateFromPassword([]byte("hashedpass1"), bcryptCost)

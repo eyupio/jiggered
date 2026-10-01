@@ -24,6 +24,8 @@ const usage = `Jiggered ` + "(no arguments runs the server)" + `
   jiggered backup [file|-]             save a consistent copy of the database (no argument: into the data volume's backups folder; "-" writes it to stdout)
   jiggered restore <file> --yes        put a backup in place of the database (stop the server first; what was there is kept)
   jiggered healthcheck                 exit 0 if the running server answers /healthz
+  jiggered settings                    show the instance settings (they live in the database)
+  jiggered settings set KEY VALUE      change one: secure_cookie, trust_proxy, proxy_hops
   jiggered version
 
 Accounts (work on the database directly, so they still work if you are locked out of the web UI):
@@ -55,6 +57,8 @@ func runCLI(args []string, in io.Reader, out, errw io.Writer) (handled bool, err
 		return true, cmdHealthcheck()
 	case "user":
 		return true, cmdUser(args[1:], out)
+	case "settings":
+		return true, cmdSettings(args[1:], out)
 	case "version", "--version", "-v":
 		fmt.Fprintln(out, version)
 		return true, nil
@@ -260,6 +264,57 @@ func cmdHealthcheck() error {
 		return fmt.Errorf("healthz answered %s", resp.Status)
 	}
 	return nil
+}
+
+// cmdSettings shows or changes the instance settings. A running server notices within a couple of seconds.
+func cmdSettings(args []string, out io.Writer) error {
+	if len(args) != 0 && !(len(args) == 3 && args[0] == "set") {
+		return errors.New("usage: jiggered settings | jiggered settings set KEY VALUE")
+	}
+	cfg, err := loadConfig()
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(cfg.dbPath); err != nil {
+		return fmt.Errorf("no database at %s (is APP_DB set?): %w", cfg.dbPath, err)
+	}
+	seed, err := cfg.seed()
+	if err != nil {
+		return err
+	}
+	db, err := openDB(cfg.dbPath, seed)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	s := &server{cfg: cfg, db: db}
+	ctx := context.Background()
+	if len(args) == 3 {
+		before, _, err := s.storedSettings(ctx)
+		if err != nil {
+			return err
+		}
+		canon, err := s.setSetting(ctx, args[1], args[2])
+		if err != nil {
+			return err
+		}
+		s.audit(ctx, "cli", "settings_changed", "", fmt.Sprintf("%s: %s -> %s", args[1], before[args[1]], canon), "")
+		fmt.Fprintf(out, "%s is now %s. A running server picks it up within a couple of seconds.\n", args[1], canon)
+		return nil
+	}
+	values, explicit, err := s.storedSettings(ctx)
+	if err != nil {
+		return err
+	}
+	tw := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
+	for _, k := range settingKeys {
+		note := "(default)"
+		if explicit[k] {
+			note = ""
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%s\n", k, values[k], note)
+	}
+	return tw.Flush()
 }
 
 func cmdUser(args []string, out io.Writer) error {

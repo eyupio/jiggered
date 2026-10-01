@@ -1,5 +1,9 @@
-// The Admin tab: add people, reset passwords, sign devices out, remove accounts, read the activity log,
-// download a backup. It shows how many entries someone has, never what is in them.
+// The Admin tab: add people, reset passwords, sign devices out, remove accounts, read the activity log, say
+// whether Jiggered sits behind a reverse proxy, download a backup. It shows how many entries someone has,
+// never what is in them.
+//
+// Nothing of this is in the page for anyone else: app.js imports this file, and calls mount(), only while the
+// server says the signed-in person is an admin.
 
 import { $, api, html, setHTML, appendHTML, fmtBytes, ago } from "./util.js";
 
@@ -22,6 +26,8 @@ const SENTENCE = {
   backup_downloaded: e => `${e.actor} downloaded a backup`,
   import: e => `${e.actor} restored from a file`,
   admin_created: e => `${e.target} was set up as the first admin`,
+  settings_changed: e => `${e.actor} changed a setting`,
+  settings_imported: () => `Settings were copied from the environment into the database`,
   migrated: e => `${e.target} took over the data from before accounts existed`,
 };
 const sentence = e => (SENTENCE[e.action] || (x => `${x.actor || "system"}: ${x.action}`))({ ...e, actor: e.actor || "System" });
@@ -31,7 +37,69 @@ function say(el, text, bad = false) {
   el.classList.toggle("err", bad);
 }
 
-export function init(ctx) {
+const MARKUP = `
+    <div class="panel">
+      <h2>People</h2>
+      <p class="meta">You can add people, reset passwords, sign devices out and remove accounts. You can't read anyone's check-ins or episodes here, only how many they have.</p>
+      <ul class="list people" id="users"></ul>
+      <p class="msg" id="users-msg" aria-live="polite"></p>
+    </div>
+    <div class="panel">
+      <h2>Add someone</h2>
+      <form id="adduser">
+        <label class="field">Username<input type="text" id="new-name" autocomplete="off" autocapitalize="none" maxlength="64" required></label>
+        <label class="radio"><input type="checkbox" id="new-admin"> Can manage people (admin)</label>
+        <button class="primary" type="submit">Create account</button>
+        <p class="msg" id="adduser-msg" aria-live="polite"></p>
+      </form>
+      <div class="reveal" id="reveal" hidden>
+        <p><b id="reveal-who"></b> can sign in with this temporary password. It is shown once. They'll choose their own at first sign-in.</p>
+        <code id="reveal-pw"></code>
+        <button class="secondary" id="reveal-copy" type="button">Copy</button>
+        <button class="x" id="reveal-hide" type="button">Hide</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Activity</h2>
+      <ul class="list audit" id="audit"></ul>
+      <button class="secondary" id="audit-more" hidden>Show older</button>
+    </div>
+    <div class="panel">
+      <h2>Connection</h2>
+      <form id="proxyform">
+        <label class="radio"><input type="checkbox" id="px-on"> Jiggered runs behind a reverse proxy (Caddy, nginx, Traefik)</label>
+        <label class="field">How many proxies are in front<input type="number" id="px-hops" min="1" max="10" inputmode="numeric"></label>
+        <button class="primary" type="submit">Save</button>
+        <p class="msg" id="px-msg" aria-live="polite"></p>
+      </form>
+      <p class="meta" id="px-seen"></p>
+      <p class="hint">Jiggered counts failed sign-ins per address and shows where people are signed in from. Behind a proxy everyone would look like the proxy unless it is told to read the real address. After saving, the line above should show your own address.</p>
+      <p class="meta" id="px-cookie"></p>
+    </div>
+    <div class="panel">
+      <h2>Backup</h2>
+      <p class="meta">Downloads a copy of the whole database. It includes everyone's check-ins and episodes, so keep it somewhere private. To put one back, see "Backup and restore" in the README.</p>
+      <button class="secondary" id="backup">Download backup</button>
+      <p class="msg" id="backup-msg" aria-live="polite"></p>
+      <p class="meta" id="admin-version"></p>
+    </div>
+  `;
+
+// mount adds the Admin tab and its panel to the page and returns the view; destroy takes them away again.
+export function mount(ctx) {
+  const tab = Object.assign(document.createElement("button"), { id: "t-admin", textContent: "Admin" });
+  tab.dataset.tab = "admin";
+  tab.setAttribute("role", "tab");
+  tab.setAttribute("aria-selected", "false");
+  $("tabs").append(tab);
+  const panel = Object.assign(document.createElement("section"), { id: "admin-panel", hidden: true });
+  panel.innerHTML = MARKUP;
+  $("sync").before(panel);
+  const view = wire(ctx);
+  return { ...view, destroy() { tab.remove(); panel.remove() } };
+}
+
+function wire(ctx) {
   const { me } = ctx;
   let users = [], oldest = 0, loaded = false;
 
@@ -155,12 +223,43 @@ export function init(ctx) {
     loadAudit(true);
   });
 
+  // ---- how Jiggered finds out who is connecting ----
+  function showConnection(c) {
+    $("px-on").checked = c.trust_proxy;
+    $("px-hops").value = c.proxy_hops;
+    $("px-hops").disabled = !c.trust_proxy;
+    const via = c.seen.remote_addr + (c.seen.forwarded_for ? `, X-Forwarded-For: ${c.seen.forwarded_for}` : "");
+    const advice = !c.trust_proxy && c.seen.forwarded_for ? "A proxy is sending X-Forwarded-For, but Jiggered isn't reading it. Turn the setting on so people can be told apart."
+      : c.trust_proxy && !c.seen.forwarded_for ? "No X-Forwarded-For header arrived. Either nothing is in front of Jiggered, or your proxy doesn't send one: in that case turn the setting off."
+      : "";
+    setHTML($("px-seen"), html`Jiggered sees you as <b>${c.seen.client_ip}</b> <span class="meta">(connection from ${via})</span>. ${advice}`);
+    setHTML($("px-cookie"), c.secure_cookie
+      ? html`Sign-in cookies only travel over HTTPS.`
+      : html`<b>Sign-in cookies also travel over plain http.</b> That is only meant for testing. Turn it back on with <code>jiggered settings set secure_cookie true</code>.`);
+  }
+  async function loadConnection() {
+    const r = await api("GET", "/api/admin/settings");
+    if (r.ok) showConnection(r.data); else say($("px-msg"), r.error, true);
+  }
+  $("px-on").addEventListener("change", () => { $("px-hops").disabled = !$("px-on").checked });
+  $("proxyform").addEventListener("submit", async e => {
+    e.preventDefault();
+    const msg = $("px-msg");
+    say(msg, "Saving…");
+    const r = await api("PATCH", "/api/admin/settings", { trust_proxy: $("px-on").checked, proxy_hops: Number($("px-hops").value) || 1 });
+    if (!r.ok) return say(msg, r.error, true);
+    showConnection(r.data);
+    say(msg, "Saved.");
+    loadAudit(true);
+  });
+
   return {
     render() {},
     show() {
       if (!loaded) { loaded = true; $("reveal").hidden = true }
       loadUsers();
       loadAudit(true);
+      loadConnection();
     },
   };
 }

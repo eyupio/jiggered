@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -46,7 +47,9 @@ func newTestServer(t *testing.T, tweak ...func(*config)) *testEnv {
 	}
 	cfg := config{
 		addr: "127.0.0.1:0", dbPath: filepath.Join(dir, "jiggered.db"),
-		username: adminName, passwordHash: hash, proxyHops: 1,
+		username: adminName, passwordHash: hash,
+		// Tests talk plain http, so cookies must not be Secure unless a test turns that on.
+		seeds: map[string]string{"secure_cookie": "false"},
 	}
 	for _, f := range tweak {
 		f(&cfg)
@@ -61,6 +64,9 @@ func newTestServer(t *testing.T, tweak ...func(*config)) *testEnv {
 	}
 	s, err := newServer(cfg, db)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.seedSettings(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.ensureFirstAdmin(t.Context()); err != nil {
@@ -240,4 +246,19 @@ func (c *client) mustHeader(method, path, header string) string {
 	c.t.Helper()
 	resp, _ := c.req(method, path, nil)
 	return resp.Header.Get(header)
+}
+
+// set changes an instance setting the way an admin or the CLI would.
+func (e *testEnv) set(key, value string) {
+	e.t.Helper()
+	if _, err := e.s.setSetting(e.t.Context(), key, value); err != nil {
+		e.t.Fatal(err)
+	}
+}
+
+// serverWithSettings is a server that has these settings and no database, for testing pure functions.
+func serverWithSettings(st instanceSettings) *server {
+	s := &server{}
+	s.cache = settingsCache{val: st, at: time.Now().Add(time.Hour), ok: true}
+	return s
 }

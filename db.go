@@ -44,7 +44,7 @@ func openDB(path string, first *seedAdmin) (*sql.DB, error) {
 
 // migrations run in order, each in its own transaction. Never edit one that
 // has shipped; append a new one.
-var migrations = []func(tx *sql.Tx, first *seedAdmin) error{migrateBaseline, migrateAccounts}
+var migrations = []func(tx *sql.Tx, first *seedAdmin) error{migrateBaseline, migrateAccounts, migrateSettings}
 
 func migrate(db *sql.DB, path string, first *seedAdmin) error {
 	var cur int
@@ -224,4 +224,14 @@ func migrateAccounts(tx *sql.Tx, first *seedAdmin) error {
 		}
 	}
 	return nil
+}
+
+// v3: instance settings (secure cookies, reverse proxy) move from the environment into the database.
+func migrateSettings(tx *sql.Tx, _ *seedAdmin) error {
+	_, err := tx.Exec(`CREATE TABLE instance_settings (
+  key        TEXT PRIMARY KEY,
+  value      TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+)`)
+	return err
 }
