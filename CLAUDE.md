@@ -74,7 +74,9 @@ the tabs; `admin.js` is mounted only for admins; `sw.js` is the service worker;
   their shape. Ids are allow-listed: `d-YYYY-MM-DD`, `e-<digits>`, `settings`.
 - **Sync**: the frontend queues *operations* ("add this entry"), shows the server
   copy with them applied, and saves with `If-Match: "<rev>"`. A 409 returns the
-  current doc and the operations are replayed on it, so two devices merge.
+  current doc and the operations are replayed on it, so two devices merge. `GET /api/docs` is always the whole account (never a
+  page: omitted docs would look deleted) with a weak ETag over each doc's id, revision, size and save time; a client that
+  holds the current snapshot sends it and gets 304. `sync.js` forgets the tag whenever anything else changes its copy.
 - **Accounts**: created by an admin (temporary password, must be changed before
   anything else works) or by `jiggered user add`. No sign-up page. The last active
   admin can't be demoted, disabled or deleted; nobody can do that to themselves

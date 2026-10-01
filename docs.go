@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -73,10 +74,67 @@ type docOut struct {
 	Body json.RawMessage `json:"body"`
 }
 
+// snapshotTag identifies the exact state of a person's documents without reading any of their bodies: it covers each
+// id with its revision, size and save time, so any save, delete, import or restore changes it. It is weak (W/): the
+// same documents always give the same tag, which is all a client needs to know its copy is current.
+func snapshotTag(ctx context.Context, tx *sql.Tx, userID int64) (string, error) {
+	rows, err := tx.QueryContext(ctx, "SELECT id, rev, size, updated_at FROM docs WHERE user_id = ? ORDER BY id", userID)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	h := sha256.New()
+	for rows.Next() {
+		var id string
+		var rev, size, at int64
+		if err := rows.Scan(&id, &rev, &size, &at); err != nil {
+			return "", err
+		}
+		fmt.Fprintf(h, "%s\x00%d\x00%d\x00%d\n", id, rev, size, at)
+	}
+	if err := rows.Err(); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf(`W/"%x"`, h.Sum(nil)[:16]), nil
+}
+
+// tagMatches reports whether an If-None-Match header names tag, ignoring the weak prefix.
+func tagMatches(header, tag string) bool {
+	want := strings.TrimPrefix(tag, "W/")
+	for _, v := range strings.Split(header, ",") {
+		v = strings.TrimSpace(v)
+		if v == "*" || strings.TrimPrefix(v, "W/") == want {
+			return true
+		}
+	}
+	return false
+}
+
+// listDocs sends the whole account as one snapshot. The page replaces its copy with it, so it is never partial. A
+// client that already holds the current snapshot sends its tag and gets 304 without any document being read.
 func (s *server) listDocs(w http.ResponseWriter, r *http.Request) {
 	u := authOf(r).u
 	allowSlowTransfer(w)
-	rows, err := s.db.QueryContext(r.Context(), "SELECT id, rev, body FROM docs WHERE user_id = ?", u.ID)
+	// Everything is read inside one transaction so the tag describes exactly the bodies sent with it, and finished
+	// before anything is written to the client: there is one connection, and a slow client must not hold it.
+	tx, err := s.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	defer tx.Rollback()
+	tag, err := snapshotTag(r.Context(), tx, u.ID)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	w.Header().Set("ETag", tag)
+	w.Header().Set("Cache-Control", "no-store")
+	if tagMatches(r.Header.Get("If-None-Match"), tag) {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	rows, err := tx.QueryContext(r.Context(), "SELECT id, rev, body FROM docs WHERE user_id = ?", u.ID)
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -97,6 +155,8 @@ func (s *server) listDocs(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
+	rows.Close()
+	tx.Rollback() // read-only: nothing to commit, and the connection is free before the response is written
 	writeJSON(w, http.StatusOK, out)
 }
 

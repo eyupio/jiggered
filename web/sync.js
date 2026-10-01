@@ -16,6 +16,8 @@ const MAX_CONFLICTS = 6;
 class Stop extends Error {}
 
 // A request that hangs (a proxy that accepted it and went quiet) must fail, so the outbox retries instead of waiting forever.
+// A full snapshot may be large and the server allows it five minutes; saves are small and keep the short limit.
+const snapshotTimeout = () => (typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(300000) : undefined);
 const timeout = () => (typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(20000) : undefined);
 
 export function createStore({
@@ -27,6 +29,8 @@ export function createStore({
   onAuthLost = () => {},
 } = {}) {
   let uid = null;
+  let snapshotTag = null; // ETag of the last full snapshot; forgotten as soon as anything else changes base, so it is only ever sent while base is exactly that snapshot
+  let queuedLoad = null;  // a refresh waiting its turn: more requests for one share it
   let base = {};     // id -> doc, as the server last told us
   let revs = {};     // id -> revision of that copy
   let pending = [];  // the outbox: [{ n, id, type, arg, stamp }]
@@ -69,7 +73,7 @@ export function createStore({
   // hydrate loads what this device remembers for the signed-in person. Anyone else's data is wiped:
   // it must not sit on the device for the next person to find.
   function hydrate(userId, name = "") {
-    uid = userId; who = name; base = {}; revs = {}; pending = []; failed = []; discarded = []; seq = 0; durable = false; localError = "";
+    uid = userId; who = name; snapshotTag = null; base = {}; revs = {}; pending = []; failed = []; discarded = []; seq = 0; durable = false; localError = "";
     if (storage) {
       try {
         for (let i = storage.length - 1; i >= 0; i--) {
@@ -85,7 +89,7 @@ export function createStore({
 
   // clear forgets everything on this device (sign out).
   function clear() {
-    base = {}; revs = {}; pending = []; failed = []; discarded = []; seq = 0; ++persistenceVersion;
+    snapshotTag = null; base = {}; revs = {}; pending = []; failed = []; discarded = []; seq = 0; ++persistenceVersion;
     if (!readOnly() && storage && uid != null) { try { Promise.resolve(storage.removeItem(key())).catch(() => {}) } catch { /* ignore */ } }
     notify();
   }
@@ -156,10 +160,12 @@ export function createStore({
   }
 
   const adopt = (id, rev, body) => {
+    snapshotTag = null;
     if (body == null) { delete base[id]; delete revs[id] } else { base[id] = body; revs[id] = rev }
   };
 
   function settle(id, body, rev, lastN) {
+    snapshotTag = null;
     if (body === undefined) { delete base[id]; delete revs[id] } else { base[id] = body; revs[id] = rev }
     pending = pending.filter(o => !(o.id === id && o.n <= lastN));
     error = ""; retryCount = 0;
@@ -251,21 +257,33 @@ export function createStore({
   function refreshDevice() { if (readOnly()) { hydrate(uid,who); loaded = true; notify() } }
 
 
-  // load refreshes from the server. Changes still in the outbox stay on top of it.
+  // load refreshes from the server. Changes still in the outbox stay on top of it. When this device already holds the
+  // server's current snapshot the server says so (304) and nothing is downloaded, parsed or rewritten. Any failure,
+  // including one while the body is arriving, leaves the copy on this device exactly as it was and reports offline.
   function load() {
-    return exclusive(async () => {
-      let r;
-      try { r = await doFetch("/api/docs", { credentials: "same-origin", headers: { Accept: "application/json", "X-Jiggered-User": String(uid) }, signal: timeout() }) }
-      catch { offline = true; notify(); return false }
-      if (r.status === 401) { onAuthLost(); return false }
-      if (!r.ok) { offline = true; notify(); return false }
-      const server = await r.json();
-      base = {}; revs = {};
-      for (const [id, d] of Object.entries(server)) { base[id] = d.body; revs[id] = d.rev }
-      loaded = true; offline = false;
-      persist(); notify();
-      return true;
-    }).then(ok => { if (ok && pending.length) flush(); return ok });
+    if (queuedLoad) return queuedLoad; // a refresh is already waiting its turn and will see everything this one would
+    const run = exclusive(async () => {
+      queuedLoad = null;
+      try {
+        const headers = { Accept: "application/json", "X-Jiggered-User": String(uid), ...(snapshotTag && loaded ? { "If-None-Match": snapshotTag } : {}) };
+        const r = await doFetch("/api/docs", { credentials: "same-origin", headers, signal: snapshotTimeout() });
+        if (r.status === 401) { onAuthLost(); return false }
+        if (r.status === 304 && snapshotTag) { offline = false; notify(); return true }
+        if (!r.ok) { offline = true; notify(); return false }
+        const server = await r.json();
+        const tag = r.headers?.get?.("ETag") || null;
+        base = {}; revs = {};
+        for (const [id, d] of Object.entries(server)) { base[id] = d.body; revs[id] = d.rev }
+        snapshotTag = tag;
+        loaded = true; offline = false;
+        persist(); notify();
+        return true;
+      } catch {
+        offline = true; notify(); return false; // a dropped connection or a body that never finished: keep what we have
+      }
+    });
+    queuedLoad = run;
+    return run.then(ok => { if (ok && pending.length) flush(); return ok });
   }
 
   return { hydrate, clear, withRestore, refreshDevice, view, all, dispatch, flush, load, status, outcome, failures, discardFailed, retryFailed, recoveryExport };
