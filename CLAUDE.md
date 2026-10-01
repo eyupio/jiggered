@@ -19,7 +19,7 @@ go vet ./...
 CGO_ENABLED=0 go build ./...     # what the image builds (pure Go, no cgo)
 go test -race ./...              # server tests, about 20s once compiled (-race needs cgo; tests only)
 node --test "test/*.test.mjs"    # frontend logic tests; Node 22, no npm install
-node test/browser-today.cjs      # real Chromium (needs Playwright, see README); CI also runs browser-history.cjs and browser.cjs
+node test/browser-today.cjs      # real Chromium (needs Playwright, see README); CI also runs browser-history.cjs, browser-mobile.cjs and browser.cjs
 ```
 
 Measured on a cold module cache: building took about 2m20s (pure-Go SQLite

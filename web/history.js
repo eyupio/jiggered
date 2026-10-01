@@ -56,6 +56,13 @@ export function init(ctx) {
     renderNow();
   });
   $("history-filters").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "hist-query" && searchTimer !== null) { e.preventDefault(); renderNow() } });
+  // Jump to Overview, Records or Share. This only scrolls and moves focus: the filters stay exactly as they are.
+  $("history-shortcuts").addEventListener("click", e => {
+    const target = e.target.closest("[data-history-target]"); if (!target) return;
+    const panel = $(target.dataset.historyTarget);
+    panel.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+    (panel.querySelector("h2[tabindex]") || panel.querySelector("h2"))?.focus({ preventScroll: true });
+  });
   $("history-filters").addEventListener("reset", () => setTimeout(() => { initialised = true; setRange("all"); render() }, 0));
   $("more-eps").addEventListener("click", () => { episodesShown += PAGE; render() });
   $("sum-preview").addEventListener("click", () => { renderSummary(); $("summary-preview").innerHTML = $("print-view").innerHTML; $("summary-preview").hidden = !$("summary-preview").hidden });
@@ -182,6 +189,11 @@ export function init(ctx) {
 
   function renderPatterns(data, locale) {
     const { metrics: m, sleep, weekdays, activities } = data;
+    // With almost nothing to go on, a short note replaces the cards that would otherwise push the records far down.
+    if (m.checked < 3 && m.logged < 3 && m.episodes < 3) {
+      setHTML($("history-insights"), html`<p class="empty">Patterns need at least a few check-ins, activity days or episodes in this view. Your records and sharing are just below; use the shortcuts above to jump to them.</p>`);
+      return;
+    }
     const enoughSleep = sleep.poor.n >= 3 && sleep.other.n >= 3;
     const sampleWeekdays = weekdays.filter(w => w.checked >= 3).sort((a, b) => b.bad / b.checked - a.bad / a.checked || b.checked - a.checked);
     const weekday = sampleWeekdays[0], dayName = w => new Date(Date.UTC(2024, 0, 7 + w.index)).toLocaleDateString(locale || undefined, { weekday: "long", timeZone: "UTC" });

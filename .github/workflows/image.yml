@@ -64,6 +64,10 @@ jobs:
         env:
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
         run: node test/browser-history.cjs
+      - name: Phone-width Account and History
+        env:
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+        run: node test/browser-mobile.cjs
       - name: Full walkthrough
         env:
           NODE_PATH: ${{ runner.temp }}/pw/node_modules

@@ -350,7 +350,8 @@ node --test "test/*.test.mjs"           # front-end logic: sync, recovery/drafts
 Two real-browser scripts run in CI against a real server and database, in Chromium. `test/browser-today.cjs` covers
 the Today picker (groups start closed, a logged activity turns green with a count, -/+ and Undo, pinned with the groups
 closed). `test/browser-history.cjs` seeds a large account and checks History search: one update per typed word,
-the right results, and the other filters reacting at once. `test/browser.cjs` is the long walkthrough: admin and user accounts, desktop/touch ordering, offline reload,
+the right results, and the other filters reacting at once. `test/browser-mobile.cjs` checks phone width: the Account list editors (collapsible, opened by shortcuts and by
+errors) and History navigation. `test/browser.cjs` is the long walkthrough: admin and user accounts, desktop/touch ordering, offline reload,
 refusal recovery, shared-default isolation and IndexedDB migration/large copies. To run them yourself:
 
 ```sh
@@ -358,6 +359,7 @@ npm install --no-save --package-lock=false playwright@1.56.1
 npx playwright install chromium
 node test/browser-today.cjs
 node test/browser-history.cjs
+node test/browser-mobile.cjs
 node test/browser.cjs
 ```
 

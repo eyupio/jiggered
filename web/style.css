@@ -463,3 +463,19 @@ body[data-view="account"] .wrap{max-width:760px}
 @media(max-width:700px){.matrix-layout{gap:12px}.matrix-reading{flex-basis:100%}.matrix-calendar{flex-basis:100%}.matrix-reading dl{grid-template-columns:repeat(3,minmax(0,1fr))}.matrix-dense .matrix-grid{gap:2px}.matrix-months{font-size:.65rem}.matrix-day{max-width:none}.matrix-mode{min-width:0;width:100%}}
 @media(max-width:700px){#history-matrix>.label-row{flex-direction:column;align-items:stretch}.history-intro .label-row{flex-wrap:wrap;gap:8px}}
 @media(forced-colors:active){.matrix-cell{border:1px solid CanvasText}.matrix-cell[aria-pressed=true]{outline-color:Highlight}.matrix-dense .matrix-cell span{display:inline}.matrix-reading{border-color:CanvasText}}
+
+/* The activity, symptom and trigger editors are sections that start closed, so the page is short until you open one. */
+.list-section{border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.list-section > summary{cursor:pointer;font-weight:700;list-style:none;display:flex;gap:8px;align-items:baseline;min-height:44px;padding:10px 12px;box-sizing:border-box;align-items:center}
+.list-section > summary::-webkit-details-marker{display:none}
+.list-section > summary::before{content:"▸";color:var(--accent);transition:transform .15s}
+.list-section[open] > summary::before{transform:rotate(90deg)}
+.list-section[open] > summary{border-bottom:1px solid var(--line)}
+.list-section > .list-body{display:grid;gap:10px;padding:12px}
+.list-section > summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.list-section > summary::before{transition:none}}
+
+/* Section shortcuts scroll a panel to the top; leave room for the sticky tab bar. */
+#trends-panel,#history-records,#history-share,#profile-panel,#settings-panel,#pw-panel{scroll-margin-top:84px}
+#history-records h2:focus,#history-share h2:focus{outline:none}
+#history-records h2:focus-visible,#history-share h2:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
