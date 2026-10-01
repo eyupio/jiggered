@@ -15,7 +15,7 @@ export const DEFAULTS = Object.freeze({
 });
 
 export const ONSET = ["Built up gradually", "Sudden"];
-export const DURATIONS = ["Still going", "Under 15 min", "15–60 min", "1–4 hours", "4–12 hours", "Most of a day", "Over a day"];
+export const DURATIONS = ["Still going", "Under 15 min", "15–60 min", "1–4 hours", "4–12 hours", "Most of a day", "Over a day", "Ended (duration unknown)"];
 export const ADVICE = {
   green: "Normal plan. Still leave gaps between demanding things.",
   amber: "Cut today's plan. Drop or move one demanding thing now.",
@@ -44,7 +44,7 @@ export function addDays(key, n) {
 
 // ---- settings ----
 
-const text = (s, n = LIMITS.text) => typeof s === "string" ? s.trim().slice(0, n) : "";
+const text = (s, n = LIMITS.text) => typeof s === "string" ? [...s.trim()].slice(0, n).join("") : "";
 const int = (v, lo, hi, dflt) => { const n = Math.round(Number(v)); return Number.isFinite(n) && n >= lo && n <= hi ? n : dflt };
 const names = (v, dflt) => Array.isArray(v) ? [...new Set(v.map(x => text(x)).filter(Boolean))].slice(0, LIMITS.items) : [...dflt];
 
@@ -54,7 +54,7 @@ export function normaliseSettings(raw) {
   const r = raw && typeof raw === "object" ? raw : {};
   const budget = int(r.budget, ...LIMITS.budget, DEFAULTS.budget);
   const activities = Array.isArray(r.activities)
-    ? r.activities.map(x => ({ a: text(x && x.a), c: int(x && x.c, ...LIMITS.cost, NaN) })).filter(x => x.a && Number.isFinite(x.c) && x.c !== 0).slice(0, LIMITS.items)
+    ? r.activities.map(x => ({ a: text(x && x.a), c: int(x && x.c, ...LIMITS.cost, NaN) })).filter(x => x.a && Number.isFinite(x.c)).slice(0, LIMITS.items)
     : DEFAULTS.activities.map(x => ({ ...x }));
   return {
     budget,
@@ -94,6 +94,7 @@ const DAY_OPS = {
 export function applyOp(op, body) {
   if (op.type === "remove") return undefined;
   if (op.type === "replace") return op.arg;
+  if (op.type === "patch") return { ...(body || {}), ...op.arg };
   const fn = DAY_OPS[op.type];
   if (!fn) throw new Error("unknown operation " + op.type);
   let d = body ?? emptyDay(op.id.slice(2));
@@ -104,12 +105,17 @@ export function applyOp(op, body) {
 
 // ---- reading the docs ----
 
+export function readableDay(raw, date) {
+  const d = raw && typeof raw === "object" ? raw : {};
+  return { ...d, date, status: ["green", "amber", "red"].includes(d.status) ? d.status : null,
+    entries: Array.isArray(d.entries) ? d.entries.filter(e => e && Number.isFinite(e.c)).map(e => ({ ...e, a: typeof e.a === "string" ? e.a : "", t: typeof e.t === "string" ? e.t : "" })) : [] };
+}
 export function listDays(docs) {
-  return Object.entries(docs).filter(([k]) => isDayId(k)).map(([, v]) => v).filter(d => d && d.date).sort((a, b) => b.date.localeCompare(a.date));
+  return Object.entries(docs).filter(([k,v]) => isDayId(k) && v).map(([id,v]) => readableDay(v,id.slice(2))).sort((a,b) => b.date.localeCompare(a.date));
 }
 
 export function listEpisodes(docs) {
-  return Object.entries(docs).filter(([k]) => isEpisodeId(k)).filter(([, v]) => v && v.when).sort((a, b) => b[1].when.localeCompare(a[1].when));
+  return Object.entries(docs).filter(([k]) => isEpisodeId(k)).filter(([, v]) => v && typeof v.when === "string").map(([id, v]) => [id, readableEpisode(v)]).sort((a, b) => b[1].when.localeCompare(a[1].when));
 }
 
 const top = (counts, n) => [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, n);
@@ -124,7 +130,7 @@ export function trends(docs, S, today, window = 30) {
   const sleepy = days.filter(d => d.poorSleep);
   const since = n => addDays(today, -(n - 1)) + "T00:00";
   const eps = listEpisodes(docs).map(([, e]) => e);
-  const recent90 = eps.filter(e => e.when >= since(90));
+  const recent90 = eps.filter(e => e.when >= since(90) && e.when < addDays(today, 1) + "T00:00");
   return {
     window,
     green: count("green"), amber: count("amber"), red: count("red"),
@@ -132,7 +138,7 @@ export function trends(docs, S, today, window = 30) {
     avgUsed: days.length ? Math.round(days.reduce((s, d) => s + used(d), 0) / days.length * 10) / 10 : null,
     poorSleepDays: sleepy.length,
     poorSleepBad: sleepy.filter(d => d.status === "amber" || d.status === "red").length,
-    episodes30: eps.filter(e => e.when >= since(30)).length,
+    episodes30: eps.filter(e => e.when >= since(30) && e.when < addDays(today, 1) + "T00:00").length,
     episodes90: recent90.length,
     topTriggers: top(tally(recent90.map(e => e.before)), 3),
     topSymptoms: top(tally(recent90.map(e => e.symptoms)), 3),
@@ -159,9 +165,9 @@ export function daysCsv(docs, S) {
 }
 
 export function episodesCsv(docs) {
-  const rows = [["started", "symptoms", "how_it_came_on", "how_long", "in_the_day_or_two_before", "notes"]];
+  const rows = [["started", "symptoms", "how_it_came_on", "how_long", "in_the_day_or_two_before", "notes", "ended_local", "start_time_zone", "start_utc_offset_minutes", "end_time_zone", "end_utc_offset_minutes"]];
   for (const [, e] of listEpisodes(docs).reverse()) {
-    rows.push([e.when, (e.symptoms || []).join("; "), e.onset || "", e.duration || "", (e.before || []).join("; "), e.notes || ""]);
+    rows.push([e.when, (e.symptoms || []).join("; "), e.onset || "", e.duration || "", (e.before || []).join("; "), e.notes || "", e.endedAt || "", e.whenZone || "", e.whenOffset ?? "", e.endZone || "", e.endOffset ?? ""]);
   }
   return csv(rows);
 }
@@ -173,10 +179,10 @@ export const RANGES = [["30", "Last 30 days"], ["90", "Last 90 days"], ["365", "
 export function summary(docs, S, range, today) {
   const from = range === "all" ? "0000-00-00" : addDays(today, -(Number(range) - 1));
   const days = listDays(docs).filter(d => d.date >= from && d.date <= today);
-  const episodes = listEpisodes(docs).map(([, e]) => e).filter(e => e.when >= from + "T00:00");
+  const episodes = listEpisodes(docs).map(([, e]) => e).filter(e => e.when >= from + "T00:00" && e.when < addDays(today, 1) + "T00:00");
   const count = s => days.filter(d => d.status === s).length;
   return {
-    from: range === "all" ? (days.length ? days[days.length - 1].date : today) : from, to: today,
+    from: range === "all" ? [today, ...days.map(d => d.date), ...episodes.map(e => e.when.slice(0, 10))].sort()[0] : from, to: today,
     days, episodes,
     green: count("green"), amber: count("amber"), red: count("red"),
     avgUsed: days.length ? Math.round(days.reduce((s, d) => s + used(d), 0) / days.length * 10) / 10 : null,
@@ -184,4 +190,55 @@ export function summary(docs, S, range, today) {
     topTriggers: top(tally(episodes.map(e => e.before)), 5),
     topSymptoms: top(tally(episodes.map(e => e.symptoms)), 5),
   };
+}
+
+// Editor validation is separate from defensive reading: never silently trim a person's unfinished work.
+export function validateSettings(r) {
+  const errors = [];
+  const integer = (v, lo, hi) => String(v).trim() !== "" && Number.isInteger(Number(v)) && Number(v) >= lo && Number(v) <= hi;
+  if (!integer(r.budget, ...LIMITS.budget)) errors.push(["set-budget", "Choose a whole-number budget from 1 to 30."]);
+  if (!integer(r.sleepPenalty, 0, Number(r.budget))) errors.push(["set-penalty", "Poor sleep costs must be a whole number between zero and your daily budget."]);
+  if (!LOCALES.some(([v]) => v === r.locale)) errors.push(["set-locale", "Choose a supported date format."]);
+  for (const [key, field, label] of [["activities", "set-acts", "activities"], ["symptoms", "set-sym", "symptoms"], ["triggers", "set-trig", "triggers"]]) {
+    const values = key === "activities" ? r[key].map(x => x.a.trim()) : r[key].map(x => x.trim()).filter(Boolean);
+    if (values.length > LIMITS.items) errors.push([field, `Keep at most ${LIMITS.items} ${label}. Your text has been kept.`]);
+    if (values.some(x => !x || [...x].length > LIMITS.text)) errors.push([field, `Each ${label} name needs 1–${LIMITS.text} characters.`]);
+    if (new Set(values.map(x => x.toLowerCase())).size !== values.length) errors.push([field, `Use distinct ${label} names (including capitalisation).`]);
+  }
+  if (r.activities.some(x => !integer(x.c, ...LIMITS.cost))) errors.push(["set-acts", "Activity points must be whole numbers from −10 to 10. Zero is allowed."]);
+  return errors;
+}
+
+export function balanceLabel(left, cap) {
+  return left < 0 ? `${-left} over your planned budget` : left > cap ? `${left - cap} above the starting budget` : left === 0 ? "No points left in your plan" : "Points left in your plan";
+}
+
+export function ongoingEpisodes(docs) {
+  return listEpisodes(docs).filter(([, e]) => e.duration === "Still going" && !e.endedAt);
+}
+
+export function selectHistory(docs, filters = {}) {
+  const { from = "", to = "", status = "", symptom = "", ongoing = false, query = "" } = filters;
+  const between = date => (!from || date >= from) && (!to || date <= to);
+  const contains = text => text.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
+  const days = listDays(docs).filter(d => between(d.date) && (!status || d.status === status) && contains([d.date, ...(d.entries || []).map(e => e.a)].join(" ")));
+  const episodes = listEpisodes(docs).filter(([, e]) => between(e.when.slice(0, 10)) && (!symptom || (e.symptoms || []).includes(symptom)) && (!ongoing || e.duration === "Still going" && !e.endedAt) && contains([e.when, ...(e.symptoms || []), ...(e.before || []), e.notes || ""].join(" ")));
+  return { days, episodes };
+}
+
+// Strip broken imported fields at the read boundary; retain the original document for recovery/export.
+export function readableEpisode(e) {
+  const names = value => Array.isArray(value) ? value.filter(x => typeof x === "string") : [];
+  return { ...e, symptoms: names(e.symptoms), before: names(e.before), notes: typeof e.notes === "string" ? e.notes : "", onset: typeof e.onset === "string" ? e.onset : "", duration: typeof e.duration === "string" ? e.duration : "" };
+}
+
+// Existing captures retain their recorded offset when an end time is entered in another time zone.
+export function validateEpisodeTimes(value, original = {}, now = new Date()) {
+  const localInstant = text => new Date(text).getTime();
+  const recordedInstant = (text, offset) => Date.parse(text + "Z") - offset * 60000;
+  const start = value.when === original.when && Number.isFinite(original.whenOffset) ? recordedInstant(value.when, original.whenOffset) : localInstant(value.when);
+  const end = value.endedAt === original.endedAt && Number.isFinite(original.endOffset) ? recordedInstant(value.endedAt, original.endOffset) : localInstant(value.endedAt);
+  if (!value.when || !Number.isFinite(start) || start > now.getTime()) return ["ep-when", "Choose a valid start time that isn't in the future."];
+  if (value.endedAt && (!Number.isFinite(end) || end < start || end > now.getTime())) return ["ep-ended", "End time must be between the start time and now, including the recorded time-zone offset."];
+  return null;
 }

@@ -1,8 +1,9 @@
 // The page: who is signed in, the tabs, and the wiring between the views and the sync store.
 
-import { $, fmtLongDay, setPageUser } from "./util.js";
+import { $, fmtLongDay, setPageUser, html, setHTML, downloadFile, withBusy } from "./util.js";
+import { openDeviceStorage, createDrafts } from "./device.js";
 import { createStore } from "./sync.js";
-import { normaliseSettings, dkey } from "./model.js";
+import { normaliseSettings, DEFAULTS, dkey } from "./model.js";
 import * as todayView from "./today.js";
 import * as episodesView from "./episodes.js";
 import * as historyView from "./history.js";
@@ -10,12 +11,12 @@ import * as accountView from "./account.js";
 // admin.js is only loaded, and its tab only created, for admins: see syncAdmin
 
 const ME_KEY = "jiggered:me";
-const storage = (() => {
+const legacyStorage = (() => {
   try { const s = window.localStorage; s.setItem("jiggered:probe", "1"); s.removeItem("jiggered:probe"); return s } catch { return null }
 })();
-const remember = me => { try { storage && storage.setItem(ME_KEY, JSON.stringify(me)) } catch { /* ignore */ } };
-const recall = () => { try { return JSON.parse(storage.getItem(ME_KEY) || "null") } catch { return null } };
-const forget = () => { try { storage && storage.removeItem(ME_KEY) } catch { /* ignore */ } };
+const remember = me => { try { legacyStorage && legacyStorage.setItem(ME_KEY, JSON.stringify(me)) } catch { /* ignore */ } };
+const recall = () => { try { return JSON.parse(legacyStorage.getItem(ME_KEY) || "null") } catch { return null } };
+const forget = () => { try { legacyStorage && legacyStorage.removeItem(ME_KEY) } catch { /* ignore */ } };
 
 const SIGN_IN = "sign-in"; // getMe's answer when the browser is being sent to the sign-in page
 
@@ -60,45 +61,92 @@ function fatal(text) {
   let leaving = false;
   const toSignIn = () => { if (!leaving) { leaving = true; location.href = "/login" } };
 
+  const storage = await openDeviceStorage({ legacy: legacyStorage, userId: me.id, username: me.username });
+  let draftError = storage?.legacyCopies?.(me.id, me.username).length ? "An older build has a different device copy. Download recovery, then close the older tab; neither copy has been discarded." : "";
+  const drafts = createDrafts({ storage, userId: me.id, username: me.username, onError: message => { draftError = message?.message || String(message); updateSync() } });
   const store = createStore({
     storage,
     onChange: () => { renderHeader(); renderActive(); updateSync() },
     onAuthLost: toSignIn,
   });
 
+  let sharedDefaults = DEFAULTS;
+  try { const cached = JSON.parse(storage?.getItem(`jiggered:defaults:${me.id}:${me.username}`) || "null"); if (cached) sharedDefaults = normaliseSettings(cached) } catch { /* use factory fallback */ }
+  let defaultsTag = "";
+  async function loadDefaults() {
+    let fresh = false, fallback = false;
+    try {
+      const r = await fetch("/api/defaults", { credentials: "same-origin", headers: { "X-Jiggered-User": String(me.id) }, signal: AbortSignal.timeout(6000) });
+      if (r.ok) { fresh = true; fallback = r.headers.get("X-Jiggered-Defaults-Fallback") === "true"; sharedDefaults = normaliseSettings(await r.json()); defaultsTag = r.headers.get("ETag") || ""; await storage?.setItem(`jiggered:defaults:${me.id}:${me.username}`, JSON.stringify(sharedDefaults)) }
+    } catch { /* offline fallback */ }
+    return { body: sharedDefaults, tag: defaultsTag, fresh, fallback };
+  }
   let settingsKey, settingsVal;
   const ctx = {
-    me, store,
+    me, store, drafts,
+    defaults: () => sharedDefaults,
+    legacyCopies: () => storage?.legacyCopies?.(me.id, me.username) || [],
+    loadDefaults,
+    setDefaults(value, tag) { sharedDefaults = value; defaultsTag = tag; renderActive() },
     today: () => dkey(new Date()),
     settings() { // the same object until the stored settings change
-      const raw = store.view("settings"), k = JSON.stringify(raw ?? null);
-      if (k !== settingsKey) { settingsKey = k; settingsVal = normaliseSettings(raw) }
+      const raw = store.view("settings"), k = JSON.stringify([raw ?? null, sharedDefaults]);
+      if (k !== settingsKey) { settingsKey = k; settingsVal = normaliseSettings({ ...sharedDefaults, ...(raw || {}) }) }
       return settingsVal;
     },
     toast,
     go,
-    leave() { leaving = true; store.clear(); forget(); location.href = "/login" }, // wipe this device's copy, then go to the sign-in page
+    leave() { leaving = true; store.clear(); drafts.clear(); forget(); location.href = "/login" }, // wipe this device's copy, then go to the sign-in page
     openDay(date) { go("today"); views.today.open(date) },
     editEpisode(id) { views.episode.edit(id) },
+    editSettings(section) { go("account"); views.account.focus(section) },
   };
+  const hintKey = `jiggered:onboarding:${me.id}:${me.username}`;
+  $("onboarding-dismiss").addEventListener("click", () => { $("onboarding").hidden = true; try { Promise.resolve(storage?.setItem(hintKey, "dismissed")).catch(() => {}) } catch { /* harmless preference */ } });
   const views = {
     today: todayView.init(ctx), episode: episodesView.init(ctx), history: historyView.init(ctx),
     account: accountView.init(ctx),
   };
 
-  let active = "today";
+  let active = "today", historyScroll = 0;
   function go(tab) {
+    if (active === "history" && tab !== active) historyScroll = window.scrollY;
     if (!views[tab]) tab = "today"; // e.g. the Admin tab of someone who has just stopped being an admin
     if (tab !== active && views[active] && views[active].hide) views[active].hide();
     active = tab;
-    for (const b of document.querySelectorAll("#tabs button")) b.setAttribute("aria-selected", b.dataset.tab === tab);
+    for (const b of document.querySelectorAll("#tabs button")) { b.setAttribute("aria-selected", b.dataset.tab === tab); b.tabIndex = b.dataset.tab === tab ? 0 : -1 }
     for (const t of Object.keys(views)) $(t + "-panel").hidden = t !== tab;
     views[tab].show();
     $("t-" + tab).scrollIntoView({ block: "nearest", inline: "nearest" }); // on a narrow phone the tab bar scrolls sideways
-    scrollTo(0, 0);
+    scrollTo(0, tab === "history" ? historyScroll : 0);
   }
   const renderActive = () => views[active] && views[active].render();
   $("tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) go(b.dataset.tab) });
+
+  $("tabs").addEventListener("keydown", e => {
+    const buttons = [...$("tabs").querySelectorAll("button")], i = buttons.indexOf(e.target);
+    if (i < 0 || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+    e.preventDefault();
+    const next = e.key === "Home" ? 0 : e.key === "End" ? buttons.length - 1 : (i + (e.key === "ArrowRight" ? 1 : -1) + buttons.length) % buttons.length;
+    go(buttons[next].dataset.tab); buttons[next].focus();
+  });
+  document.addEventListener("click", e => {
+    const settings = e.target.closest("[data-settings]"), finish = e.target.closest("[data-finish-episode]");
+    if (settings) ctx.editSettings(settings.dataset.settings);
+    if (finish) views.episode.edit(finish.dataset.finishEpisode, null, true);
+  });
+  $("recovery").addEventListener("click", e => {
+    const b = e.target.closest("button"), f = b && store.failures().find(f => f.key === b.dataset.key);
+    if (!b) return;
+    if (b.dataset.action === "download") downloadFile("jiggered-device-recovery.json", JSON.stringify({ ...store.recoveryExport(), drafts: drafts.export(), legacyCopies: storage?.legacyCopies?.(me.id, me.username) || [] }, null, 2));
+    if (!f) return;
+    if (b.dataset.action === "retry") store.retryFailed(f.key);
+    if (b.dataset.action === "edit") {
+      if (f.id === "settings") { go("account"); views.account.recover(f.body) }
+      else views.episode.recover(f.id, f.body);
+    }
+    if (b.dataset.action === "discard" && confirm("Discard this refused change? Download a recovery copy first if you want to keep it.")) store.discardFailed(f.key);
+  });
 
   // The Admin tab isn't hidden for everyone else, it doesn't exist: the button, the panel and the code behind
   // them are only added while the server says this person is an admin, and taken away again if that changes.
@@ -136,13 +184,13 @@ function fatal(text) {
   // ---- the line at the bottom: are my changes safe? ----
   function updateSync() {
     const st = store.status(), n = st.pending;
-    $("sync").textContent =
-      st.error ? `Couldn't save a change: ${st.error}`
-      : n && st.offline ? `Offline. ${n} ${n === 1 ? "change is" : "changes are"} saved on this device and will sync when you're back online.`
-      : n ? "Saving…"
-      : st.offline ? "Offline. Showing what's saved on this device."
-      : st.loaded ? "Saved on your server."
-      : "Connecting…";
+    $("sync").classList.toggle("err", !!st.failed || !!st.localError || !!draftError);
+    $("sync").textContent = st.localError || draftError || (st.failed ? `${st.failed} refused ${st.failed === 1 ? "change needs" : "changes need"} recovery below.`
+      : n ? !st.durable ? `${n} changes are only in memory while device storage finishes. Keep this page open.` : st.offline ? `${n} changes queued on this device. Will retry when connected.` : `${n} changes queued on this device. Sending…`
+      : st.offline ? "Offline. Showing this device's copy." : st.loaded ? "Saved on your server." : "Connecting…");
+    const failures = store.failures();
+    $("recovery").hidden = !failures.length && !st.localError && !draftError;
+    setHTML($("recovery"), html`<h2>Recover unsaved changes</h2><p>Download a private copy before leaving this device. This recovery file is for support or manual recovery, not the account restore form.</p><button class="secondary" data-action="download">Download recovery copy</button>${failures.map(f => html`<div class="recovery-item"><b>${f.id}</b><p>${f.message}</p><button class="secondary" data-action="retry" data-key="${f.key}">Retry</button>${f.body && (f.id === "settings" || /^e-/.test(f.id)) ? html`<button class="secondary" data-action="edit" data-key="${f.key}">Edit a recovered copy</button>` : ""}<button class="x" data-action="discard" data-key="${f.key}">Discard</button></div>`)}`);
   }
 
   // ---- toast, with an optional Undo ----
@@ -178,14 +226,20 @@ function fatal(text) {
   // ---- sign out: never silently throw away changes that haven't reached the server ----
   $("signout").addEventListener("submit", async e => {
     e.preventDefault();
+    return withBusy($("signout").querySelector("button"), "Signing out…", async () => {
     await store.flush();
-    const n = store.status().pending;
-    if (n && !confirm(`${n} ${n === 1 ? "change hasn't" : "changes haven't"} reached the server yet and will be lost if you sign out now. Sign out anyway?`)) return;
+    const n = store.status().pending + store.status().failed, unfinished = drafts.count();
+    if ((n || unfinished) && !confirm(`${n} unsaved changes and ${unfinished} unfinished drafts have device copies here. Signing out removes them. Download a recovery copy first if you need them. Sign out anyway?`)) return;
     try {
       const r = await fetch("/logout", { method: "POST", credentials: "same-origin" });
       if (!r.ok) throw new Error("HTTP " + r.status); // a proxy error page is not a sign-out
     } catch { toast("Jiggered can't sign you out right now (offline, or the server isn't answering)."); return }
     ctx.leave();
+    });
+  });
+
+  addEventListener("beforeunload", e => {
+    if (!leaving && ((store.status().pending || store.status().failed) && !store.status().durable || drafts.count() && draftError)) { e.preventDefault(); e.returnValue = "" }
   });
 
   if ("serviceWorker" in navigator) { // lets the app open offline; everything works without it
@@ -199,5 +253,8 @@ function fatal(text) {
   go("today");
   updateSync();
   tick();
-  store.load();
+  await loadDefaults();
+  await store.load();
+  // Freeze the starting defaults into this account so future shared edits do not replace personal choices.
+  if (defaultsTag && store.status().loaded && !store.view("settings")) { $("onboarding").hidden = storage?.getItem(hintKey) === "dismissed"; store.dispatch({ id: "settings", type: "replace", arg: normaliseSettings(sharedDefaults) }) }
 })();

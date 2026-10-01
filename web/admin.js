@@ -5,7 +5,10 @@
 // Nothing of this is in the page for anyone else: app.js imports this file, and calls mount(), only while the
 // server says the signed-in person is an admin.
 
-import { $, api, html, setHTML, appendHTML, fmtBytes, ago } from "./util.js";
+import { $, api, html, setHTML, appendHTML, fmtBytes, ago, withBusy } from "./util.js";
+
+import { createEditor, editorMarkup } from "./editor.js";
+import { DEFAULTS } from "./model.js";
 
 // One plain sentence per kind of event, from the entry's actor and target.
 const SENTENCE = {
@@ -26,6 +29,7 @@ const SENTENCE = {
   backup_downloaded: e => `${e.actor} downloaded a backup`,
   import: e => `${e.actor} restored from a file`,
   admin_created: e => `${e.target} was set up as the first admin`,
+  defaults_changed: e => `${e.actor} updated the shared product defaults`,
   settings_changed: e => `${e.actor} changed a setting`,
   settings_imported: () => `Settings were copied from the environment into the database`,
   migrated: e => `${e.target} took over the data from before accounts existed`,
@@ -42,13 +46,13 @@ const MARKUP = `
       <h2>People</h2>
       <p class="meta">You can add people, reset passwords, sign devices out and remove accounts. These screens don't show anyone's check-ins or episodes, only how many they have. Remember that resetting a password lets you sign in as that person, and a backup contains everything.</p>
       <ul class="list people" id="users"></ul>
-      <p class="msg" id="users-msg" aria-live="polite"></p>
+      <p class="msg" id="users-msg" aria-live="polite"></p><button class="secondary" id="users-retry">Refresh people</button>
     </div>
     <div class="panel">
       <h2>Add someone</h2>
       <form id="adduser">
         <label class="field">Username<input type="text" id="new-name" autocomplete="off" autocapitalize="none" maxlength="64" required></label>
-        <label class="radio"><input type="checkbox" id="new-admin"> Can manage people (admin)</label>
+        <label class="radio"><input type="checkbox" id="new-admin"> Admin: manage accounts, reset passwords and download everyone's data</label>
         <button class="primary" type="submit">Create account</button>
         <p class="msg" id="adduser-msg" aria-live="polite"></p>
       </form>
@@ -61,9 +65,10 @@ const MARKUP = `
     </div>
     <div class="panel">
       <h2>Activity</h2>
-      <ul class="list audit" id="audit"></ul>
+      <ul class="list audit" id="audit"></ul><p class="msg" id="audit-msg" role="status"></p><button class="secondary" id="audit-refresh">Refresh activity</button>
       <button class="secondary" id="audit-more" hidden>Show older</button>
     </div>
+    <div class="panel"><h2>Shared product defaults</h2><p class="meta">Starting activities, symptoms, triggers and points for new users. Existing personal lists are preserved. Users can adopt these from Account. Order here becomes the starting quick-access order.</p><form id="defaults-form"></form><button class="secondary" id="defaults-reload">Reload latest defaults</button></div>
     <div class="panel">
       <h2>Connection</h2>
       <form id="proxyform">
@@ -90,11 +95,12 @@ export function mount(ctx) {
   const tab = Object.assign(document.createElement("button"), { id: "t-admin", textContent: "Admin" });
   tab.dataset.tab = "admin";
   tab.setAttribute("role", "tab");
-  tab.setAttribute("aria-selected", "false");
+  tab.setAttribute("aria-selected", "false"); tab.setAttribute("aria-controls", "admin-panel"); tab.tabIndex = -1;
   $("tabs").append(tab);
   const panel = Object.assign(document.createElement("section"), { id: "admin-panel", hidden: true });
+  panel.setAttribute("role", "tabpanel"); panel.setAttribute("aria-labelledby", "t-admin");
   panel.innerHTML = MARKUP;
-  $("sync").before(panel);
+  $("account-panel").after(panel);
   const view = wire(ctx);
   return { ...view, destroy() { tab.remove(); panel.remove() } };
 }
@@ -104,8 +110,12 @@ function wire(ctx) {
   let users = [], oldest = 0, loaded = false;
 
   async function loadUsers() {
+    const target = $("users-msg"); if (!target) return;
+    say(target, "Loading people…");
     const r = await api("GET", "/api/admin/users");
-    if (!r.ok) { say($("users-msg"), r.error, true); return }
+    if (!$("users-msg")) return;
+    if (!r.ok) { say($("users-msg"), `Couldn't load people: ${r.error}. Use Refresh people to retry.`, true); return }
+    say($("users-msg"), `Updated ${new Date().toLocaleTimeString()}.`);
     users = r.data.users;
     $("admin-version").textContent = `Jiggered ${r.data.version}`;
     renderUsers();
@@ -130,9 +140,9 @@ function wire(ctx) {
 
   function reveal(who, pw) {
     $("reveal-who").textContent = who;
-    $("reveal-pw").textContent = pw;
+    $("reveal-pw").textContent = `Sign in at ${location.origin}/login\nUsername: ${who}\nTemporary password: ${pw}\nChoose your own password at first sign-in.`;
     $("reveal").hidden = false;
-    $("reveal-copy").textContent = "Copy";
+    $("reveal-copy").textContent = "Copy sign-in instructions";
   }
   $("reveal-hide").addEventListener("click", () => { $("reveal").hidden = true; $("reveal-pw").textContent = "" });
   $("reveal-copy").addEventListener("click", async () => {
@@ -146,6 +156,7 @@ function wire(ctx) {
   $("users").addEventListener("click", async e => {
     const b = e.target.closest("[data-act]");
     if (!b) return;
+    return withBusy(b, "Working…", async () => {
     const li = b.closest("li"), id = li.dataset.id, name = li.dataset.name, msg = $("users-msg");
     const path = "/api/admin/users/" + id;
     say(msg, "");
@@ -181,11 +192,14 @@ function wire(ctx) {
     if (r && !r.ok) say(msg, r.error, true);
     loadUsers();
     loadAudit(true);
+    });
   });
 
   $("adduser").addEventListener("submit", async e => {
     e.preventDefault();
+    return withBusy($("adduser").querySelector("[type=submit]"), "Creating…", async () => {
     const msg = $("adduser-msg"), username = $("new-name").value.trim();
+    if ($("new-admin").checked && !confirm(`Create ${username} as an admin? They can reset passwords, manage all accounts and download everyone's private data.`)) return;
     say(msg, "Creating…");
     const r = await api("POST", "/api/admin/users", { username, role: $("new-admin").checked ? "admin" : "user" });
     if (!r.ok) return say(msg, r.error, true);
@@ -194,24 +208,29 @@ function wire(ctx) {
     reveal(r.data.user.username, r.data.temp_password);
     loadUsers();
     loadAudit(true);
+    });
   });
 
   async function loadAudit(fresh) {
     const r = await api("GET", "/api/admin/audit?limit=30" + (fresh || !oldest ? "" : "&before=" + oldest));
-    if (!r.ok) return;
+    if (!$("audit-msg")) return;
+    if (!r.ok) { say($("audit-msg"), `Couldn't load activity: ${r.error}. Refresh to retry.`, true); return }
+    say($("audit-msg"), r.data.length ? `Updated ${new Date().toLocaleTimeString()}.` : "No activity in this page.");
     const line = en => html`<li><span>${sentence(en)}${en.detail ? html` <span class="meta">(${en.detail})</span>` : ""}</span><span class="meta">${ago(en.at)}${en.ip ? " · " + en.ip : ""}</span></li>`;
     if (fresh) setHTML($("audit"), html`${r.data.map(line)}`);
     else appendHTML($("audit"), html`${r.data.map(line)}`);
     if (r.data.length) oldest = r.data[r.data.length - 1].id;
     $("audit-more").hidden = r.data.length < 30;
   }
+  $("users-retry").addEventListener("click", () => loadUsers());
+  $("audit-refresh").addEventListener("click", () => loadAudit(true));
   $("audit-more").addEventListener("click", () => loadAudit(false));
 
-  $("backup").addEventListener("click", async () => {
+  $("backup").addEventListener("click", async () => withBusy($("backup"), "Preparing…", async () => {
     const msg = $("backup-msg");
     say(msg, "Preparing the backup…");
     let r;
-    try { r = await fetch("/api/admin/backup", { method: "POST", credentials: "same-origin", headers: { "X-Requested-With": "jiggered" } }) }
+    try { r = await fetch("/api/admin/backup", { method: "POST", signal: AbortSignal.timeout(300000), credentials: "same-origin", headers: { "X-Requested-With": "jiggered", "X-Jiggered-User": String(me.id) } }) }
     catch { return say(msg, "Couldn't reach the server. Check your connection and try again.", true) }
     if (!r.ok) {
       const why = await r.json().then(j => j.error, () => "");
@@ -224,7 +243,7 @@ function wire(ctx) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     say(msg, "Backup downloaded.");
     loadAudit(true);
-  });
+  }));
 
   // ---- how Jiggered finds out who is connecting ----
   function showConnection(c) {
@@ -242,11 +261,13 @@ function wire(ctx) {
   }
   async function loadConnection() {
     const r = await api("GET", "/api/admin/settings");
+    if (!$("px-msg")) return;
     if (r.ok) showConnection(r.data); else say($("px-msg"), r.error, true);
   }
   $("px-on").addEventListener("change", () => { $("px-hops").disabled = !$("px-on").checked });
   $("proxyform").addEventListener("submit", async e => {
     e.preventDefault();
+    return withBusy($("proxyform").querySelector("[type=submit]"), "Saving…", async () => {
     const msg = $("px-msg");
     say(msg, "Saving…");
     const r = await api("PATCH", "/api/admin/settings", { trust_proxy: $("px-on").checked, proxy_hops: Number($("px-hops").value) || 1 });
@@ -254,6 +275,43 @@ function wire(ctx) {
     showConnection(r.data);
     say(msg, "Saved.");
     loadAudit(true);
+    });
+  });
+
+  const defaultsForm = $("defaults-form");
+  setHTML(defaultsForm, editorMarkup("def"));
+  let defaultsDirty = false, defaultsETag = "", defaultSaving = false;
+  const defaultsEditor = createEditor(defaultsForm, "def", () => { defaultsDirty = true; ctx.drafts.put("admin-defaults", { body: defaultsEditor.read(), tag: defaultsETag }) });
+  const defaultDraft = ctx.drafts.get("admin-defaults");
+  defaultsEditor.fill(defaultDraft?.body || ctx.defaults()); defaultsDirty = !!defaultDraft; defaultsETag = defaultDraft?.tag || "";
+  async function loadProductDefaults(replace = false) {
+    if (replace && defaultsDirty && !confirm("Replace your unfinished defaults draft with the latest shared version?")) return;
+    const result = await ctx.loadDefaults(); if (!$("def-msg")) return;
+    if (!result.fresh || !result.tag) { say($("def-msg"), "Connect to load shared defaults before saving.", true); return }
+    if (!defaultsDirty || replace) { defaultsETag = result.tag; defaultsEditor.fill(result.body); defaultsDirty = false; ctx.drafts.remove("admin-defaults"); say($("def-msg"), result.fallback ? "Stored defaults were damaged. Factory defaults are shown; Save to repair them." : "Latest shared defaults loaded.", result.fallback) }
+    else say($("def-msg"), "Your unfinished defaults draft is kept. Reload latest to replace it.");
+  }
+  $("defaults-reload").addEventListener("click", () => loadProductDefaults(true));
+  defaultsForm.querySelector('[data-discard]').addEventListener("click", () => loadProductDefaults(true));
+  defaultsForm.querySelector('[data-reset]').addEventListener("click", () => {
+    if (defaultsDirty && !confirm("Replace this draft with factory defaults?")) return;
+    defaultsEditor.fill(DEFAULTS); defaultsDirty = true; ctx.drafts.put("admin-defaults", { body: defaultsEditor.read(), tag: defaultsETag }); say($("def-msg"), "Factory defaults filled in. Save to publish them.");
+  });
+  defaultsForm.addEventListener("submit", async e => {
+    e.preventDefault(); if (defaultSaving) return;
+    const body = defaultsEditor.validate(); if (!body) return;
+    if (!defaultsETag) return say($("def-msg"), "Load the shared defaults while connected before saving.", true);
+    defaultSaving = true;
+    await withBusy(defaultsForm.querySelector('[type=submit]'), "Saving…", async () => {
+      let r; try { r = await fetch("/api/admin/defaults", { method: "PUT", credentials: "same-origin", headers: { "X-Requested-With": "jiggered", "X-Jiggered-User": String(me.id), "Content-Type": "application/json", "If-Match": defaultsETag }, body: JSON.stringify(body), signal: AbortSignal.timeout(20000) }) }
+      catch { say($("def-msg"), "Couldn't connect. Your defaults draft is kept on this device.", true); return }
+      const value = await r.json().catch(() => ({})); if (!$("def-msg")) return;
+      if (!r.ok) return say($("def-msg"), value.error || `Save failed (${r.status}). Draft kept.`, true);
+      defaultsETag = r.headers.get("ETag"); ctx.setDefaults(value, defaultsETag);
+      if (JSON.stringify(defaultsEditor.validate()) === JSON.stringify(body)) { defaultsDirty = false; ctx.drafts.remove("admin-defaults") }
+      say($("def-msg"), "Shared defaults saved. Existing personal lists are unchanged."); loadAudit(true);
+    });
+    defaultSaving = false;
   });
 
   return {
@@ -263,6 +321,7 @@ function wire(ctx) {
       loadUsers();
       loadAudit(true);
       loadConnection();
+      loadProductDefaults();
     },
   };
 }

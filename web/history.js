@@ -1,7 +1,7 @@
 // The History tab: the last two weeks at a glance, trends, every day and episode, and ways to share them.
 
 import { $, html, setHTML, fmtDay, fmtWhen, fmtLongDay } from "./util.js";
-import { addDays, listDays, listEpisodes, used, capOf, trends, daysCsv, episodesCsv, summary, RANGES } from "./model.js";
+import { addDays, listDays, listEpisodes, used, capOf, trends, daysCsv, episodesCsv, summary, RANGES, selectHistory } from "./model.js";
 
 const PAGE = 30;
 const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
@@ -14,7 +14,16 @@ function download(name, text, type) {
 }
 
 export function init(ctx) {
-  let shown = PAGE;
+  let shown = PAGE, episodesShown = PAGE;
+  const filters = () => ({from: $("hist-from").value, to: $("hist-to").value, status: $("hist-status").value, symptom: $("hist-symptom").value, ongoing: $("hist-ongoing").checked, query: $("hist-query").value});
+  const selectedDocs = () => { const selected = selectHistory(ctx.store.all(), filters()); return Object.fromEntries([...selected.days.map(d => ["d-" + d.date, d]), ...selected.episodes]) };
+  $("history-filters").addEventListener("submit", e => e.preventDefault());
+  $("history-filters").addEventListener("input", () => { shown = episodesShown = PAGE; render() });
+  $("history-filters").addEventListener("reset", () => setTimeout(() => { shown = episodesShown = PAGE; render() }, 0));
+  $("more-eps").addEventListener("click", () => { episodesShown += PAGE; render() });
+  $("sum-preview").addEventListener("click", () => { renderSummary(); $("summary-preview").innerHTML = $("print-view").innerHTML; $("summary-preview").hidden = !$("summary-preview").hidden });
+  $("sum-range").addEventListener("change", () => { if (!$("summary-preview").hidden) { renderSummary(); $("summary-preview").innerHTML = $("print-view").innerHTML } });
+  $("sum-notes").addEventListener("change", () => { if (!$("summary-preview").hidden) { renderSummary(); $("summary-preview").innerHTML = $("print-view").innerHTML } });
   setHTML($("sum-range"), html`${RANGES.map(([v, label]) => html`<option value="${v}">${label}</option>`)}`);
 
   $("more-days").addEventListener("click", () => { shown += PAGE; render() });
@@ -34,8 +43,8 @@ export function init(ctx) {
     }
   });
 
-  $("csv-days").addEventListener("click", () => download(`jiggered-days-${ctx.today()}.csv`, daysCsv(ctx.store.all(), ctx.settings()), "text/csv;charset=utf-8"));
-  $("csv-eps").addEventListener("click", () => download(`jiggered-episodes-${ctx.today()}.csv`, episodesCsv(ctx.store.all()), "text/csv;charset=utf-8"));
+  $("csv-days").addEventListener("click", () => download(`jiggered-days-${ctx.today()}.csv`, daysCsv(selectedDocs(), ctx.settings()), "text/csv;charset=utf-8"));
+  $("csv-eps").addEventListener("click", () => download(`jiggered-episodes-${ctx.today()}.csv`, episodesCsv(selectedDocs()), "text/csv;charset=utf-8"));
   $("sum-print").addEventListener("click", () => {
     renderSummary();
     document.body.classList.add("printing");
@@ -59,27 +68,30 @@ export function init(ctx) {
       ${sm.episodes.length ? html`
         <p>Most often noticed: ${list(sm.topSymptoms)}.</p>
         <p>Most often in the day or two before: ${list(sm.topTriggers)}.</p>
-        <table><thead><tr><th>Started</th><th>What was noticed</th><th>How it came on</th><th>How long</th><th>Before</th><th>Notes</th></tr></thead><tbody>
-        ${sm.episodes.map(e => html`<tr><td>${fmtWhen(e.when, L)}</td><td>${(e.symptoms || []).join(", ")}</td><td>${e.onset || ""}</td><td>${e.duration || ""}</td><td>${(e.before || []).join(", ")}</td><td>${e.notes || ""}</td></tr>`)}
+        <table><thead><tr><th>Started</th><th>What was noticed</th><th>How it came on</th><th>Approximate duration</th><th>Ended (local)</th><th>Before</th><th>Notes</th></tr></thead><tbody>
+        ${sm.episodes.map(e => html`<tr><td>${fmtWhen(e.when, L)}</td><td>${(e.symptoms || []).join(", ")}</td><td>${e.onset || ""}</td><td>${e.duration || ""}</td><td>${e.endedAt ? fmtWhen(e.endedAt, L) : "Not recorded"}</td><td>${(e.before || []).join(", ")}</td><td>${$("sum-notes").checked ? e.notes || "" : "Omitted"}</td></tr>`)}
         </tbody></table>` : html`<p>None logged in this period.</p>`}
       <h2>Days</h2>
       ${sm.days.length ? html`<table><thead><tr><th>Day</th><th>Check-in</th><th>Points spent</th><th>Poor sleep</th></tr></thead><tbody>
         ${sm.days.map(d => html`<tr><td>${fmtDay(d.date, L)}</td><td>${d.status ? d.status[0].toUpperCase() + d.status.slice(1) : "none"}</td><td>${used(d)} of ${capOf(d, S)}</td><td>${d.poorSleep ? "yes" : ""}</td></tr>`)}
         </tbody></table>` : html`<p>No days logged in this period.</p>`}
-      <p class="small-print">This is a personal log kept by the person it belongs to. It is not a medical record or a medical device.</p>`);
+      <p class="small-print">Times are local as recorded; CSV includes any recorded time-zone offsets. Older records may have none. This is a personal log kept by the person it belongs to. It is not a medical record or a medical device.</p>`);
   }
 
   function render() {
     const S = ctx.settings(), L = S.locale, docs = ctx.store.all(), today = ctx.today();
-    const days = listDays(docs), byDate = Object.fromEntries(days.map(d => [d.date, d]));
+    const selected = selectHistory(docs, filters()), days = selected.days, byDate = Object.fromEntries(listDays(docs).map(d => [d.date, d]));
+    const symptom = $("hist-symptom").value, options = [...new Set([...S.symptoms, ...listEpisodes(docs).flatMap(([,e]) => e.symptoms)])];
+    setHTML($("hist-symptom"), html`<option value="">Any</option>${options.map(name => html`<option value="${name}">${name}</option>`)}`); $("hist-symptom").value = symptom;
+    $("history-count").textContent = filters().from && filters().to && filters().from > filters().to ? "Choose an end date on or after the start date." : `${plural(days.length,"day")} and ${plural(selected.episodes.length,"episode")} match. Check-in filters apply to days; symptom/ongoing filters apply to episodes.`;
 
     setHTML($("strip"), html`${Array.from({ length: 14 }, (_, i) => {
       const k = addDays(today, i - 13), s = byDate[k] && byDate[k].status;
-      return html`<button class="${s || ""}" data-day="${k}" title="${k}" aria-label="${fmtDay(k, L)}: ${s || "no check-in"}"></button>`;
+      return html`<button class="${s || ""}" data-day="${k}" title="${k}" aria-label="${fmtDay(k, L)}: ${s || "no check-in"}"><span>${Number(k.slice(-2))}</span><b>${s ? s[0].toUpperCase() : "–"}</b></button>`;
     })}`);
 
     const t = trends(docs, S, today, 30);
-    const eps = listEpisodes(docs);
+    const eps = selected.episodes;
     $("trends-panel").hidden = days.length < 3 && eps.length === 0;
     if (!$("trends-panel").hidden) {
       const names = pairs => pairs.map(([n, c]) => `${n} (${c})`).join(", ");
@@ -92,25 +104,29 @@ export function init(ctx) {
         </div>
         <div class="trend-notes meta">
           ${t.avgUsed === null ? "" : html`<p>On average ${t.avgUsed} points spent on the days you logged.</p>`}
-          ${t.poorSleepDays ? html`<p>Poor sleep on ${plural(t.poorSleepDays, "day")}; ${t.poorSleepBad} of those ended up amber or red.</p>` : ""}
+          ${t.poorSleepDays ? html`<p>Poor sleep on ${plural(t.poorSleepDays, "day")}; ${t.poorSleepBad} of those had an amber or red morning check-in.</p>` : ""}
           <p>Episodes: ${t.episodes30} in the last 30 days, ${t.episodes90} in the last 90.</p>
           ${t.topTriggers.length ? html`<p>Most often in the day or two before an episode: ${names(t.topTriggers)}.</p>` : ""}
           ${t.topSymptoms.length ? html`<p>Most often noticed: ${names(t.topSymptoms)}.</p>` : ""}
         </div>`);
     }
 
-    setHTML($("days"), html`${days.slice(0, shown).map(d => html`<li><button class="dayrow" data-day="${d.date}"><span><span class="dot ${d.status || ""}"></span>${fmtDay(d.date, L)}${d.poorSleep ? html` <span class="meta">· poor sleep</span>` : ""}</span><span class="meta">${used(d)} of ${capOf(d, S)} used</span></button></li>`)}`);
+    setHTML($("days"), html`${days.slice(0, shown).map(d => html`<li><button class="dayrow" data-day="${d.date}"><span><span class="dot ${d.status || ""}"></span>${fmtDay(d.date, L)}${d.poorSleep ? html` <span class="meta">· poor sleep</span>` : ""}<span class="meta"> · ${d.status || "no check-in"}</span></span><span class="meta">${used(d)} of ${capOf(d, S)} used</span></button></li>`)}`);
     $("more-days").hidden = days.length <= shown;
     $("nodays").hidden = days.length > 0;
 
-    setHTML($("eps"), html`${eps.map(([id, x]) => html`<div class="ep"><b>${fmtWhen(x.when, L)}</b>
+    setHTML($("eps"), html`${eps.slice(0, episodesShown).map(([id, x]) => html`<div class="ep"><b>${fmtWhen(x.when, L)}</b>
       <span>${(x.symptoms || []).join(", ") || "No symptoms ticked"}</span>
       <span class="meta">${[x.onset, x.duration].filter(Boolean).join(" · ")}</span>
       ${(x.before || []).length ? html`<span class="meta">Before: ${x.before.join(", ")}</span>` : ""}
       ${x.notes ? html`<span class="meta">${x.notes}</span>` : ""}
       <span class="actions"><button class="x edit" data-id="${id}">Edit</button> <button class="x del" data-id="${id}">Delete</button></span></div>`)}`);
+    $("more-eps").hidden = eps.length <= episodesShown;
     $("noeps").hidden = eps.length > 0;
+    $("noeps").textContent = listEpisodes(docs).length ? "No episodes match these filters. Clear filters to see everything." : "No episodes logged. Use Episode if one happens.";
+    $("nodays").textContent = listDays(docs).length ? "No days match these filters. Clear filters to see everything." : "Your days appear here after a check-in or activity.";
   }
 
-  return { render, show() { shown = PAGE; render() } };
+  return { render, show() { render() } };
 }
+

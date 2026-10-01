@@ -31,6 +31,7 @@ export function createStore({
   let revs = {};     // id -> revision of that copy
   let pending = [];  // the outbox: [{ n, id, type, arg, stamp }]
   let seq = 0;
+  let discarded = [], failed = [], localError = "", localWrites = 0, durable = false, persistenceVersion = 0;
   let flushing = false, offline = false, error = "", loaded = false;
   let retryTimer = null, retryCount = 0;
   let tail = Promise.resolve(); // network work runs one piece at a time, so a refresh can't land between a save and its reply
@@ -46,31 +47,43 @@ export function createStore({
   const HEADERS = () => ({ ...BASE_HEADERS, "X-Jiggered-User": String(uid) });
 
   function persist() {
-    if (!storage || uid == null) return;
-    try { storage.setItem(key(), JSON.stringify({ v: 1, base, revs, pending, seq })) } catch { /* full or blocked: carry on in memory */ }
+    const version = ++persistenceVersion;
+    durable = false;
+    if (!storage || uid == null) { localError = "Device storage is unavailable. Keep this page open."; return }
+    try {
+      const result = storage.setItem(key(), JSON.stringify({ v: 1, base, revs, pending, seq, failed, discarded }));
+      if (result && typeof result.then === "function") {
+        localWrites++;
+        Promise.resolve(result).then(() => {
+          if (version === persistenceVersion) { durable = true; localError = "" }
+        }, () => {
+          if (version === persistenceVersion) { durable = false; localError = "Device storage could not save your copy. Keep this page open." }
+        }).finally(() => { localWrites--; notify() });
+      } else { durable = true; localError = "" }
+    } catch { localError = "Device storage is full or blocked. Keep this page open." }
   }
 
   // hydrate loads what this device remembers for the signed-in person. Anyone else's data is wiped:
   // it must not sit on the device for the next person to find.
   function hydrate(userId, name = "") {
-    uid = userId; who = name; base = {}; revs = {}; pending = []; seq = 0;
+    uid = userId; who = name; base = {}; revs = {}; pending = []; failed = []; discarded = []; seq = 0; durable = false; localError = "";
     if (storage) {
       try {
         for (let i = storage.length - 1; i >= 0; i--) {
           const k = storage.key(i);
-          if (k && k.startsWith(PREFIX) && k !== key()) storage.removeItem(k);
+          if (k && k.startsWith(PREFIX) && k !== key()) Promise.resolve(storage.removeItem(k)).catch(() => {});
         }
         const saved = JSON.parse(storage.getItem(key()) || "null");
-        if (saved && saved.v === 1) { base = saved.base || {}; revs = saved.revs || {}; pending = saved.pending || []; seq = saved.seq || 0 }
-      } catch { /* unreadable: start empty */ }
+        if (saved && saved.v === 1) { base = saved.base || {}; revs = saved.revs || {}; pending = saved.pending || []; seq = saved.seq || 0; failed = saved.failed || []; discarded = saved.discarded || []; durable = true }
+      } catch { localError = "Could not read this device’s copy." }
     }
-    notify();
+    persist(); notify();
   }
 
   // clear forgets everything on this device (sign out).
   function clear() {
-    base = {}; revs = {}; pending = []; seq = 0;
-    if (storage && uid != null) { try { storage.removeItem(key()) } catch { /* ignore */ } }
+    base = {}; revs = {}; pending = []; failed = []; discarded = []; seq = 0; ++persistenceVersion;
+    if (storage && uid != null) { try { Promise.resolve(storage.removeItem(key())).catch(() => {}) } catch { /* ignore */ } }
     notify();
   }
 
@@ -91,12 +104,25 @@ export function createStore({
 
   // dispatch queues a change and starts sending it. The returned promise settles when that attempt is over.
   function dispatch(op) {
-    pending.push({ ...op, n: ++seq });
+    pending.push({ ...op, retryOf: op.retryOf ?? op.n, n: ++seq });
     persist(); notify();
-    return flush();
+    const ticket = flush();
+    ticket.n = seq;
+    return ticket;
   }
 
-  const status = () => ({ pending: pending.length, flushing, offline, error, loaded });
+  const status = () => ({ pending: pending.length, failed: failed.length, flushing, offline, error: failed.length ? failed[0].message : error, loaded, durable, localError, localWrites });
+  const outcome = n => failed.some(f => f.ops.some(o => o.n === n || o.retryOf === n)) ? "failed" : pending.some(o => o.n === n || o.retryOf === n) ? "pending" : discarded.includes(n) ? "discarded" : n <= seq ? "saved" : "unknown";
+  const failures = () => failed.map(f => ({ ...f }));
+  function discardFailed(key) { const f = failed.find(f => f.key === key); if (f) discarded.push(...f.ops.flatMap(o => [o.n, o.retryOf].filter(n => n != null))); discarded = discarded.slice(-1000); failed = failed.filter(f => f.key !== key); persist(); notify() }
+  function retryFailed(key) {
+    const f = failed.find(f => f.key === key);
+    if (!f) return Promise.resolve();
+    failed = failed.filter(x => x.key !== key);
+    for (const op of f.ops) pending.push({ ...op, retryOf: op.retryOf ?? op.n, n: ++seq });
+    persist(); notify(); return flush();
+  }
+  const recoveryExport = () => ({ format: "jiggered-device-recovery-v1", exportedAt: new Date().toISOString(), username: who, docs: all(), pending, failed });
 
   // ---- talking to the server ----
 
@@ -126,10 +152,11 @@ export function createStore({
     persist(); notify();
   }
 
-  // A refused change (too big, over quota, ...) will never succeed: drop it and say why, rather than retry forever.
+  // Refused content stays recoverable; successful unrelated saves never clear it.
   function dropBatch(id, lastN, message) {
+    const ops = pending.filter(o => o.id === id && o.n <= lastN);
+    failed.push({ key: `${Date.now()}-${lastN}`, id, ops, body: ops.reduce((b, op) => applyOp(op, b), base[id]), message: message || "The server refused this change.", at: Date.now() });
     pending = pending.filter(o => !(o.id === id && o.n <= lastN));
-    error = message || "The server refused a change.";
     persist(); notify();
   }
 
@@ -152,7 +179,7 @@ export function createStore({
           }
           if (res.status === 401) { onAuthLost(); throw new Stop() }
           if ([408, 425, 429].includes(res.status)) throw new Error("HTTP " + res.status); // transient: keep the change and retry
-          if (res.status >= 400 && res.status < 500) { dropBatch(id, lastN, res.message); break }
+          if (res.status >= 400 && res.status < 500) { if (failed.length >= 100) throw new Error("Recovery is full. Download or resolve older refused changes first."); dropBatch(id, lastN, res.message); break }
           throw new Error("HTTP " + res.status);
         }
       }
@@ -160,6 +187,7 @@ export function createStore({
     } catch (e) {
       if (!(e instanceof Stop)) {
         offline = true;
+        if (e.message?.startsWith("Recovery is full")) error = e.message;
         // Back off only when a scheduled retry itself fails; extra attempts from the person tapping don't count.
         retryTimer = setTimer(() => { retryTimer = null; retryCount++; flush() }, BACKOFF[Math.min(retryCount, BACKOFF.length - 1)]);
       }
@@ -187,5 +215,5 @@ export function createStore({
     }).then(ok => { if (ok && pending.length) flush(); return ok });
   }
 
-  return { hydrate, clear, view, all, dispatch, flush, load, status };
+  return { hydrate, clear, view, all, dispatch, flush, load, status, outcome, failures, discardFailed, retryFailed, recoveryExport };
 }

@@ -15,12 +15,12 @@ export const appendHTML = (el, safe) => el.insertAdjacentHTML("beforeend", safe.
 
 export function fmtDay(key, locale) {
   const [y, m, d] = key.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString(locale || undefined, { weekday: "short", day: "numeric", month: "short" });
+  return new Date(y, m - 1, d).toLocaleDateString(locale || undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 }
 
 export function fmtLongDay(key, locale) {
   const [y, m, d] = key.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString(locale || undefined, { weekday: "long", day: "numeric", month: "long" });
+  return new Date(y, m - 1, d).toLocaleDateString(locale || undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
 
 export function fmtWhen(when, locale) {
@@ -62,7 +62,7 @@ let pageUser = null;
 export const setPageUser = id => { pageUser = id };
 
 export async function api(method, path, body) {
-  const opts = { method, credentials: "same-origin", headers: { "X-Requested-With": "jiggered", ...(pageUser != null && { "X-Jiggered-User": String(pageUser) }) } };
+  const opts = { method, signal: AbortSignal.timeout(path.startsWith("/api/import") || path === "/api/export" ? 300000 : 20000), credentials: "same-origin", headers: { "X-Requested-With": "jiggered", ...(pageUser != null && { "X-Jiggered-User": String(pageUser) }) } };
   if (body !== undefined) { opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body) }
   let r;
   try { r = await fetch(path, opts) }
@@ -76,3 +76,27 @@ export async function api(method, path, body) {
 
 // A short random id for things created offline, so retrying a save can't add them twice.
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+// A queued attempt resolving is not proof it reached the server. Call from render as the store changes.
+export function saveFeedback(store, ticket, el, success = "Saved on your server.") {
+  if (!ticket) return null;
+  const outcome = store.outcome(ticket.n);
+  const st = store.status();
+  el.classList.toggle("err", outcome === "failed");
+  el.textContent = outcome === "saved" ? success : outcome === "failed" ? "The server refused this change. Your copy is in Recovery above." : outcome === "discarded" ? "Recovery item discarded; the unfinished form is kept." : !st.durable ? "Change queued, but only in memory. Keep this page open." : "Change queued on this device. Waiting to save on your server.";
+  return outcome;
+}
+
+export async function withBusy(button, label, action) {
+  if (button.disabled) return;
+  const before = button.textContent;
+  button.disabled = true; button.textContent = label;
+  try { return await action() } finally { if (button.isConnected) { button.disabled = false; button.textContent = before } }
+}
+
+export function downloadFile(name, text, type = "application/json") {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

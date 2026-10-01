@@ -1,0 +1,61 @@
+{
+  "budget": 10,
+  "sleepPenalty": 3,
+  "locale": "en-GB",
+  "activities": [
+    {
+      "a": "Meeting or call",
+      "c": 2
+    },
+    {
+      "a": "Unplanned interruption",
+      "c": 3
+    },
+    {
+      "a": "Context switch",
+      "c": 1
+    },
+    {
+      "a": "Deep focus (2 hours)",
+      "c": 1
+    },
+    {
+      "a": "Social or noisy place",
+      "c": 3
+    },
+    {
+      "a": "Travel or commute",
+      "c": 2
+    },
+    {
+      "a": "Walk or dog walk",
+      "c": -2
+    },
+    {
+      "a": "Quiet break",
+      "c": -1
+    }
+  ],
+  "symptoms": [
+    "Face numb or tingling",
+    "Hand or arm numb",
+    "Arm clumsy",
+    "Blurred vision",
+    "Eye discomfort",
+    "Headache",
+    "Speech change",
+    "Weakness"
+  ],
+  "triggers": [
+    "Poor sleep",
+    "High stress",
+    "Overload or overwhelm",
+    "Long hyperfocus",
+    "Long screen time",
+    "Skipped meals",
+    "Low water",
+    "Noisy or busy place",
+    "Alcohol",
+    "Missed tablets"
+  ]
+}

@@ -24,14 +24,18 @@
     </form>
   </header>
   <div class="banner" id="banner" hidden></div>
-  <nav role="tablist" id="tabs">
-    <button role="tab" id="t-today" aria-selected="true" data-tab="today">Today</button>
-    <button role="tab" id="t-episode" aria-selected="false" data-tab="episode">Episode</button>
-    <button role="tab" id="t-history" aria-selected="false" data-tab="history">History</button>
-    <button role="tab" id="t-account" aria-selected="false" data-tab="account">Account</button>
+  <p class="sync" id="sync" role="status" aria-live="polite">Connecting…</p>
+  <section class="panel recovery" id="recovery" hidden aria-label="Recover unsaved changes"></section>
+  <nav role="tablist" id="tabs" aria-label="Main views">
+    <button role="tab" id="t-today" aria-controls="today-panel" tabindex="0" aria-selected="true" data-tab="today">Today</button>
+    <button role="tab" id="t-episode" aria-controls="episode-panel" tabindex="-1" aria-selected="false" data-tab="episode">Episode</button>
+    <button role="tab" id="t-history" aria-controls="history-panel" tabindex="-1" aria-selected="false" data-tab="history">History</button>
+    <button role="tab" id="t-account" aria-controls="account-panel" tabindex="-1" aria-selected="false" data-tab="account">Account</button>
   </nav>
 
-  <section id="today-panel">
+  <section role="tabpanel" aria-labelledby="t-today" id="today-panel">
+    <div class="panel" id="onboarding" hidden><h2>Make this fit your day</h2><p>Points are personal planning estimates. Change the starting budget and move your most useful activities to the top.</p><button class="secondary" data-settings="set-acts">Personalise my activities</button> <button class="x" id="onboarding-dismiss">Dismiss</button></div>
+    <div class="panel" id="today-ongoing" hidden></div>
     <div class="panel daynav">
       <button class="ghost" id="day-prev" aria-label="Previous day">‹</button>
       <div class="mid"><b id="day-label">Today</b><input type="date" id="day-pick" aria-label="Choose a day"></div>
@@ -51,18 +55,19 @@
 
     <div class="panel">
       <div class="gauge-head">
-        <div><div class="label">Points left</div><div class="big" id="left">10 <small>of 10</small></div></div>
+        <div><div class="label" id="balance-label">Points left in your plan</div><div class="big" id="left">10 <small>of 10</small></div></div>
         <div class="meta" id="spentline">0 spent</div>
       </div>
-      <div class="cells" id="cells"></div>
+      <div class="cells" id="cells" aria-hidden="true"></div>
+      <details class="hint"><summary>How points work</summary><p>Points are your own planning aid. Demanding activities spend points; recovery gives points back. Zero-cost activities just record what happened. You can go below zero or above your starting budget. This is a log, not a recommendation to do more.</p><button class="x" data-settings="set-budget">Edit my budget</button> <button class="x" data-settings="set-acts">Edit my activities</button></details>
       <label class="toggle"><input type="checkbox" id="sleep"> <span id="sleep-label">Poor sleep last night</span></label>
     </div>
 
     <div class="panel">
-      <h2>Tap what you've done</h2>
+      <h2>Tap what you've done</h2><button class="x" data-settings="set-acts">Edit activities</button>
       <label class="timerow" id="act-time-row" hidden>Time, if you remember <input type="time" id="act-time"></label>
       <div class="acts" id="acts"></div>
-      <p class="empty" id="noacts" hidden>No activities yet. Add some in Account, under Settings.</p>
+      <p class="empty" id="noacts" hidden>No activities yet. Use Edit activities above to add your own.</p>
     </div>
 
     <div class="panel">
@@ -72,25 +77,31 @@
     </div>
   </section>
 
-  <section id="episode-panel" hidden>
+  <section role="tabpanel" aria-labelledby="t-episode" id="episode-panel" hidden>
     <div class="warn"><b>Call 999</b> if symptoms come on suddenly, or with weakness, face drooping, speech problems or severe headache. Don't log first.</div>
+    <details class="panel" id="episode-drafts" hidden><summary>Unfinished episode drafts on this device</summary><div id="episode-draft-list"></div></details>
+    <div class="panel" id="episode-ongoing" hidden></div>
     <div class="panel">
+      <button class="x" data-settings="set-sym">Edit symptoms and triggers</button>
       <h2 id="ep-title">Log an episode</h2>
       <form id="epform">
+        <p class="hint">New times use this device's local time zone. Existing start times keep their recorded offset; older records may have no offset.</p>
         <div><label class="label" for="ep-when">When it started</label><input type="datetime-local" id="ep-when" required></div>
         <fieldset><legend>What you noticed</legend><div class="chips" id="ep-sym"></div></fieldset>
         <fieldset><legend>How it came on</legend><div class="chips" id="ep-onset"></div></fieldset>
         <div><label class="label" for="ep-dur">How long it lasted</label><select id="ep-dur"></select></div>
+        <label class="field" id="ep-ended-row" hidden>When it ended (optional)<input type="datetime-local" id="ep-ended"></label>
         <fieldset><legend>In the day or two before</legend><div class="chips" id="ep-trig"></div></fieldset>
         <div><label class="label" for="ep-notes">Notes</label><textarea id="ep-notes" maxlength="20000" placeholder="Anything else: BP reading, what helped, where you were"></textarea></div>
         <button class="primary" type="submit" id="ep-save">Save episode</button>
-        <button class="secondary" type="button" id="ep-cancel" hidden>Cancel</button>
+        <button class="secondary" type="button" id="ep-cancel" hidden>Back to new episode</button>
+        <button class="secondary" type="button" id="ep-discard" hidden>Discard draft</button>
         <p class="toast" id="eptoast" aria-live="polite"></p>
       </form>
     </div>
   </section>
 
-  <section id="history-panel" hidden>
+  <section role="tabpanel" aria-labelledby="t-history" id="history-panel" hidden>
     <div class="panel">
       <h2>Last 14 days</h2>
       <div class="strip" id="strip" aria-label="Check-in colour for each of the last 14 days"></div>
@@ -101,6 +112,17 @@
       <div id="trends"></div>
     </div>
     <div class="panel">
+      <h2>Find days and episodes</h2>
+      <form id="history-filters" class="filters">
+        <label class="field">From<input type="date" id="hist-from"></label>
+        <label class="field">Through<input type="date" id="hist-to"></label>
+        <label class="field">Search activities, symptoms, triggers or notes<input type="search" id="hist-query"></label>
+        <label class="field">Morning check-in (days)<select id="hist-status"><option value="">Any</option><option>green</option><option>amber</option><option>red</option></select></label>
+        <label class="field">Symptom (episodes)<select id="hist-symptom"><option value="">Any</option></select></label>
+        <label class="toggle"><input type="checkbox" id="hist-ongoing"> Ongoing episodes only</label>
+        <button class="secondary" type="reset">Clear filters</button>
+      </form>
+      <p id="history-count" class="meta" role="status"></p>
       <h2>Days</h2>
       <ul class="list" id="days"></ul>
       <button class="secondary" id="more-days" hidden>Show older days</button>
@@ -109,13 +131,17 @@
     <div class="panel">
       <h2>Episodes</h2>
       <div id="eps"></div>
+      <button class="secondary" id="more-eps" hidden>Show older episodes</button>
       <p class="empty" id="noeps">No episodes logged. Use "Episode" if one happens; show this list to your neurologist or GP.</p>
     </div>
     <div class="panel">
       <h2>Share with your doctor</h2>
       <label class="field">Period for the printed summary<select id="sum-range"></select></label>
+      <label class="toggle"><input type="checkbox" id="sum-notes" checked> Include private episode notes in the summary</label>
+      <button class="secondary" id="sum-preview">Preview summary</button>
+      <div id="summary-preview" hidden></div>
       <div class="row"><button class="primary" id="sum-print">Print or save as PDF</button></div>
-      <p class="hint">Spreadsheet files include every day and episode.</p>
+      <p class="hint">Spreadsheet files include the days and episodes matching the filters above. Clear filters for everything.</p>
       <div class="row">
         <button class="secondary" id="csv-days">Days as CSV</button>
         <button class="secondary" id="csv-eps">Episodes as CSV</button>
@@ -123,7 +149,7 @@
     </div>
   </section>
 
-  <section id="account-panel" hidden>
+  <section role="tabpanel" aria-labelledby="t-account" id="account-panel" hidden>
     <div class="panel">
       <h2>Signed in as <span id="acc-name"></span></h2>
       <p class="meta" id="acc-role"></p>
@@ -159,7 +185,7 @@
         <label class="field">Dates shown as<select id="set-locale"></select></label>
         <fieldset>
           <legend>Activities</legend>
-          <p class="hint">Points an activity costs. Use a negative number for something that gives energy back.</p>
+          <p class="hint">Points an activity costs: −10 to 10, including zero. Negative numbers give points back. Up to 40 distinct names, each up to 60 characters.</p>
           <div id="set-acts"></div>
           <button class="secondary" type="button" id="set-addact">Add an activity</button>
         </fieldset>
@@ -167,6 +193,7 @@
         <label class="field">Possible triggers to pick from (one per line)<textarea id="set-trig" rows="6"></textarea></label>
         <div class="row">
           <button class="primary" type="submit">Save settings</button>
+          <button class="secondary" type="button" id="set-discard">Discard draft</button>
           <button class="secondary" type="button" id="set-reset">Back to the defaults</button>
         </div>
         <p class="msg" id="set-msg" aria-live="polite"></p>
@@ -176,7 +203,8 @@
     <div class="panel">
       <h2>Your data</h2>
       <p class="meta">Download everything you've logged, or load a file you downloaded earlier.</p>
-      <div class="row"><a class="secondary btn" href="/api/export" download>Download everything (JSON)</a></div>
+      <div class="row"><button class="secondary" id="export-all">Download everything (JSON)</button><button class="secondary" id="export-device">Download device recovery copy</button></div>
+      <p class="msg" id="export-msg" aria-live="polite"></p>
       <form id="importform">
         <label class="field">Restore from a file<input type="file" id="import-file" accept=".json,application/json"></label>
         <label class="radio"><input type="radio" name="import-mode" value="add" checked> Keep what's here, add what's missing</label>
@@ -197,7 +225,6 @@
     </div>
   </section>
 
-  <p class="sync" id="sync" aria-live="polite">Connecting…</p>
   <section id="print-view" aria-hidden="true"></section>
 </div>
 <div class="toastbar" id="toastbar" role="status" aria-live="polite" hidden></div>
