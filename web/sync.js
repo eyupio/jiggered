@@ -142,7 +142,10 @@ export function createStore({
   async function send(id, body, rev) {
     const url = "/api/docs/" + encodeURIComponent(id);
     if (body === undefined) {
-      const r = await doFetch(url, { method: "DELETE", headers: HEADERS(), credentials: "same-origin", signal: timeout() });
+      // Name the revision being deleted, so a copy saved elsewhere since is returned (409) rather than erased.
+      const headers = { ...HEADERS(), ...(rev > 0 ? { "If-Match": `"${rev}"` } : {}) };
+      const r = await doFetch(url, { method: "DELETE", headers, credentials: "same-origin", signal: timeout() });
+      if (r.status === 409) { const j = await r.json(); return { status: 409, rev: j.rev, body: j.body } }
       return { status: r.status, rev: 0, message: r.status === 204 ? "" : await reason(r) };
     }
     const headers = { ...HEADERS(), "Content-Type": "application/json", ...(rev > 0 ? { "If-Match": `"${rev}"` } : { "If-None-Match": "*" }) };
@@ -207,6 +210,12 @@ export function createStore({
           if (res.status === 409) {
             if (++conflicts > MAX_CONFLICTS) throw new Error("kept conflicting");
             adopt(id, res.rev, res.body); // someone saved first: take their copy and replay our changes on it
+            // A delete is not replayed over a copy that changed since this device last saw it: the person chooses
+            // in Recovery ("Keep server copy", or "Use my change" to delete it anyway).
+            if (body === undefined && res.body != null) {
+              dropBatch(id, lastN, "Changed elsewhere since you deleted it. Keep the server copy or explicitly delete it.", { conflict: true, body: undefined });
+              break;
+            }
             continue;
           }
           if (res.status === 401) { onAuthLost(); throw new Stop() }

@@ -181,6 +181,9 @@ func checkBackup(path string) error {
 	if version >= 3 {
 		need = append(need, "instance_settings")
 	}
+	if version >= 4 {
+		need = append(need, "doc_revs")
+	}
 	for _, name := range need {
 		var n int
 		if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?", name).Scan(&n); err != nil || n == 0 {

@@ -62,7 +62,7 @@ func openDB(path string, first *seedAdmin) (*sql.DB, error) {
 
 // migrations run in order, each in its own transaction. Never edit one that
 // has shipped; append a new one.
-var migrations = []func(tx *sql.Tx, first *seedAdmin) error{migrateBaseline, migrateAccounts, migrateSettings}
+var migrations = []func(tx *sql.Tx, first *seedAdmin) error{migrateBaseline, migrateAccounts, migrateSettings, migrateDocRevs}
 
 func migrate(db *sql.DB, path string, first *seedAdmin) error {
 	var cur int
@@ -283,5 +283,17 @@ func migrateSettings(tx *sql.Tx, _ *seedAdmin) error {
   value      TEXT NOT NULL,
   updated_at INTEGER NOT NULL
 )`)
+	return err
+}
+
+// v4: the last revision of a deleted document survives the delete, so recreating it carries on counting instead of
+// starting again at 1, where a device still holding the old revision 1 could overwrite the replacement.
+func migrateDocRevs(tx *sql.Tx, _ *seedAdmin) error {
+	_, err := tx.Exec(`CREATE TABLE doc_revs (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  id      TEXT NOT NULL,
+  rev     INTEGER NOT NULL,
+  PRIMARY KEY (user_id, id)
+) WITHOUT ROWID`)
 	return err
 }
