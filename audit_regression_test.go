@@ -3,20 +3,12 @@ package main
 import (
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"path/filepath"
 	"testing"
 )
 
-// These tests reproduce defects found in the October 2026 audit. Each one names the change that fixes it and is
-// skipped until then, so the suite stays green while the failing behaviour is on record. Run them as they are with
-// JIGGERED_AUDIT=1 go test -run Audit ./... and expect failures; the fixing change deletes its pending() call.
-func pending(t *testing.T, fix string) {
-	t.Helper()
-	if os.Getenv("JIGGERED_AUDIT") == "" {
-		t.Skip("known defect, fixed by " + fix)
-	}
-}
+// These tests reproduce defects found in the October 2026 audit. Each was written to fail first, and passes now that
+// the change that fixes it is in. They stay as regression tests.
 
 func TestAuditStaleDeleteKeepsNewerDoc(t *testing.T) {
 	e := newTestServer(t)
