@@ -45,7 +45,7 @@ frontend build step.
 | `auth.go` | Sessions, `requireAuth`/`requireAdmin` (`guard`), login, lockouts, client address |
 | `users.go` | Account store, last-admin guard, audit log, pruning |
 | `account.go`, `admin.go` | `/api/me/...` (self-service) and `/api/admin/...` (admins only) |
-| `docs.go` | The per-person docs API: revisions, id allow-list, quotas, import and export |
+| `docs.go`, `restore.go` | Personal docs, quotas, legacy import and atomic preview-bound restores |
 | `defaults.go` | Validated shared product defaults, authenticated read, admin-only compare-and-swap write |
 | `settings.go` | Instance settings stored in the database, and seeding them from old env vars |
 | `backup.go`, `cli.go` | Snapshot helpers; the subcommands (`user`, `settings`, `backup`, `restore`, ...) |
@@ -112,6 +112,7 @@ the tabs; `admin.js` is mounted only for admins; `sw.js` is the service worker;
 - **Admin endpoints return account metadata only, never a personal doc body.**
   Shared product defaults (`product_defaults` in `instance_settings`) are intentionally visible to signed-in users;
   edits require admin plus a current ETag and never rewrite existing personal lists.
+- **One browser editing tab owns a Web Lock**; read-only tabs never write cache/outbox/drafts. Restore holds the network queue and pauses dispatch. Baseline-aware edits surface same-field/deleted-record conflicts in Recovery.
 - **Drafts expire after seven days.** Refused operations are retained explicitly in recovery, not presented as saved.
   Keep persistence acknowledgements distinct from network acknowledgements.
 - **Admin endpoints do not expose personal doc bodies.** There is a test

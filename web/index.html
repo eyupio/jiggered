@@ -67,12 +67,21 @@
       <h2>Tap what you've done</h2><button class="x" data-settings="set-acts">Edit activities</button>
       <label class="timerow" id="act-time-row" hidden>Time, if you remember <input type="time" id="act-time"></label>
       <div class="acts" id="acts"></div>
+      <button class="secondary" id="other-activity">Other activity</button>
       <p class="empty" id="noacts" hidden>No activities yet. Use Edit activities above to add your own.</p>
     </div>
 
     <div class="panel">
       <h2>So far</h2>
       <ul class="list" id="entries"></ul>
+      <form id="entry-form" hidden>
+        <h3 id="entry-heading">Edit activity</h3>
+        <label class="field">Activity<input id="entry-name" required maxlength="120"></label>
+        <div class="row2"><label class="field">Points it costs<input type="number" id="entry-cost" min="-10" max="10" step="1" required></label><label class="field">Time (optional)<input type="time" id="entry-time"></label></div>
+        <p class="hint">Negative points record recovery. Zero only records the activity.</p>
+        <div class="row"><button class="primary" type="submit">Save activity</button><button class="secondary" type="button" id="entry-cancel">Cancel</button></div>
+        <p id="entry-msg" class="msg" role="status"></p>
+      </form>
       <p class="empty" id="noentries">Nothing logged yet. Tap an activity above as you go.</p>
     </div>
   </section>
@@ -208,8 +217,9 @@
       <form id="importform">
         <label class="field">Restore from a file<input type="file" id="import-file" accept=".json,application/json"></label>
         <label class="radio"><input type="radio" name="import-mode" value="add" checked> Keep what's here, add what's missing</label>
-        <label class="radio"><input type="radio" name="import-mode" value="overwrite"> Replace matching days and episodes with the file's</label>
-        <button class="secondary" type="submit">Restore</button>
+        <label class="radio"><input type="radio" name="import-mode" value="overwrite"> Replace matching records, including settings, with the file's</label>
+        <button class="secondary" type="submit">Preview restore</button>
+        <div id="import-preview" hidden></div>
         <p class="msg" id="import-msg" aria-live="polite"></p>
       </form>
     </div>

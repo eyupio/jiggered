@@ -224,3 +224,17 @@ test('episode chronology uses recorded offsets across zones and supports overnig
  assert.equal(m.validateEpisodeTimes({when:original.when,endedAt:m.nowLocal(new Date('2026-10-01T12:00Z'))},original,new Date('2026-10-01T20:00Z'))?.[0],'ep-ended');
  assert.equal(m.validateEpisodeTimes({when:'2026-09-30T23:00',endedAt:'2026-10-01T01:00'},{},new Date('2026-10-01T20:00Z')),null);
 });
+
+test("legacy activity correction targets one duplicate, preserves position and replays idempotently",async()=>{
+ const {identifyEntries,applyOp}=await import('../web/model.js');
+ const legacy={date:'2026-10-01',entries:[{a:'Walk',c:-1,t:'10:00'},{a:'Walk',c:-1,t:'10:00'}]};const entries=identifyEntries(legacy.entries);
+ const edit={id:'d-2026-10-01',type:'editEntry',arg:{id:entries[1].id,changes:{a:'Short walk',c:0,t:''}}};
+ const edited=applyOp(edit,legacy);assert.equal(edited.entries[0].a,'Walk');assert.equal(edited.entries[1].a,'Short walk');assert.deepEqual(applyOp(edit,edited),edited);
+ const remove={id:edit.id,type:'removeEntry',arg:entries[0]};const removed=applyOp(remove,edited);assert.equal(removed.entries.length,1);const undo={id:edit.id,type:'restoreEntry',arg:{entry:entries[0],index:0}};assert.deepEqual(applyOp(undo,removed),edited);assert.deepEqual(applyOp(undo,edited),edited);
+});
+test("settings merge disjoint fields and row fields; same-field and order conflicts are surfaced",async()=>{
+ const {operationConflicts,applyOp,DEFAULTS}=await import('../web/model.js');const before={...DEFAULTS,activities:[{id:'a',a:'Walk',c:-1},{id:'b',a:'Meeting',c:2}]};
+ const remote={...before,budget:12,activities:[{id:'a',a:'Long walk',c:-1},before.activities[1]]};const patch={id:'settings',type:'settingsPatch',before:{activities:before.activities},arg:{activities:[{id:'a',a:'Walk',c:-2},before.activities[1]]}};
+ assert.deepEqual(operationConflicts(patch,remote),[]);const merged=applyOp(patch,remote);assert.equal(merged.budget,12);assert.deepEqual(merged.activities[0],{id:'a',a:'Long walk',c:-2});
+ patch.arg.activities[0].a='Another walk';assert.ok(operationConflicts(patch,remote).some(x=>x.includes('name')));
+});

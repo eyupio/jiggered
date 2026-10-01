@@ -16,8 +16,9 @@ type productDefaults struct {
 	SleepPenalty int    `json:"sleepPenalty"`
 	Locale       string `json:"locale"`
 	Activities   []struct {
-		A string `json:"a"`
-		C int    `json:"c"`
+		ID string `json:"id,omitempty"`
+		A  string `json:"a"`
+		C  int    `json:"c"`
 	} `json:"activities"`
 	Symptoms []string `json:"symptoms"`
 	Triggers []string `json:"triggers"`
@@ -34,8 +35,15 @@ func (d productDefaults) validate() error {
 		return fmt.Errorf("Activities must be a list")
 	}
 	activities := make([]string, len(d.Activities))
+	ids := map[string]bool{}
 	for i, a := range d.Activities {
 		activities[i] = a.A
+		if a.ID != "" {
+			if len(a.ID) > 512 || ids[a.ID] {
+				return fmt.Errorf("Activity identities must be unique and under 512 bytes")
+			}
+			ids[a.ID] = true
+		}
 		if a.C < -10 || a.C > 10 {
 			return fmt.Errorf("Activity points must be −10 to 10")
 		}

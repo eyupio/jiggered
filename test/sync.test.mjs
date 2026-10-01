@@ -396,3 +396,34 @@ test("episode field patches preserve another device's notes while finishing",asy
  const server=new FakeServer(),a=device(server),b=device(server);await a.store.dispatch(op("e-1","replace",{when:"2026-10-01T10:00",notes:"original",duration:"Still going"}));await b.store.load();
  await a.store.dispatch(op("e-1","patch",{notes:"new notes"}));await b.store.dispatch(op("e-1","patch",{duration:"1–4 hours"}));assert.equal(server.docs.get("e-1").body.notes,"new notes");assert.equal(server.docs.get("e-1").body.duration,"1–4 hours");
 });
+
+test("same-field episode edits need a choice; retries explicitly choose the local value",async()=>{
+ const server=new FakeServer(),a=device(server),b=device(server);
+ await a.store.dispatch(op("e-1","replace",{when:"2026-10-01T10:00",notes:"original"}));await b.store.load();
+ await a.store.dispatch({id:"e-1",type:"patch",arg:{notes:"remote"},before:{notes:"original"}});
+ const ticket=b.store.dispatch({id:"e-1",type:"patch",arg:{notes:"local"},before:{notes:"original"}});await ticket;
+ assert.equal(server.docs.get("e-1").body.notes,"remote");assert.equal(b.store.outcome(ticket.n),"failed");assert.equal(b.store.failures()[0].body.notes,"local");
+ assert.equal(b.store.failures()[0].conflict,true);await b.store.retryFailed(b.store.failures()[0].key);assert.equal(server.docs.get("e-1").body.notes,"local");
+});
+test("a deleted episode cannot be resurrected silently by a queued edit",async()=>{
+ const server=new FakeServer(),a=device(server),b=device(server);await a.store.dispatch(op("e-1","replace",{when:"2026-10-01T10:00",notes:"original"}));await b.store.load();
+ await a.store.dispatch(op("e-1","remove"));await b.store.dispatch({id:"e-1",type:"patch",arg:{notes:"local"},before:{notes:"original"}});
+ assert.equal(server.docs.has("e-1"),false);const f=b.store.failures()[0];assert.equal(f.deleted,true);assert.equal(f.body.when,"2026-10-01T10:00");await b.store.retryFailed(f.key);assert.equal(server.docs.get("e-1").body.when,"2026-10-01T10:00");
+});
+test("restore blocks dispatch and waits for the current send; failure resumes edits",async()=>{
+ const server=new FakeServer(),d=device(server);let enter,finish;const entered=new Promise(r=>enter=r),gate=new Promise(r=>finish=r);
+ const restore=d.store.withRestore(async()=>{enter();await gate;throw new Error("restore failed")});await entered;
+ assert.throws(()=>d.store.dispatch(op(DAY,"setStatus","red")),/Restore is in progress/);assert.equal(d.store.status().restoring,true);finish();await assert.rejects(restore,/restore failed/);
+ await d.store.dispatch(op(DAY,"setStatus","green"));assert.equal(server.docs.get(DAY).body.status,"green");
+});
+test("read-only tabs cannot overwrite device state or send queued operations",async()=>{
+ const server=new FakeServer(),storage=new MemStorage();server.down=true;const a=device(server,{storage});await a.store.dispatch(op(DAY,"addEntry",entry("offline")));const saved=storage.getItem(storage.key(0));
+ const readonly={writable:false,get length(){return storage.length},key:i=>storage.key(i),getItem:k=>storage.getItem(k),setItem(){throw new Error("must not write")},removeItem(){throw new Error("must not remove")}};
+ const b=device(server,{storage:readonly});server.down=false;await b.store.flush();assert.equal(server.docs.has(DAY),false);assert.throws(()=>b.store.dispatch(op(DAY,"setStatus","red")),/active Jiggered tab/);assert.equal(storage.getItem(storage.key(0)),saved);
+ await a.store.flush();b.store.refreshDevice();assert.deepEqual(ids(b.store.view(DAY)),["offline"]);assert.equal(b.store.status().pending,0);
+});
+test("deleted activity wins until explicit restoration, even when refreshed before sending",async()=>{
+ const server=new FakeServer(),a=device(server),b=device(server),logged=entry('one');await a.store.dispatch(op(DAY,'addEntry',logged));await b.store.load();
+ await a.store.dispatch(op(DAY,'removeEntry',logged));await b.store.load();await b.store.dispatch({id:DAY,type:'editEntry',arg:{id:logged.id,changes:{c:0}},before:logged,original:{date:'2026-10-01',entries:[logged]}});
+ assert.equal(server.docs.get(DAY).body.entries.length,0);const failure=b.store.failures()[0];assert.equal(failure.deletedEntry,true);assert.equal(failure.body.entries[0].c,0);await b.store.retryFailed(failure.key);assert.equal(server.docs.get(DAY).body.entries[0].c,0);
+});

@@ -323,6 +323,8 @@ func (s *server) routes() http.Handler {
 	mux.Handle("DELETE /api/docs/{id}", auth(s.deleteDoc))
 	mux.Handle("GET /api/export", auth(s.exportDocs))
 	mux.Handle("POST /api/import", auth(s.importDocs))
+	mux.Handle("POST /api/restore/preview", auth(s.restoreDocs))
+	mux.Handle("POST /api/restore", auth(s.restoreDocs))
 
 	mux.Handle("GET /api/admin/users", admin(s.adminListUsers))
 	mux.Handle("POST /api/admin/users", admin(s.adminCreateUser))

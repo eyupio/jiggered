@@ -54,7 +54,7 @@ export function normaliseSettings(raw) {
   const r = raw && typeof raw === "object" ? raw : {};
   const budget = int(r.budget, ...LIMITS.budget, DEFAULTS.budget);
   const activities = Array.isArray(r.activities)
-    ? r.activities.map(x => ({ a: text(x && x.a), c: int(x && x.c, ...LIMITS.cost, NaN) })).filter(x => x.a && Number.isFinite(x.c)).slice(0, LIMITS.items)
+    ? r.activities.map(x => ({ ...(typeof x?.id === "string" ? { id: x.id } : {}), a: text(x && x.a), c: int(x && x.c, ...LIMITS.cost, NaN) })).filter(x => x.a && Number.isFinite(x.c)).slice(0, LIMITS.items)
     : DEFAULTS.activities.map(x => ({ ...x }));
   return {
     budget,
@@ -77,6 +77,49 @@ export const capOf = (d, S) => (d.budget ?? S.budget) - (d.poorSleep ? (d.sleepP
 // Edits are operations rather than whole-doc snapshots, so they can be replayed on top of a newer copy
 // from the server. Each is safe to apply twice (a retried save must not add an entry twice).
 
+// Deterministic legacy identities let independent devices migrate the same rows consistently.
+export function identifyEntries(entries = []) {
+  return (Array.isArray(entries) ? entries : []).map((e, i) => e.id ? e : { ...e, id: `legacy-entry:${i}:${JSON.stringify([e.a,e.c,e.t])}` });
+}
+export const identifyActivities = rows => (Array.isArray(rows) ? rows : []).map(e => e.id ? e : { ...e, id: `legacy-activity:${encodeURIComponent(e.a)}` });
+const equal = (a,b) => JSON.stringify(a) === JSON.stringify(b);
+export function operationConflicts(op, body) {
+  if (!op.before) return [];
+  if (body == null) return ["deleted record"];
+  if (op.type === "editEntry") {
+    const current = identifyEntries(body.entries).find(e => e.id === op.arg.id);
+    if (!current) return ["deleted activity"];
+    return Object.keys(op.arg.changes).filter(k => !equal(current[k],op.before[k]) && !equal(current[k],op.arg.changes[k]));
+  }
+  const fields = Object.keys(op.arg).filter(k => k !== "activities");
+  const conflicts = fields.filter(k => !equal(body[k],op.before[k]) && !equal(body[k],op.arg[k]));
+  if (op.type === "settingsPatch" && op.arg.activities) {
+    const current = identifyActivities(body.activities || []), before = identifyActivities(op.before.activities || []), next = op.arg.activities;
+    for (const row of before) {
+      const n = next.find(x => x.id === row.id), c = current.find(x => x.id === row.id);
+      if (!n || !c) { if (!equal(n,row) && !equal(c,row) && !equal(c,n)) conflicts.push(`activity: ${row.a}`) }
+      else for (const k of ["a","c"]) if (!equal(n[k],row[k]) && !equal(c[k],row[k]) && !equal(c[k],n[k])) conflicts.push(`activity: ${row.a} (${k === "a" ? "name" : "points"})`);
+    }
+    const common = new Set(before.filter(x => current.some(c=>c.id===x.id) && next.some(n=>n.id===x.id)).map(x=>x.id));
+    const order = rows => rows.filter(x=>common.has(x.id)).map(x => x.id);
+    if (!equal(order(next),order(before)) && !equal(order(current),order(before)) && !equal(order(current),order(next))) conflicts.push("activity order");
+  }
+  return conflicts;
+}
+function mergeActivities(current, before, next) {
+  const old = identifyActivities(before || []), rows = identifyActivities(current || []);
+  const deleted = old.filter(x => !next.some(n => n.id === x.id)).map(x => x.id);
+  const out = rows.filter(x => !deleted.includes(x.id)).map(x => {
+    const n = next.find(n => n.id === x.id), b = old.find(b => b.id === x.id);
+    return n ? { ...x, ...Object.fromEntries(Object.entries(n).filter(([k,v]) => !equal(v,b?.[k]))) } : x;
+  });
+  for (const n of next) if (!old.some(b => b.id === n.id) && !out.some(x => x.id === n.id)) out.push(n);
+  if (!equal(next.map(x=>x.id),old.map(x=>x.id))) {
+    const rank = new Map(next.map((x,i)=>[x.id,i]));
+    out.sort((a,b)=>(rank.get(a.id) ?? next.length)-(rank.get(b.id) ?? next.length));
+  }
+  return out;
+}
 const sameEntry = (x, y) => x.id && y.id ? x.id === y.id : x.a === y.a && x.c === y.c && x.t === y.t;
 
 const DAY_OPS = {
@@ -87,6 +130,13 @@ const DAY_OPS = {
     const i = d.entries.findIndex(x => sameEntry(x, e));
     return i < 0 ? d : { ...d, entries: d.entries.filter((_, j) => j !== i) };
   },
+  editEntry: (d, arg) => ({ ...d, entries: identifyEntries(d.entries).map(e => e.id === arg.id ? { ...e, ...arg.changes, id: e.id } : e) }),
+  restoreEntry: (d, arg) => {
+    const entries = identifyEntries(d.entries);
+    if (entries.some(e => e.id === arg.entry.id)) return d;
+    entries.splice(Math.min(arg.index,entries.length),0,arg.entry);
+    return { ...d, entries };
+  },
   restamp: (d, s) => ({ ...d, budget: s.budget, sleepPenalty: s.sleepPenalty }),
 };
 
@@ -94,12 +144,17 @@ const DAY_OPS = {
 export function applyOp(op, body) {
   if (op.type === "remove") return undefined;
   if (op.type === "replace") return op.arg;
+  if (op.type === "settingsPatch") {
+    const { activities, ...fields } = op.arg;
+    return { ...(body || {}), ...fields, ...(activities ? { activities: mergeActivities(body?.activities,op.before?.activities,activities) } : {}) };
+  }
   if (op.type === "patch") return { ...(body || {}), ...op.arg };
   const fn = DAY_OPS[op.type];
   if (!fn) throw new Error("unknown operation " + op.type);
   let d = body ?? emptyDay(op.id.slice(2));
   if (!Array.isArray(d.entries)) d = { ...d, entries: [] };
   if (d.budget === undefined && op.stamp && op.type !== "restamp") d = { ...d, budget: op.stamp.budget, sleepPenalty: op.stamp.sleepPenalty };
+  if (["editEntry","removeEntry","restoreEntry"].includes(op.type)) d = { ...d, entries: identifyEntries(d.entries) };
   return fn(d, op.arg);
 }
 

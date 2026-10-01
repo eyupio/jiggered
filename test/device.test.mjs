@@ -25,3 +25,9 @@ test('factory defaults match the server fallback and valid Unicode names retain 
  assert.deepEqual(JSON.parse(await readFile(new URL('../web/defaults.json',import.meta.url),'utf8')),DEFAULTS);
  const S={...DEFAULTS,symptoms:['😀'.repeat(60)]};assert.deepEqual(validateSettings(S),[]);assert.equal([...normaliseSettings(S).symptoms[0]].length,60);
 });
+
+test("editing lock allows one writer, fails closed without locks and releases on close",async()=>{
+ const {claimEditingTab}=await import('../web/device.js');let held=false;
+ const locks={request:async(name,opts,fn)=>{if(held)return fn(null);held=true;try{return await fn({name})}finally{held=false}}};
+ const a=await claimEditingTab(locks,'user');assert.equal(a.writable,true);const b=await claimEditingTab(locks,'user');assert.equal(b.writable,false);a.close();await new Promise(r=>setImmediate(r));const c=await claimEditingTab(locks,'user');assert.equal(c.writable,true);c.close();assert.equal((await claimEditingTab(null,'user')).writable,false);
+});
