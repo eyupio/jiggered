@@ -31,12 +31,18 @@ export function init(ctx) {
     let shown = 0;
     for (const c of all) {
       const on = c.querySelector("input").checked || (q ? matches(q, c.textContent) : !collapsible || st.all || shown < PICKER.chipPage);
-      c.hidden = !on; if (on && !c.querySelector("input").checked) shown++;
+      c.hidden = !on; if (on) shown++; // selected chips use up page slots too, so ticking one never makes another appear
     }
-    const hiddenCount = all.filter(c => c.hidden).length, more = $(`ep-${name}-more`);
+    const hiddenCount = all.filter(c => c.hidden).length, more = $(`ep-${name}-more`), noun = name === "sym" ? "symptoms" : "triggers";
     more.hidden = !collapsible || q || (!st.all && !hiddenCount);
-    more.textContent = st.all ? "Show fewer" : `Show all ${all.length}`;
+    more.textContent = st.all ? "Show fewer" : `Show all ${all.length} ${noun} (${hiddenCount} more)`;
     box.dataset.empty = q && all.every(c => c.hidden) ? "1" : "";
+    // One line that says what is on screen, so a long list never feels like items have gone missing.
+    const picked = all.filter(c => c.querySelector("input").checked).length, visible = all.length - hiddenCount;
+    const where = q ? `${visible - picked} ${visible - picked === 1 ? "match" : "matches"} for “${q}”` : collapsible && !st.all ? `Showing ${visible} of ${all.length}` : `${all.length} ${noun}`;
+    $(`ep-${name}-status`).hidden = !long && !picked;
+    $(`ep-${name}-count`).textContent = long ? where + (picked ? ` · ${picked} selected` : "") : `${picked} selected`;
+    $(`ep-${name}-clear`).hidden = !picked;
   }
   function build(ep = null) {
     const S = ctx.settings(), use = usage(ctx.store.all(), ctx.today()), fs = favourites(S.symptoms, use.sym), ft = favourites(S.triggers, use.trig), k = JSON.stringify([S.symptoms, S.triggers, fs, ft, editing, ep?.symptoms, ep?.before]);
@@ -95,6 +101,12 @@ export function init(ctx) {
   for (const name of ["sym", "trig"]) {
     $(`ep-${name}-q`).addEventListener("input", e => { find[name].q = e.target.value; narrow(name) });
     $(`ep-${name}-q`).addEventListener("keydown", e => { if (e.key === "Enter") e.preventDefault() }); // Enter must not save the episode
+    $(`ep-${name}-clear`).addEventListener("click", () => {
+      const boxes = [...form.querySelectorAll(`input[name=${name}]:checked`)];
+      boxes.forEach(i => { i.checked = false });
+      boxes[0]?.dispatchEvent(new Event("input", { bubbles: true })); // marks the draft as changed
+      narrow(name); $(`ep-${name}-q`).focus();
+    });
     $(`ep-${name}-more`).addEventListener("click", () => { find[name].all = !find[name].all; narrow(name) });
   }
   form.addEventListener("change", e => { if (e.target.name === "sym" || e.target.name === "trig") narrow(e.target.name) });

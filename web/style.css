@@ -312,3 +312,9 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
 .defaults-notice p .meta{font-size:inherit;font-weight:700}
 .defaults-notice .row{flex-wrap:wrap;gap:12px}
 .defaults-notice .x{min-height:44px;padding:10px 12px}
+
+/* Symptom and trigger lists: status line above the chips */
+.chip-status{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:32px;margin:2px 0 10px;font-size:.85rem;color:var(--muted)}
+.chip-status[hidden]{display:none}
+.chip-status .x{min-height:36px;padding:6px 8px;white-space:nowrap}
+#ep-sym-more,#ep-trig-more{width:100%;min-height:44px;margin-top:12px}
