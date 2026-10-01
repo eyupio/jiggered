@@ -61,7 +61,7 @@ frontend build step.
 holds the data rules (settings, a day's budget, operations, trends, CSV); `util.js`
 has `html` and `api()`; `today.js`, `episodes.js`, `history.js`, `account.js` are
 the tabs; `admin.js` is mounted only for admins; `sw.js` is the service worker;
-`fonts/` are self-hosted. `sync.js` and `model.js` touch no DOM, which is why
+`help.js` provides task-focused help and `tooltips.js` handles hover/focus/touch guidance; `fonts/` are self-hosted. `sync.js` and `model.js` touch no DOM, which is why
 `test/` can run them.
 
 ## How it works

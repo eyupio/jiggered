@@ -8,6 +8,8 @@ import * as todayView from "./today.js";
 import * as episodesView from "./episodes.js";
 import * as historyView from "./history.js";
 import * as accountView from "./account.js";
+import * as helpView from "./help.js";
+import { initTooltips } from "./tooltips.js";
 // admin.js is only loaded, and its tab only created, for admins: see syncAdmin
 
 const ME_KEY = "jiggered:me";
@@ -76,7 +78,7 @@ function fatal(text) {
   for (const type of ["click","submit","input","change","pointerdown","keydown"]) document.addEventListener(type, e => {
     if (!store.status().readOnly && !store.status().restoring) return;
     const target = e.target;
-    const safe = target.closest?.("#tabs,#signout,.daynav,#history-panel,#export-device,#export-all,#day-back,[data-settings],#entry-cancel,#tab-reload");
+    const safe = target.closest?.("#tabs,#signout,#help-panel,[data-help],.help-tip,.daynav,#history-panel,#export-device,#export-all,#day-back,[data-settings],#entry-cancel,#tab-reload");
     if (safe) return;
     if (target.closest?.("button,input,textarea,select,form,.drag-handle")) { e.preventDefault(); e.stopImmediatePropagation() }
   },true);
@@ -121,9 +123,10 @@ function fatal(text) {
   };
   const hintKey = `jiggered:onboarding:${me.id}:${me.username}`;
   $("onboarding-dismiss").addEventListener("click", () => { $("onboarding").hidden = true; try { Promise.resolve(storage?.setItem(hintKey, "dismissed")).catch(() => {}) } catch { /* harmless preference */ } });
+  const tooltips = initTooltips();
   const views = {
     today: todayView.init(ctx), episode: episodesView.init(ctx), history: historyView.init(ctx),
-    account: accountView.init(ctx),
+    account: accountView.init(ctx), help: helpView.init(ctx),
   };
 
   let active = "today", historyScroll = 0;
@@ -131,6 +134,7 @@ function fatal(text) {
     if (active === "history" && tab !== active) historyScroll = window.scrollY;
     if (!views[tab]) tab = "today"; // e.g. the Admin tab of someone who has just stopped being an admin
     if (tab !== active && views[active] && views[active].hide) views[active].hide();
+    tooltips.hide();
     active = tab;
     for (const b of document.querySelectorAll("#tabs button")) { b.setAttribute("aria-selected", b.dataset.tab === tab); b.tabIndex = b.dataset.tab === tab ? 0 : -1 }
     for (const t of Object.keys(views)) $(t + "-panel").hidden = t !== tab;
@@ -149,6 +153,7 @@ function fatal(text) {
     go(buttons[next].dataset.tab); buttons[next].focus();
   });
   document.addEventListener("click", e => {
+    const help = e.target.closest("[data-help]"); if (help) { views.help.open(help.dataset.help); return }
     const settings = e.target.closest("[data-settings]"), finish = e.target.closest("[data-finish-episode]");
     if (settings) ctx.editSettings(settings.dataset.settings);
     if (finish) views.episode.edit(finish.dataset.finishEpisode, null, true);

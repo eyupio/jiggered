@@ -53,6 +53,14 @@ deliberate sign-out warns before removing it. Browser eviction or a device failu
 copies, so acknowledged server saves and private backups remain important.
 
 
+### In-app help
+
+The **Help** tab contains searchable, offline-available answers for getting started, energy points, activities,
+episodes, sharing, settings, restores, privacy and saving problems. Admins also see an account/defaults guide.
+Contextual Help links open the relevant answer. Useful controls have plain-language hover and keyboard-focus
+tooltips; the question-mark button supports touch. Escape dismisses a tooltip. Essential guidance remains
+visible in the forms and Help, so it never depends on hovering.
+
 ### Corrections, restores and concurrent edits
 
 Use **Edit** beside a logged activity to correct its name, points or optional time; its position stays the same.

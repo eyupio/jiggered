@@ -20,6 +20,7 @@
     <div class="title"><img src="/icon.svg" alt="" width="36" height="36"><div><h1>Jiggered</h1><span class="date" id="today"></span></div></div>
     <form class="head-actions" method="post" action="/logout" id="signout">
       <span class="who" id="who"></span>
+      <button class="ghost" type="button" data-help="" data-tooltip="Find answers about logging, settings, sharing and saving problems.">Help</button>
       <button class="ghost" type="submit">Sign out</button>
     </form>
   </header>
@@ -31,6 +32,7 @@
     <button role="tab" id="t-episode" aria-controls="episode-panel" tabindex="-1" aria-selected="false" data-tab="episode">Episode</button>
     <button role="tab" id="t-history" aria-controls="history-panel" tabindex="-1" aria-selected="false" data-tab="history">History</button>
     <button role="tab" id="t-account" aria-controls="account-panel" tabindex="-1" aria-selected="false" data-tab="account">Account</button>
+    <button role="tab" id="t-help" aria-controls="help-panel" tabindex="-1" aria-selected="false" data-tab="help">Help</button>
   </nav>
 
   <section role="tabpanel" aria-labelledby="t-today" id="today-panel">
@@ -55,7 +57,7 @@
 
     <div class="panel">
       <div class="gauge-head">
-        <div><div class="label" id="balance-label">Points left in your plan</div><div class="big" id="left">10 <small>of 10</small></div></div>
+        <div><div class="label-row"><div class="label" id="balance-label">Points left in your plan</div><button type="button" class="help-tip" aria-label="Help with energy points" data-tooltip="Points are personal estimates. Positive activity costs spend points; negative costs record recovery. Your balance can go below zero or above your starting budget.">?</button></div><div class="big" id="left">10 <small>of 10</small></div></div>
         <div class="meta" id="spentline">0 spent</div>
       </div>
       <div class="cells" id="cells" aria-hidden="true"></div>
@@ -64,7 +66,7 @@
     </div>
 
     <div class="panel">
-      <h2>Tap what you've done</h2><button class="x" data-settings="set-acts">Edit activities</button>
+      <div class="label-row"><h2>Tap what you've done</h2><button class="help-link x" data-help="activities">How it works</button></div><button class="x" data-settings="set-acts">Edit activities</button>
       <label class="timerow" id="act-time-row" hidden>Time, if you remember <input type="time" id="act-time"></label>
       <div class="acts" id="acts"></div>
       <button class="secondary" id="other-activity">Other activity</button>
@@ -92,7 +94,7 @@
     <div class="panel" id="episode-ongoing" hidden></div>
     <div class="panel">
       <button class="x" data-settings="set-sym">Edit symptoms and triggers</button>
-      <h2 id="ep-title">Log an episode</h2>
+      <div class="label-row"><h2 id="ep-title">Log an episode</h2><button class="help-link x" data-help="episodes">Help</button></div>
       <form id="epform">
         <p class="hint">New times use this device's local time zone. Existing start times keep their recorded offset; older records may have no offset.</p>
         <div><label class="label" for="ep-when">When it started</label><input type="datetime-local" id="ep-when" required></div>
@@ -144,7 +146,7 @@
       <p class="empty" id="noeps">No episodes logged. Use "Episode" if one happens; show this list to your neurologist or GP.</p>
     </div>
     <div class="panel">
-      <h2>Share with your doctor</h2>
+      <div class="label-row"><h2>Share with your doctor</h2><button class="help-link x" data-help="history">Help</button></div>
       <label class="field">Period for the printed summary<select id="sum-range"></select></label>
       <label class="toggle"><input type="checkbox" id="sum-notes" checked> Include private episode notes in the summary</label>
       <button class="secondary" id="sum-preview">Preview summary</button>
@@ -210,7 +212,7 @@
     </div>
 
     <div class="panel">
-      <h2>Your data</h2>
+      <div class="label-row"><h2>Your data</h2><button class="help-link x" data-help="restore">Help</button></div>
       <p class="meta">Download everything you've logged, or load a file you downloaded earlier.</p>
       <div class="row"><button class="secondary" id="export-all">Download everything (JSON)</button><button class="secondary" id="export-device">Download device recovery copy</button></div>
       <p class="msg" id="export-msg" aria-live="polite"></p>
@@ -233,6 +235,11 @@
         <p class="msg" id="del-msg" aria-live="polite"></p>
       </form>
     </div>
+  </section>
+
+  <section role="tabpanel" aria-labelledby="t-help" id="help-panel" hidden>
+    <div class="panel help-intro"><p class="help-eyebrow">A little guidance, when you need it</p><h2>Help with Jiggered</h2><p>Get started, make the log fit your day, and keep your data safe.</p><div class="row"><button class="secondary" data-help="points">Understand points</button><button class="secondary" data-help="offline">Fix a saving problem</button></div></div>
+    <div class="panel"><label class="field" for="help-search">Find an answer<input type="search" id="help-search" placeholder="Try points, reorder, restore or offline" autocomplete="off"></label><p class="meta" id="help-count" role="status"></p><div id="help-empty" hidden><p>No matching topics. Try a shorter phrase, or browse all answers.</p><button class="secondary" id="help-clear">Show all topics</button></div><div id="help-topics"></div></div>
   </section>
 
   <section id="print-view" aria-hidden="true"></section>
