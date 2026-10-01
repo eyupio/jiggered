@@ -75,8 +75,25 @@ func TestCLIBackupToFile(t *testing.T) {
 	if _, _, _, err := cli(t, "", "backup", dest); err == nil || !strings.Contains(err.Error(), "already exists") {
 		t.Errorf("must not overwrite: %v", err)
 	}
-	if _, _, _, err := cli(t, "", "backup"); err == nil {
-		t.Error("needs a destination")
+	if _, _, _, err := cli(t, "", "backup", "a", "b"); err == nil {
+		t.Error("two destinations make no sense")
+	}
+}
+
+func TestCLIBackupWithNoArgumentGoesToTheBackupFolder(t *testing.T) {
+	e := newTestServer(t)
+	e.signedInAdmin().putDoc("d-2026-10-01", `{"status":"green"}`)
+	t.Setenv("APP_DB", e.dbPath)
+	_, errOut, _, err := cli(t, "", "backup")
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, _ := filepath.Glob(filepath.Join(backupDir(e.dbPath), "jiggered-*.db"))
+	if len(files) != 1 || !strings.Contains(errOut, files[0]) {
+		t.Fatalf("backups = %v, message %q", files, errOut)
+	}
+	if got := scalar(t, files[0], "SELECT count(*) FROM docs"); got != 1 {
+		t.Errorf("the default backup has %d docs", got)
 	}
 }
 
@@ -307,5 +324,111 @@ func TestCLIUserCommandEndToEnd(t *testing.T) {
 	}
 	if _, _, _, err := cli(t, "", "user"); err == nil {
 		t.Error("`user` with no subcommand should print usage")
+	}
+}
+
+func TestCLIRestore(t *testing.T) {
+	// A database with some history, backed up; then more happens; then it is restored.
+	e := newTestServer(t)
+	admin := e.signedInAdmin()
+	admin.putDoc("d-2026-10-01", `{"status":"green"}`)
+	t.Setenv("APP_DB", e.dbPath)
+	good := filepath.Join(t.TempDir(), "good.db")
+	if _, _, _, err := cli(t, "", "backup", good); err != nil {
+		t.Fatal(err)
+	}
+	admin.putDoc("d-2026-10-02", `{"status":"red"}`)
+	e.ts.Close()
+	e.s.db.Close() // the server is stopped, as the command requires
+
+	if _, _, _, err := cli(t, "", "restore", good); err == nil || !strings.Contains(err.Error(), "--yes") {
+		t.Errorf("without --yes: %v (it must say what it would do and not do it)", err)
+	}
+	if got := scalar(t, e.dbPath, "SELECT count(*) FROM docs"); got != 2 {
+		t.Fatalf("a refused restore changed the database: %d docs", got)
+	}
+	// Leftover WAL/SHM files from the old database must not be applied to the restored one.
+	os.WriteFile(e.dbPath+"-wal", []byte("stale"), 0o600)
+	os.WriteFile(e.dbPath+"-shm", []byte("stale"), 0o600)
+
+	out, errOut, _, err := cli(t, "", "restore", good, "--yes")
+	if err != nil || !strings.Contains(out, "Restored") || !strings.Contains(errOut, "pre-restore-") {
+		t.Fatalf("restore: %q %q %v", out, errOut, err)
+	}
+	if got := scalar(t, e.dbPath, "SELECT count(*) FROM docs"); got != 1 {
+		t.Errorf("restored database has %d docs, want the backup's 1", got)
+	}
+	for _, f := range []string{e.dbPath + "-wal", e.dbPath + "-shm", e.dbPath + ".restoring"} {
+		if _, err := os.Stat(f); !os.IsNotExist(err) {
+			t.Errorf("%s should be gone", f)
+		}
+	}
+	kept, _ := filepath.Glob(filepath.Join(backupDir(e.dbPath), "pre-restore-*.db"))
+	if len(kept) != 1 || scalar(t, kept[0], "SELECT count(*) FROM docs") != 2 {
+		t.Errorf("the replaced database should be kept intact: %v", kept)
+	}
+	// And the restored database is the real thing: it opens, and the admin can sign in.
+	db, err := openDB(e.dbPath, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, _ := newServer(config{}, db)
+	defer db.Close()
+	if u, err := s.userByName(t.Context(), adminName); err != nil || u.Role != roleAdmin {
+		t.Errorf("admin after restore: %+v %v", u, err)
+	}
+}
+
+func TestCLIRestoreRefusesBadFiles(t *testing.T) {
+	e := newTestServer(t)
+	t.Setenv("APP_DB", e.dbPath)
+	dir := t.TempDir()
+	write := func(name string, data []byte) string {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	newer := filepath.Join(dir, "newer.db")
+	if err := snapshot(e.s.db, newer); err != nil {
+		t.Fatal(err)
+	}
+	if db, _ := openRaw(newer); db != nil {
+		db.Exec("PRAGMA user_version = 99")
+		db.Close()
+	}
+	other := filepath.Join(dir, "other.db") // a real SQLite file that isn't ours
+	if db, _ := openRaw(other); db != nil {
+		db.Exec("CREATE TABLE notes(x)")
+		db.Close()
+	}
+	before := scalar(t, e.dbPath, "SELECT count(*) FROM users")
+	for name, c := range map[string]struct{ path, want string }{
+		"missing":                 {filepath.Join(dir, "nope.db"), "can't read"},
+		"not a database":          {write("junk.db", []byte("this is not sqlite at all, just text that is long enough to look like a file")), "isn't a Jiggered database"},
+		"empty file":              {write("empty.db", nil), "isn't a Jiggered database"},
+		"from a newer Jiggered":   {newer, "newer Jiggered"},
+		"someone else's database": {other, "no docs table"},
+	} {
+		_, _, _, err := cli(t, "", "restore", c.path, "--yes")
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: %v, want it to mention %q", name, err, c.want)
+		}
+	}
+	if got := scalar(t, e.dbPath, "SELECT count(*) FROM users"); got != before {
+		t.Error("a refused restore must leave the database alone")
+	}
+	if kept, _ := filepath.Glob(filepath.Join(backupDir(e.dbPath), "pre-restore-*.db")); len(kept) != 0 {
+		t.Errorf("nothing was replaced, so nothing should have been set aside: %v", kept)
+	}
+	for _, args := range [][]string{{"restore"}, {"restore", "a", "b", "c"}, {"restore", "a", "--force"}} {
+		if _, _, _, err := cli(t, "", args...); err == nil || !strings.Contains(err.Error(), "usage") {
+			t.Errorf("%v: %v, want a usage message", args, err)
+		}
+	}
+	// The user's own file is untouched by validation: no -wal/-shm beside it, same bytes.
+	if _, err := os.Stat(newer + "-wal"); !os.IsNotExist(err) {
+		t.Error("checking a backup must not create files next to it")
 	}
 }

@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"text/tabwriter"
@@ -19,7 +21,8 @@ import (
 const usage = `Jiggered ` + "(no arguments runs the server)" + `
 
   jiggered hash [password]             print a bcrypt hash for APP_PASSWORD_HASH
-  jiggered backup <file>|-             save a consistent copy of the database ("-" writes it to stdout)
+  jiggered backup [file|-]             save a consistent copy of the database (no argument: into the data volume's backups folder; "-" writes it to stdout)
+  jiggered restore <file> --yes        put a backup in place of the database (stop the server first; what was there is kept)
   jiggered healthcheck                 exit 0 if the running server answers /healthz
   jiggered version
 
@@ -46,6 +49,8 @@ func runCLI(args []string, in io.Reader, out, errw io.Writer) (handled bool, err
 		return true, cmdHash(args[1:], in, out)
 	case "backup":
 		return true, cmdBackup(args[1:], out, errw)
+	case "restore":
+		return true, cmdRestore(args[1:], out, errw)
 	case "healthcheck":
 		return true, cmdHealthcheck()
 	case "user":
@@ -86,8 +91,8 @@ const defaultDB = "/data/jiggered.db"
 // cmdBackup saves a consistent snapshot. Copying jiggered.db by itself is not a
 // backup: while the server runs, recent writes sit in the -wal file beside it.
 func cmdBackup(args []string, out, errw io.Writer) error {
-	if len(args) != 1 {
-		return errors.New("usage: jiggered backup <file>|-")
+	if len(args) > 1 {
+		return errors.New("usage: jiggered backup [file|-]")
 	}
 	dbPath := envOr("APP_DB", defaultDB)
 	if _, err := os.Stat(dbPath); err != nil {
@@ -99,14 +104,23 @@ func cmdBackup(args []string, out, errw io.Writer) error {
 	}
 	defer db.Close()
 
-	if args[0] != "-" {
-		if _, err := os.Stat(args[0]); err == nil {
-			return fmt.Errorf("%s already exists", args[0])
-		}
-		if err := snapshot(db, args[0]); err != nil {
+	dest := ""
+	if len(args) == 1 {
+		dest = args[0]
+	} else {
+		if err := os.MkdirAll(backupDir(dbPath), 0o700); err != nil {
 			return err
 		}
-		fmt.Fprintf(errw, "saved a consistent copy of the database to %s\n", args[0])
+		dest = filepath.Join(backupDir(dbPath), "jiggered-"+time.Now().Format("20060102-150405")+".db")
+	}
+	if dest != "-" {
+		if _, err := os.Stat(dest); err == nil {
+			return fmt.Errorf("%s already exists", dest)
+		}
+		if err := snapshot(db, dest); err != nil {
+			return err
+		}
+		fmt.Fprintf(errw, "saved a consistent copy of the database to %s\n", dest)
 		return nil
 	}
 	if f, ok := out.(*os.File); ok {
@@ -126,6 +140,105 @@ func cmdBackup(args []string, out, errw io.Writer) error {
 	defer f.Close()
 	_, err = io.Copy(out, f)
 	return err
+}
+
+// checkBackup says whether path is a sound Jiggered database that this version can use. It opens the
+// file read-only and immutable so the person's backup is never touched, not even by a -wal file.
+func checkBackup(path string) error {
+	if _, err := os.Stat(path); err != nil {
+		return fmt.Errorf("can't read %s: %w", path, err)
+	}
+	db, err := sql.Open("sqlite", "file:"+path+"?mode=ro&immutable=1")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	var verdict string
+	if err := db.QueryRow("PRAGMA integrity_check").Scan(&verdict); err != nil {
+		return fmt.Errorf("%s isn't a Jiggered database: %w", path, err)
+	}
+	if verdict != "ok" {
+		return fmt.Errorf("%s is damaged (%s)", path, verdict)
+	}
+	var version, tables int
+	if err := db.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
+		return err
+	}
+	if version > len(migrations) {
+		return fmt.Errorf("%s comes from a newer Jiggered (schema v%d, this one knows v%d); restore it with that version", path, version, len(migrations))
+	}
+	if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'docs'").Scan(&tables); err != nil || tables == 0 {
+		return fmt.Errorf("%s isn't a Jiggered database (it has no docs table)", path)
+	}
+	return nil
+}
+
+// cmdRestore puts a backup in place of the database. Stop the server first. Whatever is there now is kept
+// in the backups folder, so a restore can itself be undone.
+func cmdRestore(args []string, out, errw io.Writer) error {
+	if len(args) < 1 || len(args) > 2 || (len(args) == 2 && args[1] != "--yes") {
+		return errors.New("usage: jiggered restore <backup file> --yes")
+	}
+	src, dst := args[0], envOr("APP_DB", defaultDB)
+	if err := checkBackup(src); err != nil {
+		return err
+	}
+	if len(args) != 2 {
+		return fmt.Errorf("%s is a sound backup. This would replace the database at %s. Stop the server first, then run this again with --yes", src, dst)
+	}
+	if _, err := os.Stat(dst); err == nil {
+		db, err := openRaw(dst)
+		if err != nil {
+			return err
+		}
+		if err := os.MkdirAll(backupDir(dst), 0o700); err != nil {
+			db.Close()
+			return err
+		}
+		kept := filepath.Join(backupDir(dst), "pre-restore-"+time.Now().Format("20060102-150405")+".db")
+		err = snapshot(db, kept)
+		db.Close()
+		if err != nil {
+			return fmt.Errorf("keeping the current database before replacing it: %w", err)
+		}
+		fmt.Fprintf(errw, "kept the current database in %s\n", kept)
+	}
+	// Copy next to the target and rename into place, so an interruption can't leave half a database,
+	// and drop the old -wal and -shm files: they belong to the database being replaced.
+	tmp := dst + ".restoring"
+	if err := copyFile(src, tmp); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	os.Remove(dst + "-wal")
+	os.Remove(dst + "-shm")
+	if err := os.Rename(tmp, dst); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	fmt.Fprintf(out, "Restored %s from %s. Start the server again.\n", dst, src)
+	return nil
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	f, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(f, in); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		return err
+	}
+	return f.Close()
 }
 
 // cmdHealthcheck is what the container's HEALTHCHECK runs: the image has no shell or curl.
