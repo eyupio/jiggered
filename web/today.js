@@ -2,26 +2,27 @@
 
 import { $, html, setHTML, uid, fmtLongDay } from "./util.js";
 import { renderOngoing } from "./episodes.js";
-import { readableDay, balanceLabel, ADVICE, dayId, emptyDay, used, capOf, hhmm, addDays } from "./model.js";
+import { readableDay, identifyEntries, balanceLabel, ADVICE, dayId, emptyDay, used, capOf, hhmm, addDays } from "./model.js";
 
 const costLabel = c => c > 0 ? "−" + c : c < 0 ? "+" + -c : "0";
 
 export function init(ctx) {
   let viewDate = null; // null follows the clock, so the screen moves on by itself at midnight
-  let actsKey = "";
+  let actsKey = "", editing = null, editingDate = "";
+  const entryForm = $("entry-form");
 
   const key = () => viewDate ?? ctx.today();
   const id = () => dayId(key());
-  const day = () => readableDay(ctx.store.view(id()), key());
+  const day = () => { const d = readableDay(ctx.store.view(id()), key()); return { ...d, entries: identifyEntries(d.entries) } };
   // Each change is an operation on the day, stamped with the budget in force so history keeps its own numbers.
-  const op = (type, arg) => {
+  const op = (type, arg, before) => {
     const S = ctx.settings();
-    ctx.store.dispatch({ id: id(), type, arg, stamp: { budget: S.budget, sleepPenalty: S.sleepPenalty } });
+    return ctx.store.dispatch({ id: id(), type, arg, before, original: ctx.store.view(id()), stamp: { budget: S.budget, sleepPenalty: S.sleepPenalty } });
   };
 
   function open(date) {
     viewDate = date === ctx.today() ? null : date;
-    render();
+    editing = null; entryForm.hidden = true; restoreDraft(); render();
   }
 
   $("checkin").addEventListener("click", e => {
@@ -38,11 +39,48 @@ export function init(ctx) {
     const past = key() !== ctx.today();
     op("addEntry", { id: uid(), a: x.a, c: x.c, t: past ? $("act-time").value : hhmm(new Date()) });
   });
+  function edit(entry = null) {
+    editing = entry; editingDate = key();
+    entryForm.hidden = false;
+    $("entry-heading").textContent = entry ? "Edit activity" : "Other activity";
+    $("entry-name").value = entry?.a || "";
+    $("entry-cost").value = entry?.c ?? 1;
+    $("entry-time").value = entry?.t ?? (key() === ctx.today() ? hhmm(new Date()) : "");
+    $("entry-msg").textContent = "";
+    $("entry-name").focus();
+  }
+  function restoreDraft() {
+    const draft = ctx.drafts?.get(`activity:${id()}`);
+    if (!draft) return;
+    edit(draft.original); $("entry-name").value = draft.a; $("entry-cost").value = draft.c; $("entry-time").value = draft.t;
+    $("entry-msg").textContent = "Unfinished activity draft restored.";
+  }
+  $("other-activity").addEventListener("click", () => edit());
+  $("entry-cancel").addEventListener("click", () => { ctx.drafts?.remove(`activity:${id()}`); editing = null; entryForm.hidden = true });
+  entryForm.addEventListener("input", () => ctx.drafts?.put(`activity:${id()}`, { original: editing, a: $("entry-name").value, c: $("entry-cost").value, t: $("entry-time").value }));
+  entryForm.addEventListener("submit", async e => {
+    e.preventDefault();
+    if (editingDate !== key()) { render(); ctx.toast("The day changed. Your unfinished activity is kept on the previous day."); return }
+    const original = ctx.store.view(id());
+    const changes = { a: $("entry-name").value.trim(), c: Number($("entry-cost").value), t: $("entry-time").value };
+    if (!changes.a || [...changes.a].length > 60 || !Number.isInteger(changes.c) || changes.c < -10 || changes.c > 10) { $("entry-msg").textContent = "Use a name of 1–60 characters and whole-number points from −10 to 10."; return }
+    const previous = editing, target = id(), stamp = { budget: ctx.settings().budget, sleepPenalty: ctx.settings().sleepPenalty };
+    if (previous && !day().entries.some(x => x.id === previous.id)) { $("entry-msg").textContent = "This activity was removed. Cancel or log it as an Other activity."; return }
+    const changed = previous ? Object.fromEntries(Object.entries(changes).filter(([k,v]) => v !== previous[k])) : changes;
+    const arg = previous ? { id: previous.id, changes: changed } : { id: uid(), ...changes };
+    const ticket = op(previous ? "editEntry" : "addEntry",arg,previous);
+    ctx.drafts?.remove(`activity:${target}`); editing = null; entryForm.hidden = true;
+    ctx.toast(previous ? "Activity correction queued." : "Activity queued.", previous ? { label: "Undo correction", fn: () => ctx.store.dispatch({ id: target, type: "editEntry", arg: { id: previous.id, changes: Object.fromEntries(Object.keys(changed).map(k=>[k,previous[k]])) }, before: changes, original, stamp }) } : undefined);
+    await ticket;
+  });
   $("entries").addEventListener("click", e => {
-    const b = e.target.closest(".x");
+    const b = e.target.closest("[data-entry]");
     if (!b) return;
-    const entry = day().entries[b.dataset.i];
-    if (entry) op("removeEntry", entry);
+    const entries = day().entries, index = entries.findIndex(x => x.id === b.dataset.entry), entry = entries[index];
+    if (!entry) return;
+    if (b.dataset.action === "edit") { edit(entry); return }
+    const target = id(); op("removeEntry", entry);
+    ctx.toast("Activity removed.", { label: "Undo removal", fn: () => ctx.store.dispatch({ id: target,type: "restoreEntry",arg: { entry,index } }) });
   });
 
   $("day-prev").addEventListener("click", () => open(addDays(key(), -1)));
@@ -55,6 +93,7 @@ export function init(ctx) {
   });
 
   function render() {
+    if (!entryForm.hidden && editingDate !== key()) { editing = null; entryForm.hidden = true }
     const S = ctx.settings(), d = day(), k = key(), past = k !== ctx.today();
     const budget = d.budget ?? S.budget, spent = used(d), cap = capOf(d, S), left = cap - spent;
 
@@ -86,10 +125,10 @@ export function init(ctx) {
       $("noacts").hidden = S.activities.length > 0;
     }
 
-    setHTML($("entries"), html`${d.entries.map((e, i) => html`<li><span><span class="meta">${e.t}</span> ${e.a} <b>${costLabel(e.c)}</b></span><button class="x" data-i="${i}">Undo</button></li>`)}`);
+    setHTML($("entries"), html`${d.entries.map((e, i) => html`<li><span><span class="meta">${e.t}</span> ${e.a} <b>${costLabel(e.c)}</b></span><span class="row"><button class="x" data-entry="${e.id}" data-action="edit" aria-label="Edit ${e.a}">Edit</button><button class="x" data-entry="${e.id}" data-action="remove" aria-label="Remove ${e.a}">Remove</button></span></li>`)}`);
     $("noentries").hidden = d.entries.length > 0;
   }
 
-  return { render, open, show() { render() } };
+  return { render, open, show() { if (entryForm.hidden) restoreDraft(); render() } };
 }
 

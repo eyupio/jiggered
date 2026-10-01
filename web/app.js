@@ -1,13 +1,15 @@
 // The page: who is signed in, the tabs, and the wiring between the views and the sync store.
 
 import { $, fmtLongDay, setPageUser, html, setHTML, downloadFile, withBusy } from "./util.js";
-import { openDeviceStorage, createDrafts } from "./device.js";
+import { openDeviceStorage, createDrafts, claimEditingTab } from "./device.js";
 import { createStore } from "./sync.js";
 import { normaliseSettings, DEFAULTS, dkey } from "./model.js";
 import * as todayView from "./today.js";
 import * as episodesView from "./episodes.js";
 import * as historyView from "./history.js";
 import * as accountView from "./account.js";
+import * as helpView from "./help.js";
+import { initTooltips } from "./tooltips.js";
 // admin.js is only loaded, and its tab only created, for admins: see syncAdmin
 
 const ME_KEY = "jiggered:me";
@@ -61,7 +63,8 @@ function fatal(text) {
   let leaving = false;
   const toSignIn = () => { if (!leaving) { leaving = true; location.href = "/login" } };
 
-  const storage = await openDeviceStorage({ legacy: legacyStorage, userId: me.id, username: me.username });
+  const coordination = await claimEditingTab(navigator.locks, "jiggered-editor");
+  const storage = await openDeviceStorage({ coordination, legacy: legacyStorage, userId: me.id, username: me.username });
   let draftError = storage?.legacyCopies?.(me.id, me.username).length ? "An older build has a different device copy. Download recovery, then close the older tab; neither copy has been discarded." : "";
   const drafts = createDrafts({ storage, userId: me.id, username: me.username, onError: message => { draftError = message?.message || String(message); updateSync() } });
   const store = createStore({
@@ -69,6 +72,23 @@ function fatal(text) {
     onChange: () => { renderHeader(); renderActive(); updateSync() },
     onAuthLost: toSignIn,
   });
+
+  storage?.onChange?.(() => store.refreshDevice());
+  // Read-only tabs can browse and download. They never edit drafts or send writes.
+  for (const type of ["click","submit","input","change","pointerdown","keydown"]) document.addEventListener(type, e => {
+    if (!store.status().readOnly && !store.status().restoring) return;
+    const target = e.target;
+    const safe = target.closest?.("#tabs,#signout,#help-panel,[data-help],.help-tip,.daynav,#history-panel,#export-device,#export-all,#day-back,[data-settings],#entry-cancel,#tab-reload");
+    if (safe) return;
+    if (target.closest?.("button,input,textarea,select,form,.drag-handle")) { e.preventDefault(); e.stopImmediatePropagation() }
+  },true);
+  if (!coordination.writable) {
+    const notice = document.createElement("div"); notice.className = "notice"; notice.setAttribute("role","status");
+    notice.textContent = coordination.reason + " ";
+    const reload = document.createElement("button"); reload.id = "tab-reload"; reload.className = "secondary"; reload.textContent = "Reload to edit here"; reload.onclick = () => location.reload();
+    notice.append(reload); $("tabs").before(notice);
+    document.querySelectorAll("#today-panel input,#epform input,#epform textarea,#epform select,#setform input,#setform textarea,#setform select").forEach(el => el.readOnly = true);
+  }
 
   let sharedDefaults = DEFAULTS;
   try { const cached = JSON.parse(storage?.getItem(`jiggered:defaults:${me.id}:${me.username}`) || "null"); if (cached) sharedDefaults = normaliseSettings(cached) } catch { /* use factory fallback */ }
@@ -103,9 +123,10 @@ function fatal(text) {
   };
   const hintKey = `jiggered:onboarding:${me.id}:${me.username}`;
   $("onboarding-dismiss").addEventListener("click", () => { $("onboarding").hidden = true; try { Promise.resolve(storage?.setItem(hintKey, "dismissed")).catch(() => {}) } catch { /* harmless preference */ } });
+  const tooltips = initTooltips();
   const views = {
     today: todayView.init(ctx), episode: episodesView.init(ctx), history: historyView.init(ctx),
-    account: accountView.init(ctx),
+    account: accountView.init(ctx), help: helpView.init(ctx),
   };
 
   let active = "today", historyScroll = 0;
@@ -113,6 +134,7 @@ function fatal(text) {
     if (active === "history" && tab !== active) historyScroll = window.scrollY;
     if (!views[tab]) tab = "today"; // e.g. the Admin tab of someone who has just stopped being an admin
     if (tab !== active && views[active] && views[active].hide) views[active].hide();
+    tooltips.hide();
     active = tab;
     for (const b of document.querySelectorAll("#tabs button")) { b.setAttribute("aria-selected", b.dataset.tab === tab); b.tabIndex = b.dataset.tab === tab ? 0 : -1 }
     for (const t of Object.keys(views)) $(t + "-panel").hidden = t !== tab;
@@ -131,6 +153,7 @@ function fatal(text) {
     go(buttons[next].dataset.tab); buttons[next].focus();
   });
   document.addEventListener("click", e => {
+    const help = e.target.closest("[data-help]"); if (help) { views.help.open(help.dataset.help); return }
     const settings = e.target.closest("[data-settings]"), finish = e.target.closest("[data-finish-episode]");
     if (settings) ctx.editSettings(settings.dataset.settings);
     if (finish) views.episode.edit(finish.dataset.finishEpisode, null, true);
@@ -145,7 +168,7 @@ function fatal(text) {
       if (f.id === "settings") { go("account"); views.account.recover(f.body) }
       else views.episode.recover(f.id, f.body);
     }
-    if (b.dataset.action === "discard" && confirm("Discard this refused change? Download a recovery copy first if you want to keep it.")) store.discardFailed(f.key);
+    if (b.dataset.action === "discard" && (f.conflict || confirm("Discard this refused change? Download a recovery copy first if you want to keep it."))) store.discardFailed(f.key);
   });
 
   // The Admin tab isn't hidden for everyone else, it doesn't exist: the button, the panel and the code behind
@@ -185,12 +208,14 @@ function fatal(text) {
   function updateSync() {
     const st = store.status(), n = st.pending;
     $("sync").classList.toggle("err", !!st.failed || !!st.localError || !!draftError);
-    $("sync").textContent = st.localError || draftError || (st.failed ? `${st.failed} refused ${st.failed === 1 ? "change needs" : "changes need"} recovery below.`
+    $("sync").textContent = st.readOnly ? coordination.reason : st.restoring ? "Restore in progress. Editing is paused." : st.localError || draftError || (st.failed ? `${st.failed} refused ${st.failed === 1 ? "change needs" : "changes need"} recovery below.`
       : n ? !st.durable ? `${n} changes are only in memory while device storage finishes. Keep this page open.` : st.offline ? `${n} changes queued on this device. Will retry when connected.` : `${n} changes queued on this device. Sending…`
-      : st.offline ? "Offline. Showing this device's copy." : st.loaded ? "Saved on your server." : "Connecting…");
+      : st.offline ? "Offline. Showing this device's copy." : st.loaded ? "" : "Connecting…");
+    $("sync").hidden = !$("sync").textContent;
+    $("sync").dataset.state = $("sync").hidden ? "saved" : "attention";
     const failures = store.failures();
     $("recovery").hidden = !failures.length && !st.localError && !draftError;
-    setHTML($("recovery"), html`<h2>Recover unsaved changes</h2><p>Download a private copy before leaving this device. This recovery file is for support or manual recovery, not the account restore form.</p><button class="secondary" data-action="download">Download recovery copy</button>${failures.map(f => html`<div class="recovery-item"><b>${f.id}</b><p>${f.message}</p><button class="secondary" data-action="retry" data-key="${f.key}">Retry</button>${f.body && (f.id === "settings" || /^e-/.test(f.id)) ? html`<button class="secondary" data-action="edit" data-key="${f.key}">Edit a recovered copy</button>` : ""}<button class="x" data-action="discard" data-key="${f.key}">Discard</button></div>`)}`);
+    setHTML($("recovery"), html`<h2>Recover unsaved changes</h2><p>Download a private copy before leaving this device. This recovery file is for support or manual recovery, not the account restore form.</p><button class="secondary" data-action="download">Download recovery copy</button>${failures.map(f => html`<div class="recovery-item"><b>${f.id}</b><p>${f.message}</p><button class="secondary" data-action="retry" data-key="${f.key}">${f.conflict ? f.deleted || f.deletedEntry ? "Restore my record" : "Use my change" : "Retry"}</button>${f.body && (f.id === "settings" || /^e-/.test(f.id)) ? html`<button class="secondary" data-action="edit" data-key="${f.key}">Edit a recovered copy</button>` : ""}<button class="x" data-action="discard" data-key="${f.key}">${f.conflict ? "Keep server copy" : "Discard"}</button></div>`)}`);
   }
 
   // ---- toast, with an optional Undo ----
@@ -216,7 +241,7 @@ function fatal(text) {
     renderHeader();
     if (ctx.today() !== lastToday) { lastToday = ctx.today(); renderActive() }
   }
-  const refresh = () => { tick(); store.load(); refreshMe() };
+  const refresh = async () => { tick(); if (!coordination.writable) { await storage?.refresh?.(); store.refreshDevice() } store.load(); refreshMe() };
   setInterval(tick, 30_000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refresh() });
   addEventListener("focus", tick);
@@ -256,5 +281,5 @@ function fatal(text) {
   await loadDefaults();
   await store.load();
   // Freeze the starting defaults into this account so future shared edits do not replace personal choices.
-  if (defaultsTag && store.status().loaded && !store.view("settings")) { $("onboarding").hidden = storage?.getItem(hintKey) === "dismissed"; store.dispatch({ id: "settings", type: "replace", arg: normaliseSettings(sharedDefaults) }) }
+  if (coordination.writable && defaultsTag && store.status().loaded && !store.view("settings")) { $("onboarding").hidden = storage?.getItem(hintKey) === "dismissed"; store.dispatch({ id: "settings", type: "replace", arg: normaliseSettings(sharedDefaults) }) }
 })();

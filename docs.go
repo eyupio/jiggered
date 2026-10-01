@@ -281,6 +281,15 @@ func (s *server) importInto(ctx context.Context, userID int64, in map[string]jso
 	}
 	defer tx.Rollback()
 
+	res, err = s.importTx(ctx, tx, userID, in, mode, false)
+	if err != nil {
+		return res, err
+	}
+	return res, tx.Commit()
+}
+
+func (s *server) importTx(ctx context.Context, tx *sql.Tx, userID int64, in map[string]json.RawMessage, mode string, preview bool) (res importResult, err error) {
+
 	type have struct{ rev, size int64 }
 	existing := map[string]have{}
 	var total int64
@@ -322,14 +331,16 @@ func (s *server) importInto(ctx context.Context, userID int64, in map[string]jso
 		if len(existing) > maxDocsPerUser || total > maxBytesPerUser {
 			return res, errImportTooBig
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO docs(user_id, id, body, rev, size, updated_at) VALUES(?, ?, ?, ?, ?, ?)
+		if !preview {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO docs(user_id, id, body, rev, size, updated_at) VALUES(?, ?, ?, ?, ?, ?)
 			ON CONFLICT(user_id, id) DO UPDATE SET body = excluded.body, rev = excluded.rev, size = excluded.size, updated_at = excluded.updated_at`,
-			userID, id, string(body), old.rev+1, len(body), now); err != nil {
-			return res, err
+				userID, id, string(body), old.rev+1, len(body), now); err != nil {
+				return res, err
+			}
 		}
 		res.Imported++
 	}
-	return res, tx.Commit()
+	return res, nil
 }
 
 // importDocs restores an export. ?mode=add (default) keeps what is already

@@ -37,7 +37,7 @@ draft; publishing it still requires Save. No new hosted service or production de
 
 ### Drafts and recovery
 
-New episodes, individual episode edits, personal settings and admin defaults keep separate drafts on this
+New episodes, individual episode edits, activity corrections, personal settings and admin defaults keep separate drafts on this
 device for seven days. Navigation preserves them; unfinished episode edits have a Continue action. Explicit
 discard, acknowledged save or deliberate sign-out clears the relevant drafts. A different account cannot
 open them. These copies contain sensitive data: use a device you trust.
@@ -51,6 +51,40 @@ and unsent operations and are for manual recovery/support, **not** the account R
 and restores require queued/refused changes to be resolved first. A session expiry retains same-user recovery;
 deliberate sign-out warns before removing it. Browser eviction or a device failure can still remove local
 copies, so acknowledged server saves and private backups remain important.
+
+
+### In-app help
+
+The **Help** tab contains searchable, offline-available answers for getting started, energy points, activities,
+episodes, sharing, settings, restores, privacy and saving problems. Admins also see an account/defaults guide.
+Contextual Help links open the relevant answer. Useful controls have plain-language hover and keyboard-focus
+tooltips; the question-mark button supports touch. Escape dismisses a tooltip. Essential guidance remains
+visible in the forms and Help, so it never depends on hovering.
+
+### Corrections, restores and concurrent edits
+
+Use **Edit** beside a logged activity to correct its name, points or optional time; its position stays the same.
+**Other activity** logs a one-off item without changing your presets. Correction and removal offer Undo.
+Older entries receive deterministic identities on first edit so identical repeated activities remain distinct.
+
+Account restore starts with a server-validated preview of additions, matches, replacements and settings changes.
+Keep-existing is the default. Confirmation downloads your current server export before committing. Malformed
+known fields reject the whole file with record-specific reasons; legacy optional fields and unrecognised fields
+are preserved. Quotas and the preview fingerprint are checked in the same transaction as writes. If any account
+record, the file or mode changed, preview again. A downloaded backup can restore replaced records; it does not
+remove records added by a restore. The older `/api/import` API remains available for legacy clients with its
+existing permissive skip-invalid contract; the new UI uses `/api/restore/preview` and `/api/restore` exclusively.
+
+The browser grants **one editing tab** an exclusive Web Lock; other tabs can browse/download and follow its
+acknowledged device cache, without sending or overwriting its outbox. Close the editing tab, then use **Reload
+to edit here** in another tab to recover and continue. HTTPS (or localhost) and a browser with Web Locks are
+required for editing; unsupported environments display an actionable read-only notice. Older deployed builds
+do not participate in this lock: close old Jiggered tabs when upgrading. No background heartbeat or service is
+required. Independent devices still merge activity additions and disjoint episode/settings edits. Activities in
+settings have stable row ids so editing one row preserves changes to another (and name/points merge separately).
+Same-field or incompatible reorder edits appear in Recovery with **Keep server copy** and **Use my change**.
+A deleted record wins over a queued edit; restoring the retained copy requires the explicit **Restore my record**
+action. These choices do not alter other users' records. Exported backups and recovery files are private health data.
 
 
 ## People and the admin

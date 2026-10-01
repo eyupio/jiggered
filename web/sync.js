@@ -6,7 +6,7 @@
 // copy and sent with If-Match, so two devices editing the same day merge instead of overwriting each other.
 // Nothing here touches the DOM: the page passes in fetch, storage and timers (tests pass fakes).
 
-import { applyOp } from "./model.js";
+import { applyOp, operationConflicts, validateSettings, normaliseSettings, identifyEntries } from "./model.js";
 
 const BASE_HEADERS = { "X-Requested-With": "jiggered" };
 const PREFIX = "jiggered:v1:";
@@ -32,6 +32,8 @@ export function createStore({
   let pending = [];  // the outbox: [{ n, id, type, arg, stamp }]
   let seq = 0;
   let discarded = [], failed = [], localError = "", localWrites = 0, durable = false, persistenceVersion = 0;
+  let restoring = false;
+  const readOnly = () => storage?.writable === false;
   let flushing = false, offline = false, error = "", loaded = false;
   let retryTimer = null, retryCount = 0;
   let tail = Promise.resolve(); // network work runs one piece at a time, so a refresh can't land between a save and its reply
@@ -48,6 +50,7 @@ export function createStore({
 
   function persist() {
     const version = ++persistenceVersion;
+    if (readOnly()) return;
     durable = false;
     if (!storage || uid == null) { localError = "Device storage is unavailable. Keep this page open."; return }
     try {
@@ -71,19 +74,19 @@ export function createStore({
       try {
         for (let i = storage.length - 1; i >= 0; i--) {
           const k = storage.key(i);
-          if (k && k.startsWith(PREFIX) && k !== key()) Promise.resolve(storage.removeItem(k)).catch(() => {});
+          if (!readOnly() && k && k.startsWith(PREFIX) && k !== key()) Promise.resolve(storage.removeItem(k)).catch(() => {});
         }
         const saved = JSON.parse(storage.getItem(key()) || "null");
         if (saved && saved.v === 1) { base = saved.base || {}; revs = saved.revs || {}; pending = saved.pending || []; seq = saved.seq || 0; failed = saved.failed || []; discarded = saved.discarded || []; durable = true }
       } catch { localError = "Could not read this device’s copy." }
     }
-    persist(); notify();
+    if (!readOnly()) persist(); notify();
   }
 
   // clear forgets everything on this device (sign out).
   function clear() {
     base = {}; revs = {}; pending = []; failed = []; discarded = []; seq = 0; ++persistenceVersion;
-    if (storage && uid != null) { try { Promise.resolve(storage.removeItem(key())).catch(() => {}) } catch { /* ignore */ } }
+    if (!readOnly() && storage && uid != null) { try { Promise.resolve(storage.removeItem(key())).catch(() => {}) } catch { /* ignore */ } }
     notify();
   }
 
@@ -104,6 +107,7 @@ export function createStore({
 
   // dispatch queues a change and starts sending it. The returned promise settles when that attempt is over.
   function dispatch(op) {
+    if (readOnly() || restoring) throw new Error(readOnly() ? "Use the active Jiggered tab to make changes." : "Restore is in progress. Try again when it finishes.");
     pending.push({ ...op, retryOf: op.retryOf ?? op.n, n: ++seq });
     persist(); notify();
     const ticket = flush();
@@ -111,15 +115,22 @@ export function createStore({
     return ticket;
   }
 
-  const status = () => ({ pending: pending.length, failed: failed.length, flushing, offline, error: failed.length ? failed[0].message : error, loaded, durable, localError, localWrites });
+  const status = () => ({ pending: pending.length, failed: failed.length, flushing, offline, error: failed.length ? failed[0].message : error, loaded, durable, localError, localWrites, ...(readOnly() ? { readOnly: true } : {}), ...(restoring ? { restoring: true } : {}) });
   const outcome = n => failed.some(f => f.ops.some(o => o.n === n || o.retryOf === n)) ? "failed" : pending.some(o => o.n === n || o.retryOf === n) ? "pending" : discarded.includes(n) ? "discarded" : n <= seq ? "saved" : "unknown";
   const failures = () => failed.map(f => ({ ...f }));
-  function discardFailed(key) { const f = failed.find(f => f.key === key); if (f) discarded.push(...f.ops.flatMap(o => [o.n, o.retryOf].filter(n => n != null))); discarded = discarded.slice(-1000); failed = failed.filter(f => f.key !== key); persist(); notify() }
+  function discardFailed(key) { if (readOnly() || restoring) return; const f = failed.find(f => f.key === key); if (f) discarded.push(...f.ops.flatMap(o => [o.n, o.retryOf].filter(n => n != null))); discarded = discarded.slice(-1000); failed = failed.filter(f => f.key !== key); persist(); notify() }
   function retryFailed(key) {
+    if (readOnly() || restoring) return Promise.resolve();
     const f = failed.find(f => f.key === key);
     if (!f) return Promise.resolve();
     failed = failed.filter(x => x.key !== key);
-    for (const op of f.ops) pending.push({ ...op, retryOf: op.retryOf ?? op.n, n: ++seq });
+    for (let op of f.ops) {
+      if (f.deletedEntry && op.type === "editEntry") {
+        const entries = identifyEntries(f.body?.entries), index = entries.findIndex(e => e.id === op.arg.id);
+        if (index >= 0) op = { ...op, type: "restoreEntry", arg: { entry: entries[index], index } };
+      }
+      pending.push({ ...op, ...(f.conflict ? { before: undefined, ...(f.deleted ? { type: "replace", arg: f.body } : {}) } : {}), retryOf: op.retryOf ?? op.n, n: ++seq });
+    }
     persist(); notify(); return flush();
   }
   const recoveryExport = () => ({ format: "jiggered-device-recovery-v1", exportedAt: new Date().toISOString(), username: who, docs: all(), pending, failed });
@@ -153,14 +164,16 @@ export function createStore({
   }
 
   // Refused content stays recoverable; successful unrelated saves never clear it.
-  function dropBatch(id, lastN, message) {
+  function dropBatch(id, lastN, message, extra = {}) {
+    if (failed.length >= 100) throw new Error("Recovery is full. Download or resolve older refused changes first.");
     const ops = pending.filter(o => o.id === id && o.n <= lastN);
-    failed.push({ key: `${Date.now()}-${lastN}`, id, ops, body: ops.reduce((b, op) => applyOp(op, b), base[id]), message: message || "The server refused this change.", at: Date.now() });
+    failed.push({ key: `${Date.now()}-${lastN}`, id, ops, body: ops.reduce((b, op) => applyOp(op, b), base[id]), message: message || "The server refused this change.", at: Date.now(), ...extra });
     pending = pending.filter(o => !(o.id === id && o.n <= lastN));
     persist(); notify();
   }
 
   async function drain() {
+    if (readOnly() || restoring) return;
     if (retryTimer) { clearTimer(retryTimer); retryTimer = null }
     flushing = pending.length > 0; notify();
     try {
@@ -168,8 +181,27 @@ export function createStore({
         const id = pending[0].id;
         const batch = pending.filter(o => o.id === id);
         const lastN = batch[batch.length - 1].n;
+        const desired = batch.reduce((b,op) => {
+          if (op.type === "editEntry" && !identifyEntries(b?.entries).some(e=>e.id===op.arg.id)) {
+            const originals = identifyEntries(op.original?.entries), index = originals.findIndex(e=>e.id===op.arg.id);
+            const previous = originals[index] || op.before;
+            if (previous?.a) return applyOp({ ...op, type: "restoreEntry", arg: { entry: { ...previous,...op.arg.changes,id:op.arg.id }, index: index < 0 ? (b?.entries?.length || 0) : index } },b);
+          }
+          return applyOp(op,b);
+        },base[id] ?? batch[0].original);
         for (let conflicts = 0; ;) {
+          let current = base[id];
+          const fields = [];
+          for (const op of batch) { fields.push(...operationConflicts(op,current)); current = applyOp(op,current) }
+          if (fields.length) {
+            dropBatch(id,lastN,`Changed elsewhere: ${[...new Set(fields)].join(", ")}. Keep the server copy or explicitly use your change.`, { conflict: true, deleted: base[id] == null, deletedEntry: fields.includes("deleted activity"), body: desired });
+            break;
+          }
           const body = batch.reduce((b, op) => applyOp(op, b), base[id]);
+          if (batch.some(op => op.type === "settingsPatch")) {
+            const errors = validateSettings({ ...normaliseSettings(body), ...body });
+            if (errors.length) { dropBatch(id,lastN,"Combined settings need review: " + errors.map(([,message])=>message).join(" "), { conflict: true, body: desired }); break }
+          }
           const res = await send(id, body, revs[id] || 0);
           if (res.status === 200 || res.status === 204) { settle(id, body, res.rev, lastN); break }
           if (res.status === 409) {
@@ -197,6 +229,18 @@ export function createStore({
   }
 
   const flush = () => exclusive(drain);
+  // Serialize the entire destructive workflow with refreshes and sends; reject new writes meanwhile.
+  function withRestore(task) {
+    return exclusive(async () => {
+      if (readOnly()) throw new Error("Restore in the active Jiggered tab.");
+      await drain();
+      if (pending.length || failed.length) throw new Error("Resolve queued or refused changes before restoring. Download recovery to keep them.");
+      restoring = true; notify();
+      try { return await task() } finally { restoring = false; notify() }
+    });
+  }
+  function refreshDevice() { if (readOnly()) { hydrate(uid,who); loaded = true; notify() } }
+
 
   // load refreshes from the server. Changes still in the outbox stay on top of it.
   function load() {
@@ -215,5 +259,5 @@ export function createStore({
     }).then(ok => { if (ok && pending.length) flush(); return ok });
   }
 
-  return { hydrate, clear, view, all, dispatch, flush, load, status, outcome, failures, discardFailed, retryFailed, recoveryExport };
+  return { hydrate, clear, withRestore, refreshDevice, view, all, dispatch, flush, load, status, outcome, failures, discardFailed, retryFailed, recoveryExport };
 }

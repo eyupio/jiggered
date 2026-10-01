@@ -92,7 +92,7 @@ export function init(ctx) {
     const patch = editing ? Object.fromEntries(Object.entries(value).filter(([key, v]) => JSON.stringify(v) !== JSON.stringify(original[key]))) : value;
     if (editing && !Object.keys(patch).length) { $("eptoast").textContent = "No changes to save."; return }
     // onChange runs during dispatch; ticket is available once dispatch returns.
-    ticket = ctx.store.dispatch({ id, type: editing ? "patch" : "replace", arg: patch });
+    ticket = ctx.store.dispatch({ id, type: editing ? "patch" : "replace", arg: patch, ...(editing ? { original, before: Object.fromEntries(Object.keys(patch).map(k => [k,original[k]])) } : {}) });
     submitted = { id, n: ticket.n }; remember(); render(); ticket.then(() => render());
   });
   function renderEnd() { $("ep-ended-row").hidden = $("ep-dur").value === "Still going" }
