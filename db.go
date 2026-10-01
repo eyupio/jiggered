@@ -17,6 +17,9 @@ type seedAdmin struct{ name, hash string }
 
 var errNeedFirstAdmin = errors.New("this database holds data from before Jiggered had accounts; set APP_USERNAME and APP_PASSWORD_HASH (or APP_PASSWORD) so that account can take it over")
 
+// versionAccounts is the schema version that introduced accounts, and with them the need for a first admin.
+const versionAccounts = 2
+
 const dsnPragmas = "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(ON)&_txlock=immediate"
 
 // openRaw opens the database without touching its schema.
@@ -57,6 +60,18 @@ func migrate(db *sql.DB, path string, first *seedAdmin) error {
 	if cur == len(migrations) {
 		return nil
 	}
+	// A database from before accounts needs someone to take it over. Say so before taking a snapshot: nothing
+	// changes when this is refused, and a container that restarts on a missing APP_USERNAME would otherwise
+	// leave a full copy of the database behind on every try.
+	if cur < versionAccounts && first == nil {
+		n, err := legacyDocs(db)
+		if err != nil {
+			return err
+		}
+		if n > 0 {
+			return fmt.Errorf("upgrading database to schema v%d: %w", versionAccounts, errNeedFirstAdmin)
+		}
+	}
 	if err := snapshotBeforeMigrating(db, path, cur); err != nil {
 		return err
 	}
@@ -87,6 +102,17 @@ func migrate(db *sql.DB, path string, first *seedAdmin) error {
 		}
 	}
 	return nil
+}
+
+// legacyDocs counts the docs in a database from before accounts existed: zero if it holds none, or isn't one.
+func legacyDocs(db *sql.DB) (int, error) {
+	var tables int
+	if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'docs'").Scan(&tables); err != nil || tables == 0 {
+		return 0, err
+	}
+	var n int
+	err := db.QueryRow("SELECT count(*) FROM docs").Scan(&n)
+	return n, err
 }
 
 // snapshotBeforeMigrating keeps a copy of any existing database before its

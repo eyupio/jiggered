@@ -111,6 +111,10 @@ you stay signed in. Before it changes anything it saves a copy of your database 
 the database once; from then on the database is the source, and you can delete those lines (and
 `APP_PASSWORD_HASH`) from `.env`.
 
+Leave `APP_USERNAME` and the password line in place for that first start: a database from the single-user version
+won't open without them (the log says so, and nothing is changed). Once `docker compose exec jiggered /jiggered
+user list` shows your account, they can go.
+
 Change your password in **Account**. An older version can't read the upgraded database; to go back, restore the
 `pre-upgrade` copy (see **Backup and restore**).
 
