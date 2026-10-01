@@ -4,6 +4,7 @@ import { $, api, html, setHTML, appendHTML, describeUA, ago, saveFeedback, withB
 import { createEditor, editorMarkup } from "./editor.js";
 import { dayId, normaliseSettings, identifyActivities, defaultsGap, mergeDefaults } from "./model.js";
 import { describeGap, previewGap } from "./defaults-notice.js";
+import { initProfile, profileIdentity } from "./profile.js";
 
 function say(el, text, bad = false) {
   el.textContent = text;
@@ -11,14 +12,24 @@ function say(el, text, bad = false) {
 }
 
 // identity says who you are and, for an admin, what that allows. It is re-run when the role changes.
-export function identity({ me }) {
+export function identity(ctx) {
+  const { me } = ctx;
   $("acc-name").textContent = me.username;
   $("acc-role").textContent = me.role === "admin" ? "You're an admin: you can add people and manage accounts." : "";
+  $("acc-role").hidden = me.role !== "admin";
+  profileIdentity(ctx);
 }
 
 export function init(ctx) {
   const { me } = ctx;
   identity(ctx);
+  const profile = initProfile(ctx);
+  $("account-shortcuts").addEventListener("click", e => {
+    const target = e.target.closest("[data-account-target]"); if (!target) return;
+    const panel = $(target.dataset.accountTarget);
+    panel.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+    panel.querySelector("input,select,textarea,button")?.focus({ preventScroll: true });
+  });
 
   // ---- password ----
   $("pwform").addEventListener("submit", async e => {
@@ -176,12 +187,13 @@ export function init(ctx) {
   });
 
   return {
-    render: renderSettings,
+    render() { renderSettings(); profile.render() },
     focus: key => editor.focus(key),
-    recover(value) { baseline = { ...ctx.settings(), activities: identifyActivities(ctx.settings().activities) }; editor.fill(normaliseSettings(value)); dirty = true; ticket = null; ctx.drafts?.put("settings", { value: editor.read(), baseline }); say($("set-msg"), "Recovered copy opened. Save it, then resolve or discard the old recovery item."); editor.focus("set-acts") },
+    recover(value) { baseline = { ...ctx.settings(), activities: identifyActivities(ctx.settings().activities) }; editor.fill(normaliseSettings(value)); dirty = true; ticket = null; ctx.drafts?.put("settings", { value: editor.read(), baseline }); say($("set-msg"), "Recovered copy opened. Save it, then resolve or discard the old recovery item."); editor.focus("set-acts"); if (value.profile) profile.recover(value.profile) },
     show() {
       if (!dirty && !ticket) { baseline = { ...ctx.settings(), activities: identifyActivities(ctx.settings().activities) }; editor.fill(baseline) }
       renderSettings(); paintGap();
+      profile.show();
       loadSessions();
     },
   };
