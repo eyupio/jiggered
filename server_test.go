@@ -3,6 +3,7 @@ package main
 import (
 	"io/fs"
 	"net/http"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -209,5 +210,91 @@ func TestOnlyDeclaredMethodsAreRouted(t *testing.T) {
 				t.Errorf("%s %s = %d, want 405", method, p, st)
 			}
 		}
+	}
+}
+
+// Fonts are served from here, not Google, and the login page needs them before anyone is signed in.
+func TestFontsAreSelfHostedAndPublic(t *testing.T) {
+	e := newTestServer(t)
+	anon := e.newClient()
+	resp, b := anon.req("GET", "/fonts/atkinson-400-latin.woff2", nil)
+	if resp.StatusCode != 200 || resp.Header.Get("Content-Type") != "font/woff2" || len(b) < 1000 || string(b[:4]) != "wOF2" {
+		t.Fatalf("font = %d %q %d bytes", resp.StatusCode, resp.Header.Get("Content-Type"), len(b))
+	}
+	for _, page := range []string{"/login", "/style.css"} {
+		body := anon.mustBody("GET", page)
+		if strings.Contains(body, "googleapis") || strings.Contains(body, "gstatic") {
+			t.Errorf("%s still refers to Google Fonts", page)
+		}
+	}
+	if csp := anon.mustHeader("GET", "/login", "Content-Security-Policy"); strings.Contains(csp, "google") || strings.Contains(csp, "gstatic") {
+		t.Errorf("CSP still allows Google: %s", csp)
+	}
+	// Every face the stylesheet declares exists.
+	css := anon.mustBody("GET", "/style.css")
+	faces := regexp.MustCompile(`url\((/fonts/[^)]+)\)`).FindAllStringSubmatch(css, -1)
+	if len(faces) != 5 {
+		t.Errorf("stylesheet declares %d font files, want 5", len(faces))
+	}
+	for _, f := range faces {
+		if st := anon.do("GET", f[1], nil); st != 200 {
+			t.Errorf("%s = %d", f[1], st)
+		}
+	}
+	if _, err := fs.Stat(webFS, "web/fonts/LICENSE.txt"); err != nil {
+		t.Error("the fonts' licence must ship with them")
+	}
+}
+
+// If someone adds a module and forgets to list it in the service worker, the app would not open offline.
+func TestServiceWorkerCachesEveryFileTheAppNeeds(t *testing.T) {
+	sw, err := fs.ReadFile(webFS, "web/sw.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	block := regexp.MustCompile(`(?s)const SHELL = \[(.*?)\];`).FindSubmatch(sw)
+	if block == nil {
+		t.Fatal("no SHELL list in sw.js")
+	}
+	listed := map[string]bool{}
+	for _, m := range regexp.MustCompile(`"(/[^"]*)"`).FindAllSubmatch(block[1], -1) {
+		listed[string(m[1])] = true
+	}
+	for path := range listed {
+		file := "web" + path
+		if path == "/" {
+			file = "web/index.html"
+		}
+		if _, err := fs.Stat(webFS, file); err != nil {
+			t.Errorf("sw.js lists %s, which doesn't exist", path)
+		}
+	}
+	entries, _ := fs.ReadDir(webFS, "web")
+	for _, en := range entries {
+		name := en.Name()
+		app := strings.HasSuffix(name, ".js") && name != "sw.js" && name != "login.js"
+		if app || name == "style.css" || name == "manifest.webmanifest" || name == "icon.svg" {
+			if !listed["/"+name] {
+				t.Errorf("/%s ships with the app but isn't in the service worker's list, so the app wouldn't open offline", name)
+			}
+		}
+	}
+	fonts, _ := fs.ReadDir(webFS, "web/fonts")
+	for _, f := range fonts {
+		if strings.HasSuffix(f.Name(), ".woff2") && !listed["/fonts/"+f.Name()] {
+			t.Errorf("font %s isn't in the service worker's list", f.Name())
+		}
+	}
+	// It must never be allowed to hold anyone's data.
+	if !strings.Contains(string(sw), `url.pathname.startsWith("/api/")`) {
+		t.Error("sw.js must keep /api/ out of its cache")
+	}
+}
+
+func TestServiceWorkerIsServedForTheWholeSite(t *testing.T) {
+	e := newTestServer(t)
+	resp, _ := e.newClient().req("GET", "/sw.js", nil)
+	if resp.StatusCode != 200 || !strings.Contains(resp.Header.Get("Content-Type"), "javascript") || resp.Header.Get("Cache-Control") != "no-cache" {
+		t.Errorf("/sw.js = %d %q cc=%q (it must be revalidated so updates are noticed)", resp.StatusCode, resp.Header.Get("Content-Type"), resp.Header.Get("Cache-Control"))
 	}
 }

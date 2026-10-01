@@ -235,3 +235,9 @@ func (c *client) mustBody(method, path string) string {
 	_, b := c.req(method, path, nil)
 	return string(b)
 }
+
+func (c *client) mustHeader(method, path, header string) string {
+	c.t.Helper()
+	resp, _ := c.req(method, path, nil)
+	return resp.Header.Get(header)
+}

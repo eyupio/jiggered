@@ -17,11 +17,14 @@ const remember = me => { try { storage && storage.setItem(ME_KEY, JSON.stringify
 const recall = () => { try { return JSON.parse(storage.getItem(ME_KEY) || "null") } catch { return null } };
 const forget = () => { try { storage && storage.removeItem(ME_KEY) } catch { /* ignore */ } };
 
-// Who is signed in. Offline, fall back to who this device last saw so the app still opens.
+const SIGN_IN = "sign-in"; // getMe's answer when the browser is being sent to the sign-in page
+
+// Who is signed in. Offline, fall back to who this device last saw so the app still opens;
+// null means nobody is known here and the server can't be reached.
 async function getMe() {
   let r = null;
   try { r = await fetch("/api/me", { credentials: "same-origin" }) } catch { /* offline */ }
-  if (r && r.status === 401) { forget(); location.href = "/login"; return null }
+  if (r && r.status === 401) { forget(); location.href = "/login"; return SIGN_IN }
   if (r && r.ok) { const me = await r.json(); remember(me); return me }
   return recall();
 }
@@ -35,7 +38,8 @@ const TABS = ["today", "episode", "history", "account", "admin"];
 
 (async function boot() {
   const me = await getMe();
-  if (!me) { if (me === undefined || me === false) fatal("Can't reach the server, and nobody has signed in on this device yet. Connect once to get started."); return }
+  if (me === SIGN_IN) return;
+  if (!me) { fatal("Can't reach the server, and nobody has signed in on this device yet. Connect once to get started."); return }
   $("who").textContent = me.username;
   $("today").textContent = fmtLongDay(dkey(new Date()), "en-GB");
 
@@ -55,7 +59,7 @@ const TABS = ["today", "episode", "history", "account", "admin"];
 
   const store = createStore({
     storage,
-    onChange: () => { renderActive(); updateSync() },
+    onChange: () => { renderHeader(); renderActive(); updateSync() },
     onAuthLost: () => { location.href = "/login" },
   });
 
@@ -70,6 +74,7 @@ const TABS = ["today", "episode", "history", "account", "admin"];
     },
     toast,
     go,
+    leave() { store.clear(); forget(); location.href = "/login" }, // wipe this device's copy, then go to the sign-in page
     openDay(date) { go("today"); views.today.open(date) },
     editEpisode(id) { views.episode.edit(id) },
   };
@@ -120,10 +125,10 @@ const TABS = ["today", "episode", "history", "account", "admin"];
 
   // ---- the date moves on by itself, even if the app was left open overnight ----
   let lastToday = ctx.today();
+  const renderHeader = () => { $("today").textContent = fmtLongDay(ctx.today(), ctx.settings().locale) };
   function tick() {
-    const k = ctx.today();
-    $("today").textContent = fmtLongDay(k, ctx.settings().locale);
-    if (k !== lastToday) { lastToday = k; renderActive() }
+    renderHeader();
+    if (ctx.today() !== lastToday) { lastToday = ctx.today(); renderActive() }
   }
   const refresh = () => { tick(); store.load() };
   setInterval(tick, 30_000);
@@ -140,11 +145,14 @@ const TABS = ["today", "episode", "history", "account", "admin"];
     if (n && !confirm(`${n} ${n === 1 ? "change hasn't" : "changes haven't"} reached the server yet and will be lost if you sign out now. Sign out anyway?`)) return;
     try { await fetch("/logout", { method: "POST", credentials: "same-origin" }) }
     catch { toast("You're offline, so Jiggered can't sign you out right now."); return }
-    store.clear(); forget();
-    location.href = "/login";
+    ctx.leave();
   });
 
-  if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => { /* works without it */ }));
+  if ("serviceWorker" in navigator) { // lets the app open offline; everything works without it
+    const register = () => navigator.serviceWorker.register("/sw.js").catch(() => {});
+    if (document.readyState === "complete") register(); // the load event may well have fired while we waited for /api/me
+    else addEventListener("load", register);
+  }
 
   store.hydrate(me.id); // after everything its change listener touches exists
   go("today");
