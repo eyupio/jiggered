@@ -7,6 +7,8 @@ const groupMap = groups => Object.fromEntries(Object.entries(groups).flatMap(([g
 export const DEFAULTS = Object.freeze({
   budget: 10,
   sleepPenalty: 3,
+  amberPenalty: 3,
+  redPenalty: 6,
   locale: "en-GB",
   activities: [
     { a: "Meeting or call", c: 2, g: "Work" }, { a: "Unplanned interruption", c: 3, g: "Work" },
@@ -92,6 +94,8 @@ export function normaliseSettings(raw) {
   return {
     budget,
     sleepPenalty: int(r.sleepPenalty, 0, budget, Math.min(DEFAULTS.sleepPenalty, budget)),
+    amberPenalty: int(r.amberPenalty, 0, budget, Math.min(DEFAULTS.amberPenalty, budget)),
+    redPenalty: int(r.redPenalty, 0, budget, Math.min(DEFAULTS.redPenalty, budget)),
     locale: typeof r.locale === "string" && LOCALES.some(([v]) => v === r.locale) ? r.locale : DEFAULTS.locale,
     activities,
     symptoms,
@@ -101,12 +105,23 @@ export function normaliseSettings(raw) {
   };
 }
 
+// resolveSettings is what the app shows for a person: their stored settings over the shared defaults. Groups for
+// symptoms and triggers are decided per name, so an item with no group of its own takes the shared defaults' group
+// for that name, while a group they chose themselves always wins.
+export function resolveSettings(raw, shared) {
+  const own = raw && typeof raw === "object" ? raw : {}, base = shared || {};
+  const maps = Object.fromEntries(["symptomGroups", "triggerGroups"].map(k => [k, { ...(base[k] || {}), ...(own[k] && typeof own[k] === "object" ? own[k] : {}) }]));
+  return normaliseSettings({ ...base, ...own, ...maps });
+}
+
 // ---- a day ----
 
 export const emptyDay = key => ({ date: key, status: null, poorSleep: false, entries: [] });
 export const used = d => (d.entries || []).reduce((s, e) => s + (e.c || 0), 0);
 // Days remember the budget they were made under, so changing your settings doesn't rewrite history.
-export const capOf = (d, S) => (d.budget ?? S.budget) - (d.poorSleep ? (d.sleepPenalty ?? S.sleepPenalty) : 0);
+// A day's points: its budget, less the poor-sleep cost and less what its check-in took off (stamped on the day when the
+// check-in was chosen, so days from before check-ins cost anything keep the numbers they had).
+export const capOf = (d, S) => Math.max(0, (d.budget ?? S.budget) - (d.poorSleep ? (d.sleepPenalty ?? S.sleepPenalty) : 0) - (d.statusPenalty || 0));
 
 // ---- operations ----
 // Edits are operations rather than whole-doc snapshots, so they can be replayed on top of a newer copy
@@ -146,9 +161,17 @@ export function operationConflicts(op, body) {
     if (!current) return ["deleted activity"];
     return Object.keys(op.arg.changes).filter(k => !equal(current[k],op.before[k]) && !equal(current[k],op.arg.changes[k]));
   }
-  const fields = Object.keys(op.arg).filter(k => k !== "activities");
+  const GROUPS = ["symptomGroups", "triggerGroups"];
+  const fields = Object.keys(op.arg).filter(k => k !== "activities" && !GROUPS.includes(k));
   // A settings field the server copy has never had (an older account) can't have been changed by anyone else.
   const conflicts = fields.filter(k => !(op.type === "settingsPatch" && body[k] === undefined) && !equal(body[k],op.before[k]) && !equal(body[k],op.arg[k]));
+  // Group maps are compared name by name: a name the stored copy doesn't list is unchanged, not a conflict.
+  for (const k of GROUPS) if (op.type === "settingsPatch" && op.arg[k]) {
+    for (const name of new Set([...Object.keys(op.arg[k]), ...Object.keys(op.before[k] || {})])) {
+      const mine = op.arg[k][name], was = op.before[k]?.[name], now = body[k]?.[name];
+      if (now !== undefined && now !== was && now !== mine) { conflicts.push(k); break }
+    }
+  }
   if (op.type === "settingsPatch" && op.arg.activities) {
     const current = identifyActivities(body.activities || []), before = identifyActivities(op.before.activities || []), next = op.arg.activities;
     for (const row of before) {
@@ -182,7 +205,10 @@ function mergeActivities(current, before, next) {
 const sameEntry = (x, y) => x.id && y.id ? x.id === y.id : x.a === y.a && x.c === y.c && x.t === y.t;
 
 const DAY_OPS = {
-  setStatus: (d, v) => ({ ...d, status: v || null }),
+  setStatus: (d, v, op) => {
+    const { statusPenalty, ...rest } = d, took = v === "amber" || v === "red" ? Math.max(0, Number(op?.stamp?.[v + "Penalty"]) || 0) : 0;
+    return { ...rest, status: v || null, ...(took ? { statusPenalty: took } : {}) };
+  },
   setPoorSleep: (d, v) => ({ ...d, poorSleep: !!v }),
   addEntry: (d, e) => d.entries.some(x => x.id && x.id === e.id) ? d : { ...d, entries: [...d.entries, e] },
   removeEntry: (d, e) => {
@@ -214,7 +240,7 @@ export function applyOp(op, body) {
   if (!Array.isArray(d.entries)) d = { ...d, entries: [] };
   if (d.budget === undefined && op.stamp && op.type !== "restamp") d = { ...d, budget: op.stamp.budget, sleepPenalty: op.stamp.sleepPenalty };
   if (["editEntry","removeEntry","restoreEntry"].includes(op.type)) d = { ...d, entries: identifyEntries(d.entries) };
-  return fn(d, op.arg);
+  return fn(d, op.arg, op);
 }
 
 // ---- reading the docs ----
@@ -311,6 +337,9 @@ export function validateSettings(r) {
   const errors = [];
   const integer = (v, lo, hi) => String(v).trim() !== "" && Number.isInteger(Number(v)) && Number(v) >= lo && Number(v) <= hi;
   if (!integer(r.budget, ...LIMITS.budget)) errors.push(["set-budget", "Choose a whole-number budget from 1 to 30."]);
+  for (const [key, field, label] of [["amberPenalty", "set-amber", "An amber day"], ["redPenalty", "set-red", "A red day"]]) {
+    if (r[key] !== undefined && !integer(r[key], 0, Number(r.budget))) errors.push([field, `${label} costs a whole number of points between zero and your daily budget.`]);
+  }
   if (!integer(r.sleepPenalty, 0, Number(r.budget))) errors.push(["set-penalty", "Poor sleep costs must be a whole number between zero and your daily budget."]);
   if (!LOCALES.some(([v]) => v === r.locale)) errors.push(["set-locale", "Choose a supported date format."]);
   for (const [key, field, label] of [["activities", "set-acts", "activities"], ["symptoms", "set-sym", "symptoms"], ["triggers", "set-trig", "triggers"]]) {

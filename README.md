@@ -37,8 +37,22 @@ changes; Undo is offered), **Review in Account** or **Not now** (remembered unti
 Account also has **Add new shared items** and **Replace with shared defaults**; both fill a draft to review,
 then Save. On Today, group pills (Work, Home, ...) narrow the activity buttons to one group. Symptoms and triggers can have
 groups too (stored as a name-to-group map beside the plain lists, so episodes are unaffected); they become the same
-pills on the Episode tab. Accounts that haven't set their own groups pick up the shared defaults' groups. **Use factory defaults** in Admin fills a
+pills on the Episode tab. Groups are decided per name: an item without a group of its own takes the shared defaults' group for that name
+(so existing lists are grouped without any reset), and a group you set yourself always wins. **Use factory defaults** in Admin fills a
 draft; publishing it still requires Save. No new hosted service or production dependency is introduced.
+
+### Check-in and points
+
+Choosing Amber or Red at the morning check-in takes points off that day (**Amber day costs** and **Red day costs** in
+Account, 3 and 6 by default; shared defaults can set them too). The amount is stamped on the day when you choose, so
+changing the setting later, or a day from before this existed, keeps the numbers it had. It stacks with poor sleep, and
+the day never goes below zero points available.
+
+### Staying where you were
+
+A browser refresh returns you to the same tab (it is in the address, so a link such as `/#history` opens that tab), the
+same scroll position, and the past day you were viewing on Today. The scroll position and day are kept in that browser
+tab's session storage only and are cleared when you sign out.
 
 ### Drafts and recovery
 

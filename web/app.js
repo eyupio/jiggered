@@ -3,7 +3,7 @@
 import { $, fmtLongDay, setPageUser, html, setHTML, downloadFile, withBusy } from "./util.js";
 import { openDeviceStorage, createDrafts, claimEditingTab } from "./device.js";
 import { createStore } from "./sync.js";
-import { normaliseSettings, DEFAULTS, dkey } from "./model.js";
+import { normaliseSettings, resolveSettings, DEFAULTS, dkey } from "./model.js";
 import * as todayView from "./today.js";
 import * as episodesView from "./episodes.js";
 import * as historyView from "./history.js";
@@ -112,12 +112,12 @@ function fatal(text) {
     today: () => dkey(new Date()),
     settings() { // the same object until the stored settings change
       const raw = store.view("settings"), k = JSON.stringify([raw ?? null, sharedDefaults]);
-      if (k !== settingsKey) { settingsKey = k; settingsVal = normaliseSettings({ ...sharedDefaults, ...(raw || {}) }) }
+      if (k !== settingsKey) { settingsKey = k; settingsVal = resolveSettings(raw, sharedDefaults) }
       return settingsVal;
     },
     toast,
     go,
-    leave() { leaving = true; store.clear(); drafts.clear(); forget(); location.href = "/login" }, // wipe this device's copy, then go to the sign-in page
+    leave() { leaving = true; store.clear(); drafts.clear(); forget(); try { sessionStorage.removeItem(`jiggered:nav:${me.id}`) } catch { /* nothing to clear */ } location.href = "/login" }, // wipe this device's copy, then go to the sign-in page
     openDay(date) { go("today"); views.today.open(date) },
     editEpisode(id) { views.episode.edit(id) },
     editSettings(section) { go("account"); views.account.focus(section) },
@@ -138,6 +138,7 @@ function fatal(text) {
     if (tab !== active && views[active] && views[active].hide) views[active].hide();
     tooltips.hide();
     active = tab;
+    try { history.replaceState(null, "", "#" + tab) } catch { /* the address bar is only a convenience */ }
     for (const b of document.querySelectorAll("#tabs button")) { b.setAttribute("aria-selected", b.dataset.tab === tab); b.tabIndex = b.dataset.tab === tab ? 0 : -1 }
     for (const t of Object.keys(views)) $(t + "-panel").hidden = t !== tab;
     views[tab].show();
@@ -260,6 +261,23 @@ function fatal(text) {
   addEventListener("pageshow", refresh);
   addEventListener("online", () => { store.flush(); store.load(); refreshMe() });
 
+  // ---- a refresh puts you back where you were: the tab (in the address, so it also survives a link), the scroll
+  // position, and the past day you were looking at. The scroll and day live in this tab's session storage only.
+  const NAV_KEY = `jiggered:nav:${me.id}`;
+  const saveNav = () => {
+    try { sessionStorage.setItem(NAV_KEY, JSON.stringify({ tab: active, y: Math.round(scrollY), day: active === "today" ? views.today.day() : null })) } catch { /* private window or blocked storage */ }
+  };
+  const savedNav = (() => { try { return JSON.parse(sessionStorage.getItem(NAV_KEY) || "null") } catch { return null } })();
+  const startTab = () => { const t = decodeURIComponent(location.hash.slice(1)); return views[t] ? t : savedNav && views[savedNav.tab] ? savedNav.tab : "today" }; // after the Admin tab is mounted
+  addEventListener("pagehide", saveNav);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") saveNav() });
+  addEventListener("hashchange", () => { const t = decodeURIComponent(location.hash.slice(1)); if (views[t] && t !== active) go(t) }); // the address was edited by hand
+  function restorePlace() {
+    if (!savedNav || savedNav.tab !== active) return;
+    if (active === "today" && /^\d{4}-\d{2}-\d{2}$/.test(savedNav.day || "") && savedNav.day < ctx.today()) views.today.open(savedNav.day);
+    requestAnimationFrame(() => scrollTo(0, Number(savedNav.y) || 0));
+  }
+
   // ---- sign out: never silently throw away changes that haven't reached the server ----
   $("signout").addEventListener("submit", async e => {
     e.preventDefault();
@@ -287,12 +305,13 @@ function fatal(text) {
 
   store.hydrate(me.id, me.username); // after everything its change listener touches exists
   await syncAdmin();
-  go("today");
+  go(startTab());
   updateSync();
   tick();
   await loadDefaults();
   await store.load();
   notice.update();
+  restorePlace();
   // Freeze the starting defaults into this account so future shared edits do not replace personal choices.
   if (coordination.writable && defaultsTag && store.status().loaded && !store.view("settings")) { $("onboarding").hidden = storage?.getItem(hintKey) === "dismissed"; store.dispatch({ id: "settings", type: "replace", arg: normaliseSettings(sharedDefaults) }) }
 })();

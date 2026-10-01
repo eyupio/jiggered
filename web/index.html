@@ -50,9 +50,9 @@
       <div class="label" id="checkin-label">Morning check-in</div>
       <p class="hint">How are you feeling as the day starts? Pick one to set today's plan. Tap it again to clear.</p>
       <div class="checkin" id="checkin" role="group" aria-labelledby="checkin-label">
-        <button data-s="green" aria-pressed="false"><b>Green</b><small>Good day, normal plan</small></button>
-        <button data-s="amber" aria-pressed="false"><b>Amber</b><small>Shaky, cut the plan</small></button>
-        <button data-s="red" aria-pressed="false"><b>Red</b><small>Rough, essentials only</small></button>
+        <button data-s="green" aria-pressed="false"><b>Green</b><small data-text="Good day, normal plan">Good day, normal plan</small></button>
+        <button data-s="amber" aria-pressed="false"><b>Amber</b><small data-text="Shaky, cut the plan">Shaky, cut the plan</small></button>
+        <button data-s="red" aria-pressed="false"><b>Red</b><small data-text="Rough, essentials only">Rough, essentials only</small></button>
       </div>
       <p class="advice" id="advice">How are you starting today? Pick one.</p>
     </div>
@@ -64,8 +64,8 @@
       </div>
       <div class="cells" id="cells" aria-hidden="true"></div>
       <p class="hint">Your energy allowance for the day. Tap an activity below to spend points; rest gives them back.</p>
-      <label class="toggle"><input type="checkbox" id="sleep"> <span id="sleep-label">Poor sleep last night</span></label>
-      <details class="hint"><summary>How points work</summary><p>Points are your own planning aid. Demanding activities spend points; recovery gives points back. Zero-cost activities just record what happened. You can go below zero or above your starting budget. This is a log, not a recommendation to do more.</p><div class="row"><button class="x" data-settings="set-budget">Edit my budget</button> <button class="x" data-settings="set-acts">Edit my activities</button></div></details>
+      <label class="switch-row" for="sleep"><span class="switch-text"><b id="sleep-title">Slept badly last night</b><small id="sleep-label">Takes 3 points off today</small></span><input type="checkbox" role="switch" id="sleep" class="switch"><span class="switch-ui" aria-hidden="true"></span></label>
+      <details class="hint"><summary>How points work</summary><p>Points are your own planning aid. Demanding activities spend points; recovery gives points back. Your morning check-in sets the day's allowance: Green keeps your full budget, while Amber and Red take off the amounts you set in Account. Poor sleep takes off its own amount too. Zero-cost activities just record what happened. You can go below zero or above your starting budget. This is a log, not a recommendation to do more.</p><div class="row"><button class="x" data-settings="set-budget">Edit my budget</button> <button class="x" data-settings="set-acts">Edit my activities</button></div></details>
     </div>
 
     <div class="panel">
