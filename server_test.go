@@ -313,7 +313,7 @@ func TestServiceWorkerCachesEveryFileTheAppNeeds(t *testing.T) {
 func TestServiceWorkerIsServedForTheWholeSite(t *testing.T) {
 	e := newTestServer(t)
 	resp, _ := e.newClient().req("GET", "/sw.js", nil)
-	if resp.StatusCode != 200 || !strings.Contains(resp.Header.Get("Content-Type"), "javascript") || resp.Header.Get("Cache-Control") != "no-cache" {
+	if resp.StatusCode != 200 || !strings.Contains(resp.Header.Get("Content-Type"), "javascript") || resp.Header.Get("Cache-Control") != "no-store" {
 		t.Errorf("/sw.js = %d %q cc=%q (it must be revalidated so updates are noticed)", resp.StatusCode, resp.Header.Get("Content-Type"), resp.Header.Get("Cache-Control"))
 	}
 }

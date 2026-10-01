@@ -19,6 +19,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
+	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -100,6 +103,7 @@ func main() {
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      30 * time.Second,
+		MaxHeaderBytes:    16 << 10,
 		IdleTimeout:       120 * time.Second,
 	}
 
@@ -233,7 +237,7 @@ func envOr(k, def string) string {
 }
 
 // Files the sign-in page and the home-screen icon need before anyone is signed in.
-var publicAssets = []string{"/manifest.webmanifest", "/icon.svg", "/style.css", "/login.js", "/favicon-32.png", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png", "/favicon.ico", "/sw.js"}
+var publicAssets = []string{"/manifest.webmanifest", "/icon.svg", "/style.css", "/login.js", "/favicon-32.png", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png", "/favicon.ico"}
 
 func (s *server) routes() http.Handler {
 	static, _ := fs.Sub(webFS, "web")
@@ -257,7 +261,7 @@ func (s *server) routes() http.Handler {
 			// Nobody has an account yet: say how to make the first one.
 			page = bytes.Replace(page, []byte(`id="setup" hidden`), []byte(`id="setup"`), 1)
 		}
-		serveHTML(w, page)
+		serveHTML(w, files.versionPage(page))
 	})
 	mux.HandleFunc("POST /login", s.handleLogin)
 	mux.HandleFunc("POST /logout", s.handleLogout)
@@ -266,6 +270,17 @@ func (s *server) routes() http.Handler {
 		mux.Handle("GET "+p, files)
 	}
 	mux.Handle("GET /fonts/", files)
+	mux.Handle("GET /v/{ver}/{file...}", s.versionedAsset(files))
+	mux.HandleFunc("GET /sw.js", func(w http.ResponseWriter, r *http.Request) {
+		b, err := fs.ReadFile(static, "sw.js")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		w.Write(files.serviceWorker(b))
+	})
 
 	mux.Handle("GET /api/me", auth(s.handleMe))
 	mux.Handle("DELETE /api/me", auth(s.deleteSelf))
@@ -297,7 +312,12 @@ func (s *server) routes() http.Handler {
 			files.ServeHTTP(w, r)
 			return
 		}
-		serveFile(w, r, static, "index.html")
+		b, err := fs.ReadFile(static, "index.html")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		serveHTML(w, files.versionPage(b))
 	}))
 
 	return securityHeaders(rejectCrossSite(mux))
@@ -313,15 +333,6 @@ func (s *server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok"))
 }
 
-func serveFile(w http.ResponseWriter, r *http.Request, fsys fs.FS, name string) {
-	b, err := fs.ReadFile(fsys, name)
-	if err != nil {
-		http.NotFound(w, r)
-		return
-	}
-	serveHTML(w, b)
-}
-
 func serveHTML(w http.ResponseWriter, page []byte) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
@@ -331,12 +342,14 @@ func serveHTML(w http.ResponseWriter, page []byte) {
 // static serves the embedded web files. Each gets an ETag and no-cache, so
 // browsers revalidate (a cheap 304) instead of running a stale copy after an upgrade.
 type static struct {
-	files http.Handler
-	etags map[string]string
+	files   http.Handler
+	etags   map[string]string
+	version string // identifies this build's files; see versionPage
 }
 
 func newStatic(fsys fs.FS) *static {
 	st := &static{files: http.FileServer(http.FS(fsys)), etags: map[string]string{}}
+	all := sha256.New()
 	fs.WalkDir(fsys, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return nil
@@ -344,21 +357,77 @@ func newStatic(fsys fs.FS) *static {
 		if b, err := fs.ReadFile(fsys, p); err == nil {
 			sum := sha256.Sum256(b)
 			st.etags["/"+p] = `"` + hex.EncodeToString(sum[:8]) + `"`
+			all.Write([]byte(p + "\x00"))
+			all.Write(sum[:])
 		}
 		return nil
 	})
+	st.version = hex.EncodeToString(all.Sum(nil)[:6])
 	return st
 }
 
-func (st *static) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if strings.HasSuffix(r.URL.Path, "/") && r.URL.Path != "/" {
+// The files a page loads, and the pages that load them, are named with this build's version
+// (/v/<version>/app.js). A changed file therefore always has a new URL, so nothing between the browser and this
+// server (a CDN with a four-hour default, a browser's own rules) can run an old script against a new page.
+var versionedFiles = []string{"/style.css", "/app.js", "/login.js"}
+
+func (st *static) versionPage(page []byte) []byte {
+	for _, f := range versionedFiles {
+		page = bytes.ReplaceAll(page, []byte(`"`+f+`"`), []byte(`"/v/`+st.version+f+`"`))
+	}
+	return page
+}
+
+// serviceWorker points the worker's list of files, and its cache, at this build's versioned URLs, so every
+// release gives it new bytes and the browser installs it.
+func (st *static) serviceWorker(sw []byte) []byte {
+	block := regexp.MustCompile(`(?s)const SHELL = \[.*?\];`)
+	sw = block.ReplaceAllFunc(sw, func(b []byte) []byte {
+		return regexp.MustCompile(`"/([a-z0-9-]+\.(?:js|css))"`).ReplaceAll(b, []byte(`"/v/`+st.version+`/$1"`))
+	})
+	return bytes.Replace(sw, []byte(`"jiggered-app-v1"`), []byte(`"jiggered-app-`+st.version+`"`), 1)
+}
+
+// versionedAsset serves /v/<version>/<file>. Public files (what the sign-in page needs) need no sign-in; the rest
+// is gated like the unversioned path. Under the current version a file never changes, so it may be kept for a
+// year; under any other version (a page left open across an upgrade) it is served, but never kept.
+func (s *server) versionedAsset(files *static) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		file := "/" + r.PathValue("file")
+		if path.Clean(file) != file || strings.Contains(file, "..") {
+			http.NotFound(w, r)
+			return
+		}
+		if !slices.Contains(publicAssets, file) && file != "/login.js" && !strings.HasPrefix(file, "/fonts/") && s.lookup(r) == nil {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+		r2 := r.Clone(r.Context())
+		r2.URL.Path = file
+		cc := "no-store"
+		if r.PathValue("ver") == files.version {
+			cc = "public, max-age=31536000, immutable"
+		}
+		files.serve(w, r2, cc)
+	})
+}
+
+func (st *static) ServeHTTP(w http.ResponseWriter, r *http.Request) { st.serve(w, r, "no-cache") }
+
+func (st *static) serve(w http.ResponseWriter, r *http.Request, cacheControl string) {
+	// Never anything but a clean path: an encoded ".." would otherwise be resolved by the file server after the
+	// router had already decided who may fetch it.
+	if p := r.URL.Path; (strings.HasSuffix(p, "/") && p != "/") || (p != "/" && path.Clean(p) != p) {
 		http.NotFound(w, r) // no directory listings
 		return
 	}
 	if e, ok := st.etags[r.URL.Path]; ok {
 		w.Header().Set("ETag", e)
 	}
-	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Cache-Control", cacheControl)
+	if strings.HasSuffix(r.URL.Path, ".webmanifest") {
+		w.Header().Set("Content-Type", "application/manifest+json")
+	}
 	st.files.ServeHTTP(w, r)
 }
 
@@ -398,6 +467,15 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 // jsonError sends a message the page can show to the person.
+// serverError answers 500 and logs why. The person gets nothing they could act on, but whoever runs the server
+// gets the reason (a full disk, a damaged database) instead of silence.
+func serverError(w http.ResponseWriter, r *http.Request, err error) {
+	if !errors.Is(err, context.Canceled) { // the client went away; nobody to tell and nothing to fix
+		log.Printf("%s %s: %v", r.Method, r.URL.Path, err)
+	}
+	http.Error(w, "server error", http.StatusInternalServerError)
+}
+
 func jsonError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
 }
