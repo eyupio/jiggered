@@ -112,7 +112,6 @@ func TestAuditRestoreRefusesDocsOnlyDatabase(t *testing.T) {
 }
 
 func TestAuditRejectedSettingsPatchChangesNothing(t *testing.T) {
-	pending(t, "atomic settings patch")
 	e := newTestServer(t)
 	c := e.signedInAdmin()
 	before := e.s.settings().strings()
