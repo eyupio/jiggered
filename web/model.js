@@ -1,6 +1,9 @@
 // The data model and the rules around it: settings, a day's energy budget, the operations that edit
 // a doc, trends, and CSV. No DOM and no network, so it is tested with `node --test`.
 
+// groupMap turns { "Group": [names] } into { name: "Group" }, the shape settings store.
+const groupMap = groups => Object.fromEntries(Object.entries(groups).flatMap(([g, names]) => names.map(n => [n, g])));
+
 export const DEFAULTS = Object.freeze({
   budget: 10,
   sleepPenalty: 3,
@@ -20,6 +23,20 @@ export const DEFAULTS = Object.freeze({
     { a: "Stretching or breathing", c: -1, g: "Recovery" }, { a: "Early night", c: -2, g: "Recovery" }],
   symptoms: ["Face numb or tingling", "Hand or arm numb", "Arm clumsy", "Blurred vision", "Eye discomfort", "Headache", "Speech change", "Weakness", "Brain fog", "Word-finding trouble", "Memory lapse", "Dizziness", "Light-headed on standing", "Palpitations", "Fatigue", "Sudden exhaustion", "Nausea", "Light sensitivity", "Sound sensitivity", "Tinnitus", "Leg numb or heavy", "Balance off", "Muscle aches", "Tremor", "Chest tightness", "Anxiety or panic", "Low mood", "Irritability", "Hot or flushed", "Cold hands or feet"],
   triggers: ["Poor sleep", "High stress", "Overload or overwhelm", "Long hyperfocus", "Long screen time", "Skipped meals", "Low water", "Noisy or busy place", "Alcohol", "Missed tablets", "Too much caffeine", "Bright or flickering light", "Heat or hot room", "Cold", "Standing for long", "Long drive or travel", "Hard exercise", "Not enough movement", "Illness or infection", "Hormonal changes", "Strong smells", "Sugary or heavy meal", "Late night", "Lots of social contact", "Worry or low mood", "Medication change", "Weather change", "Skipped a break"],
+  symptomGroups: groupMap({
+    "Nerves and movement": ["Face numb or tingling", "Hand or arm numb", "Arm clumsy", "Speech change", "Weakness", "Leg numb or heavy", "Balance off", "Tremor"],
+    "Head and senses": ["Headache", "Blurred vision", "Eye discomfort", "Light sensitivity", "Sound sensitivity", "Tinnitus", "Dizziness"],
+    "Thinking": ["Brain fog", "Word-finding trouble", "Memory lapse"],
+    "Energy": ["Fatigue", "Sudden exhaustion"],
+    "Heart and body": ["Light-headed on standing", "Palpitations", "Chest tightness", "Nausea", "Muscle aches", "Hot or flushed", "Cold hands or feet"],
+    "Mood": ["Anxiety or panic", "Low mood", "Irritability"],
+  }),
+  triggerGroups: groupMap({
+    "Body and health": ["Poor sleep", "Skipped meals", "Low water", "Alcohol", "Missed tablets", "Too much caffeine", "Sugary or heavy meal", "Illness or infection", "Hormonal changes", "Medication change"],
+    "Stress and workload": ["High stress", "Overload or overwhelm", "Long hyperfocus", "Long screen time", "Worry or low mood", "Skipped a break"],
+    "Surroundings": ["Noisy or busy place", "Bright or flickering light", "Heat or hot room", "Cold", "Strong smells", "Weather change"],
+    "Activity and routine": ["Standing for long", "Long drive or travel", "Hard exercise", "Not enough movement", "Late night", "Lots of social contact"],
+  }),
 });
 
 export const ONSET = ["Built up gradually", "Sudden"];
@@ -56,6 +73,13 @@ const text = (s, n = LIMITS.text) => typeof s === "string" ? [...s.trim()].slice
 const int = (v, lo, hi, dflt) => { const n = Math.round(Number(v)); return Number.isFinite(n) && n >= lo && n <= hi ? n : dflt };
 const names = (v, dflt) => Array.isArray(v) ? [...new Set(v.map(x => text(x)).filter(Boolean))].slice(0, LIMITS.items) : [...dflt];
 
+// A name-to-group map keeps only names still in the list and groups that are real text. No map at all means the
+// defaults; a map that is present, even an empty one, is the person's own choice.
+const groupsOf = (raw, list, dflt) => {
+  const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : dflt;
+  return Object.fromEntries(list.filter(n => Object.hasOwn(src, n) && text(src[n], LIMITS.group)).map(n => [n, text(src[n], LIMITS.group)]));
+};
+
 // normaliseSettings turns whatever is stored (or typed) into valid settings, falling back to the
 // defaults for anything missing. A list that is present but empty stays empty.
 export function normaliseSettings(raw) {
@@ -64,13 +88,16 @@ export function normaliseSettings(raw) {
   const activities = Array.isArray(r.activities)
     ? r.activities.map(x => ({ ...(typeof x?.id === "string" ? { id: x.id } : {}), a: text(x && x.a), c: int(x && x.c, ...LIMITS.cost, NaN), ...(text(x && x.g, LIMITS.group) ? { g: text(x && x.g, LIMITS.group) } : {}) })).filter(x => x.a && Number.isFinite(x.c)).slice(0, LIMITS.items)
     : DEFAULTS.activities.map(x => ({ ...x }));
+  const symptoms = names(r.symptoms, DEFAULTS.symptoms), triggers = names(r.triggers, DEFAULTS.triggers);
   return {
     budget,
     sleepPenalty: int(r.sleepPenalty, 0, budget, Math.min(DEFAULTS.sleepPenalty, budget)),
     locale: typeof r.locale === "string" && LOCALES.some(([v]) => v === r.locale) ? r.locale : DEFAULTS.locale,
     activities,
-    symptoms: names(r.symptoms, DEFAULTS.symptoms),
-    triggers: names(r.triggers, DEFAULTS.triggers),
+    symptoms,
+    triggers,
+    symptomGroups: groupsOf(r.symptomGroups, symptoms, DEFAULTS.symptomGroups),
+    triggerGroups: groupsOf(r.triggerGroups, triggers, DEFAULTS.triggerGroups),
   };
 }
 
@@ -90,7 +117,27 @@ export function identifyEntries(entries = []) {
   return (Array.isArray(entries) ? entries : []).map((e, i) => e.id ? e : { ...e, id: `legacy-entry:${i}:${JSON.stringify([e.a,e.c,e.t])}` });
 }
 export const identifyActivities = rows => (Array.isArray(rows) ? rows : []).map(e => e.id ? e : { ...e, id: `legacy-activity:${encodeURIComponent(e.a)}` });
-const equal = (a,b) => JSON.stringify(a) === JSON.stringify(b);
+// Compared by value, not by the order keys happen to be written in: {id,a} and {a,id} are the same row.
+const canon = v => Array.isArray(v) ? v.map(canon) : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map(k => [k, canon(v[k])])) : v;
+const equal = (a,b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
+// defaultsGap lists what the shared defaults have that a person's own lists lack, matched by name and ignoring case.
+// It never looks at points or groups of items they already have, so their own choices are not second-guessed.
+const same = (a, b) => String(a).trim().toLocaleLowerCase() === String(b).trim().toLocaleLowerCase();
+export function defaultsGap(mine, shared) {
+  const missing = (have, want, nameOf) => (want || []).filter(w => !(have || []).some(h => same(nameOf(h), nameOf(w))));
+  const acts = missing(mine?.activities, shared?.activities, x => x.a), sym = missing(mine?.symptoms, shared?.symptoms, x => x), trig = missing(mine?.triggers, shared?.triggers, x => x);
+  return { acts, sym, trig, total: acts.length + sym.length + trig.length };
+}
+// mergeDefaults adds the missing shared items to the end of each list and changes nothing else.
+export function mergeDefaults(mine, shared) {
+  const gap = defaultsGap(mine, shared);
+  const grouped = (names, from, own) => ({ ...Object.fromEntries(names.filter(n => from?.[n]).map(n => [n, from[n]])), ...own }); // new items arrive in their shared group
+  return { ...mine, activities: [...identifyActivities(mine.activities), ...identifyActivities(gap.acts)], symptoms: [...mine.symptoms, ...gap.sym], triggers: [...mine.triggers, ...gap.trig],
+    symptomGroups: grouped(gap.sym, shared.symptomGroups, mine.symptomGroups), triggerGroups: grouped(gap.trig, shared.triggerGroups, mine.triggerGroups) };
+}
+// gapSignature is a short stable string for a gap, so "not now" can be remembered until the shared defaults change again.
+export const gapSignature = gap => [...gap.acts.map(x => x.a), ...gap.sym, ...gap.trig].map(x => x.trim().toLocaleLowerCase()).sort().join("|");
+
 export function operationConflicts(op, body) {
   if (!op.before) return [];
   if (body == null) return ["deleted record"];
@@ -100,7 +147,8 @@ export function operationConflicts(op, body) {
     return Object.keys(op.arg.changes).filter(k => !equal(current[k],op.before[k]) && !equal(current[k],op.arg.changes[k]));
   }
   const fields = Object.keys(op.arg).filter(k => k !== "activities");
-  const conflicts = fields.filter(k => !equal(body[k],op.before[k]) && !equal(body[k],op.arg[k]));
+  // A settings field the server copy has never had (an older account) can't have been changed by anyone else.
+  const conflicts = fields.filter(k => !(op.type === "settingsPatch" && body[k] === undefined) && !equal(body[k],op.before[k]) && !equal(body[k],op.arg[k]));
   if (op.type === "settingsPatch" && op.arg.activities) {
     const current = identifyActivities(body.activities || []), before = identifyActivities(op.before.activities || []), next = op.arg.activities;
     for (const row of before) {
@@ -272,6 +320,9 @@ export function validateSettings(r) {
     if (new Set(values.map(x => x.toLowerCase())).size !== values.length) errors.push([field, `Use distinct ${label} names (including capitalisation).`]);
   }
   if (r.activities.some(x => [...String(x.g || "").trim()].length > LIMITS.group)) errors.push(["set-acts", `Group names are at most ${LIMITS.group} characters.`]);
+  for (const [key, field] of [["symptomGroups", "set-sym"], ["triggerGroups", "set-trig"]]) {
+    if (Object.values(r[key] || {}).some(g => [...String(g).trim()].length > LIMITS.group)) errors.push([field, `Group names are at most ${LIMITS.group} characters.`]);
+  }
   if (r.activities.some(x => !integer(x.c, ...LIMITS.cost))) errors.push(["set-acts", "Activity points must be whole numbers from −10 to 10. Zero is allowed."]);
   return errors;
 }

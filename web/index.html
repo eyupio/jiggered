@@ -27,6 +27,7 @@
   <div class="banner" id="banner" hidden></div>
   <p class="sync" id="sync" data-state="attention" role="status" aria-live="polite">Connecting…</p>
   <section class="panel recovery" id="recovery" hidden aria-label="Recover unsaved changes"></section>
+  <section class="panel defaults-notice" id="defaults-notice" hidden aria-label="Shared defaults updated" role="region"></section>
   <nav role="tablist" id="tabs" aria-label="Main views">
     <button role="tab" id="t-today" aria-controls="today-panel" tabindex="0" aria-selected="true" data-tab="today">Today</button>
     <button role="tab" id="t-episode" aria-controls="episode-panel" tabindex="-1" aria-selected="false" data-tab="episode">Episode</button>
@@ -71,6 +72,7 @@
       <div class="label-row"><h2>Tap what you've done</h2><button class="help-link x" data-help="activities">How it works</button></div><button class="x" data-settings="set-acts">Edit activities</button>
       <label class="timerow" id="act-time-row" hidden>Time, if you remember <input type="time" id="act-time"></label>
       <label class="field act-search" id="act-search-row" hidden><span class="sr-only">Search activities</span><input type="search" id="act-search" placeholder="Search activities" autocomplete="off"></label>
+      <div class="group-filter" id="act-filter" role="group" aria-label="Show activities from" hidden></div>
       <div class="act-groups" id="acts"></div>
       <button class="secondary" id="other-activity">Other activity</button>
       <p class="empty" id="noacts" hidden>No activities yet. Use Edit activities above to add your own.</p>
@@ -101,11 +103,11 @@
       <form id="epform">
         <p class="hint">New times use this device's local time zone. Existing start times keep their recorded offset; older records may have no offset.</p>
         <div><label class="label" for="ep-when">When it started</label><input type="datetime-local" id="ep-when" required></div>
-        <fieldset><legend>What you noticed</legend><label class="field chip-search" id="ep-sym-q-row" hidden><span class="sr-only">Search symptoms</span><input type="search" id="ep-sym-q" placeholder="Search symptoms" autocomplete="off"></label><div class="chips" id="ep-sym"></div><button type="button" class="secondary small" id="ep-sym-more" hidden></button></fieldset>
+        <fieldset><legend>What you noticed</legend><label class="field chip-search" id="ep-sym-q-row" hidden><span class="sr-only">Search symptoms</span><input type="search" id="ep-sym-q" placeholder="Search symptoms" autocomplete="off"></label><div class="chip-status" id="ep-sym-status" hidden><span id="ep-sym-count" role="status" aria-live="polite"></span><button type="button" class="x" id="ep-sym-clear" hidden>Clear selection</button></div><div class="group-filter" id="ep-sym-filter" role="group" aria-label="Show symptoms from" hidden></div><div class="chips" id="ep-sym"></div><button type="button" class="secondary small" id="ep-sym-more" hidden></button></fieldset>
         <fieldset><legend>How it came on</legend><div class="chips" id="ep-onset"></div></fieldset>
         <div><label class="label" for="ep-dur">How long it lasted</label><select id="ep-dur"></select></div>
         <label class="field" id="ep-ended-row" hidden>When it ended (optional)<input type="datetime-local" id="ep-ended"></label>
-        <fieldset><legend>In the day or two before</legend><label class="field chip-search" id="ep-trig-q-row" hidden><span class="sr-only">Search triggers</span><input type="search" id="ep-trig-q" placeholder="Search triggers" autocomplete="off"></label><div class="chips" id="ep-trig"></div><button type="button" class="secondary small" id="ep-trig-more" hidden></button></fieldset>
+        <fieldset><legend>In the day or two before</legend><label class="field chip-search" id="ep-trig-q-row" hidden><span class="sr-only">Search triggers</span><input type="search" id="ep-trig-q" placeholder="Search triggers" autocomplete="off"></label><div class="chip-status" id="ep-trig-status" hidden><span id="ep-trig-count" role="status" aria-live="polite"></span><button type="button" class="x" id="ep-trig-clear" hidden>Clear selection</button></div><div class="group-filter" id="ep-trig-filter" role="group" aria-label="Show triggers from" hidden></div><div class="chips" id="ep-trig"></div><button type="button" class="secondary small" id="ep-trig-more" hidden></button></fieldset>
         <div><label class="label" for="ep-notes">Notes</label><textarea id="ep-notes" maxlength="20000" placeholder="Anything else: BP reading, what helped, where you were"></textarea></div>
         <button class="primary" type="submit" id="ep-save">Save episode</button>
         <button class="secondary" type="button" id="ep-cancel" hidden>Back to new episode</button>

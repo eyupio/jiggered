@@ -100,3 +100,39 @@ func TestDamagedDefaultsCanBeRepairedInAdmin(t *testing.T) {
 		t.Fatal("defaults remain damaged")
 	}
 }
+
+func TestProductDefaultsKeepSymptomAndTriggerGroups(t *testing.T) {
+	e := newTestServer(t)
+	admin := e.signedInAdmin()
+	resp, b := admin.req("GET", "/api/defaults", nil)
+	if resp.StatusCode != 200 {
+		t.Fatal(resp.StatusCode, string(b))
+	}
+	tag := resp.Header.Get("ETag")
+	var d productDefaults
+	if err := json.Unmarshal(b, &d); err != nil {
+		t.Fatal(err)
+	}
+	if d.SymptomGroups["Headache"] == "" || d.TriggerGroups["Poor sleep"] == "" {
+		t.Fatal("factory defaults carry groups", d.SymptomGroups)
+	}
+	d.Symptoms = []string{"Headache", "Cough"}
+	d.SymptomGroups = map[string]string{"Headache": "Head", "Gone": "Dropped"}
+	d.TriggerGroups = nil
+	if st := admin.do("PUT", "/api/admin/defaults", d, "If-Match", tag); st != 200 {
+		t.Fatal("save", st)
+	}
+	var got productDefaults
+	admin.getJSON("/api/defaults", &got)
+	if len(got.SymptomGroups) != 1 || got.SymptomGroups["Headache"] != "Head" {
+		t.Fatal("unknown names should be dropped", got.SymptomGroups)
+	}
+	if got.TriggerGroups == nil {
+		t.Fatal("an empty map must be stored as an object, not dropped")
+	}
+	d.SymptomGroups = map[string]string{"Headache": " padded "}
+	resp, _ = admin.req("GET", "/api/defaults", nil)
+	if st := admin.do("PUT", "/api/admin/defaults", d, "If-Match", resp.Header.Get("ETag")); st != 400 {
+		t.Fatal("padded group name should be refused", st)
+	}
+}

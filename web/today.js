@@ -9,7 +9,7 @@ const costLabel = c => c > 0 ? "−" + c : c < 0 ? "+" + -c : "0";
 
 export function init(ctx) {
   let viewDate = null; // null follows the clock, so the screen moves on by itself at midnight
-  let actsKey = "", editing = null, editingDate = "", query = "";
+  let actsKey = "", editing = null, editingDate = "", query = "", groupFilter = ""; // groupFilter "" shows every group
   const more = new Map(), closed = new Set(); // per-group paging and collapsed groups, kept while this tab is open
   const entryForm = $("entry-form");
 
@@ -31,6 +31,11 @@ export function init(ctx) {
     const b = e.target.closest("button");
     if (!b) return;
     op("setStatus", day().status === b.dataset.s ? null : b.dataset.s);
+  });
+  $("act-filter").addEventListener("click", e => {
+    const b = e.target.closest("[data-filter]");
+    if (!b) return;
+    groupFilter = b.dataset.filter === groupFilter ? "" : b.dataset.filter; more.clear(); render();
   });
   $("act-search").addEventListener("input", e => { query = e.target.value; more.clear(); render() });
   $("acts").addEventListener("click", e => {
@@ -108,22 +113,28 @@ export function init(ctx) {
   // Long lists get a search box, a favourites row (most and latest used), sections by group and "Show more" paging.
   // Short lists look exactly as before. Buttons keep their index into the settings list, so tapping is unchanged.
   function renderActivities(S) {
-    const rows = S.activities.map((item, i) => ({ item, i })), long = rows.length > PICKER.searchFrom;
+    const all = groupItems(S.activities), names = all.length > 1 || all[0].name ? all.map(g => ({ name: g.name, n: g.rows.length })) : [];
+    if (groupFilter && !names.some(g => g.name === groupFilter)) groupFilter = ""; // that group no longer exists
+    const rows = (groupFilter ? all.find(g => g.name === groupFilter).rows : S.activities.map((item, i) => ({ item, i }))), long = S.activities.length > PICKER.searchFrom;
     $("act-search-row").hidden = !long;
     const q = long ? query.trim() : "";
-    const favs = !q && long ? favourites(rows.map(r => r.item.a), usage(ctx.store.all(), ctx.today()).acts).map(n => rows.find(r => r.item.a === n)) : [];
+    const favs = !q && !groupFilter && long ? favourites(rows.map(r => r.item.a), usage(ctx.store.all(), ctx.today()).acts).map(n => rows.find(r => r.item.a === n)) : [];
     const sections = q ? [{ key: "search", name: "", rows: rows.filter(r => matches(q, r.item.a + " " + (r.item.g || ""))), size: PICKER.searchPage }]
-      : groupItems(S.activities).map(g => ({ key: "g:" + g.name, name: g.name, rows: g.rows, size: PICKER.page }));
-    const key = JSON.stringify([S.activities, q, favs.map(f => f.i), [...more], [...closed], long]);
+      : groupFilter ? [{ key: "g:" + groupFilter, name: "", rows, size: PICKER.searchPage }]
+      : all.map(g => ({ key: "g:" + g.name, name: g.name, rows: g.rows, size: PICKER.page }));
+    const key = JSON.stringify([S.activities, q, groupFilter, favs.map(f => f.i), [...more], [...closed], long]);
     if (key === actsKey) return; // only rebuild the buttons when something shown has changed
     actsKey = key;
+    // One tap on a group narrows the list to it; tapping it again, or "All", brings everything back.
+    $("act-filter").hidden = names.length < 2;
+    setHTML($("act-filter"), html`<button type="button" class="pill" data-filter="" aria-pressed="${!groupFilter}">All <span class="meta">${S.activities.length}</span></button>${names.map(g => html`<button type="button" class="pill" data-filter="${g.name}" aria-pressed="${groupFilter === g.name}">${g.name} <span class="meta">${g.n}</span></button>`)}`);
     const grid = list => html`<div class="acts">${list.map(actButton)}</div>`;
     const part = s => {
       const shown = more.get(s.key) ?? s.size, hide = s.rows.length - shown;
       const body = html`${grid(s.rows.slice(0, shown))}${hide > 0 ? html`<button class="secondary small" data-more="${s.key}">Show ${Math.min(hide, s.size)} more of ${s.rows.length}</button>` : ""}`;
       return s.name ? html`<details class="act-group" data-group="${s.key}"${closed.has(s.key) ? "" : " open"}><summary>${s.name} <span class="meta">${s.rows.length}</span></summary>${body}</details>` : body;
     };
-    setHTML($("acts"), html`${favs.length ? html`<div class="act-fav"><h3 class="label">Frequent and recent</h3>${grid(favs)}</div>` : ""}${sections.map(part)}${q && !sections[0].rows.length ? html`<p class="empty">No activity matches. Use Other activity to log it once.</p>` : ""}`);
+    setHTML($("acts"), html`${favs.length ? html`<div class="act-fav"><h3 class="label">Frequent and recent</h3>${grid(favs)}</div>` : ""}${sections.map(part)}${q && !sections[0].rows.length ? html`<p class="empty">No activity matches${groupFilter ? ` in ${groupFilter}. Choose All to search every group` : ""}. Use Other activity to log it once.</p>` : ""}`);
     $("noacts").hidden = S.activities.length > 0;
   }
 

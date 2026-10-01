@@ -10,7 +10,7 @@ export function renderOngoing(ctx, el) {
 }
 
 export function init(ctx) {
-  const find = { sym: { q: "", all: false }, trig: { q: "", all: false } }; // search text and "show all" per long list
+  const find = { sym: { q: "", all: false, group: "" }, trig: { q: "", all: false, group: "" } }; // search text, "show all" and chosen group per long list
   let editing = null, dirty = false, chipsKey = "", ticket = null, original = {}, submitted = null;
   const form = $("epform"), drafts = ctx.drafts;
   const slot = () => editing ? `episode-edit:${editing}` : "episode-new";
@@ -19,32 +19,49 @@ export function init(ctx) {
   const remember = () => { if (dirty) drafts?.put(slot(), { body: body(), original, submitted }) };
   // Long lists: the most and latest used come first, the rest wait behind "Show all" or a search. Chips that are
   // selected always stay visible, and every chip stays in the form so nothing selected is ever lost.
-  function chips(el, list, name, type, extra = [], keep = picked(name), favs = []) {
+  function chips(el, list, name, type, extra = [], keep = picked(name), favs = [], groups = {}) {
     const names = [...new Set([...list, ...extra, ...keep])], ordered = [...favs.filter(f => names.includes(f)), ...names.filter(f => !favs.includes(f))];
-    setHTML($(el), html`${ordered.map((t, i) => html`<label class="chip${favs.includes(t) ? " fav" : ""}"><input type="${type}" name="${name}" id="${name}-${i}" value="${t}"${keep.includes(t) ? " checked" : ""}><span>${t}</span></label>`)}`);
+    setHTML($(el), html`${ordered.map((t, i) => html`<label class="chip${favs.includes(t) ? " fav" : ""}" data-group="${Object.hasOwn(groups, t) ? groups[t] : ""}"><input type="${type}" name="${name}" id="${name}-${i}" value="${t}"${keep.includes(t) ? " checked" : ""}><span>${t}</span></label>`)}`);
     if (type === "checkbox") narrow(name);
   }
   function narrow(name) {
-    const box = $("ep-" + name), all = [...box.querySelectorAll(".chip")], st = find[name], long = all.length > PICKER.searchFrom + 4;
+    const box = $("ep-" + name), all = [...box.querySelectorAll(".chip")], st = find[name], long = all.length > PICKER.searchFrom, collapsible = all.length > PICKER.chipsAll;
     $(`ep-${name}-q-row`).hidden = !long;
     const q = long ? st.q.trim() : "";
+    // Group buttons, like Today's: one tap narrows the list to a group. Ungrouped items gather under "Other".
+    const groupOf = c => c.dataset.group || "Other", counts = new Map();
+    for (const c of all) counts.set(groupOf(c), (counts.get(groupOf(c)) || 0) + 1);
+    if (st.group && !counts.has(st.group)) st.group = "";
+    const g = counts.size > 1 ? st.group : "", names = [...counts].sort(([a], [b]) => (a === "Other") - (b === "Other"));
+    const bar = $(`ep-${name}-filter`), sig = JSON.stringify([names, g]);
+    bar.hidden = counts.size < 2;
+    if (bar.dataset.sig !== sig) {
+      bar.dataset.sig = sig;
+      setHTML(bar, html`<button type="button" class="pill" data-filter="" aria-pressed="${!g}">All <span class="meta">${all.length}</span></button>${names.map(([n, c]) => html`<button type="button" class="pill" data-filter="${n}" aria-pressed="${g === n}">${n} <span class="meta">${c}</span></button>`)}`);
+    }
     let shown = 0;
     for (const c of all) {
-      const on = c.querySelector("input").checked || (q ? matches(q, c.textContent) : !long || st.all || shown < PICKER.page);
-      c.hidden = !on; if (on && !c.querySelector("input").checked) shown++;
+      const on = c.querySelector("input").checked || (q ? matches(q, c.textContent) && (!g || groupOf(c) === g) : g ? groupOf(c) === g : !collapsible || st.all || shown < PICKER.chipPage);
+      c.hidden = !on; if (on) shown++; // selected chips use up page slots too, so ticking one never makes another appear
     }
-    const hiddenCount = all.filter(c => c.hidden).length, more = $(`ep-${name}-more`);
-    more.hidden = !long || q || (!st.all && !hiddenCount);
-    more.textContent = st.all ? "Show fewer" : `Show all ${all.length}`;
+    const hiddenCount = all.filter(c => c.hidden).length, more = $(`ep-${name}-more`), noun = name === "sym" ? "symptoms" : "triggers";
+    more.hidden = !collapsible || q || g || (!st.all && !hiddenCount);
+    more.textContent = st.all ? "Show fewer" : `Show all ${all.length} ${noun} (${hiddenCount} more)`;
     box.dataset.empty = q && all.every(c => c.hidden) ? "1" : "";
+    // One line that says what is on screen, so a long list never feels like items have gone missing.
+    const picked = all.filter(c => c.querySelector("input").checked).length, visible = all.length - hiddenCount;
+    const where = q ? `${visible - picked} ${visible - picked === 1 ? "match" : "matches"} for “${q}”${g ? ` in ${g}` : ""}` : g ? `${g}: ${counts.get(g)} of ${all.length} ${noun}` : collapsible && !st.all ? `Showing ${visible} of ${all.length}` : `${all.length} ${noun}`;
+    $(`ep-${name}-status`).hidden = !long && !picked;
+    $(`ep-${name}-count`).textContent = long ? where + (picked ? ` · ${picked} selected` : "") : `${picked} selected`;
+    $(`ep-${name}-clear`).hidden = !picked;
   }
   function build(ep = null) {
-    const S = ctx.settings(), use = usage(ctx.store.all(), ctx.today()), fs = favourites(S.symptoms, use.sym), ft = favourites(S.triggers, use.trig), k = JSON.stringify([S.symptoms, S.triggers, fs, ft, editing, ep?.symptoms, ep?.before]);
+    const S = ctx.settings(), use = usage(ctx.store.all(), ctx.today()), fs = favourites(S.symptoms, use.sym), ft = favourites(S.triggers, use.trig), k = JSON.stringify([S.symptoms, S.triggers, S.symptomGroups, S.triggerGroups, fs, ft, editing, ep?.symptoms, ep?.before]);
     if (k === chipsKey) return;
     chipsKey = k;
-    chips("ep-sym", S.symptoms, "sym", "checkbox", ep?.symptoms || [], undefined, fs);
+    chips("ep-sym", S.symptoms, "sym", "checkbox", ep?.symptoms || [], undefined, fs, S.symptomGroups);
     chips("ep-onset", ONSET, "onset", "radio");
-    chips("ep-trig", S.triggers, "trig", "checkbox", ep?.before || [], undefined, ft);
+    chips("ep-trig", S.triggers, "trig", "checkbox", ep?.before || [], undefined, ft, S.triggerGroups);
     const current = $("ep-dur").value || DURATIONS[0];
     setHTML($("ep-dur"), html`${[...new Set([...DURATIONS, ...(ep?.duration ? [ep.duration] : [])])].map(d => html`<option>${d}</option>`)}`);
     $("ep-dur").value = current;
@@ -64,7 +81,7 @@ export function init(ctx) {
   }
   function restore(id = null) {
     editing = id; ticket = null; submitted = null;
-    for (const name of ["sym", "trig"]) { find[name].q = ""; find[name].all = false }
+    for (const name of ["sym", "trig"]) { find[name].q = ""; find[name].all = false; find[name].group = "" }
     const draft = drafts?.get(slot());
     original = draft?.original || (id ? ctx.store.view(id) || {} : {});
     dirty = !!draft;
@@ -95,6 +112,18 @@ export function init(ctx) {
   for (const name of ["sym", "trig"]) {
     $(`ep-${name}-q`).addEventListener("input", e => { find[name].q = e.target.value; narrow(name) });
     $(`ep-${name}-q`).addEventListener("keydown", e => { if (e.key === "Enter") e.preventDefault() }); // Enter must not save the episode
+    $(`ep-${name}-filter`).addEventListener("click", e => {
+      const b = e.target.closest("[data-filter]");
+      if (!b) return;
+      find[name].group = b.dataset.filter === find[name].group ? "" : b.dataset.filter; narrow(name);
+      [...$(`ep-${name}-filter`).children].find(x => x.dataset.filter === find[name].group)?.focus(); // keep keyboard position after the buttons are rebuilt
+    });
+    $(`ep-${name}-clear`).addEventListener("click", () => {
+      const boxes = [...form.querySelectorAll(`input[name=${name}]:checked`)];
+      boxes.forEach(i => { i.checked = false });
+      boxes[0]?.dispatchEvent(new Event("input", { bubbles: true })); // marks the draft as changed
+      narrow(name); $(`ep-${name}-q`).focus();
+    });
     $(`ep-${name}-more`).addEventListener("click", () => { find[name].all = !find[name].all; narrow(name) });
   }
   form.addEventListener("change", e => { if (e.target.name === "sym" || e.target.name === "trig") narrow(e.target.name) });

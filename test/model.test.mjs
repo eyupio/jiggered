@@ -238,3 +238,51 @@ test("settings merge disjoint fields and row fields; same-field and order confli
  assert.deepEqual(operationConflicts(patch,remote),[]);const merged=applyOp(patch,remote);assert.equal(merged.budget,12);assert.deepEqual(merged.activities[0],{id:'a',a:'Long walk',c:-2});
  patch.arg.activities[0].a='Another walk';assert.ok(operationConflicts(patch,remote).some(x=>x.includes('name')));
 });
+
+test("defaultsGap finds only what the shared defaults add, ignoring case, and mergeDefaults appends it", () => {
+  const mine = m.normaliseSettings({ activities: [{ a: "Housework", c: 5 }], symptoms: ["headache"], triggers: [] });
+  const shared = m.normaliseSettings({ activities: [{ a: "housework", c: 2, g: "Home" }, { a: "Cooking", c: 1, g: "Home" }], symptoms: ["Headache", "Tremor"], triggers: ["Cold"] });
+  const gap = m.defaultsGap(mine, shared);
+  assert.deepEqual(gap.acts.map(x => x.a), ["Cooking"]);
+  assert.deepEqual(gap.sym, ["Tremor"]);
+  assert.deepEqual(gap.trig, ["Cold"]);
+  assert.equal(gap.total, 3);
+  const merged = m.mergeDefaults(mine, shared);
+  assert.deepEqual(merged.activities.map(x => [x.a, x.c]), [["Housework", 5], ["Cooking", 1]]); // their points are kept
+  assert.ok(merged.activities.every(x => x.id));
+  assert.equal(m.defaultsGap(merged, shared).total, 0);
+  assert.equal(m.gapSignature(m.defaultsGap(merged, shared)), "");
+  assert.notEqual(m.gapSignature(gap), "");
+});
+
+test("a settings change is not a conflict just because stored rows list their keys in another order", () => {
+  const row = { a: "Housework", c: 2, g: "Home" }, stored = { activities: [{ ...row, id: "x1" }] };
+  const op = { type: "settingsPatch", before: { activities: [{ id: "x1", ...row }] }, arg: { activities: [] } };
+  assert.deepEqual(m.operationConflicts(op, stored), []);
+});
+
+test("symptom and trigger groups: defaults supply them, a person's own map wins, renames and removals drop them", () => {
+  const d = m.normaliseSettings();
+  assert.equal(d.symptomGroups["Headache"], "Head and senses");
+  assert.equal(Object.keys(d.triggerGroups).length, d.triggers.length, "every built-in trigger is grouped");
+  assert.ok(Object.keys(d.symptomGroups).length === d.symptoms.length);
+  const own = m.normaliseSettings({ symptoms: ["Headache", "Cough"], symptomGroups: { Headache: "Mine", Gone: "x", constructor: "y" } });
+  assert.deepEqual(own.symptomGroups, { Headache: "Mine" });
+  assert.deepEqual(m.normaliseSettings({ symptoms: ["Headache"], symptomGroups: {} }).symptomGroups, {}, "an empty map is a choice to have no groups");
+  assert.deepEqual(m.normaliseSettings({ symptoms: ["Headache"], symptomGroups: null }).symptomGroups, { Headache: "Head and senses" });
+  assert.ok(m.validateSettings({ ...own, symptomGroups: { Headache: "x".repeat(31) } }).length);
+});
+
+test("mergeDefaults brings new symptoms and triggers in with their shared group, keeping the person's own groups", () => {
+  const mine = m.normaliseSettings({ symptoms: ["Headache"], triggers: [], symptomGroups: { Headache: "Mine" }, triggerGroups: {} });
+  const shared = m.normaliseSettings({ symptoms: ["Headache", "Tremor"], triggers: ["Cold"], symptomGroups: { Headache: "Theirs", Tremor: "Nerves" }, triggerGroups: { Cold: "Surroundings" } });
+  const merged = m.mergeDefaults(mine, shared);
+  assert.deepEqual(merged.symptomGroups, { Tremor: "Nerves", Headache: "Mine" });
+  assert.deepEqual(merged.triggerGroups, { Cold: "Surroundings" });
+});
+
+test("a settings field the stored copy never had is not a conflict when it is first saved", () => {
+  const op = { type: "settingsPatch", before: { symptomGroups: { Headache: "Head" } }, arg: { symptomGroups: { Headache: "Mine" } } };
+  assert.deepEqual(m.operationConflicts(op, { budget: 10 }), []);
+  assert.deepEqual(m.operationConflicts(op, { symptomGroups: { Headache: "Theirs" } }), ["symptomGroups"]);
+});

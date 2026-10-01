@@ -260,7 +260,15 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
   .row > .secondary,.row > .primary{flex:1 1 100%}
   .checkin{gap:6px}
   .checkin button b{font-size:.95rem}
-  .acts{gap:10px}
+  .acts{gap:12px}
+  .act-groups{gap:20px}
+  .act-group,.act-fav{gap:12px}
+  .group-filter{gap:12px}
+  .chips{gap:10px 8px}
+  .chip span{padding:10px 14px}
+  .chip-search{margin-bottom:8px}
+  #setform .row{gap:12px;margin-top:14px}
+  #setform [data-gap]{margin-bottom:4px}
   .toggle{align-items:flex-start}
 }
 
@@ -289,3 +297,24 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
 .checkin button,.cell,.act{transition:background-color .18s ease,border-color .18s ease,color .18s ease,transform .1s ease}
 .cell{transition:background-color .25s ease,border-color .25s ease}
 @media(prefers-reduced-motion:reduce){.sync,.checkin button,.cell,.act{transition:none!important}}
+
+/* Group filter on Today, and the shared-defaults notice */
+.group-filter{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 16px}
+.group-filter[hidden]{display:none}
+.pill{font:inherit;font-size:.9rem;white-space:nowrap;flex:none;min-height:40px;padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.pill .meta{font-variant-numeric:tabular-nums}
+.pill:hover{border-color:var(--accent)}
+.pill[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);font-weight:700}
+.pill:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.defaults-notice{border-left:4px solid var(--accent)}
+.defaults-notice h2{margin:0 0 6px}
+.defaults-notice p{margin:0 0 12px}
+.defaults-notice p .meta{font-size:inherit;font-weight:700}
+.defaults-notice .row{flex-wrap:wrap;gap:12px}
+.defaults-notice .x{min-height:44px;padding:10px 12px}
+
+/* Symptom and trigger lists: status line above the chips */
+.chip-status{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:32px;margin:2px 0 10px;font-size:.85rem;color:var(--muted)}
+.chip-status[hidden]{display:none}
+.chip-status .x{min-height:36px;padding:6px 8px;white-space:nowrap}
+#ep-sym-more,#ep-trig-more{width:100%;min-height:44px;margin-top:12px}
