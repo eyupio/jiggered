@@ -344,19 +344,22 @@ go vet ./... && go test -race ./...     # -race needs a C compiler; Node 22+ for
 node --test "test/*.test.mjs"           # front-end logic: sync, recovery/drafts, ordering, settings, trends, CSV
 ```
 
-An optional real-browser walkthrough covers admin and user accounts, desktop/touch ordering, offline reload,
-refusal recovery, shared-default isolation and IndexedDB migration/large copies:
+Two real-browser scripts run in CI against a real server and database, in Chromium. `test/browser-today.cjs` covers
+the Today picker (groups start closed, a logged activity turns green with a count, -/+ and Undo, pinned with the groups
+closed). `test/browser.cjs` is the long walkthrough: admin and user accounts, desktop/touch ordering, offline reload,
+refusal recovery, shared-default isolation and IndexedDB migration/large copies. To run them yourself:
 
 ```sh
-npm install --no-save --package-lock=false playwright
+npm install --no-save --package-lock=false playwright@1.56.1
 npx playwright install chromium
+node test/browser-today.cjs
 node test/browser.cjs
 ```
 
-It builds a temporary binary/database and cleans them up. `JIGGERED_BROWSER_PATH` selects a preinstalled browser;
-`JIGGERED_BROWSER_ARGS` is an optional JSON array of launch arguments. `JIGGERED_SCREENSHOT_DIR` saves review
-screenshots; `GO_BINARY` or `JIGGERED_TEST_BINARY` selects the build tool or an already-built app. The optional
-browser dependency is only for development; it is not served or added to the container.
+They build a temporary binary/database and clean them up. `JIGGERED_BROWSER_PATH` selects a preinstalled browser;
+`JIGGERED_BROWSER_ARGS` is an optional JSON array of launch arguments (`browser.cjs`). `JIGGERED_SCREENSHOT_DIR` saves
+review screenshots (`browser.cjs`); `GO_BINARY` or `JIGGERED_TEST_BINARY` selects the build tool or an already-built app.
+The browser dependency is only for development and CI; it is not served or added to the container.
 
 The page is plain ES modules with no build step. `web/sync.js` is the part to read first: edits are queued as
 operations and replayed on the server's latest copy, which is why two devices can edit the same day without

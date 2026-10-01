@@ -19,6 +19,7 @@ go vet ./...
 CGO_ENABLED=0 go build ./...     # what the image builds (pure Go, no cgo)
 go test -race ./...              # server tests, about 20s once compiled (-race needs cgo; tests only)
 node --test "test/*.test.mjs"    # frontend logic tests; Node 22, no npm install
+node test/browser-today.cjs      # real Chromium (needs Playwright, see README); CI also runs test/browser.cjs
 ```
 
 Measured on a cold module cache: building took about 2m20s (pure-Go SQLite
@@ -54,7 +55,7 @@ frontend build step.
 | `assets/brand/` | Logo and mark sources. Not embedded, not served |
 | `Dockerfile`, `compose.yaml` | Multi-stage build to distroless nonroot with a `HEALTHCHECK`; read-only compose service, `cap_drop: ALL` |
 | `.env.example` | Template for compose's optional `.env` |
-| `.github/workflows/image.yml` | gofmt, vet, build, `go test -race`, `node --test`, then build and push the image |
+| `.github/workflows/image.yml` | gofmt, vet, build, `go test -race`, `node --test`, real-browser tests, then build and push the image |
 
 `web/`: `app.js` boots and owns the tabs; `sync.js` is the sync engine;
 `device.js` provides IndexedDB-backed cache/drafts; `editor.js` shares accessible list ordering. `picker.js` is the pure long-list logic (search, favourites by recent use, groups, paging) used by Today and Episodes; lists show none of it until they pass `PICKER.searchFrom` items. Activities carry an optional `g` group; symptoms and triggers stay plain strings. List limit is 200 (`LIMITS` in `model.js`, mirrored in `defaults.go`). `model.js`
