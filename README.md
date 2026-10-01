@@ -320,6 +320,22 @@ docker compose start jiggered
 It checks the file first (it must have every table its schema version needs), signs everyone out, keeps the database it replaces as `/data/backups/pre-restore-*.db`, and removes the old
 `-wal` file. Upgrades also leave a `pre-upgrade-*.db` copy there. Nothing deletes the `backups` folder for you.
 
+### Keeping backups
+
+- **Keep a copy somewhere else.** Copies in `/data/backups` sit in the same volume as the database, so they cover
+  mistakes (a bad upgrade, an accidental restore) but not losing the volume or the disk. Take a copy off the machine
+  now and then with `backup -` as above, and keep it as private as the database itself: every backup is a full copy
+  of everyone's data.
+- **Nothing is pruned for you.** `/data/backups` accumulates `pre-upgrade-*.db` (one per upgrade that changes the
+  schema), `pre-restore-*.db` (every restore) and any backup you saved there. Each is a whole copy and counts against
+  the volume's space. The image has no shell, so look from a throwaway container that mounts the volume read-only, or
+  from the host's path to the volume, and delete the old ones by hand once a newer good copy exists elsewhere. Keep the
+  newest `pre-upgrade-*.db` until the upgrade has proved itself.
+- **Check a backup before you need it.** Restoring into a scratch path proves the file is sound without touching the
+  live database: `APP_DB=/some/scratch/path jiggered restore your-backup.db --yes` prints "Restored ..." and exits 0,
+  or names the problem and exits 1 leaving nothing behind. In Docker the service's root filesystem is read-only, so the
+  scratch path has to be somewhere writable (for example a tmpfs); delete it afterwards, since it is another full copy.
+
 ## Security
 
 - bcrypt password check. Ten failed sign-ins per address and ten per account in 15 minutes lock that address or
