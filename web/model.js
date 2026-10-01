@@ -6,12 +6,20 @@ export const DEFAULTS = Object.freeze({
   sleepPenalty: 3,
   locale: "en-GB",
   activities: [
-    { a: "Meeting or call", c: 2 }, { a: "Unplanned interruption", c: 3 },
-    { a: "Context switch", c: 1 }, { a: "Deep focus (2 hours)", c: 1 },
-    { a: "Social or noisy place", c: 3 }, { a: "Travel or commute", c: 2 },
-    { a: "Walk or dog walk", c: -2 }, { a: "Quiet break", c: -1 }],
-  symptoms: ["Face numb or tingling", "Hand or arm numb", "Arm clumsy", "Blurred vision", "Eye discomfort", "Headache", "Speech change", "Weakness"],
-  triggers: ["Poor sleep", "High stress", "Overload or overwhelm", "Long hyperfocus", "Long screen time", "Skipped meals", "Low water", "Noisy or busy place", "Alcohol", "Missed tablets"],
+    { a: "Meeting or call", c: 2, g: "Work" }, { a: "Unplanned interruption", c: 3, g: "Work" },
+    { a: "Context switch", c: 1, g: "Work" }, { a: "Deep focus (2 hours)", c: 1, g: "Work" },
+    { a: "Screen-heavy work (1 hour)", c: 1, g: "Work" }, { a: "Hard conversation", c: 3, g: "Work" },
+    { a: "Presentation or deadline", c: 3, g: "Work" }, { a: "Housework", c: 2, g: "Home" },
+    { a: "Cooking a meal", c: 1, g: "Home" }, { a: "Shopping trip", c: 2, g: "Home" },
+    { a: "Admin or paperwork", c: 2, g: "Home" }, { a: "Looking after others", c: 2, g: "Home" },
+    { a: "Social or noisy place", c: 3, g: "Out and about" }, { a: "Travel or commute", c: 2, g: "Out and about" },
+    { a: "Appointment", c: 2, g: "Out and about" }, { a: "Driving (30 min or more)", c: 2, g: "Out and about" },
+    { a: "Exercise or gym", c: 2, g: "Out and about" }, { a: "Walk or dog walk", c: -2, g: "Recovery" },
+    { a: "Quiet break", c: -1, g: "Recovery" }, { a: "Nap or lie down", c: -2, g: "Recovery" },
+    { a: "Meal or snack break", c: -1, g: "Recovery" }, { a: "Time outside", c: -1, g: "Recovery" },
+    { a: "Stretching or breathing", c: -1, g: "Recovery" }, { a: "Early night", c: -2, g: "Recovery" }],
+  symptoms: ["Face numb or tingling", "Hand or arm numb", "Arm clumsy", "Blurred vision", "Eye discomfort", "Headache", "Speech change", "Weakness", "Brain fog", "Word-finding trouble", "Memory lapse", "Dizziness", "Light-headed on standing", "Palpitations", "Fatigue", "Sudden exhaustion", "Nausea", "Light sensitivity", "Sound sensitivity", "Tinnitus", "Leg numb or heavy", "Balance off", "Muscle aches", "Tremor", "Chest tightness", "Anxiety or panic", "Low mood", "Irritability", "Hot or flushed", "Cold hands or feet"],
+  triggers: ["Poor sleep", "High stress", "Overload or overwhelm", "Long hyperfocus", "Long screen time", "Skipped meals", "Low water", "Noisy or busy place", "Alcohol", "Missed tablets", "Too much caffeine", "Bright or flickering light", "Heat or hot room", "Cold", "Standing for long", "Long drive or travel", "Hard exercise", "Not enough movement", "Illness or infection", "Hormonal changes", "Strong smells", "Sugary or heavy meal", "Late night", "Lots of social contact", "Worry or low mood", "Medication change", "Weather change", "Skipped a break"],
 });
 
 export const ONSET = ["Built up gradually", "Sudden"];
