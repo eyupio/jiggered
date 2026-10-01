@@ -11,7 +11,7 @@ const costLabel = c => c > 0 ? "−" + c : c < 0 ? "+" + -c : "0";
 export function init(ctx) {
   let viewDate = null; // null follows the clock, so the screen moves on by itself at midnight
   let actsKey = "", editing = null, editingDate = "", query = "", groupFilter = ""; // groupFilter "" shows every group
-  const more = new Map(), closed = new Set(); // per-group paging and collapsed groups, kept while this tab is open
+  const more = new Map(), opened = new Set(); // per-group paging and the groups the person opened (all start closed), kept while this tab is open
   const entryForm = $("entry-form");
 
   const key = () => viewDate ?? ctx.today();
@@ -46,7 +46,7 @@ export function init(ctx) {
   $("acts").addEventListener("toggle", e => {
     const g = e.target.dataset?.group;
     if (!g) return;
-    if (e.target.open) closed.delete(g); else closed.add(g);
+    if (e.target.open) opened.add(g); else opened.delete(g);
   }, true);
   $("sleep").addEventListener("change", e => op("setPoorSleep", e.target.checked));
   const logOne = x => op("addEntry", { id: uid(), a: x.a, c: x.c, t: key() !== ctx.today() ? $("act-time").value : hhmm(new Date()) });
@@ -138,7 +138,7 @@ export function init(ctx) {
     const sections = (q ? [{ key: "search", name: "", rows: found.filter(unpicked), size: PICKER.searchPage }]
       : groupFilter ? [{ key: "g:" + groupFilter, name: "", rows: rows.filter(unpicked), size: PICKER.searchPage }]
       : all.map(g => ({ key: "g:" + g.name, name: g.name, rows: g.rows.filter(unpicked), size: PICKER.page }))).filter(s => s.rows.length || (!q && !groupFilter && !s.name));
-    const listKey = JSON.stringify([S.activities, q, groupFilter, favs.map(f => f.i), [...more], [...closed], long, selected.map(r => [r.i, count.get(r.item.a)])]);
+    const listKey = JSON.stringify([S.activities, q, groupFilter, favs.map(f => f.i), [...more], [...opened], long, selected.map(r => [r.i, count.get(r.item.a)])]);
     if (listKey === actsKey) return; // only rebuild the buttons when something shown has changed
     actsKey = listKey;
     // One tap on a group narrows the list to it; tapping it again, or "All", brings everything back.
@@ -148,7 +148,7 @@ export function init(ctx) {
     const part = s => {
       const shown = more.get(s.key) ?? s.size, hide = s.rows.length - shown;
       const body = html`${grid(s.rows.slice(0, shown))}${hide > 0 ? html`<button class="secondary small" data-more="${s.key}">Show ${Math.min(hide, s.size)} more of ${s.rows.length}</button>` : ""}`;
-      return s.name ? html`<details class="act-group" data-group="${s.key}"${closed.has(s.key) ? "" : " open"}><summary>${s.name} <span class="meta">${s.rows.length}</span></summary>${body}</details>` : body;
+      return s.name ? html`<details class="act-group" data-group="${s.key}"${opened.has(s.key) ? " open" : ""}><summary>${s.name} <span class="meta">${s.rows.length}</span></summary>${body}</details>` : body;
     };
     const pinned = selected.length ? html`<div class="act-picked"><h3 class="label">Logged ${key() === ctx.today() ? "today" : "this day"}</h3><div class="acts">${selected.map(r => selectedCard(count.get(r.item.a), r))}</div></div>` : "";
     setHTML($("acts"), html`${pinned}${favs.length ? html`<div class="act-fav"><h3 class="label">Frequent and recent</h3>${grid(favs)}</div>` : ""}${sections.map(part)}${q && !found.length ? html`<p class="empty">No activity matches${groupFilter ? ` in ${groupFilter}. Choose All to search every group` : ""}. Use Other activity to log it once.</p>` : ""}`);
