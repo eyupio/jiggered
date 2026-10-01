@@ -60,6 +60,10 @@ jobs:
         env:
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
         run: node test/browser-today.cjs
+      - name: History search
+        env:
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+        run: node test/browser-history.cjs
       - name: Full walkthrough
         env:
           NODE_PATH: ${{ runner.temp }}/pw/node_modules

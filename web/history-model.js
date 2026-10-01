@@ -4,7 +4,14 @@ import { addDays, listDays, listEpisodes, selectHistory, used, capOf, activityDa
 export const HISTORY_RANGES = [["7", "7 days"], ["30", "30 days"], ["90", "90 days"], ["365", "1 year"], ["all", "All time"]];
 const DAY = 86400000;
 const ordinal = key => Date.parse(key + "T12:00:00Z") / DAY;
-export const validDate = key => /^\d{4}-\d{2}-\d{2}$/.test(key || "") && Number(key.slice(0, 4)) >= 1000 && addDays(key, 0) === key;
+const validDates = new Map(); // a few thousand distinct dates are checked again and again; each is worked out once
+const checkDate = key => /^\d{4}-\d{2}-\d{2}$/.test(key || "") && Number(key.slice(0, 4)) >= 1000 && addDays(key, 0) === key;
+export const validDate = key => {
+  if (typeof key !== "string") return checkDate(key);
+  let ok = validDates.get(key);
+  if (ok === undefined) { ok = checkDate(key); if (validDates.size < 50000) validDates.set(key, ok) }
+  return ok;
+};
 const round = n => Math.round(n * 10) / 10;
 const average = values => values.length ? round(values.reduce((s, n) => s + n, 0) / values.length) : null;
 const counts = (lists, limit = 5) => {

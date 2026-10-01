@@ -41,7 +41,21 @@ export function init(ctx) {
   const filters = () => ({from: $("hist-from").value, to: $("hist-to").value, status: $("hist-status").value, symptom: $("hist-symptom").value, ongoing: $("hist-ongoing").checked, query: $("hist-query").value});
   const selectedDocs = () => { const selected = selectHistory(ctx.store.all(), filters()); return Object.fromEntries([...selected.days.map(d => ["d-" + d.date, d]), ...selected.episodes]) };
   $("history-filters").addEventListener("submit", e => e.preventDefault());
-  $("history-filters").addEventListener("input", e => { initialised = true; if (["hist-from", "hist-to"].includes(e.target.id)) rangeMode = "custom"; shown = episodesShown = PAGE; render() });
+  // Typing in the search box waits for a short pause before the whole view is recomputed, so a word is one update
+  // rather than one per letter. The count line says so meanwhile. Dates, selects and buttons still update at once.
+  let searchTimer = null;
+  const SEARCH_PAUSE = 250;
+  const renderNow = () => { clearTimeout(searchTimer); searchTimer = null; render() };
+  $("history-filters").addEventListener("input", e => {
+    initialised = true; if (["hist-from", "hist-to"].includes(e.target.id)) rangeMode = "custom"; shown = episodesShown = PAGE;
+    if (e.target.id === "hist-query") {
+      $("history-count").textContent = "Updating…";
+      clearTimeout(searchTimer); searchTimer = setTimeout(renderNow, SEARCH_PAUSE);
+      return;
+    }
+    renderNow();
+  });
+  $("history-filters").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "hist-query" && searchTimer !== null) { e.preventDefault(); renderNow() } });
   $("history-filters").addEventListener("reset", () => setTimeout(() => { initialised = true; setRange("all"); render() }, 0));
   $("more-eps").addEventListener("click", () => { episodesShown += PAGE; render() });
   $("sum-preview").addEventListener("click", () => { renderSummary(); $("summary-preview").innerHTML = $("print-view").innerHTML; $("summary-preview").hidden = !$("summary-preview").hidden });
