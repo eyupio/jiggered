@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Jiggered</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#2f6f62">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="login">
+  <form class="panel" method="post" action="/login">
+    <div>
+      <img class="brand" src="/icon.svg" alt="" width="56" height="56">
+      <h1>Jiggered</h1>
+      <p class="tag">How much have you got left today?</p>
+    </div>
+    <label for="username">Username<input id="username" name="username" autocomplete="username" autocapitalize="none" required></label>
+    <label for="password">Password<input id="password" name="password" type="password" autocomplete="current-password" required></label>
+    <p class="err" id="err" aria-live="polite"></p>
+    <button class="primary" type="submit">Sign in</button>
+  </form>
+</main>
+<script src="/login.js"></script>
+</body>
+</html>

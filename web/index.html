@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Jiggered</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#2f6f62">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="title"><img src="/icon.svg" alt="" width="36" height="36"><div><h1>Jiggered</h1><span class="date" id="today"></span></div></div>
+    <form class="head-actions" method="post" action="/logout">
+      <a class="ghost" href="/api/export">Export</a>
+      <button class="ghost" type="submit">Sign out</button>
+    </form>
+  </header>
+  <nav role="tablist">
+    <button role="tab" id="t-today" aria-selected="true" data-tab="today">Today</button>
+    <button role="tab" id="t-episode" aria-selected="false" data-tab="episode">Log episode</button>
+    <button role="tab" id="t-history" aria-selected="false" data-tab="history">History</button>
+  </nav>
+
+  <section id="today-panel">
+    <div class="panel">
+      <div class="label">Morning check-in</div>
+      <div class="checkin" id="checkin">
+        <button data-s="green" aria-pressed="false"><b>Green</b><small>Normal plan</small></button>
+        <button data-s="amber" aria-pressed="false"><b>Amber</b><small>Cut the plan</small></button>
+        <button data-s="red" aria-pressed="false"><b>Red</b><small>Essentials only</small></button>
+      </div>
+      <p class="advice" id="advice">How are you starting today? Pick one.</p>
+    </div>
+
+    <div class="panel">
+      <div class="gauge-head">
+        <div><div class="label">Points left</div><div class="big" id="left">10 <small>of 10</small></div></div>
+        <div class="meta" id="spentline">0 spent</div>
+      </div>
+      <div class="cells" id="cells"></div>
+      <label class="toggle"><input type="checkbox" id="sleep"> Poor sleep last night (−3 off today)</label>
+    </div>
+
+    <div class="panel">
+      <h2>Tap what you've done</h2>
+      <div class="acts" id="acts"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Today so far</h2>
+      <ul class="list" id="entries"></ul>
+      <p class="empty" id="noentries">Nothing logged yet. Tap an activity above as you go.</p>
+    </div>
+    <p class="sync" id="sync">Connecting…</p>
+  </section>
+
+  <section id="episode-panel" hidden>
+    <div class="warn"><b>Call 999</b> if symptoms come on suddenly, or with weakness, face drooping, speech problems or severe headache. Don't log first.</div>
+    <div class="panel">
+      <form id="epform">
+        <div><label class="label" for="ep-when">When it started</label><input type="datetime-local" id="ep-when" required></div>
+        <fieldset><legend>What you noticed</legend><div class="chips" id="ep-sym"></div></fieldset>
+        <fieldset><legend>How it came on</legend><div class="chips" id="ep-onset"></div></fieldset>
+        <div><label class="label" for="ep-dur">How long it lasted</label>
+          <select id="ep-dur"><option>Still going</option><option>Under 15 min</option><option>15–60 min</option><option>1–4 hours</option><option>4–12 hours</option><option>Most of a day</option><option>Over a day</option></select></div>
+        <fieldset><legend>In the day or two before</legend><div class="chips" id="ep-trig"></div></fieldset>
+        <div><label class="label" for="ep-notes">Notes</label><textarea id="ep-notes" placeholder="Anything else: BP reading, what helped, where you were"></textarea></div>
+        <button class="primary" type="submit">Save episode</button>
+        <p class="toast" id="eptoast" aria-live="polite"></p>
+      </form>
+    </div>
+  </section>
+
+  <section id="history-panel" hidden>
+    <div class="panel">
+      <h2>Last 14 days</h2>
+      <div class="strip" id="strip" aria-label="Check-in colour for each of the last 14 days"></div>
+      <p class="meta strip-note">Oldest on the left. Grey means no check-in.</p>
+    </div>
+    <div class="panel">
+      <h2>Days</h2>
+      <ul class="list" id="days"></ul>
+      <p class="empty" id="nodays">Your days will appear here once you start checking in.</p>
+    </div>
+    <div class="panel">
+      <h2>Episodes</h2>
+      <div id="eps"></div>
+      <p class="empty" id="noeps">No episodes logged. Use "Log episode" if one happens; show this list to your neurologist or GP.</p>
+    </div>
+  </section>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>

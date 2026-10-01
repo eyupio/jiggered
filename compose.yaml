@@ -1,0 +1,17 @@
+services:
+  jiggered:
+    image: ghcr.io/jnnngs/jiggered:latest
+    container_name: jiggered
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:8080:8080"   # put a reverse proxy with HTTPS in front
+    volumes:
+      - jiggered-data:/data
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+
+volumes:
+  jiggered-data:

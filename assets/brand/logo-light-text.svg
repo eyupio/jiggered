@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 200">
+<g transform="translate(20 20) scale(0.3125)"><rect width="512" height="512" rx="112" fill="#2f6f62"/><g transform="translate(256 256) rotate(10) scale(1.14) translate(-252 -256)">
+  <rect x="120" y="172" width="248" height="168" rx="34" fill="none" stroke="#f3f5f4" stroke-width="30"/>
+  <rect x="368" y="220" width="36" height="72" rx="12" fill="#f3f5f4"/>
+  <rect x="158" y="210" width="54" height="92" rx="12" fill="#e8a93a"/>
+</g></g>
+<text x="210" y="133" font-family="Bricolage Grotesque, Avenir Next, Segoe UI, Helvetica Neue, Arial, sans-serif" font-weight="700" font-size="104" letter-spacing="-2" fill="#e6eeeb">jiggered</text>
+</svg>
