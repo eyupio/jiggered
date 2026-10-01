@@ -29,7 +29,7 @@ func (s *server) verifyOwnPassword(w http.ResponseWriter, r *http.Request, u *us
 	hash, err := s.passwordHash(r.Context(), u.ID)
 	if err != nil {
 		giveBack()
-		http.Error(w, "server error", http.StatusInternalServerError)
+		serverError(w, r, err)
 		return false
 	}
 	good, err := s.checkHash(hash, pw)
@@ -73,7 +73,7 @@ func (s *server) handleChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.setPassword(r.Context(), a.u.ID, hash, false, a.sid); err != nil {
-		http.Error(w, "server error", http.StatusInternalServerError)
+		serverError(w, r, err)
 		return
 	}
 	s.userLimit.reset(a.u.Username)
@@ -95,7 +95,7 @@ func (s *server) listSessions(w http.ResponseWriter, r *http.Request) {
 	rows, err := s.db.QueryContext(r.Context(), `SELECT sid, created_at, last_seen_at, ip, user_agent FROM sessions
 		WHERE user_id = ? AND expires_at > ? ORDER BY last_seen_at DESC`, a.u.ID, time.Now().Unix())
 	if err != nil {
-		http.Error(w, "server error", http.StatusInternalServerError)
+		serverError(w, r, err)
 		return
 	}
 	defer rows.Close()
@@ -103,11 +103,15 @@ func (s *server) listSessions(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var so sessionOut
 		if err := rows.Scan(&so.ID, &so.CreatedAt, &so.LastSeenAt, &so.IP, &so.UserAgent); err != nil {
-			http.Error(w, "server error", http.StatusInternalServerError)
+			serverError(w, r, err)
 			return
 		}
 		so.Current = so.ID == a.sid
 		out = append(out, so)
+	}
+	if err := rows.Err(); err != nil {
+		serverError(w, r, err)
+		return
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -118,7 +122,7 @@ func (s *server) revokeSession(w http.ResponseWriter, r *http.Request) {
 	sid := r.PathValue("sid")
 	res, err := s.db.ExecContext(r.Context(), "DELETE FROM sessions WHERE user_id = ? AND sid = ?", a.u.ID, sid)
 	if err != nil {
-		http.Error(w, "server error", http.StatusInternalServerError)
+		serverError(w, r, err)
 		return
 	}
 	if sid == a.sid {
@@ -134,7 +138,7 @@ func (s *server) revokeOtherSessions(w http.ResponseWriter, r *http.Request) {
 	a := authOf(r)
 	n, err := s.revokeSessions(r.Context(), a.u.ID, a.sid)
 	if err != nil {
-		http.Error(w, "server error", http.StatusInternalServerError)
+		serverError(w, r, err)
 		return
 	}
 	if n > 0 {
@@ -147,7 +151,7 @@ func (s *server) revokeAllSessions(w http.ResponseWriter, r *http.Request) {
 	a := authOf(r)
 	n, err := s.revokeSessions(r.Context(), a.u.ID, "")
 	if err != nil {
-		http.Error(w, "server error", http.StatusInternalServerError)
+		serverError(w, r, err)
 		return
 	}
 	s.clearSessionCookie(w)
@@ -174,7 +178,7 @@ func (s *server) deleteSelf(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, http.StatusConflict, "You're the only admin. Make someone else an admin first.")
 			return
 		}
-		http.Error(w, "server error", http.StatusInternalServerError)
+		serverError(w, r, err)
 		return
 	}
 	s.audit(r.Context(), a.u.Username, "account_deleted", a.u.Username, "by the account holder", s.clientIP(r))

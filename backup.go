@@ -44,20 +44,19 @@ func (s *server) adminBackup(w http.ResponseWriter, r *http.Request) {
 
 	tmp, err := snapshotToTemp(s.db, s.cfg.dbPath)
 	if err != nil {
-		log.Printf("backup: %v", err)
-		http.Error(w, "server error", http.StatusInternalServerError)
+		serverError(w, r, err)
 		return
 	}
 	defer os.Remove(tmp)
 	f, err := os.Open(tmp)
 	if err != nil {
-		http.Error(w, "server error", http.StatusInternalServerError)
+		serverError(w, r, err)
 		return
 	}
 	defer f.Close()
 	st, err := f.Stat()
 	if err != nil {
-		http.Error(w, "server error", http.StatusInternalServerError)
+		serverError(w, r, err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/vnd.sqlite3")

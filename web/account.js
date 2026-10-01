@@ -95,7 +95,7 @@ export function init(ctx) {
     e.preventDefault();
     const msg = $("import-msg"), file = $("import-file").files[0];
     if (!file) return say(msg, "Choose a file first.", true);
-    if (file.size > 16 << 20) return say(msg, "That file is too large to be a Jiggered export.", true);
+    if (file.size > 26 << 20) return say(msg, "That file is too large to be a Jiggered export.", true); // a full account is 25 MB of data plus the ids around it
     let data;
     try { data = JSON.parse(await file.text()) } catch { return say(msg, "That isn't a Jiggered export.", true) }
     say(msg, "Restoring…");

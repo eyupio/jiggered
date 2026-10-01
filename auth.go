@@ -259,7 +259,7 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	u, hash, err := s.loginUser(ctx, normUsername(r.PostFormValue("username")))
 	if err != nil {
 		giveBackIP()
-		http.Error(w, "server error", http.StatusInternalServerError)
+		serverError(w, r, err)
 		return
 	}
 	giveBackUser := func() {}
@@ -308,7 +308,7 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		http.Error(w, "server error", http.StatusInternalServerError)
+		serverError(w, r, err)
 		return
 	}
 	s.db.ExecContext(ctx, "UPDATE users SET last_login_at = ? WHERE id = ?", time.Now().Unix(), u.ID)
