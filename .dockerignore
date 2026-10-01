@@ -4,3 +4,4 @@
 .git
 *_test.go
 test/
+node_modules/

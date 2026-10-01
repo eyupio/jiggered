@@ -3,3 +3,4 @@
 *.db-*
 /jiggered
 /backups/
+node_modules/
