@@ -165,15 +165,33 @@ func checkBackup(path string) error {
 	if verdict != "ok" {
 		return fmt.Errorf("%s is damaged (%s)", path, verdict)
 	}
-	var version, tables int
+	var version int
 	if err := db.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
 		return err
 	}
 	if version > len(migrations) {
 		return fmt.Errorf("%s comes from a newer Jiggered (schema v%d, this one knows v%d); restore it with that version", path, version, len(migrations))
 	}
-	if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'docs'").Scan(&tables); err != nil || tables == 0 {
-		return fmt.Errorf("%s isn't a Jiggered database (it has no docs table)", path)
+	// Each migration only adds to what the one before left, so a database at version v must have all of these. A
+	// file missing one would restore "successfully" and then fail to start.
+	need := []string{"docs", "sessions"}
+	if version >= 2 {
+		need = append(need, "users", "audit_log")
+	}
+	if version >= 3 {
+		need = append(need, "instance_settings")
+	}
+	if version >= 4 {
+		need = append(need, "doc_revs")
+	}
+	for _, name := range need {
+		var n int
+		if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?", name).Scan(&n); err != nil || n == 0 {
+			if name == "docs" {
+				return fmt.Errorf("%s isn't a Jiggered database (it has no docs table)", path)
+			}
+			return fmt.Errorf("%s isn't a usable Jiggered database (schema v%d, but it has no %s table)", path, version, name)
+		}
 	}
 	var extra int
 	if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type IN ('trigger', 'view') OR sql LIKE 'CREATE VIRTUAL%'").Scan(&extra); err != nil || extra > 0 {
@@ -237,6 +255,14 @@ func cmdRestore(args []string, out, errw io.Writer) error {
 		os.Remove(tmp)
 		return err
 	}
+	// Sign-ins belong to the moment the backup was taken: a session revoked since then would come back to life.
+	// Everyone signs in again; passwords, roles and disabled accounts are as they were in the backup.
+	if err := clearSessions(tmp); err != nil {
+		os.Remove(tmp)
+		os.Remove(tmp + "-wal")
+		os.Remove(tmp + "-shm")
+		return fmt.Errorf("preparing the restored copy: %w", err)
+	}
 	os.Remove(dst + "-wal")
 	os.Remove(dst + "-shm")
 	if err := os.Rename(tmp, dst); err != nil {
@@ -245,6 +271,20 @@ func cmdRestore(args []string, out, errw io.Writer) error {
 	}
 	fmt.Fprintf(out, "Restored %s from %s. Start the server again.\n", dst, src)
 	return nil
+}
+
+// clearSessions ends every sign-in recorded in the database file at path.
+func clearSessions(path string) error {
+	db, err := openRaw(path)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	if _, err := db.Exec("DELETE FROM sessions"); err != nil {
+		return err
+	}
+	_, err = db.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
+	return err
 }
 
 // refuseIfInUse stops a restore while the server (or anything else) has the database open: the server would carry

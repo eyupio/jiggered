@@ -118,6 +118,13 @@ export function resolveSettings(raw, shared) {
 
 export const emptyDay = key => ({ date: key, status: null, poorSleep: false, entries: [] });
 export const used = d => (d.entries || []).reduce((s, e) => s + (e.c || 0), 0);
+// The one definition of "average net points" for the graphs and the printed summary: days with at least one activity
+// count, a day that only has a check-in does not (nothing was recorded to average).
+export const activityDays = days => days.filter(d => (d.entries || []).length);
+export const averageNet = days => {
+  const logged = activityDays(days);
+  return logged.length ? Math.round(logged.reduce((s, d) => s + used(d), 0) / logged.length * 10) / 10 : null;
+};
 // Days remember the budget they were made under, so changing your settings doesn't rewrite history.
 // A day's points: its budget, less the poor-sleep cost and less what its check-in took off (stamped on the day when the
 // check-in was chosen, so days from before check-ins cost anything keep the numbers they had).
@@ -250,12 +257,23 @@ export function readableDay(raw, date) {
   return { ...d, date, status: ["green", "amber", "red"].includes(d.status) ? d.status : null,
     entries: Array.isArray(d.entries) ? d.entries.filter(e => e && Number.isFinite(e.c)).map(e => ({ ...e, a: typeof e.a === "string" ? e.a : "", t: typeof e.t === "string" ? e.t : "" })) : [] };
 }
+// A stored document keeps the same object from one render to the next until it is edited, so its readable copy is made
+// once and reused: on a large account every keystroke in History otherwise rebuilt thousands of identical copies.
+// Nothing mutates these copies (callers that reorder take a fresh array from listDays/listEpisodes each time).
+const readableCache = new WeakMap();
+const readableOf = (stored, make) => {
+  if (stored === null || typeof stored !== "object") return make();
+  let copy = readableCache.get(stored);
+  if (copy === undefined) { copy = make(); readableCache.set(stored, copy) }
+  return copy;
+};
+
 export function listDays(docs) {
-  return Object.entries(docs).filter(([k,v]) => isDayId(k) && v).map(([id,v]) => readableDay(v,id.slice(2))).sort((a,b) => b.date.localeCompare(a.date));
+  return Object.entries(docs).filter(([k,v]) => isDayId(k) && v).map(([id,v]) => readableOf(v, () => readableDay(v,id.slice(2)))).sort((a,b) => b.date.localeCompare(a.date));
 }
 
 export function listEpisodes(docs) {
-  return Object.entries(docs).filter(([k]) => isEpisodeId(k)).filter(([, v]) => v && typeof v.when === "string").map(([id, v]) => [id, readableEpisode(v)]).sort((a, b) => b[1].when.localeCompare(a[1].when));
+  return Object.entries(docs).filter(([k]) => isEpisodeId(k)).filter(([, v]) => v && typeof v.when === "string").map(([id, v]) => [id, readableOf(v, () => readableEpisode(v))]).sort((a, b) => b[1].when.localeCompare(a[1].when));
 }
 
 const top = (counts, n) => [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, n);
@@ -325,7 +343,7 @@ export function summary(docs, S, range, today) {
     from: range === "all" ? [today, ...days.map(d => d.date), ...episodes.map(e => e.when.slice(0, 10))].sort()[0] : from, to: today,
     days, episodes,
     green: count("green"), amber: count("amber"), red: count("red"),
-    avgUsed: days.length ? Math.round(days.reduce((s, d) => s + used(d), 0) / days.length * 10) / 10 : null,
+    avgUsed: averageNet(days), activityDays: activityDays(days).length,
     poorSleepDays: days.filter(d => d.poorSleep).length,
     topTriggers: top(tally(episodes.map(e => e.before)), 5),
     topSymptoms: top(tally(episodes.map(e => e.symptoms)), 5),
@@ -364,12 +382,21 @@ export function ongoingEpisodes(docs) {
   return listEpisodes(docs).filter(([, e]) => e.duration === "Still going" && !e.endedAt);
 }
 
+// The lower-cased text a search looks in, kept for as long as the record's readable copy is (see readableOf).
+const searchTexts = new WeakMap();
+const searchText = (record, make) => {
+  let text = searchTexts.get(record);
+  if (text === undefined) { text = make().toLocaleLowerCase(); searchTexts.set(record, text) }
+  return text;
+};
+
 export function selectHistory(docs, filters = {}) {
   const { from = "", to = "", status = "", symptom = "", ongoing = false, query = "" } = filters;
   const between = date => (!from || date >= from) && (!to || date <= to);
-  const contains = text => text.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
-  const days = listDays(docs).filter(d => between(d.date) && (!status || d.status === status) && contains([d.date, ...(d.entries || []).map(e => e.a)].join(" ")));
-  const episodes = listEpisodes(docs).filter(([, e]) => between(e.when.slice(0, 10)) && (!symptom || (e.symptoms || []).includes(symptom)) && (!ongoing || e.duration === "Still going" && !e.endedAt) && contains([e.when, ...(e.symptoms || []), ...(e.before || []), e.notes || ""].join(" ")));
+  const needle = query.trim().toLocaleLowerCase();
+  const contains = (record, make) => !needle || searchText(record, make).includes(needle);
+  const days = listDays(docs).filter(d => between(d.date) && (!status || d.status === status) && contains(d, () => [d.date, ...(d.entries || []).map(e => e.a)].join(" ")));
+  const episodes = listEpisodes(docs).filter(([, e]) => between(e.when.slice(0, 10)) && (!symptom || (e.symptoms || []).includes(symptom)) && (!ongoing || e.duration === "Still going" && !e.endedAt) && contains(e, () => [e.when, ...(e.symptoms || []), ...(e.before || []), e.notes || ""].join(" ")));
   return { days, episodes };
 }
 

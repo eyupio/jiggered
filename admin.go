@@ -289,27 +289,34 @@ func (s *server) adminPatchSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, me := r.Context(), authOf(r).u
 	before := s.settings().strings()
-	change := func(key, value string) bool {
-		canon, err := parseSetting(key, value)
+	// Check every field before storing any: a request answered 400 must have changed nothing.
+	want := map[string]string{}
+	if in.TrustProxy != nil {
+		want["trust_proxy"] = strconv.FormatBool(*in.TrustProxy)
+	}
+	if in.ProxyHops != nil {
+		want["proxy_hops"] = strconv.Itoa(*in.ProxyHops)
+	}
+	canon := map[string]string{}
+	for k, v := range want {
+		c, err := parseSetting(k, v)
 		if err != nil {
 			jsonError(w, http.StatusBadRequest, err.Error())
-			return false
+			return
 		}
-		if canon == before[key] {
-			return true
+		if c != before[k] {
+			canon[k] = c
 		}
-		if _, err := s.setSetting(ctx, key, canon); err != nil {
-			serverError(w, r, err)
-			return false
-		}
-		s.audit(ctx, me.Username, "settings_changed", "", fmt.Sprintf("%s: %s -> %s", key, before[key], canon), s.clientIP(r))
-		return true
 	}
-	if in.TrustProxy != nil && !change("trust_proxy", strconv.FormatBool(*in.TrustProxy)) {
+	if _, err := s.setSettings(ctx, canon); err != nil {
+		serverError(w, r, err)
 		return
 	}
-	if in.ProxyHops != nil && !change("proxy_hops", strconv.Itoa(*in.ProxyHops)) {
-		return
+	for _, k := range []string{"trust_proxy", "proxy_hops"} { // after the commit: one connection, never audit inside a transaction
+		if _, ok := canon[k]; !ok {
+			continue
+		}
+		s.audit(ctx, me.Username, "settings_changed", "", fmt.Sprintf("%s: %s -> %s", k, before[k], canon[k]), s.clientIP(r))
 	}
 	writeJSON(w, http.StatusOK, s.settingsOut(r))
 }

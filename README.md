@@ -112,8 +112,11 @@ Keep-existing is the default. Confirmation downloads your current server export 
 known fields reject the whole file with record-specific reasons; legacy optional fields and unrecognised fields
 are preserved. Quotas and the preview fingerprint are checked in the same transaction as writes. If any account
 record, the file or mode changed, preview again. A downloaded backup can restore replaced records; it does not
-remove records added by a restore. The older `/api/import` API remains available for legacy clients with its
-existing permissive skip-invalid contract; the new UI uses `/api/restore/preview` and `/api/restore` exclusively.
+remove records added by a restore. The older `/api/import` API remains available for legacy clients; it still
+skips a record instead of rejecting the file, and the new UI uses `/api/restore/preview` and `/api/restore` exclusively.
+Saves, imports and restores all check records with the same rules (`validate.go`): the fields the app knows are
+checked, anything else is kept exactly as sent, and an older or shorter record is accepted. A save that breaks a rule
+is refused with a 422 and a reason, and the app keeps the change in Recovery.
 
 The browser grants **one editing tab** an exclusive Web Lock; other tabs can browse/download and follow its
 acknowledged device cache, without sending or overwriting its outbox. Close the editing tab, then use **Reload
@@ -285,7 +288,9 @@ If the container is stopped, use `docker compose run --rm jiggered user list` in
 
 Sign-in lockouts are kept in memory, so `docker compose restart jiggered` clears them. (Resetting a password in the Admin
 tab clears that account's lockout; the command line can't reach the running server, so after `user reset-password` for
-someone locked out, restart too.) Restoring a backup brings back its accounts, roles, password hashes and sessions as they were then.
+someone locked out, restart too.) Restoring a backup brings back its accounts, roles, password hashes and disabled state as they were then, so a password
+changed or an account disabled since the backup is undone. Everyone is signed out by a restore, including sessions that
+were still valid when the backup was taken.
 
 ## Backup and restore
 
@@ -298,20 +303,38 @@ docker compose exec jiggered /jiggered backup                     # saved in the
 docker compose exec -T jiggered /jiggered backup - > jiggered-backup.db   # or straight to a file on this machine
 ```
 
-Admins can also use **Download backup** in the Admin tab. A copy of your own data alone is **Download everything**
+Admins can also use **Download backup** in the Admin tab. It asks for the admin's own password every time, so a
+signed-in session left open can't be used to take everyone's data. A copy of your own data alone is **Download everything**
 in Account, which can be restored from the same page.
 
-To restore a backup, stop the app first:
+To restore a backup, stop the app first. The backup holds everyone's data, so keep it private. The container runs as a
+non-root user, so give it the file without making it readable by everyone: put it somewhere only you can read and mount
+that folder, or `chown` it to the container's user (uid 65532 in the distroless image). Don't `chmod a+r` it.
 
 ```sh
-chmod a+r jiggered-backup.db                  # the container runs as a non-root user and must be able to read it
 docker compose stop jiggered
 docker compose run --rm -v "$PWD:/backup:ro" jiggered restore /backup/jiggered-backup.db --yes
 docker compose start jiggered
 ```
 
-It checks the file first, keeps the database it replaces as `/data/backups/pre-restore-*.db`, and removes the old
+It checks the file first (it must have every table its schema version needs), signs everyone out, keeps the database it replaces as `/data/backups/pre-restore-*.db`, and removes the old
 `-wal` file. Upgrades also leave a `pre-upgrade-*.db` copy there. Nothing deletes the `backups` folder for you.
+
+### Keeping backups
+
+- **Keep a copy somewhere else.** Copies in `/data/backups` sit in the same volume as the database, so they cover
+  mistakes (a bad upgrade, an accidental restore) but not losing the volume or the disk. Take a copy off the machine
+  now and then with `backup -` as above, and keep it as private as the database itself: every backup is a full copy
+  of everyone's data.
+- **Nothing is pruned for you.** `/data/backups` accumulates `pre-upgrade-*.db` (one per upgrade that changes the
+  schema), `pre-restore-*.db` (every restore) and any backup you saved there. Each is a whole copy and counts against
+  the volume's space. The image has no shell, so look from a throwaway container that mounts the volume read-only, or
+  from the host's path to the volume, and delete the old ones by hand once a newer good copy exists elsewhere. Keep the
+  newest `pre-upgrade-*.db` until the upgrade has proved itself.
+- **Check a backup before you need it.** Restoring into a scratch path proves the file is sound without touching the
+  live database: `APP_DB=/some/scratch/path jiggered restore your-backup.db --yes` prints "Restored ..." and exits 0,
+  or names the problem and exits 1 leaving nothing behind. In Docker the service's root filesystem is read-only, so the
+  scratch path has to be somewhere writable (for example a tmpfs); delete it afterwards, since it is another full copy.
 
 ## Security
 
@@ -323,8 +346,13 @@ It checks the file first, keeps the database it replaces as `/data/backups/pre-r
   (the oldest are signed out beyond that). Signing out, changing the password, disabling or deleting the account
   ends sessions, including one whose sign-in was already under way; you can also sign out other devices yourself.
 - Writes need a same-origin header, and browsers' `Sec-Fetch-Site` is checked on every write, which also stops an
-  attacker signing you in to their own account. A strict Content-Security-Policy; fonts are served from the app,
+  attacker signing you in to their own account. A browser that sends no `Sec-Fetch-Site` is covered at sign-in by
+  its `Origin` (or `Referer`) having to match the host it asked, or the one a trusted proxy forwards. A strict Content-Security-Policy; fonts are served from the app,
   so it makes no requests to third parties.
+- The app's own scripts, styles and pages are sent gzip-compressed (about two thirds smaller) to browsers that accept it.
+  Nothing built from your data is compressed: API answers, exports and the database download are always sent as they
+  are, because compressing a reply that mixes private data with text someone else can influence can leak it through
+  its size. A reverse proxy that compresses as well, or strips `Accept-Encoding`, is harmless.
 - Temporary passwords are random, shown once, and must be replaced at first sign-in.
 - Everything an admin or the command line does, and every successful sign-in and wrong password for an existing account,
   is in the activity log (180 days; the newest 10,000 events of each kind). Attempts with unknown names, and attempts
@@ -339,19 +367,26 @@ go vet ./... && go test -race ./...     # -race needs a C compiler; Node 22+ for
 node --test "test/*.test.mjs"           # front-end logic: sync, recovery/drafts, ordering, settings, trends, CSV
 ```
 
-An optional real-browser walkthrough covers admin and user accounts, desktop/touch ordering, offline reload,
-refusal recovery, shared-default isolation and IndexedDB migration/large copies:
+Two real-browser scripts run in CI against a real server and database, in Chromium. `test/browser-today.cjs` covers
+the Today picker (groups start closed, a logged activity turns green with a count, -/+ and Undo, pinned with the groups
+closed). `test/browser-history.cjs` seeds a large account and checks History search: one update per typed word,
+the right results, and the other filters reacting at once. `test/browser-mobile.cjs` checks phone width: the Account list editors (collapsible, opened by shortcuts and by
+errors) and History navigation. `test/browser.cjs` is the long walkthrough: admin and user accounts, desktop/touch ordering, offline reload,
+refusal recovery, shared-default isolation and IndexedDB migration/large copies. To run them yourself:
 
 ```sh
-npm install --no-save --package-lock=false playwright
+npm install --no-save --package-lock=false playwright@1.56.1
 npx playwright install chromium
+node test/browser-today.cjs
+node test/browser-history.cjs
+node test/browser-mobile.cjs
 node test/browser.cjs
 ```
 
-It builds a temporary binary/database and cleans them up. `JIGGERED_BROWSER_PATH` selects a preinstalled browser;
-`JIGGERED_BROWSER_ARGS` is an optional JSON array of launch arguments. `JIGGERED_SCREENSHOT_DIR` saves review
-screenshots; `GO_BINARY` or `JIGGERED_TEST_BINARY` selects the build tool or an already-built app. The optional
-browser dependency is only for development; it is not served or added to the container.
+They build a temporary binary/database and clean them up. `JIGGERED_BROWSER_PATH` selects a preinstalled browser;
+`JIGGERED_BROWSER_ARGS` is an optional JSON array of launch arguments (`browser.cjs`). `JIGGERED_SCREENSHOT_DIR` saves
+review screenshots (`browser.cjs`); `GO_BINARY` or `JIGGERED_TEST_BINARY` selects the build tool or an already-built app.
+The browser dependency is only for development and CI; it is not served or added to the container.
 
 The page is plain ES modules with no build step. `web/sync.js` is the part to read first: edits are queued as
 operations and replayed on the server's latest copy, which is why two devices can edit the same day without

@@ -3,23 +3,14 @@ package main
 import (
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"path/filepath"
 	"testing"
 )
 
-// These tests reproduce defects found in the October 2026 audit. Each one names the change that fixes it and is
-// skipped until then, so the suite stays green while the failing behaviour is on record. Run them as they are with
-// JIGGERED_AUDIT=1 go test -run Audit ./... and expect failures; the fixing change deletes its pending() call.
-func pending(t *testing.T, fix string) {
-	t.Helper()
-	if os.Getenv("JIGGERED_AUDIT") == "" {
-		t.Skip("known defect, fixed by " + fix)
-	}
-}
+// These tests reproduce defects found in the October 2026 audit. Each was written to fail first, and passes now that
+// the change that fixes it is in. They stay as regression tests.
 
 func TestAuditStaleDeleteKeepsNewerDoc(t *testing.T) {
-	pending(t, "conditional delete")
 	e := newTestServer(t)
 	c := e.signedInAdmin()
 	id := "d-2026-10-01"
@@ -34,7 +25,6 @@ func TestAuditStaleDeleteKeepsNewerDoc(t *testing.T) {
 }
 
 func TestAuditRevisionsSurviveDeleteAndRecreate(t *testing.T) {
-	pending(t, "durable revisions")
 	e := newTestServer(t)
 	c := e.signedInAdmin()
 	id := "d-2026-10-01"
@@ -43,7 +33,7 @@ func TestAuditRevisionsSurviveDeleteAndRecreate(t *testing.T) {
 	if _, out := c.putDoc(id, `{"status":"red"}`); out["rev"] == float64(1) {
 		t.Fatalf("recreated doc reused rev 1: %v", out)
 	}
-	if st, _ := c.putDoc(id, `{"status":"stale"}`, "If-Match", `"1"`); st != 409 {
+	if st, _ := c.putDoc(id, `{"status":"amber"}`, "If-Match", `"1"`); st != 409 {
 		t.Errorf("a write holding the pre-delete rev = %d, want 409", st)
 	}
 	if got := c.docs()[id]; string(got.Body) != `{"status":"red"}` {
@@ -52,7 +42,6 @@ func TestAuditRevisionsSurviveDeleteAndRecreate(t *testing.T) {
 }
 
 func TestAuditRestoreEndsRevokedSessions(t *testing.T) {
-	pending(t, "safe restore")
 	e := newTestServer(t)
 	c := e.signedInAdmin()
 	backup := filepath.Join(t.TempDir(), "backup.db")
@@ -92,7 +81,6 @@ func TestAuditRestoreEndsRevokedSessions(t *testing.T) {
 }
 
 func TestAuditRestoreRefusesDocsOnlyDatabase(t *testing.T) {
-	pending(t, "safe restore")
 	e := newTestServer(t)
 	e.signedInAdmin().putDoc("d-2026-10-01", `{"a":1}`)
 	bad := filepath.Join(t.TempDir(), "docs-only.db")
@@ -116,7 +104,6 @@ func TestAuditRestoreRefusesDocsOnlyDatabase(t *testing.T) {
 }
 
 func TestAuditRejectedSettingsPatchChangesNothing(t *testing.T) {
-	pending(t, "atomic settings patch")
 	e := newTestServer(t)
 	c := e.signedInAdmin()
 	before := e.s.settings().strings()

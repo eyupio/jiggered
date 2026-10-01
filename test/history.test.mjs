@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { historyRange, historyInsights, validDate } from "../web/history-model.js";
 import { chartMarkup, bucketDescription } from "../web/history-charts.js";
 import { DEFAULTS, addDays, applyOp, operationConflicts } from "../web/model.js";
+import * as model from "../web/model.js";
 import { normaliseProfile, profileInitials } from "../web/profile.js";
 import { calendarWindow, calendarPaint, describeCalendarDay } from "../web/history-matrix.js";
 const day = (status, entries = [], extra = {}) => ({ status, entries, budget: 10, ...extra });
@@ -113,4 +114,61 @@ test("profile saves preserve unrelated settings; competing profile changes surfa
   assert.deepEqual(applyOp(op, other), { ...other, profile });
   assert.deepEqual(operationConflicts(op, { ...other, profile: { ...profile, theme: "light" } }), ["profile"]);
   assert.deepEqual(operationConflicts(op, DEFAULTS), []);
+});
+
+// The caches must never change an answer. These compare the cached search with a plain reference implementation and
+// check that an edit is seen (a changed document is a new object, so its old cached text is never reused).
+test("search over cached text gives the same answers as a plain filter", () => {
+  const docs = {
+    "d-2026-09-30": day("green", [activity("Walk to the Café", -2), activity("Work", 3)]),
+    "d-2026-09-29": day("red", [activity("Resting", -1)]),
+    "d-2026-09-28": day("amber", []),
+    "e-1": episode("2026-09-30T08:00", ["Headache", "Dizzy"], ["Poor sleep"]),
+    "e-2": { ...episode("2026-09-29T08:00", ["Fatigue"]), notes: "Long WALK before lunch" },
+    "e-3": episode("2026-09-28T08:00", [], []),
+  };
+  const reference = (query) => {
+    const needle = query.trim().toLocaleLowerCase(), has = text => text.toLocaleLowerCase().includes(needle);
+    return {
+      days: Object.entries(docs).filter(([k]) => k.startsWith("d-")).map(([k, d]) => [k, [k.slice(2), ...d.entries.map(e => e.a)].join(" ")]).filter(([, t]) => has(t)).map(([k]) => k.slice(2)).sort().reverse(),
+      episodes: Object.entries(docs).filter(([k]) => k.startsWith("e-")).filter(([, e]) => has([e.when, ...e.symptoms, ...e.before, e.notes || ""].join(" "))).map(([k]) => k).sort(),
+    };
+  };
+  for (const query of ["", "  ", "walk", "WALK", " Walk ", "café", "cafe", "dizzy", "poor sleep", "2026-09-29", "nothing matches this", "ü"]) {
+    for (let pass = 0; pass < 2; pass++) { // the second pass is answered from the cache
+      const got = model.selectHistory(docs, { query });
+      assert.deepEqual(got.days.map(d => d.date), reference(query).days, `days for "${query}" (pass ${pass})`);
+      assert.deepEqual(got.episodes.map(([id]) => id).sort(), reference(query).episodes, `episodes for "${query}" (pass ${pass})`);
+    }
+  }
+});
+
+test("an edited document is searched by its new text, not a cached old copy", () => {
+  const docs = { "d-2026-09-30": day("green", [activity("Gardening", 2)]), "e-1": episode("2026-09-30T08:00", ["Headache"]) };
+  assert.equal(model.selectHistory(docs, { query: "gardening" }).days.length, 1);
+  assert.equal(model.selectHistory(docs, { query: "tennis" }).days.length, 0);
+  const edited = { ...docs, "d-2026-09-30": day("green", [activity("Tennis", 2)]), "e-1": { ...docs["e-1"], notes: "tennis elbow" } };
+  assert.equal(model.selectHistory(edited, { query: "gardening" }).days.length, 0, "the old text is gone");
+  assert.equal(model.selectHistory(edited, { query: "tennis" }).days.length, 1, "the new text is found");
+  assert.equal(model.selectHistory(edited, { query: "tennis" }).episodes.length, 1, "and in the episode notes");
+  assert.equal(model.selectHistory(docs, { query: "gardening" }).days.length, 1, "the earlier object is unaffected");
+});
+
+test("unchanged documents keep one readable copy; lists are still fresh arrays", () => {
+  const stored = day("amber", [activity("Walk", -1)]);
+  const docs = { "d-2026-09-30": stored, "d-2026-09-29": day("green", []) };
+  const a = model.listDays(docs), b = model.listDays({ ...docs });
+  assert.equal(a[0], b[0], "the same stored document gives the same readable copy");
+  assert.notEqual(a, b, "but each call returns its own array");
+  a.reverse(); // callers reorder what they are given
+  assert.deepEqual(model.listDays(docs).map(d => d.date), ["2026-09-30", "2026-09-29"], "reordering one result does not disturb another");
+  assert.deepEqual(model.listDays({ "d-2026-09-30": "not an object", "d-2026-09-29": null }).map(d => d.date), ["2026-09-30"], "junk values are still read safely");
+});
+
+test("date checks are the same with and without the cache", () => {
+  for (const v of ["2026-10-01", "2026-02-29", "2024-02-29", "2026-13-01", "0999-01-01", "2026-1-1", "", null, undefined, 5, "2026-10-01x"]) {
+    const direct = typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && Number(v.slice(0, 4)) >= 1000 && model.addDays(v, 0) === v;
+    assert.equal(validDate(v), !!direct, `validDate(${JSON.stringify(v)})`);
+    assert.equal(validDate(v), !!direct, "and again from the cache");
+  }
 });

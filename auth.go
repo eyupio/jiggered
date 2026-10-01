@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -205,6 +206,39 @@ func (s *server) clientIP(r *http.Request) string {
 	return host
 }
 
+// sameSiteLogin refuses a sign-in that a page on another site made the browser send ("login CSRF": it would sign
+// the visitor in to the attacker's account). Browsers that send Sec-Fetch-Site are already judged by rejectCrossSite;
+// this covers the ones that don't, by comparing the Origin (or, failing that, the Referer) with the host being
+// asked. A request with neither header (a script, or a privacy setting that strips them) is allowed: it can't have
+// come from another site's page without one of them in any browser that matters here.
+func (s *server) sameSiteLogin(r *http.Request) bool {
+	if r.Header.Get("Sec-Fetch-Site") != "" {
+		return true
+	}
+	from := r.Header.Get("Origin")
+	if from == "" {
+		from = r.Header.Get("Referer")
+	}
+	if from == "" {
+		return true
+	}
+	u, err := url.Parse(from)
+	if err != nil || u.Host == "" {
+		return false // "null" (a sandboxed or opaque origin) or garbage
+	}
+	if strings.EqualFold(u.Host, r.Host) {
+		return true
+	}
+	if s.settings().TrustProxy { // behind a proxy that rewrites Host, the name the person typed is in X-Forwarded-Host
+		for _, h := range strings.Split(r.Header.Get("X-Forwarded-Host"), ",") {
+			if strings.EqualFold(u.Host, strings.TrimSpace(h)) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // forwardedAddr reads one X-Forwarded-For entry: a bare address, or one with a port as some proxies add it
 // ("198.51.100.7:51234", "[2001:db8::7]:443"). It returns "" for anything else.
 func forwardedAddr(v string) string {
@@ -262,6 +296,10 @@ func (s *server) hashPassword(pw string) (string, error) {
 }
 
 func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
+	if !s.sameSiteLogin(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	ip := s.clientIP(r)
 	r.Body = http.MaxBytesReader(w, r.Body, 4096)
 	if err := r.ParseForm(); err != nil {

@@ -19,6 +19,7 @@ go vet ./...
 CGO_ENABLED=0 go build ./...     # what the image builds (pure Go, no cgo)
 go test -race ./...              # server tests, about 20s once compiled (-race needs cgo; tests only)
 node --test "test/*.test.mjs"    # frontend logic tests; Node 22, no npm install
+node test/browser-today.cjs      # real Chromium (needs Playwright, see README); CI also runs browser-history.cjs, browser-mobile.cjs and browser.cjs
 ```
 
 Measured on a cold module cache: building took about 2m20s (pure-Go SQLite
@@ -45,7 +46,7 @@ frontend build step.
 | `auth.go` | Sessions, `requireAuth`/`requireAdmin` (`guard`), login, lockouts, client address |
 | `users.go` | Account store, last-admin guard, audit log, pruning |
 | `account.go`, `admin.go` | `/api/me/...` (self-service) and `/api/admin/...` (admins only) |
-| `docs.go`, `restore.go` | Personal docs, quotas, legacy import and atomic preview-bound restores |
+| `docs.go`, `restore.go`, `validate.go` | Personal docs, quotas, legacy import and atomic preview-bound restores; `validateDoc` is the one document rule used by saves, imports and restores |
 | `defaults.go` | Validated shared product defaults, authenticated read, admin-only compare-and-swap write |
 | `settings.go` | Instance settings stored in the database, and seeding them from old env vars |
 | `backup.go`, `cli.go` | Snapshot helpers; the subcommands (`user`, `settings`, `backup`, `restore`, ...) |
@@ -54,7 +55,7 @@ frontend build step.
 | `assets/brand/` | Logo and mark sources. Not embedded, not served |
 | `Dockerfile`, `compose.yaml` | Multi-stage build to distroless nonroot with a `HEALTHCHECK`; read-only compose service, `cap_drop: ALL` |
 | `.env.example` | Template for compose's optional `.env` |
-| `.github/workflows/image.yml` | gofmt, vet, build, `go test -race`, `node --test`, then build and push the image |
+| `.github/workflows/image.yml` | gofmt, vet, build, `go test -race`, `node --test`, real-browser tests, then build and push the image |
 
 `web/`: `app.js` boots and owns the tabs; `sync.js` is the sync engine;
 `device.js` provides IndexedDB-backed cache/drafts; `editor.js` shares accessible list ordering. `picker.js` is the pure long-list logic (search, favourites by recent use, groups, paging) used by Today and Episodes; lists show none of it until they pass `PICKER.searchFrom` items. Activities carry an optional `g` group; symptoms and triggers stay plain strings. List limit is 200 (`LIMITS` in `model.js`, mirrored in `defaults.go`). `model.js`
@@ -67,12 +68,15 @@ the tabs; `admin.js` is mounted only for admins; `sw.js` is the service worker;
 ## How it works
 
 - **Storage** (`db.go`): `users`, `docs(user_id, id, body, rev, size, updated_at)`,
-  `sessions(.., user_id, ..)`, `audit_log`, `instance_settings`. Docs are opaque
+  `sessions(.., user_id, ..)`, `audit_log`, `instance_settings`, `doc_revs(user_id, id, rev)` (the last revision of a
+  deleted doc, so recreating it never reuses a revision; a DELETE with `If-Match` of an older revision gets a 409). Docs are opaque
   JSON objects per person; the server does not interpret them, the frontend owns
   their shape. Ids are allow-listed: `d-YYYY-MM-DD`, `e-<digits>`, `settings`.
 - **Sync**: the frontend queues *operations* ("add this entry"), shows the server
   copy with them applied, and saves with `If-Match: "<rev>"`. A 409 returns the
-  current doc and the operations are replayed on it, so two devices merge.
+  current doc and the operations are replayed on it, so two devices merge. `GET /api/docs` is always the whole account (never a
+  page: omitted docs would look deleted) with a weak ETag over each doc's id, revision, size and save time; a client that
+  holds the current snapshot sends it and gets 304. `sync.js` forgets the tag whenever anything else changes its copy.
 - **Accounts**: created by an admin (temporary password, must be changed before
   anything else works) or by `jiggered user add`. No sign-up page. The last active
   admin can't be demoted, disabled or deleted; nobody can do that to themselves

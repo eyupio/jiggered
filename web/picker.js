@@ -40,6 +40,15 @@ export function favourites(names, use, max = PICKER.favourites) {
   return [...byCount, ...recent].slice(0, max);
 }
 
+// selection says which list items the person has already logged on the day shown, and how many times. Rows keep the
+// order of the list; `count` is by activity name; the rest are the rows not selected. Entries whose name is not in
+// the list (one-off "Other" activities) are not rows, so they never appear here.
+export function selection(rows, entries) {
+  const count = new Map();
+  for (const e of entries || []) count.set(e.a, (count.get(e.a) || 0) + 1);
+  return { count, selected: rows.filter(r => count.get(r.item.a)), rest: rows.filter(r => !count.get(r.item.a)) };
+}
+
 // groupItems keeps the order the person chose: groups by first appearance, items inside by list order. Anything
 // without a group goes last. A list with no groups at all comes back as one unnamed group.
 export function groupItems(items, groupOf = x => x.g) {

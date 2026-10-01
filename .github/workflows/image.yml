@@ -7,9 +7,15 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Tests need no more than read access; only the job that pushes the image may write packages.
 permissions:
   contents: read
-  packages: write
+
+# A newer push to the same pull request replaces the older run. Pushes to main and tags are never cancelled, and
+# each ref has its own group, so one release can't cancel another.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   IMAGE: ghcr.io/${{ github.repository }}
@@ -33,9 +39,46 @@ jobs:
       - name: front-end logic tests
         run: node --test "test/*.test.mjs"
 
-  image:
-    needs: test
+  # Real Chromium against a real server and database: the offline, recovery, sign-in and Today flows that the
+  # logic tests cannot see. Playwright is pinned and installed outside the repository (there is no package.json).
+  browser:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Playwright and Chromium
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-audit --no-fund --package-lock=false playwright@1.56.1
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Today picker
+        env:
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+        run: node test/browser-today.cjs
+      - name: History search
+        env:
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+        run: node test/browser-history.cjs
+      - name: Phone-width Account and History
+        env:
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+        run: node test/browser-mobile.cjs
+      - name: Full walkthrough
+        env:
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+        run: node test/browser.cjs
+
+  image:
+    needs: [test, browser]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3

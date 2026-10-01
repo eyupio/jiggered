@@ -2,7 +2,7 @@
 
 import { $, html, setHTML, uid, fmtLongDay } from "./util.js";
 import { renderOngoing } from "./episodes.js";
-import { PICKER, usage, favourites, groupItems, matches } from "./picker.js";
+import { PICKER, usage, favourites, groupItems, matches, selection } from "./picker.js";
 import { readableDay, identifyEntries, balanceLabel, ADVICE, dayId, emptyDay, used, capOf, hhmm, addDays } from "./model.js";
 
 const points = n => `${n} ${n === 1 ? "point" : "points"}`;
@@ -11,7 +11,7 @@ const costLabel = c => c > 0 ? "−" + c : c < 0 ? "+" + -c : "0";
 export function init(ctx) {
   let viewDate = null; // null follows the clock, so the screen moves on by itself at midnight
   let actsKey = "", editing = null, editingDate = "", query = "", groupFilter = ""; // groupFilter "" shows every group
-  const more = new Map(), closed = new Set(); // per-group paging and collapsed groups, kept while this tab is open
+  const more = new Map(), opened = new Set(); // per-group paging and the groups the person opened (all start closed), kept while this tab is open
   const entryForm = $("entry-form");
 
   const key = () => viewDate ?? ctx.today();
@@ -46,16 +46,25 @@ export function init(ctx) {
   $("acts").addEventListener("toggle", e => {
     const g = e.target.dataset?.group;
     if (!g) return;
-    if (e.target.open) closed.delete(g); else closed.add(g);
+    if (e.target.open) opened.add(g); else opened.delete(g);
   }, true);
   $("sleep").addEventListener("change", e => op("setPoorSleep", e.target.checked));
+  const logOne = x => op("addEntry", { id: uid(), a: x.a, c: x.c, t: key() !== ctx.today() ? $("act-time").value : hhmm(new Date()) });
+  // Takes the latest entry of that name off the day (what "−" does), with the same Undo as the entries list.
+  function removeEntry(entry) {
+    const index = day().entries.findIndex(x => x.id === entry.id), target = id();
+    op("removeEntry", entry);
+    ctx.toast("Activity removed.", { label: "Undo removal", fn: () => ctx.store.dispatch({ id: target, type: "restoreEntry", arg: { entry, index } }) });
+  }
   $("acts").addEventListener("click", e => {
-    const b = e.target.closest(".act");
+    const step = e.target.closest("[data-step]");
+    const b = step || e.target.closest("button.act");
     if (!b) return;
     const x = ctx.settings().activities[b.dataset.i];
     if (!x) return;
-    const past = key() !== ctx.today();
-    op("addEntry", { id: uid(), a: x.a, c: x.c, t: past ? $("act-time").value : hhmm(new Date()) });
+    if (!step || step.dataset.step === "1") { logOne(x); return }
+    const latest = day().entries.findLast(en => en.a === x.a);
+    if (latest) removeEntry(latest);
   });
   function edit(entry = null) {
     editing = entry; editingDate = key();
@@ -97,8 +106,7 @@ export function init(ctx) {
     const entries = day().entries, index = entries.findIndex(x => x.id === b.dataset.entry), entry = entries[index];
     if (!entry) return;
     if (b.dataset.action === "edit") { edit(entry); return }
-    const target = id(); op("removeEntry", entry);
-    ctx.toast("Activity removed.", { label: "Undo removal", fn: () => ctx.store.dispatch({ id: target,type: "restoreEntry",arg: { entry,index } }) });
+    removeEntry(entry);
   });
 
   $("day-prev").addEventListener("click", () => open(addDays(key(), -1)));
@@ -111,6 +119,8 @@ export function init(ctx) {
   });
 
   const actButton = ({ item: x, i }) => html`<button class="act${x.c < 0 ? " rec" : ""}" data-i="${i}"><span>${x.a}</span><span class="c">${costLabel(x.c)}</span></button>`;
+  // An activity already logged on this day: green, how many times, and − / + to take one off or add another.
+  const selectedCard = (count, { item: x, i }) => html`<div class="act on${x.c < 0 ? " rec" : ""}"><span class="name">${x.a}</span><span class="c">${costLabel(x.c)}</span><span class="stepper"><button type="button" class="step" data-step="-1" data-i="${i}" aria-label="Remove one ${x.a}">−</button><b class="count" aria-label="${count} ${count === 1 ? "time" : "times"} logged">×${count}</b><button type="button" class="step" data-step="1" data-i="${i}" aria-label="Add one more ${x.a}">+</button></span></div>`;
   // Long lists get a search box, a favourites row (most and latest used), sections by group and "Show more" paging.
   // Short lists look exactly as before. Buttons keep their index into the settings list, so tapping is unchanged.
   function renderActivities(S) {
@@ -119,13 +129,18 @@ export function init(ctx) {
     const rows = (groupFilter ? all.find(g => g.name === groupFilter).rows : S.activities.map((item, i) => ({ item, i }))), long = S.activities.length > PICKER.searchFrom;
     $("act-search-row").hidden = !long;
     const q = long ? query.trim() : "";
-    const favs = !q && !groupFilter && long ? favourites(rows.map(r => r.item.a), usage(ctx.store.all(), ctx.today()).acts).map(n => rows.find(r => r.item.a === n)) : [];
-    const sections = q ? [{ key: "search", name: "", rows: rows.filter(r => matches(q, r.item.a + " " + (r.item.g || ""))), size: PICKER.searchPage }]
-      : groupFilter ? [{ key: "g:" + groupFilter, name: "", rows, size: PICKER.searchPage }]
-      : all.map(g => ({ key: "g:" + g.name, name: g.name, rows: g.rows, size: PICKER.page }));
-    const key = JSON.stringify([S.activities, q, groupFilter, favs.map(f => f.i), [...more], [...closed], long]);
-    if (key === actsKey) return; // only rebuild the buttons when something shown has changed
-    actsKey = key;
+    // Logged activities are pinned in their own block at the top and left out of the lists below, so they stay in
+    // view however long the list is, and are never buried under "Show more" or a collapsed group.
+    const { count, selected } = selection(S.activities.map((item, i) => ({ item, i })), day().entries);
+    const pickedAt = new Set(selected.map(r => r.i)), unpicked = r => !pickedAt.has(r.i);
+    const favs = !q && !groupFilter && long ? favourites(rows.map(r => r.item.a), usage(ctx.store.all(), ctx.today()).acts).map(n => rows.find(r => r.item.a === n)).filter(unpicked) : [];
+    const found = q ? rows.filter(r => matches(q, r.item.a + " " + (r.item.g || ""))) : rows;
+    const sections = (q ? [{ key: "search", name: "", rows: found.filter(unpicked), size: PICKER.searchPage }]
+      : groupFilter ? [{ key: "g:" + groupFilter, name: "", rows: rows.filter(unpicked), size: PICKER.searchPage }]
+      : all.map(g => ({ key: "g:" + g.name, name: g.name, rows: g.rows.filter(unpicked), size: PICKER.page }))).filter(s => s.rows.length || (!q && !groupFilter && !s.name));
+    const listKey = JSON.stringify([S.activities, q, groupFilter, favs.map(f => f.i), [...more], [...opened], long, selected.map(r => [r.i, count.get(r.item.a)])]);
+    if (listKey === actsKey) return; // only rebuild the buttons when something shown has changed
+    actsKey = listKey;
     // One tap on a group narrows the list to it; tapping it again, or "All", brings everything back.
     $("act-filter").hidden = names.length < 2;
     setHTML($("act-filter"), html`<button type="button" class="pill" data-filter="" aria-pressed="${!groupFilter}">All <span class="meta">${S.activities.length}</span></button>${names.map(g => html`<button type="button" class="pill" data-filter="${g.name}" aria-pressed="${groupFilter === g.name}">${g.name} <span class="meta">${g.n}</span></button>`)}`);
@@ -133,9 +148,10 @@ export function init(ctx) {
     const part = s => {
       const shown = more.get(s.key) ?? s.size, hide = s.rows.length - shown;
       const body = html`${grid(s.rows.slice(0, shown))}${hide > 0 ? html`<button class="secondary small" data-more="${s.key}">Show ${Math.min(hide, s.size)} more of ${s.rows.length}</button>` : ""}`;
-      return s.name ? html`<details class="act-group" data-group="${s.key}"${closed.has(s.key) ? "" : " open"}><summary>${s.name} <span class="meta">${s.rows.length}</span></summary>${body}</details>` : body;
+      return s.name ? html`<details class="act-group" data-group="${s.key}"${opened.has(s.key) ? " open" : ""}><summary>${s.name} <span class="meta">${s.rows.length}</span></summary>${body}</details>` : body;
     };
-    setHTML($("acts"), html`${favs.length ? html`<div class="act-fav"><h3 class="label">Frequent and recent</h3>${grid(favs)}</div>` : ""}${sections.map(part)}${q && !sections[0].rows.length ? html`<p class="empty">No activity matches${groupFilter ? ` in ${groupFilter}. Choose All to search every group` : ""}. Use Other activity to log it once.</p>` : ""}`);
+    const pinned = selected.length ? html`<div class="act-picked"><h3 class="label">Logged ${key() === ctx.today() ? "today" : "this day"}</h3><div class="acts">${selected.map(r => selectedCard(count.get(r.item.a), r))}</div></div>` : "";
+    setHTML($("acts"), html`${pinned}${favs.length ? html`<div class="act-fav"><h3 class="label">Frequent and recent</h3>${grid(favs)}</div>` : ""}${sections.map(part)}${q && !found.length ? html`<p class="empty">No activity matches${groupFilter ? ` in ${groupFilter}. Choose All to search every group` : ""}. Use Other activity to log it once.</p>` : ""}`);
     $("noacts").hidden = S.activities.length > 0;
   }
 

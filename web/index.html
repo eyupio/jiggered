@@ -140,6 +140,9 @@
       </form>
       <p id="history-count" class="meta" role="status"></p>
     </div>
+    <div class="panel account-shortcuts" id="history-shortcuts" role="navigation" aria-label="History sections">
+      <button type="button" class="secondary small" data-history-target="trends-panel">Overview</button><button type="button" class="secondary small" data-history-target="history-records">Records</button><button type="button" class="secondary small" data-history-target="history-share">Share</button>
+    </div>
     <div class="panel" id="trends-panel">
       <div class="label-row"><h2>Your period at a glance</h2><span class="badge" id="history-granularity"></span></div>
       <div id="trends"></div>
@@ -153,8 +156,8 @@
       <p class="meta strip-note">Oldest on the left. Grey means no check-in. Tap a day to open it.</p>
     </div>
     <div class="history-records">
-    <div class="panel">
-      <h2>Days</h2>
+    <div class="panel" id="history-records">
+      <h2 tabindex="-1">Days</h2>
       <ul class="list" id="days"></ul>
       <button class="secondary" id="more-days" hidden>Show older days</button>
       <p class="empty" id="nodays">Your days will appear here once you start checking in.</p>
@@ -166,8 +169,8 @@
       <p class="empty" id="noeps">No episodes logged. Use "Episode" if one happens; show this list to your neurologist or GP.</p>
     </div>
     </div>
-    <div class="panel">
-      <div class="label-row"><h2>Share with your doctor</h2><button class="help-link x" data-help="history">Help</button></div>
+    <div class="panel" id="history-share">
+      <div class="label-row"><h2 tabindex="-1">Share with your doctor</h2><button class="help-link x" data-help="history">Help</button></div>
       <label class="field">Period for the printed summary<select id="sum-range"></select></label>
       <label class="toggle"><input type="checkbox" id="sum-notes" checked> Include private episode notes in the summary</label>
       <button class="secondary" id="sum-preview">Preview summary</button>

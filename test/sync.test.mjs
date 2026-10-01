@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createStore } from "../web/sync.js";
 
-const res = (status, body) => ({ status, ok: status >= 200 && status < 300, json: async () => body, text: async () => JSON.stringify(body) });
+const res = (status, body, headers = {}) => ({ status, ok: status >= 200 && status < 300, headers: { get: name => headers[name] ?? null }, json: async () => body, text: async () => JSON.stringify(body) });
 
 // A server with the same contract as the real one: revisions, If-Match, If-None-Match, 409 with the current doc.
 class FakeServer {
@@ -13,6 +13,8 @@ class FakeServer {
   status = null;      // answer everything with this status instead
   authed = true;
   gate = null;        // a promise PUTs wait on
+  breakBody = false;  // the snapshot's headers arrive, then the connection dies before the body is read
+  lastSnapshotRequest = null; // the headers of the latest GET /api/docs
   inflight = 0;
   maxInflight = 0;
   fetch = async (url, opts = {}) => {
@@ -26,12 +28,20 @@ class FakeServer {
       if (this.gate && method === "PUT") await this.gate;
       const path = new URL(url, "http://x").pathname;
       if (path === "/api/docs" && method === "GET") {
-        return res(200, Object.fromEntries([...this.docs].map(([id, d]) => [id, { rev: d.rev, body: d.body }])));
+        const tag = `W/"${[...this.docs].map(([id, d]) => id + ":" + d.rev).sort().join(",")}"`;
+        this.lastSnapshotRequest = opts.headers || {};
+        if ((opts.headers || {})["If-None-Match"] === tag) return res(304, null, { ETag: tag });
+        const out = res(200, Object.fromEntries([...this.docs].map(([id, d]) => [id, { rev: d.rev, body: d.body }])), { ETag: tag });
+        if (this.breakBody) out.json = async () => { throw new TypeError("network error while reading the body") };
+        return out;
       }
       const id = decodeURIComponent(path.replace("/api/docs/", ""));
-      if (method === "DELETE") { this.docs.delete(id); return res(204, null) }
       const cur = this.docs.get(id), curRev = cur ? cur.rev : 0;
       const h = opts.headers || {};
+      if (method === "DELETE") {
+        if (cur && h["If-Match"] !== undefined && Number(String(h["If-Match"]).replaceAll('"', "")) !== curRev) return res(409, { rev: curRev, body: cur.body });
+        this.docs.delete(id); return res(204, null);
+      }
       if ((h["If-None-Match"] === "*" && cur) || (h["If-Match"] !== undefined && Number(String(h["If-Match"]).replaceAll('"', "")) !== curRev)) {
         return res(409, { rev: curRev, body: cur ? cur.body : null });
       }
@@ -191,6 +201,85 @@ test("delete, and undo of a delete", async () => {
   await d.fireTimer();
   assert.deepEqual(s.requests, [`PUT /api/docs/${EP}`]);
   assert.deepEqual(s.docs.get(EP).body, body);
+});
+
+test("a delete names the revision it saw, and never erases a copy saved elsewhere since", async () => {
+  const s = new FakeServer(), a = device(s), b = device(s, { storage: new MemStorage() });
+  const EP = "e-1790000000000", body = { when: "2026-10-01T09:00", symptoms: ["Headache"], notes: "first" };
+  a.store.dispatch({ id: EP, type: "replace", arg: body }); await a.store.flush();
+  await b.store.load();
+  a.store.dispatch({ id: EP, type: "replace", arg: { ...body, notes: "edited on A" } }); await a.store.flush();
+  assert.equal(s.docs.get(EP).rev, 2);
+
+  s.requests.length = 0;
+  b.store.dispatch({ id: EP, type: "remove" }); await b.store.flush(); // B still holds revision 1
+  assert.ok(s.requests.includes(`DELETE /api/docs/${EP}`));
+  const kept = s.docs.get(EP)?.body.notes === "edited on A";
+  const recoverable = b.store.recoveryExport().failed.some(f => f.id === EP);
+  assert.ok(kept || recoverable, "the stale delete must not silently erase A's edit");
+  assert.equal(b.store.status().pending, 0);
+
+  // "Use my change" then deletes it, now that B has seen the current revision.
+  const f = b.store.recoveryExport().failed.find(x => x.id === EP);
+  assert.ok(f && f.conflict, "a changed-elsewhere delete waits in Recovery");
+  await b.store.retryFailed(f.key);
+  assert.equal(s.docs.has(EP), false);
+});
+
+test("an unchanged refresh downloads nothing and leaves the device copy alone", async () => {
+  const s = new FakeServer(), d = device(s);
+  d.store.dispatch({ id: DAY, type: "replace", arg: { status: "green", entries: [] } }); await d.store.flush();
+  assert.equal(await d.store.load(), true);
+  assert.equal(s.lastSnapshotRequest["If-None-Match"], undefined, "the first snapshot is unconditional");
+  const before = JSON.stringify(d.store.all());
+  assert.equal(await d.store.load(), true);
+  assert.ok(s.lastSnapshotRequest["If-None-Match"], "the second refresh offers the tag it holds");
+  assert.equal(JSON.stringify(d.store.all()), before);
+  assert.equal(d.store.status().offline, false);
+});
+
+test("a change made elsewhere is picked up by the next refresh, and our own save forgets the tag", async () => {
+  const s = new FakeServer(), a = device(s), b = device(s, { storage: new MemStorage() });
+  a.store.dispatch({ id: DAY, type: "replace", arg: { status: "green", entries: [] } }); await a.store.flush();
+  await b.store.load(); await b.store.load();
+  assert.ok(s.lastSnapshotRequest["If-None-Match"]);
+  a.store.dispatch({ id: DAY, type: "replace", arg: { status: "red", entries: [] } }); await a.store.flush();
+  await b.store.load();
+  assert.equal(b.store.view(DAY).status, "red", "the remote edit shows up");
+
+  b.store.dispatch({ id: "e-7", type: "replace", arg: { notes: "mine" } }); await b.store.flush();
+  await b.store.load();
+  assert.equal(s.lastSnapshotRequest["If-None-Match"], undefined, "after our own save the tag is not trusted");
+});
+
+test("a snapshot whose body fails to arrive keeps the device copy and reports offline", async () => {
+  const s = new FakeServer(), d = device(s);
+  d.store.dispatch({ id: DAY, type: "replace", arg: { status: "amber", entries: [] } }); await d.store.flush();
+  await d.store.load();
+  d.store.dispatch({ id: "e-9", type: "replace", arg: { notes: "queued while offline" } });
+  s.down = true; await d.store.flush(); s.down = false;
+  s.docs.set(DAY, { rev: 9, body: { status: "red", entries: [] } }); // the server moved on, so the next answer is a 200
+  s.breakBody = true;
+  assert.equal(await d.store.load(), false);
+  assert.equal(d.store.status().offline, true, "reported, not left on Connecting");
+  assert.equal(d.store.view(DAY).status, "amber", "the cached copy is untouched");
+  assert.ok(d.store.view("e-9"), "the queued change is still there");
+  s.breakBody = false;
+  assert.equal(await d.store.load(), true, "and the next try works");
+  assert.equal(d.store.view(DAY).status, "red");
+});
+
+test("refreshes asked for while one is already waiting share it", async () => {
+  const s = new FakeServer(), d = device(s);
+  d.store.dispatch({ id: DAY, type: "replace", arg: { status: "green", entries: [] } }); await d.store.flush();
+  let release; s.gate = new Promise(r => { release = r });
+  d.store.dispatch({ id: "e-3", type: "replace", arg: { notes: "slow save" } }); // holds the network queue
+  s.requests.length = 0;
+  const loads = [d.store.load(), d.store.load(), d.store.load()];
+  release(); s.gate = null;
+  const results = await Promise.all(loads);
+  assert.deepEqual(results, [true, true, true]);
+  assert.equal(s.requests.filter(r => r === "GET /api/docs").length, 1, "one request answered all three");
 });
 
 test("deleting something the server never had is fine", async () => {

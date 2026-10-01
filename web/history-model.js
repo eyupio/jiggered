@@ -1,10 +1,17 @@
 // Pure history analytics. Calendar gaps stay gaps; points use each day's recorded allowance.
-import { addDays, listDays, listEpisodes, selectHistory, used, capOf } from "./model.js";
+import { addDays, listDays, listEpisodes, selectHistory, used, capOf, activityDays, averageNet } from "./model.js";
 
 export const HISTORY_RANGES = [["7", "7 days"], ["30", "30 days"], ["90", "90 days"], ["365", "1 year"], ["all", "All time"]];
 const DAY = 86400000;
 const ordinal = key => Date.parse(key + "T12:00:00Z") / DAY;
-export const validDate = key => /^\d{4}-\d{2}-\d{2}$/.test(key || "") && Number(key.slice(0, 4)) >= 1000 && addDays(key, 0) === key;
+const validDates = new Map(); // a few thousand distinct dates are checked again and again; each is worked out once
+const checkDate = key => /^\d{4}-\d{2}-\d{2}$/.test(key || "") && Number(key.slice(0, 4)) >= 1000 && addDays(key, 0) === key;
+export const validDate = key => {
+  if (typeof key !== "string") return checkDate(key);
+  let ok = validDates.get(key);
+  if (ok === undefined) { ok = checkDate(key); if (validDates.size < 50000) validDates.set(key, ok) }
+  return ok;
+};
 const round = n => Math.round(n * 10) / 10;
 const average = values => values.length ? round(values.reduce((s, n) => s + n, 0) / values.length) : null;
 const counts = (lists, limit = 5) => {
@@ -20,10 +27,10 @@ export function historyRange(docs, today, preset = "30") {
 }
 
 function measure(days, episodes, S) {
-  const checked = days.filter(d => d.status), logged = days.filter(d => d.entries.length);
+  const checked = days.filter(d => d.status), logged = activityDays(days);
   const statuses = Object.fromEntries(["green", "amber", "red"].map(s => [s, checked.filter(d => d.status === s).length]));
   return { days: days.length, checked: checked.length, logged: logged.length, ...statuses,
-    avgUsed: average(logged.map(used)), avgAllowance: average(logged.map(d => capOf(d, S))),
+    avgUsed: averageNet(logged), avgAllowance: average(logged.map(d => capOf(d, S))),
     overBudget: logged.filter(d => used(d) > capOf(d, S)).length,
     poorSleep: days.filter(d => d.poorSleep).length, episodes: episodes.length,
     spent: logged.reduce((s, d) => s + d.entries.reduce((n, e) => n + Math.max(0, e.c), 0), 0),

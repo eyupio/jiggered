@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -73,10 +74,67 @@ type docOut struct {
 	Body json.RawMessage `json:"body"`
 }
 
+// snapshotTag identifies the exact state of a person's documents without reading any of their bodies: it covers each
+// id with its revision, size and save time, so any save, delete, import or restore changes it. It is weak (W/): the
+// same documents always give the same tag, which is all a client needs to know its copy is current.
+func snapshotTag(ctx context.Context, tx *sql.Tx, userID int64) (string, error) {
+	rows, err := tx.QueryContext(ctx, "SELECT id, rev, size, updated_at FROM docs WHERE user_id = ? ORDER BY id", userID)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	h := sha256.New()
+	for rows.Next() {
+		var id string
+		var rev, size, at int64
+		if err := rows.Scan(&id, &rev, &size, &at); err != nil {
+			return "", err
+		}
+		fmt.Fprintf(h, "%s\x00%d\x00%d\x00%d\n", id, rev, size, at)
+	}
+	if err := rows.Err(); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf(`W/"%x"`, h.Sum(nil)[:16]), nil
+}
+
+// tagMatches reports whether an If-None-Match header names tag, ignoring the weak prefix.
+func tagMatches(header, tag string) bool {
+	want := strings.TrimPrefix(tag, "W/")
+	for _, v := range strings.Split(header, ",") {
+		v = strings.TrimSpace(v)
+		if v == "*" || strings.TrimPrefix(v, "W/") == want {
+			return true
+		}
+	}
+	return false
+}
+
+// listDocs sends the whole account as one snapshot. The page replaces its copy with it, so it is never partial. A
+// client that already holds the current snapshot sends its tag and gets 304 without any document being read.
 func (s *server) listDocs(w http.ResponseWriter, r *http.Request) {
 	u := authOf(r).u
 	allowSlowTransfer(w)
-	rows, err := s.db.QueryContext(r.Context(), "SELECT id, rev, body FROM docs WHERE user_id = ?", u.ID)
+	// Everything is read inside one transaction so the tag describes exactly the bodies sent with it, and finished
+	// before anything is written to the client: there is one connection, and a slow client must not hold it.
+	tx, err := s.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	defer tx.Rollback()
+	tag, err := snapshotTag(r.Context(), tx, u.ID)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	w.Header().Set("ETag", tag)
+	w.Header().Set("Cache-Control", "no-store")
+	if tagMatches(r.Header.Get("If-None-Match"), tag) {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	rows, err := tx.QueryContext(r.Context(), "SELECT id, rev, body FROM docs WHERE user_id = ?", u.ID)
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -97,6 +155,8 @@ func (s *server) listDocs(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
+	rows.Close()
+	tx.Rollback() // read-only: nothing to commit, and the connection is free before the response is written
 	writeJSON(w, http.StatusOK, out)
 }
 
@@ -174,11 +234,14 @@ func (s *server) storeDoc(ctx context.Context, userID int64, id string, body []b
 	}
 	defer tx.Rollback()
 
-	var oldSize int64
+	var oldSize, floor int64
 	exists := true
 	err = tx.QueryRowContext(ctx, "SELECT rev, size FROM docs WHERE user_id = ? AND id = ?", userID, id).Scan(&rev, &oldSize)
 	if errors.Is(err, sql.ErrNoRows) {
 		exists = false
+		if floor, err = deletedRev(ctx, tx, userID, id); err != nil {
+			return 0, nil, err
+		}
 	} else if err != nil {
 		return 0, nil, err
 	}
@@ -203,13 +266,53 @@ func (s *server) storeDoc(ctx context.Context, userID int64, id string, body []b
 		return 0, nil, errStorageLimit
 	}
 
-	rev++
+	rev = max(rev, floor) + 1
 	if _, err := tx.ExecContext(ctx, `INSERT INTO docs(user_id, id, body, rev, size, updated_at) VALUES(?, ?, ?, ?, ?, ?)
 		ON CONFLICT(user_id, id) DO UPDATE SET body = excluded.body, rev = excluded.rev, size = excluded.size, updated_at = excluded.updated_at`,
 		userID, id, string(body), rev, len(body), time.Now().Unix()); err != nil {
 		return 0, nil, err
 	}
 	return rev, nil, tx.Commit()
+}
+
+// deletedRev is the last revision a deleted document had, or 0 if it never existed.
+func deletedRev(ctx context.Context, tx *sql.Tx, userID int64, id string) (int64, error) {
+	var rev int64
+	err := tx.QueryRowContext(ctx, "SELECT rev FROM doc_revs WHERE user_id = ? AND id = ?", userID, id).Scan(&rev)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
+	}
+	return rev, err
+}
+
+// removeDoc deletes one document under the caller's precondition, in one transaction, and remembers its revision.
+// With If-Match it only deletes that revision; otherwise (older clients) it deletes whatever is there. A document
+// that is already gone is not an error. conflict is set instead when the revision has moved on.
+func (s *server) removeDoc(ctx context.Context, userID int64, id string, pre precondition) (conflict *docOut, err error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	var rev int64
+	var cur string
+	err = tx.QueryRowContext(ctx, "SELECT rev, body FROM docs WHERE user_id = ? AND id = ?", userID, id).Scan(&rev, &cur)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	if pre.match != nil && *pre.match != rev {
+		return &docOut{Rev: rev, Body: json.RawMessage(cur)}, nil
+	}
+	if _, err := tx.ExecContext(ctx, "DELETE FROM docs WHERE user_id = ? AND id = ?", userID, id); err != nil {
+		return nil, err
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO doc_revs(user_id, id, rev) VALUES(?, ?, ?)
+		ON CONFLICT(user_id, id) DO UPDATE SET rev = excluded.rev`, userID, id, rev); err != nil {
+		return nil, err
+	}
+	return nil, tx.Commit()
 }
 
 func (s *server) putDoc(w http.ResponseWriter, r *http.Request) {
@@ -226,6 +329,12 @@ func (s *server) putDoc(w http.ResponseWriter, r *http.Request) {
 	var obj map[string]any
 	if err := json.Unmarshal(body, &obj); err != nil || obj == nil {
 		jsonError(w, http.StatusBadRequest, "Body must be a JSON object.")
+		return
+	}
+	// The same field rules as an import or a restore, so what is saved can always be exported and restored. The client
+	// treats this as a refused change and keeps it in Recovery with this message.
+	if err := validateDoc(id, body); err != nil {
+		jsonError(w, http.StatusUnprocessableEntity, "That isn't valid and was not saved: "+err.Error()+".")
 		return
 	}
 	pre, err := parsePrecondition(r)
@@ -257,11 +366,20 @@ func (s *server) deleteDoc(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, http.StatusBadRequest, "Unknown document id.")
 		return
 	}
-	if _, err := s.db.ExecContext(r.Context(), "DELETE FROM docs WHERE user_id = ? AND id = ?", u.ID, id); err != nil {
-		serverError(w, r, err)
+	pre, err := parsePrecondition(r)
+	if err != nil {
+		jsonError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	conflict, err := s.removeDoc(r.Context(), u.ID, id, pre)
+	switch {
+	case err != nil:
+		serverError(w, r, err)
+	case conflict != nil:
+		writeJSON(w, http.StatusConflict, conflict)
+	default:
+		w.WriteHeader(http.StatusNoContent)
+	}
 }
 
 type importResult struct {
@@ -313,11 +431,30 @@ func (s *server) importTx(ctx context.Context, tx *sql.Tx, userID int64, in map[
 		return res, err
 	}
 
+	floors := map[string]int64{}
+	lrows, err := tx.QueryContext(ctx, "SELECT id, rev FROM doc_revs WHERE user_id = ?", userID)
+	if err != nil {
+		return res, err
+	}
+	for lrows.Next() {
+		var id string
+		var rev int64
+		if err := lrows.Scan(&id, &rev); err != nil {
+			lrows.Close()
+			return res, err
+		}
+		floors[id] = rev
+	}
+	err = lrows.Err()
+	lrows.Close()
+	if err != nil {
+		return res, err
+	}
+
 	now := time.Now().Unix()
 	for _, id := range slices.Sorted(maps.Keys(in)) {
 		body := in[id]
-		var obj map[string]any
-		if !validDocID(id) || len(body) > maxBodySize || json.Unmarshal(body, &obj) != nil || obj == nil {
+		if validateDoc(id, body) != nil {
 			res.Invalid++
 			continue
 		}
@@ -327,14 +464,15 @@ func (s *server) importTx(ctx context.Context, tx *sql.Tx, userID int64, in map[
 			continue
 		}
 		total += int64(len(body)) - old.size
-		existing[id] = have{old.rev + 1, int64(len(body))}
+		rev := max(old.rev, floors[id]) + 1
+		existing[id] = have{rev, int64(len(body))}
 		if len(existing) > maxDocsPerUser || total > maxBytesPerUser {
 			return res, errImportTooBig
 		}
 		if !preview {
 			if _, err := tx.ExecContext(ctx, `INSERT INTO docs(user_id, id, body, rev, size, updated_at) VALUES(?, ?, ?, ?, ?, ?)
 			ON CONFLICT(user_id, id) DO UPDATE SET body = excluded.body, rev = excluded.rev, size = excluded.size, updated_at = excluded.updated_at`,
-				userID, id, string(body), old.rev+1, len(body), now); err != nil {
+				userID, id, string(body), rev, len(body), now); err != nil {
 				return res, err
 			}
 		}

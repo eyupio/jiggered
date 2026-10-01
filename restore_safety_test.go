@@ -84,11 +84,11 @@ func TestRestoreMalformedFieldsRejectEntireFile(t *testing.T) {
 		}
 	}
 	for id, raw := range map[string]string{"settings": `{"budget":0}`, "e-1": `{"symptoms":"bad"}`, "e-2": `{"when":"2026-02-30T10:00"}`} {
-		if validateRestoreDoc(id, json.RawMessage(raw)) == nil {
+		if validateDoc(id, json.RawMessage(raw)) == nil {
 			t.Fatalf("accepted %s", raw)
 		}
 	}
-	if validateRestoreDoc("e-3", json.RawMessage(`{"notes":"old export"}`)) != nil {
+	if validateDoc("e-3", json.RawMessage(`{"notes":"old export"}`)) != nil {
 		t.Fatal("legacy optional fields rejected")
 	}
 }

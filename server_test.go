@@ -25,6 +25,25 @@ func TestHealthz(t *testing.T) {
 	}
 }
 
+func TestHealthzFailsWhenTheCoreTableIsMissing(t *testing.T) {
+	e := newTestServer(t)
+	if _, err := e.s.db.Exec("DROP TABLE docs"); err != nil {
+		t.Fatal(err)
+	}
+	resp, b := e.newClient().req("GET", "/healthz", nil)
+	if resp.StatusCode != 503 || strings.Contains(string(b), "docs") {
+		t.Errorf("= %d %q, want 503 without the SQL error in the body", resp.StatusCode, b)
+	}
+}
+
+func TestPagesAreNotIndexable(t *testing.T) {
+	e := newTestServer(t)
+	resp, _ := e.newClient().req("GET", "/login", nil)
+	if got := resp.Header.Get("X-Robots-Tag"); !strings.Contains(got, "noindex") {
+		t.Errorf("X-Robots-Tag = %q", got)
+	}
+}
+
 func TestSecurityHeaders(t *testing.T) {
 	e := newTestServer(t)
 	resp, _ := e.newClient().req("GET", "/login", nil)

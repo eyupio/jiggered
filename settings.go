@@ -164,6 +164,37 @@ func (s *server) setSetting(ctx context.Context, key, value string) (string, err
 	return canon, err
 }
 
+// setSettings validates every value first, then stores them all in one transaction, so a request that is refused
+// changes nothing. It returns the stored (canonical) values.
+func (s *server) setSettings(ctx context.Context, in map[string]string) (map[string]string, error) {
+	canon := make(map[string]string, len(in))
+	for k, v := range in {
+		c, err := parseSetting(k, v)
+		if err != nil {
+			return nil, err
+		}
+		canon[k] = c
+	}
+	if len(canon) == 0 {
+		return canon, nil
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	now := time.Now().Unix()
+	for k, c := range canon {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO instance_settings(key, value, updated_at) VALUES(?, ?, ?)
+			ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`, k, c, now); err != nil {
+			return nil, err
+		}
+	}
+	err = tx.Commit()
+	s.forgetSettings()
+	return canon, err
+}
+
 // storedSettings reports each setting's value and whether it was set explicitly (otherwise it is the default).
 func (s *server) storedSettings(ctx context.Context) (values map[string]string, explicit map[string]bool, err error) {
 	st, err := s.loadSettings(ctx)

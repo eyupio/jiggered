@@ -55,3 +55,20 @@ test("a group change merges onto a newer copy without touching other fields", ()
   const out = m.applyOp({ type: "settingsPatch", arg: { activities: next }, before: { activities: before } }, { activities: current });
   assert.deepEqual(out.activities, [{ id: "1", a: "A", c: 2, g: "Work" }]);
 });
+
+test("selection pins logged activities in list order and counts repeats", () => {
+  const rows = ["Walk", "Call", "Nap", "Cook"].map((a, i) => ({ item: { a, c: 1 }, i }));
+  const entries = [{ a: "Nap" }, { a: "Walk" }, { a: "Nap" }, { a: "One-off other" }];
+  const s = p.selection(rows, entries);
+  assert.deepEqual(s.selected.map(r => r.item.a), ["Walk", "Nap"], "list order, not the order they were logged");
+  assert.deepEqual(s.rest.map(r => r.item.a), ["Call", "Cook"]);
+  assert.equal(s.count.get("Nap"), 2);
+  assert.equal(s.count.get("Walk"), 1);
+  assert.equal(s.selected.length + s.rest.length, rows.length, "every row is in exactly one of the two");
+});
+
+test("selection with nothing logged leaves the list alone", () => {
+  const rows = [{ item: { a: "Walk" }, i: 0 }];
+  assert.deepEqual(p.selection(rows, []).selected, []);
+  assert.equal(p.selection(rows, undefined).rest.length, 1);
+});

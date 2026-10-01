@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -86,7 +87,7 @@ func TestBackupDownloadIsRecordedEvenIfItIsCutShort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := httptest.NewRequest("POST", "/api/admin/backup", nil)
+	r := httptest.NewRequest("POST", "/api/admin/backup", strings.NewReader(`{"password":"`+adminPass+`"}`))
 	r = r.WithContext(context.WithValue(r.Context(), authKey{}, &authInfo{u: admin}))
 	e.s.adminBackup(&failingWriter{}, r)
 	if n := countRows(t, e, "SELECT count(*) FROM audit_log WHERE action = 'backup_downloaded'"); n != 1 {

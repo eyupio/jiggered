@@ -51,8 +51,8 @@ func TestPutGetDeleteAndRevisions(t *testing.T) {
 	if len(c.docs()) != 0 {
 		t.Error("doc still listed after delete")
 	}
-	if _, out := c.putDoc("d-2026-10-01", `{"status":"red"}`); out["rev"] != float64(1) {
-		t.Errorf("recreating starts again at rev 1: %v", out)
+	if _, out := c.putDoc("d-2026-10-01", `{"status":"red"}`); out["rev"] != float64(3) {
+		t.Errorf("recreating carries on from the deleted revision (2): %v", out)
 	}
 }
 
@@ -290,5 +290,62 @@ func TestImportIsAudited(t *testing.T) {
 	postImport(c, "overwrite", `{"d-2026-10-01":{}}`)
 	if n := countRows(t, e, "SELECT count(*) FROM audit_log WHERE action = 'import' AND actor = 'admin' AND detail LIKE 'overwrite: 1 imported%'"); n != 1 {
 		t.Error("import should be in the audit log (counts only)")
+	}
+}
+
+func TestDeleteNeedsTheCurrentRevisionWhenOneIsGiven(t *testing.T) {
+	e := newTestServer(t)
+	c := e.signedInAdmin()
+	id := "e-1790000000000"
+	c.putDoc(id, `{"n":1}`)
+	c.putDoc(id, `{"n":2}`)
+	resp, b := c.req("DELETE", "/api/docs/"+id, nil, "If-Match", `"1"`)
+	if resp.StatusCode != 409 || !strings.Contains(string(b), `"rev":2`) || !strings.Contains(string(b), `"n":2`) {
+		t.Fatalf("stale delete = %d %s, want 409 with the current copy", resp.StatusCode, b)
+	}
+	if st := c.do("DELETE", "/api/docs/"+id, nil, "If-Match", `"abc"`); st != 400 {
+		t.Errorf("bad If-Match = %d, want 400", st)
+	}
+	if st := c.do("DELETE", "/api/docs/"+id, nil, "If-Match", `"2"`); st != 204 {
+		t.Errorf("delete at the current rev = %d", st)
+	}
+	if st := c.do("DELETE", "/api/docs/"+id, nil, "If-Match", `"2"`); st != 204 {
+		t.Errorf("deleting what is already gone = %d, want 204", st)
+	}
+	// A client from before this change sends no If-Match and still deletes.
+	c.putDoc(id, `{"n":3}`)
+	if st := c.do("DELETE", "/api/docs/"+id, nil); st != 204 || len(c.docs()) != 0 {
+		t.Errorf("unconditional delete = %d, %d docs left", st, len(c.docs()))
+	}
+}
+
+func TestImportAndRestoreContinueARevisionAfterDelete(t *testing.T) {
+	e := newTestServer(t)
+	c := e.signedInAdmin()
+	id := "d-2026-10-01"
+	c.putDoc(id, `{"n":1}`)
+	c.putDoc(id, `{"n":2}`)
+	c.do("DELETE", "/api/docs/"+id, nil)
+	if st := c.do("POST", "/api/import?mode=add", map[string]any{id: map[string]any{"n": 9}}); st != 200 {
+		t.Fatalf("import = %d", st)
+	}
+	if got := c.docs()[id]; got.Rev != 3 {
+		t.Errorf("imported after a delete at rev 2 got rev %d, want 3", got.Rev)
+	}
+}
+
+func TestDeletedRevisionsAreScopedToThePerson(t *testing.T) {
+	e := newTestServer(t)
+	a := e.signedInAdmin()
+	b, _ := e.addUser("bea", "user")
+	id := "d-2026-10-01"
+	a.putDoc(id, `{"n":1}`)
+	a.putDoc(id, `{"n":2}`)
+	a.do("DELETE", "/api/docs/"+id, nil)
+	if _, out := b.putDoc(id, `{"n":1}`); out["rev"] != float64(1) {
+		t.Errorf("another person's deleted doc changed this one's revision: %v", out)
+	}
+	if n := countRows(t, e, "SELECT count(*) FROM doc_revs"); n != 1 {
+		t.Errorf("doc_revs has %d rows, want 1", n)
 	}
 }

@@ -41,7 +41,28 @@ export function init(ctx) {
   const filters = () => ({from: $("hist-from").value, to: $("hist-to").value, status: $("hist-status").value, symptom: $("hist-symptom").value, ongoing: $("hist-ongoing").checked, query: $("hist-query").value});
   const selectedDocs = () => { const selected = selectHistory(ctx.store.all(), filters()); return Object.fromEntries([...selected.days.map(d => ["d-" + d.date, d]), ...selected.episodes]) };
   $("history-filters").addEventListener("submit", e => e.preventDefault());
-  $("history-filters").addEventListener("input", e => { initialised = true; if (["hist-from", "hist-to"].includes(e.target.id)) rangeMode = "custom"; shown = episodesShown = PAGE; render() });
+  // Typing in the search box waits for a short pause before the whole view is recomputed, so a word is one update
+  // rather than one per letter. The count line says so meanwhile. Dates, selects and buttons still update at once.
+  let searchTimer = null;
+  const SEARCH_PAUSE = 250;
+  const renderNow = () => { clearTimeout(searchTimer); searchTimer = null; render() };
+  $("history-filters").addEventListener("input", e => {
+    initialised = true; if (["hist-from", "hist-to"].includes(e.target.id)) rangeMode = "custom"; shown = episodesShown = PAGE;
+    if (e.target.id === "hist-query") {
+      $("history-count").textContent = "Updating…";
+      clearTimeout(searchTimer); searchTimer = setTimeout(renderNow, SEARCH_PAUSE);
+      return;
+    }
+    renderNow();
+  });
+  $("history-filters").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "hist-query" && searchTimer !== null) { e.preventDefault(); renderNow() } });
+  // Jump to Overview, Records or Share. This only scrolls and moves focus: the filters stay exactly as they are.
+  $("history-shortcuts").addEventListener("click", e => {
+    const target = e.target.closest("[data-history-target]"); if (!target) return;
+    const panel = $(target.dataset.historyTarget);
+    panel.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+    (panel.querySelector("h2[tabindex]") || panel.querySelector("h2"))?.focus({ preventScroll: true });
+  });
   $("history-filters").addEventListener("reset", () => setTimeout(() => { initialised = true; setRange("all"); render() }, 0));
   $("more-eps").addEventListener("click", () => { episodesShown += PAGE; render() });
   $("sum-preview").addEventListener("click", () => { renderSummary(); $("summary-preview").innerHTML = $("print-view").innerHTML; $("summary-preview").hidden = !$("summary-preview").hidden });
@@ -85,7 +106,7 @@ export function init(ctx) {
       <p>${label}: ${fmtLongDay(sm.from, L)} to ${fmtLongDay(sm.to, L)}. Printed ${fmtLongDay(ctx.today(), L)}.</p>
       <h2>Check-ins</h2>
       <p>${plural(sm.days.filter(d => d.status).length, "day")} with a check-in: ${sm.green} green, ${sm.amber} amber, ${sm.red} red.
-        ${sm.avgUsed === null ? "" : `On average ${sm.avgUsed} points were spent on the days that were logged.`}
+        ${sm.avgUsed === null ? "" : `On the ${plural(sm.activityDays, "day")} with activities, the average net points were ${sm.avgUsed} (activities minus recovery; days with only a check-in are not counted).`}
         ${sm.poorSleepDays ? `Poor sleep was recorded on ${plural(sm.poorSleepDays, "day")}.` : ""}</p>
       <h2>Episodes (${sm.episodes.length})</h2>
       ${sm.episodes.length ? html`
@@ -168,6 +189,11 @@ export function init(ctx) {
 
   function renderPatterns(data, locale) {
     const { metrics: m, sleep, weekdays, activities } = data;
+    // With almost nothing to go on, a short note replaces the cards that would otherwise push the records far down.
+    if (m.checked < 3 && m.logged < 3 && m.episodes < 3) {
+      setHTML($("history-insights"), html`<p class="empty">Patterns need at least a few check-ins, activity days or episodes in this view. Your records and sharing are just below; use the shortcuts above to jump to them.</p>`);
+      return;
+    }
     const enoughSleep = sleep.poor.n >= 3 && sleep.other.n >= 3;
     const sampleWeekdays = weekdays.filter(w => w.checked >= 3).sort((a, b) => b.bad / b.checked - a.bad / a.checked || b.checked - a.checked);
     const weekday = sampleWeekdays[0], dayName = w => new Date(Date.UTC(2024, 0, 7 + w.index)).toLocaleDateString(locale || undefined, { weekday: "long", timeZone: "UTC" });

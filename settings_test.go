@@ -506,3 +506,42 @@ func TestMigrationAddsTheSettingsTableToAnExistingAccountsDatabase(t *testing.T)
 		t.Error("an upgrade alone stores no settings: the defaults apply until someone chooses")
 	}
 }
+
+func TestSettingsPatchAppliesAllOrNothing(t *testing.T) {
+	e := newTestServer(t)
+	c := e.signedInAdmin()
+	if st := c.do("PATCH", "/api/admin/settings", map[string]any{"trust_proxy": true, "proxy_hops": 3}); st != 200 {
+		t.Fatalf("valid patch = %d", st)
+	}
+	if got := e.s.settings().strings(); got["trust_proxy"] != "true" || got["proxy_hops"] != "3" {
+		t.Fatalf("both fields should be stored, got %v", got)
+	}
+	if st := c.do("PATCH", "/api/admin/settings", map[string]any{"trust_proxy": false, "proxy_hops": 99}); st != 400 {
+		t.Fatalf("patch with a bad second field = %d, want 400", st)
+	}
+	if got := e.s.settings().strings(); got["trust_proxy"] != "true" || got["proxy_hops"] != "3" {
+		t.Errorf("a refused patch changed settings: %v", got)
+	}
+	if n := countRows(t, e, "SELECT count(*) FROM audit_log WHERE action = 'settings_changed'"); n != 2 {
+		t.Errorf("audit rows = %d, want 2 (one per changed field, none for the refused patch)", n)
+	}
+}
+
+func TestJSONBodiesMustBeASingleValue(t *testing.T) {
+	e := newTestServer(t)
+	c := e.signedInAdmin()
+	r, _ := http.NewRequest("PATCH", c.base+"/api/admin/settings", strings.NewReader(`{"trust_proxy":true} {"trust_proxy":false}`))
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("X-Requested-With", "jiggered")
+	got, err := c.hc.Do(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got.Body.Close()
+	if got.StatusCode != 400 {
+		t.Errorf("two JSON values in one body = %d, want 400", got.StatusCode)
+	}
+	if e.s.settings().strings()["trust_proxy"] == "true" {
+		t.Error("the first value was applied despite the trailing data")
+	}
+}
