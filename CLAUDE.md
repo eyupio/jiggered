@@ -90,6 +90,10 @@ the tabs; `admin.js` is mounted only for admins; `sw.js` is the service worker;
   `/fonts/` prefix) in `routes()` are served without login; everything else under
   `web/` sits behind `requireAuth`. Add a login-page asset there or it redirects to
   `/login` for a signed-out visitor.
+- **Pages name their scripts and styles by version** (`/v/<hash>/app.js`, rewritten into `index.html` and `login.html`
+  by `static.versionPage`; relative `import`s stay inside it). Reason: a CDN in front (Cloudflare's default is four
+  hours) kept old files and ran them against a new page. A new top-level script or stylesheet that a page loads must
+  be added to `versionedFiles` in `main.go`; `sw.js` is rewritten per build by `static.serviceWorker`.
 - **Writes need the `X-Requested-With: jiggered` header** (in `guard`), and every
   non-GET request is checked against `Sec-Fetch-Site` (`rejectCrossSite`). Frontend
   calls go through `api()` in `web/util.js` or `web/sync.js`, which set the header.

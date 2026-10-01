@@ -144,7 +144,7 @@ export function trends(docs, S, today, window = 30) {
 // Cells starting with = + - @ would run as formulas if someone opens the file in a spreadsheet.
 export const csvCell = v => {
   let s = v == null ? "" : String(v);
-  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  if (typeof v === "string" && /^[=+\-@\t\r]/.test(s)) s = "'" + s; // numbers like -2 are not formulas
   return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 };
 const csv = rows => rows.map(r => r.map(csvCell).join(",")).join("\r\n") + "\r\n";

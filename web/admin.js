@@ -40,7 +40,7 @@ function say(el, text, bad = false) {
 const MARKUP = `
     <div class="panel">
       <h2>People</h2>
-      <p class="meta">You can add people, reset passwords, sign devices out and remove accounts. You can't read anyone's check-ins or episodes here, only how many they have.</p>
+      <p class="meta">You can add people, reset passwords, sign devices out and remove accounts. These screens don't show anyone's check-ins or episodes, only how many they have. Remember that resetting a password lets you sign in as that person, and a backup contains everything.</p>
       <ul class="list people" id="users"></ul>
       <p class="msg" id="users-msg" aria-live="polite"></p>
     </div>
@@ -166,7 +166,7 @@ function wire(ctx) {
         break;
       case "enable": r = await api("PATCH", path, { disabled: false }); break;
       case "promote":
-        if (!confirm(`Make ${name} an admin? They'll be able to add people and manage every account (but still not read anyone's logs).`)) return;
+        if (!confirm(`Make ${name} an admin? They'll be able to add people and manage every account (including resetting passwords and downloading a backup of everyone's data).`)) return;
         r = await api("PATCH", path, { role: "admin" });
         break;
       case "demote": r = await api("PATCH", path, { role: "user" }); break;
@@ -213,7 +213,10 @@ function wire(ctx) {
     let r;
     try { r = await fetch("/api/admin/backup", { method: "POST", credentials: "same-origin", headers: { "X-Requested-With": "jiggered" } }) }
     catch { return say(msg, "Couldn't reach the server. Check your connection and try again.", true) }
-    if (!r.ok) return say(msg, `The backup failed (${r.status}).`, true);
+    if (!r.ok) {
+      const why = await r.json().then(j => j.error, () => "");
+      return say(msg, why || `The backup failed (${r.status}).`, true);
+    }
     const url = URL.createObjectURL(await r.blob());
     const name = (/filename="([^"]+)"/.exec(r.headers.get("Content-Disposition") || "") || [])[1] || "jiggered-backup.db";
     const a = Object.assign(document.createElement("a"), { href: url, download: name });

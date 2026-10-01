@@ -170,8 +170,8 @@ func TestAccountLockoutCoversEveryAddress(t *testing.T) {
 	for i := 0; i < 10; i++ { // spread across addresses so no single IP hits its own limit
 		e.newClient().login(adminName, "wrong-wrong", "X-Forwarded-For", fmt.Sprintf("198.51.100.%d", i))
 	}
-	if loc := e.newClient().login(adminName, adminPass, "X-Forwarded-For", "198.51.100.200"); loc != "/login?e=locked" {
-		t.Errorf("the guessed-at account should be locked from every address: %q", loc)
+	if loc := e.newClient().login(adminName, adminPass, "X-Forwarded-For", "198.51.100.200"); loc != "/login?e=bad" {
+		t.Errorf("the guessed-at account should refuse even the right password from every address (and look like a wrong one): %q", loc)
 	}
 	if loc := e.newClient().login("alice", "password-alice", "X-Forwarded-For", "198.51.100.200"); loc != "/" {
 		t.Errorf("other accounts are unaffected: %q", loc)
@@ -221,6 +221,11 @@ func TestClientIP(t *testing.T) {
 		{"fewer entries than hops falls back", true, 3, "127.0.0.1:1", []string{"198.51.100.7"}, "127.0.0.1"},
 		{"garbage falls back", true, 1, "127.0.0.1:1", []string{"not an ip"}, "127.0.0.1"},
 		{"no header", true, 1, "127.0.0.1:1", nil, "127.0.0.1"},
+		{"address with a port", true, 1, "127.0.0.1:1", []string{"198.51.100.7:51234"}, "198.51.100.7"},
+		{"IPv6 with a port", true, 1, "127.0.0.1:1", []string{"6.6.6.6, [2001:db8::7]:443"}, "2001:db8::7"},
+		{"IPv6 in brackets", true, 1, "127.0.0.1:1", []string{"[2001:db8::7]"}, "2001:db8::7"},
+		{"bare IPv6", true, 1, "127.0.0.1:1", []string{"2001:db8::7"}, "2001:db8::7"},
+		{"port without an address", true, 1, "127.0.0.1:1", []string{":443"}, "127.0.0.1"},
 	}
 	for _, c := range cases {
 		s := serverWithSettings(instanceSettings{TrustProxy: c.trust, ProxyHops: c.hops})
@@ -454,29 +459,28 @@ func TestTempPassword(t *testing.T) {
 func TestLimiter(t *testing.T) {
 	l := newLoginLimiter(3, 40*time.Millisecond)
 	for i := 0; i < 3; i++ {
-		if !l.allow("k") {
-			t.Fatalf("blocked after %d failures", i)
+		if _, ok := l.take("k"); !ok {
+			t.Fatalf("blocked after %d attempts", i)
 		}
-		l.fail("k")
 	}
-	if l.allow("k") {
+	if _, ok := l.take("k"); ok {
 		t.Error("should block at the limit")
 	}
-	if !l.allow("other") {
+	if _, ok := l.take("other"); !ok {
 		t.Error("keys are independent")
 	}
 	l.reset("k")
-	if !l.allow("k") {
+	if _, ok := l.take("k"); !ok {
 		t.Error("reset should clear")
 	}
-	for i := 0; i < 3; i++ {
-		l.fail("k")
+	for i := 0; i < 2; i++ {
+		l.take("k")
 	}
 	time.Sleep(60 * time.Millisecond)
-	if !l.allow("k") {
-		t.Error("failures should age out of the window")
+	if _, ok := l.take("k"); !ok {
+		t.Error("attempts should age out of the window")
 	}
-	l.fail("stale")
+	l.take("stale")
 	time.Sleep(60 * time.Millisecond)
 	l.sweep()
 	l.mu.Lock()
@@ -487,24 +491,50 @@ func TestLimiter(t *testing.T) {
 	}
 }
 
+func TestLimiterGivesBackOnlyTheAttemptItWasHanded(t *testing.T) {
+	l := newLoginLimiter(3, time.Hour)
+	_, _ = l.take("k")
+	back, _ := l.take("k")
+	_, _ = l.take("k")
+	if _, ok := l.take("k"); ok {
+		t.Fatal("three attempts are taken")
+	}
+	back()
+	back() // giving the same one back twice must not free a second slot
+	if _, ok := l.take("k"); !ok {
+		t.Error("the slot that was given back should be usable")
+	}
+	if _, ok := l.take("k"); ok {
+		t.Error("only one slot was given back")
+	}
+	l.mu.Lock()
+	n := len(l.fails["k"])
+	l.mu.Unlock()
+	if n != 3 {
+		t.Errorf("%d attempts recorded, want 3", n)
+	}
+}
+
 func TestLimiterStopsGrowingWhenFull(t *testing.T) {
 	l := newLoginLimiter(3, time.Hour)
 	for i := 0; i < limiterMaxKeys; i++ {
-		l.fail(fmt.Sprint("k", i))
+		l.take(fmt.Sprint("k", i))
 	}
-	l.fail("one-too-many")
+	if _, ok := l.take("one-too-many"); !ok {
+		t.Error("a newcomer is let through untracked, not refused")
+	}
 	l.mu.Lock()
 	n, tracked := len(l.fails), l.fails["one-too-many"] != nil
 	l.mu.Unlock()
 	if n != limiterMaxKeys || tracked {
 		t.Errorf("limiter grew to %d keys (new key tracked: %v)", n, tracked)
 	}
-	l.fail("k0") // an existing key still counts
+	l.take("k0") // an existing key still counts
 	l.mu.Lock()
 	got := len(l.fails["k0"])
 	l.mu.Unlock()
 	if got != 2 {
-		t.Errorf("existing key has %d failures, want 2", got)
+		t.Errorf("existing key has %d attempts, want 2", got)
 	}
 }
 

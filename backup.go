@@ -44,20 +44,20 @@ func (s *server) adminBackup(w http.ResponseWriter, r *http.Request) {
 
 	tmp, err := snapshotToTemp(s.db, s.cfg.dbPath)
 	if err != nil {
-		log.Printf("backup: %v", err)
-		http.Error(w, "server error", http.StatusInternalServerError)
+		serverError(w, r, err)
 		return
 	}
 	defer os.Remove(tmp)
 	f, err := os.Open(tmp)
 	if err != nil {
-		http.Error(w, "server error", http.StatusInternalServerError)
+		serverError(w, r, err)
 		return
 	}
 	defer f.Close()
+	os.Remove(tmp) // open handle keeps it readable; nothing is left behind however this ends
 	st, err := f.Stat()
 	if err != nil {
-		http.Error(w, "server error", http.StatusInternalServerError)
+		serverError(w, r, err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/vnd.sqlite3")
@@ -65,9 +65,10 @@ func (s *server) adminBackup(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Length", strconv.FormatInt(st.Size(), 10))
 	w.Header().Set("Cache-Control", "no-store")
 	http.NewResponseController(w).SetWriteDeadline(time.Now().Add(5 * time.Minute))
+	// Recorded before the first byte goes out: a download that is cut short has still handed over part of everyone's
+	// data, and must not leave no trace.
+	s.audit(r.Context(), a.u.Username, "backup_downloaded", "", "whole database", s.clientIP(r))
 	if _, err := io.Copy(w, f); err != nil {
 		log.Printf("backup: sending: %v", err)
-		return
 	}
-	s.audit(r.Context(), a.u.Username, "backup_downloaded", "", "whole database", s.clientIP(r))
 }

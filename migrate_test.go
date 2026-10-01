@@ -151,6 +151,30 @@ func TestMigrateLegacyDataNeedsAFirstAdmin(t *testing.T) {
 	}
 }
 
+// A container that keeps restarting because APP_USERNAME is missing tries again and again; each try must not
+// leave a full copy of the database behind, since a refused upgrade changed nothing.
+func TestRefusedUpgradeDoesNotPileUpSnapshots(t *testing.T) {
+	path := legacyDB(t, map[string]string{"d-2026-09-29": `{"date":"2026-09-29"}`}, nil)
+	backups := filepath.Join(filepath.Dir(path), "backups")
+	for i := 0; i < 3; i++ {
+		if _, err := openDB(path, nil); !errors.Is(err, errNeedFirstAdmin) {
+			t.Fatalf("attempt %d: want errNeedFirstAdmin, got %v", i+1, err)
+		}
+	}
+	if entries, _ := os.ReadDir(backups); len(entries) != 0 {
+		t.Errorf("refused upgrades left %d snapshot(s) behind", len(entries))
+	}
+	// The upgrade that does go ahead still keeps its copy.
+	db, err := openDB(path, seedFor(t, "paul", "oldpassword1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	if entries, _ := os.ReadDir(backups); len(entries) != 1 {
+		t.Errorf("the real upgrade left %d snapshot(s), want 1", len(entries))
+	}
+}
+
 func TestMigrateLegacySessionsOnlyDoesNotNeedAnAdmin(t *testing.T) {
 	path := legacyDB(t, nil, map[string]int64{"x": time.Now().Add(time.Hour).Unix()})
 	db, err := openDB(path, nil)

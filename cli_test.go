@@ -214,6 +214,9 @@ func TestCLIUserCommands(t *testing.T) {
 	if _, err := run("add", "bad name"); err == nil {
 		t.Error("invalid name accepted")
 	}
+	if _, err := run("add", "System"); err == nil || !strings.Contains(err.Error(), "reserved") {
+		t.Errorf("a name the activity log uses for the app itself: %v", err)
+	}
 	out, _ = run("add", "carol", "--admin")
 	if !strings.Contains(out, "Created admin") {
 		t.Errorf("--admin: %q", out)

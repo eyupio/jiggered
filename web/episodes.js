@@ -62,6 +62,7 @@ export function init(ctx) {
   $("ep-cancel").addEventListener("click", () => { reset(); ctx.go("history") });
   form.addEventListener("submit", e => {
     e.preventDefault();
+    if (!editing && !dirty) return; // a second tap on Save, right after the form was cleared, must not make an empty episode
     const body = {
       when: $("ep-when").value, symptoms: picked("sym"), onset: picked("onset")[0] || "",
       duration: $("ep-dur").value, before: picked("trig"), notes: $("ep-notes").value.trim(),
@@ -80,5 +81,6 @@ export function init(ctx) {
   return {
     render, edit,
     show() { if (!editing && !dirty) $("ep-when").value = nowLocal(); render() },
+    hide() { if (editing) reset() }, // an edit left half-done must not turn the next new episode into an overwrite
   };
 }

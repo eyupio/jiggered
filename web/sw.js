@@ -40,13 +40,14 @@ self.addEventListener("fetch", e => {
 
 async function networkFirst(req, key) {
   const cache = await caches.open(CACHE);
+  // Network first, but a connection that hangs or a proxy answering 5xx (the app is down) is as good as none.
+  const fallback = async err => { const hit = await cache.match(key); if (hit) return hit; throw err };
   try {
-    const res = await fetch(req);
+    const res = await fetch(req, { signal: AbortSignal.timeout(5000) });
+    if (res.status >= 500) return await fallback(new Error("HTTP " + res.status)).catch(() => res);
     if (cacheable(res)) cache.put(key, res.clone());
     return res;
   } catch (err) {
-    const hit = await cache.match(key);
-    if (hit) return hit;
-    throw err;
+    return fallback(err);
   }
 }

@@ -95,7 +95,7 @@ const defaultDB = "/data/jiggered.db"
 // cmdBackup saves a consistent snapshot. Copying jiggered.db by itself is not a
 // backup: while the server runs, recent writes sit in the -wal file beside it.
 func cmdBackup(args []string, out, errw io.Writer) error {
-	if len(args) > 1 {
+	if len(args) > 1 || (len(args) == 1 && args[0] != "-" && strings.HasPrefix(args[0], "-")) {
 		return errors.New("usage: jiggered backup [file|-]")
 	}
 	dbPath := envOr("APP_DB", defaultDB)
@@ -142,6 +142,7 @@ func cmdBackup(args []string, out, errw io.Writer) error {
 		return err
 	}
 	defer f.Close()
+	os.Remove(tmp) // a closed pipe (| head) must not leave a whole copy behind
 	_, err = io.Copy(out, f)
 	return err
 }
@@ -152,7 +153,7 @@ func checkBackup(path string) error {
 	if _, err := os.Stat(path); err != nil {
 		return fmt.Errorf("can't read %s: %w", path, err)
 	}
-	db, err := sql.Open("sqlite", "file:"+path+"?mode=ro&immutable=1")
+	db, err := sql.Open("sqlite", sqliteURI(path)+"?mode=ro&immutable=1")
 	if err != nil {
 		return err
 	}
@@ -174,6 +175,10 @@ func checkBackup(path string) error {
 	if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'docs'").Scan(&tables); err != nil || tables == 0 {
 		return fmt.Errorf("%s isn't a Jiggered database (it has no docs table)", path)
 	}
+	var extra int
+	if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type IN ('trigger', 'view') OR sql LIKE 'CREATE VIRTUAL%'").Scan(&extra); err != nil || extra > 0 {
+		return fmt.Errorf("%s has triggers, views or virtual tables, which a Jiggered backup never has", path)
+	}
 	return nil
 }
 
@@ -190,20 +195,38 @@ func cmdRestore(args []string, out, errw io.Writer) error {
 	if len(args) != 2 {
 		return fmt.Errorf("%s is a sound backup. This would replace the database at %s. Stop the server first, then run this again with --yes", src, dst)
 	}
+	if real, err := filepath.EvalSymlinks(dst); err == nil {
+		dst = real // a symlinked APP_DB: replace what it points at, not the link
+	}
+	if st, err := os.Stat(src); err == nil && st.IsDir() {
+		return fmt.Errorf("%s is a folder, not a backup file", src)
+	}
+	if st, err := os.Stat(src + "-wal"); err == nil && st.Size() > 0 {
+		return fmt.Errorf("%s has a -wal file beside it holding recent changes that a restore would silently drop; make backups with `jiggered backup`, or copy the -wal and -shm files too and open the copy once first", src)
+	}
 	if _, err := os.Stat(dst); err == nil {
-		db, err := openRaw(dst)
-		if err != nil {
+		if err := refuseIfInUse(dst); err != nil {
 			return err
 		}
 		if err := os.MkdirAll(backupDir(dst), 0o700); err != nil {
-			db.Close()
 			return err
 		}
-		kept := filepath.Join(backupDir(dst), "pre-restore-"+time.Now().Format("20060102-150405")+".db")
-		err = snapshot(db, kept)
-		db.Close()
+		stamp := time.Now().Format("20060102-150405")
+		kept := filepath.Join(backupDir(dst), "pre-restore-"+stamp+".db")
+		db, err := openRaw(dst)
+		if err == nil {
+			err = snapshot(db, kept)
+			db.Close()
+		}
 		if err != nil {
-			return fmt.Errorf("keeping the current database before replacing it: %w", err)
+			// Most likely the database is damaged, which is the main reason to restore: a clean copy can't be made,
+			// so keep the files themselves.
+			kept = filepath.Join(backupDir(dst), "pre-restore-damaged-"+stamp+".db")
+			if rerr := os.Rename(dst, kept); rerr != nil {
+				return fmt.Errorf("keeping the current database before replacing it: %w", err)
+			}
+			os.Rename(dst+"-wal", kept+"-wal")
+			os.Rename(dst+"-shm", kept+"-shm")
 		}
 		fmt.Fprintf(errw, "kept the current database in %s\n", kept)
 	}
@@ -221,6 +244,26 @@ func cmdRestore(args []string, out, errw io.Writer) error {
 		return err
 	}
 	fmt.Fprintf(out, "Restored %s from %s. Start the server again.\n", dst, src)
+	return nil
+}
+
+// refuseIfInUse stops a restore while the server (or anything else) has the database open: the server would carry
+// on with the old file, unlinked, accept writes into it, and lose them at its next start. Leaving WAL mode needs
+// the database to itself, so it fails at once if anything else holds it.
+func refuseIfInUse(path string) error {
+	db, err := sql.Open("sqlite", sqliteURI(path)+"?_pragma=busy_timeout(0)")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	var mode string
+	if err := db.QueryRow("PRAGMA journal_mode=DELETE").Scan(&mode); err != nil {
+		if strings.Contains(err.Error(), "locked") || strings.Contains(err.Error(), "busy") {
+			return errors.New("the database is in use: Jiggered seems to be running. Stop it first (docker compose stop jiggered), then restore")
+		}
+		return nil // damaged or unreadable: it can't be in healthy use, and a restore is what is wanted
+	}
 	return nil
 }
 
@@ -278,13 +321,9 @@ func cmdSettings(args []string, out io.Writer) error {
 	if _, err := os.Stat(cfg.dbPath); err != nil {
 		return fmt.Errorf("no database at %s (is APP_DB set?): %w", cfg.dbPath, err)
 	}
-	seed, err := cfg.seed()
+	db, err := openDB(cfg.dbPath, cfg.seedForOpen())
 	if err != nil {
-		return err
-	}
-	db, err := openDB(cfg.dbPath, seed)
-	if err != nil {
-		return err
+		return cfg.explainOpen(err)
 	}
 	defer db.Close()
 	s := &server{cfg: cfg, db: db}
@@ -328,13 +367,9 @@ func cmdUser(args []string, out io.Writer) error {
 	if _, err := os.Stat(cfg.dbPath); err != nil {
 		return fmt.Errorf("no database at %s (is APP_DB set?): %w", cfg.dbPath, err)
 	}
-	seed, err := cfg.seed()
+	db, err := openDB(cfg.dbPath, cfg.seedForOpen())
 	if err != nil {
-		return err
-	}
-	db, err := openDB(cfg.dbPath, seed)
-	if err != nil {
-		return err
+		return cfg.explainOpen(err)
 	}
 	defer db.Close()
 	s := &server{cfg: cfg, db: db, hashSem: make(chan struct{}, maxHashing)}
@@ -371,6 +406,9 @@ func (s *server) runUserCommand(ctx context.Context, args []string, out io.Write
 	name, flags := normUsername(rest[0]), rest[1:]
 
 	if cmd == "add" {
+		if reservedUsernames[name] {
+			return fmt.Errorf("%q is reserved (the activity log uses it for the app and the command line); choose another name", name)
+		}
 		if !validUsername(name) {
 			return errors.New("usernames use letters, digits and . _ @ + - (up to 64 characters)")
 		}
@@ -424,7 +462,7 @@ func (s *server) runUserCommand(ctx context.Context, args []string, out io.Write
 			return err
 		}
 		s.audit(ctx, "cli", "password_reset", t.Username, "signed out everywhere", "")
-		fmt.Fprintf(out, "New temporary password for %q: %s\nThey were signed out everywhere and choose a new password at next sign-in.\n", t.Username, pw)
+		fmt.Fprintf(out, "New temporary password for %q: %s\nThey were signed out everywhere and choose a new password at next sign-in.\nIf wrong guesses had locked them out, restart the server too (docker compose restart jiggered); lockouts live in its memory.\n", t.Username, pw)
 	case "disable":
 		if err := note(s.setDisabled(ctx, t.ID, true)); err != nil {
 			return err

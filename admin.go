@@ -13,7 +13,7 @@ import (
 // or an episode: an admin sees who has an account and how much space it uses,
 // not what is in it.
 
-func (s *server) adminFail(w http.ResponseWriter, err error) {
+func (s *server) adminFail(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, errLastAdmin):
 		jsonError(w, http.StatusConflict, "That would leave no active admin. Make someone else an admin first.")
@@ -22,7 +22,7 @@ func (s *server) adminFail(w http.ResponseWriter, err error) {
 	case errors.Is(err, errUserExists):
 		jsonError(w, http.StatusConflict, "That username is taken.")
 	default:
-		http.Error(w, "server error", http.StatusInternalServerError)
+		serverError(w, r, err)
 	}
 }
 
@@ -35,7 +35,7 @@ func (s *server) target(w http.ResponseWriter, r *http.Request) (*user, bool) {
 	}
 	t, err := s.userByID(r.Context(), id)
 	if err != nil {
-		s.adminFail(w, err)
+		s.adminFail(w, r, err)
 		return nil, false
 	}
 	return t, true
@@ -44,7 +44,7 @@ func (s *server) target(w http.ResponseWriter, r *http.Request) (*user, bool) {
 func (s *server) adminListUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := s.listUsers(r.Context())
 	if err != nil {
-		http.Error(w, "server error", http.StatusInternalServerError)
+		serverError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"users": users, "version": version})
@@ -59,6 +59,10 @@ func (s *server) adminCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := normUsername(in.Username)
+	if reservedUsernames[name] {
+		jsonError(w, http.StatusBadRequest, "That name is reserved. Choose another.")
+		return
+	}
 	if !validUsername(name) {
 		jsonError(w, http.StatusBadRequest, "Usernames use letters, digits and . _ @ + - (up to 64 characters).")
 		return
@@ -73,7 +77,7 @@ func (s *server) adminCreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	pw, err := tempPassword()
 	if err != nil {
-		http.Error(w, "server error", http.StatusInternalServerError)
+		serverError(w, r, err)
 		return
 	}
 	hash, err := s.hashPassword(pw)
@@ -83,7 +87,7 @@ func (s *server) adminCreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	u, err := s.createUser(r.Context(), name, hash, role, true)
 	if err != nil {
-		s.adminFail(w, err)
+		s.adminFail(w, r, err)
 		return
 	}
 	s.audit(r.Context(), authOf(r).u.Username, "user_created", u.Username, role, s.clientIP(r))
@@ -115,7 +119,7 @@ func (s *server) adminUpdateUser(w http.ResponseWriter, r *http.Request) {
 		}
 		if *in.Role != t.Role {
 			if err := s.setRole(ctx, t.ID, *in.Role); err != nil {
-				s.adminFail(w, err)
+				s.adminFail(w, r, err)
 				return
 			}
 			s.audit(ctx, me.Username, "role_changed", t.Username, t.Role+" -> "+*in.Role, ip)
@@ -123,7 +127,7 @@ func (s *server) adminUpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.Disabled != nil && *in.Disabled != t.Disabled {
 		if err := s.setDisabled(ctx, t.ID, *in.Disabled); err != nil {
-			s.adminFail(w, err)
+			s.adminFail(w, r, err)
 			return
 		}
 		action := "user_enabled"
@@ -134,7 +138,7 @@ func (s *server) adminUpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	u, err := s.userByID(ctx, t.ID)
 	if err != nil {
-		s.adminFail(w, err)
+		s.adminFail(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, u)
@@ -152,7 +156,7 @@ func (s *server) adminResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 	pw, err := tempPassword()
 	if err != nil {
-		http.Error(w, "server error", http.StatusInternalServerError)
+		serverError(w, r, err)
 		return
 	}
 	hash, err := s.hashPassword(pw)
@@ -161,7 +165,7 @@ func (s *server) adminResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.setPassword(r.Context(), t.ID, hash, true, ""); err != nil {
-		s.adminFail(w, err)
+		s.adminFail(w, r, err)
 		return
 	}
 	s.userLimit.reset(t.Username)
@@ -181,7 +185,7 @@ func (s *server) adminRevokeSessions(w http.ResponseWriter, r *http.Request) {
 	}
 	n, err := s.revokeSessions(r.Context(), t.ID, "")
 	if err != nil {
-		http.Error(w, "server error", http.StatusInternalServerError)
+		serverError(w, r, err)
 		return
 	}
 	s.audit(r.Context(), me.Username, "sessions_revoked", t.Username, "", s.clientIP(r))
@@ -203,7 +207,7 @@ func (s *server) adminDeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.deleteUser(r.Context(), t.ID); err != nil {
-		s.adminFail(w, err)
+		s.adminFail(w, r, err)
 		return
 	}
 	s.audit(r.Context(), me.Username, "user_deleted", t.Username, "account and all its data", s.clientIP(r))
@@ -223,14 +227,15 @@ type auditOut struct {
 // adminAudit lists recent events, newest first; pass before=<id> for the next page.
 func (s *server) adminAudit(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	if limit < 1 || limit > 500 {
+	if limit < 1 {
 		limit = 100
 	}
+	limit = min(limit, 500)
 	before, _ := strconv.ParseInt(r.URL.Query().Get("before"), 10, 64)
 	rows, err := s.db.QueryContext(r.Context(), `SELECT id, at, actor, action, target, detail, ip FROM audit_log
 		WHERE (? = 0 OR id < ?) ORDER BY id DESC LIMIT ?`, before, before, limit)
 	if err != nil {
-		http.Error(w, "server error", http.StatusInternalServerError)
+		serverError(w, r, err)
 		return
 	}
 	defer rows.Close()
@@ -238,10 +243,14 @@ func (s *server) adminAudit(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var e auditOut
 		if err := rows.Scan(&e.ID, &e.At, &e.Actor, &e.Action, &e.Target, &e.Detail, &e.IP); err != nil {
-			http.Error(w, "server error", http.StatusInternalServerError)
+			serverError(w, r, err)
 			return
 		}
 		out = append(out, e)
+	}
+	if err := rows.Err(); err != nil {
+		serverError(w, r, err)
+		return
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -290,7 +299,7 @@ func (s *server) adminPatchSettings(w http.ResponseWriter, r *http.Request) {
 			return true
 		}
 		if _, err := s.setSetting(ctx, key, canon); err != nil {
-			http.Error(w, "server error", http.StatusInternalServerError)
+			serverError(w, r, err)
 			return false
 		}
 		s.audit(ctx, me.Username, "settings_changed", "", fmt.Sprintf("%s: %s -> %s", key, before[key], canon), s.clientIP(r))

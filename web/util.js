@@ -56,8 +56,13 @@ export function describeUA(ua = "") {
 }
 
 // api talks to the server and never throws: you get { ok, status, data, error } with a message fit to show.
+// Set once the page knows who is signed in; sent with every request so the server can refuse a page whose
+// person has since been replaced (another tab signed in as someone else).
+let pageUser = null;
+export const setPageUser = id => { pageUser = id };
+
 export async function api(method, path, body) {
-  const opts = { method, credentials: "same-origin", headers: { "X-Requested-With": "jiggered" } };
+  const opts = { method, credentials: "same-origin", headers: { "X-Requested-With": "jiggered", ...(pageUser != null && { "X-Jiggered-User": String(pageUser) }) } };
   if (body !== undefined) { opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body) }
   let r;
   try { r = await fetch(path, opts) }
