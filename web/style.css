@@ -49,8 +49,21 @@ section{display:grid;gap:18px}
 .cell.lost{background:transparent;border:1.5px dashed var(--line)}
 .cells.low .cell:not(.spent):not(.lost){background:var(--amber)}
 .cells.out .cell:not(.spent):not(.lost){background:var(--red)}
-.toggle{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:.95rem}
-.toggle input{width:20px;height:20px;accent-color:var(--accent)}
+/* A switch row: the whole row is the tap target; the real checkbox sits invisibly over it so it stays accessible */
+.switch-row{position:relative;display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:12px;min-height:60px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;cursor:pointer;transition:background .2s,border-color .2s}
+.switch-text{display:grid;gap:2px;min-width:0}
+.switch-text b{font-size:.95rem}
+.switch-text small{color:var(--muted);font-size:.85rem}
+.switch{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.switch-ui{flex:none;position:relative;width:50px;height:30px;border-radius:999px;background:color-mix(in srgb,var(--muted) 45%,var(--surface));transition:background .2s}
+.switch-ui::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:transform .2s}
+.switch:checked + .switch-ui{background:var(--accent)}
+.switch:checked + .switch-ui::after{transform:translateX(20px)}
+.switch:focus-visible + .switch-ui{outline:2px solid var(--accent);outline-offset:3px}
+.switch-row:has(.switch:checked){background:var(--accent-soft);border-color:var(--accent)}
+.switch-row:has(.switch:checked) small{color:var(--fg)}
+@media (prefers-reduced-motion:reduce){.switch-row,.switch-ui,.switch-ui::after{transition:none}}
+@media (forced-colors:active){.switch-ui{border:2px solid ButtonText;background:Canvas}.switch-ui::after{background:ButtonText;box-shadow:none}.switch:checked + .switch-ui{background:Highlight}.switch:checked + .switch-ui::after{background:HighlightText}}
 .acts{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .act{font:inherit;text-align:left;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center;min-width:0}
 .act span{min-width:0}
@@ -245,7 +258,7 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
 .panel{display:grid;gap:12px;align-content:start}
 .panel > h2,.panel > .label-row h2{margin-bottom:0}
 .panel > .x,.panel > .secondary,.panel > .primary{justify-self:start}
-.panel .toggle,.panel .advice,.panel .cells,.panel .hint{margin-top:0}
+.panel .switch-row,.panel .advice,.panel .cells,.panel .hint{margin-top:0}
 .panel .hint summary{cursor:pointer;color:var(--accent);font-weight:700}
 .panel details.hint{display:grid;gap:8px}
 .panel details.hint p{margin:8px 0 0}
@@ -269,7 +282,6 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
   .chip-search{margin-bottom:8px}
   #setform .row{gap:12px;margin-top:14px}
   #setform [data-gap]{margin-bottom:4px}
-  .toggle{align-items:flex-start}
 }
 
 /* Long lists: search, favourites, groups and paging. Short lists never show any of this. */

@@ -158,7 +158,9 @@ export function init(ctx) {
     const took = d.statusPenalty || 0;
     $("advice").textContent = d.status ? ADVICE[d.status] + (took ? ` ${d.status[0].toUpperCase() + d.status.slice(1)} takes ${took} off ${past ? "this day" : "today"}.` : "") : past ? "No check-in for this day." : "How are you starting today? Pick one.";
     $("sleep").checked = !!d.poorSleep;
-    $("sleep-label").textContent = `Tick if you slept badly: takes ${d.sleepPenalty ?? S.sleepPenalty} off ${past ? "this day" : "today"}`;
+    const sleepCost = d.sleepPenalty ?? S.sleepPenalty, when = past ? "this day" : "today";
+    $("sleep-title").textContent = past ? "Slept badly that night" : "Slept badly last night";
+    $("sleep-label").textContent = !sleepCost ? "Recorded only: costs no points" : d.poorSleep ? `Taking ${sleepCost} off ${when}` : `Takes ${sleepCost} off ${when}`;
     setHTML($("left"), html`${left} <small>of ${cap}</small>`);
     $("balance-label").textContent = balanceLabel(left, cap);
     renderOngoing(ctx, $("today-ongoing"));
