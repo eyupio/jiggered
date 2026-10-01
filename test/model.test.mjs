@@ -187,7 +187,8 @@ test("clinician summary", () => {
   assert.equal(s30.from, "2026-09-02"); assert.equal(s30.to, "2026-10-01");
   assert.equal(s30.days.length, 2); assert.equal(s30.episodes.length, 1);
   assert.equal(s30.red, 1); assert.equal(s30.green, 1); assert.equal(s30.amber, 0);
-  assert.equal(s30.avgUsed, 1.5); assert.equal(s30.poorSleepDays, 1);
+  // The average counts only days with activities (the same rule as the History graphs): 3 net points over 1 such day.
+  assert.equal(s30.avgUsed, 3); assert.equal(s30.activityDays, 1); assert.equal(s30.poorSleepDays, 1);
   const all = m.summary(docs, S, "all", "2026-10-01");
   assert.equal(all.days.length, 3); assert.equal(all.episodes.length, 2);
   assert.equal(all.from, "2026-06-01", "'everything' starts at the first day with data");

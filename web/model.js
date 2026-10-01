@@ -118,6 +118,13 @@ export function resolveSettings(raw, shared) {
 
 export const emptyDay = key => ({ date: key, status: null, poorSleep: false, entries: [] });
 export const used = d => (d.entries || []).reduce((s, e) => s + (e.c || 0), 0);
+// The one definition of "average net points" for the graphs and the printed summary: days with at least one activity
+// count, a day that only has a check-in does not (nothing was recorded to average).
+export const activityDays = days => days.filter(d => (d.entries || []).length);
+export const averageNet = days => {
+  const logged = activityDays(days);
+  return logged.length ? Math.round(logged.reduce((s, d) => s + used(d), 0) / logged.length * 10) / 10 : null;
+};
 // Days remember the budget they were made under, so changing your settings doesn't rewrite history.
 // A day's points: its budget, less the poor-sleep cost and less what its check-in took off (stamped on the day when the
 // check-in was chosen, so days from before check-ins cost anything keep the numbers they had).
@@ -325,7 +332,7 @@ export function summary(docs, S, range, today) {
     from: range === "all" ? [today, ...days.map(d => d.date), ...episodes.map(e => e.when.slice(0, 10))].sort()[0] : from, to: today,
     days, episodes,
     green: count("green"), amber: count("amber"), red: count("red"),
-    avgUsed: days.length ? Math.round(days.reduce((s, d) => s + used(d), 0) / days.length * 10) / 10 : null,
+    avgUsed: averageNet(days), activityDays: activityDays(days).length,
     poorSleepDays: days.filter(d => d.poorSleep).length,
     topTriggers: top(tally(episodes.map(e => e.before)), 5),
     topSymptoms: top(tally(episodes.map(e => e.symptoms)), 5),
