@@ -14,6 +14,8 @@ export const validDate = key => {
 };
 const round = n => Math.round(n * 10) / 10;
 const average = values => values.length ? round(values.reduce((s, n) => s + n, 0) / values.length) : null;
+const spent = d => d.entries.reduce((n, e) => n + Math.max(0, e.c), 0);
+const recovery = d => d.entries.reduce((n, e) => n + Math.max(0, -e.c), 0);
 const counts = (lists, limit = 5) => {
   const result = new Map();
   for (const list of lists) for (const name of new Set(list)) if (name) result.set(name, (result.get(name) || 0) + 1);
@@ -59,6 +61,8 @@ export function historyInsights(docs, S, today, filters = {}) {
   for (const [, e] of episodes) bucketFor(e.when.slice(0, 10)).episodes++;
   for (const b of buckets) {
     const logged = b.days.filter(d => d.entries.length);
+    b.avgSpent = average(logged.map(spent)); b.avgRecovery = average(logged.map(recovery));
+    b.recorded = b.days.length;
     b.avgUsed = average(logged.map(used)); b.avgAllowance = average(logged.map(d => capOf(d, S)));
     b.logged = logged.length; b.checked = b.green + b.amber + b.red; delete b.days;
   }

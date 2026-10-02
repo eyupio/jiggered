@@ -177,3 +177,51 @@ test("date checks are the same with and without the cache", () => {
  test("180-day preset includes exactly 180 calendar days", () => {
   assert.deepEqual(historyRange({}, "2026-10-02", "180"), { from: "2026-04-06", to: "2026-10-02" });
 });
+
+
+test("activity usage preserves recovery, zero, gaps and sleep-only records", () => {
+  const d = historyInsights({
+    "d-2026-09-28": day("amber", [activity("Work", 8), activity("Rest", -2)], { poorSleep: true }),
+    "d-2026-09-29": day("green"),
+    "d-2026-10-01": day("red", [activity("Rest", -4)]),
+  }, DEFAULTS, "2026-10-01", { from: "2026-09-28" });
+  assert.deepEqual(d.buckets.map(b => b.avgSpent), [8, null, null, 0]);
+  assert.deepEqual(d.buckets.map(b => b.avgRecovery), [2, null, null, 4]);
+  assert.deepEqual(d.buckets.map(b => b.recorded), [1, 1, 0, 1]);
+  for (const theme of ["points", "spoons"]) {
+    const markup = chartMarkup(d, "combined", "en-GB", theme).s;
+    assert.match(markup, /Sleep, energy &amp; morning check-ins/);
+    assert.match(markup, new RegExp(`Used ${theme}`));
+    assert.match(markup, /Green \/ amber \/ red/);
+    assert.match(markup, /Blank sleep = no day recorded/);
+    assert.match(bucketDescription(d.buckets[0], "en-GB", theme), /Used .* 8; recovered 2; Net .* 6/);
+    assert.doesNotMatch(markup, /NaN|undefined/);
+  }
+  const onlySleep = historyInsights({ "d-2026-10-01": day(null, [], { poorSleep: true }) }, DEFAULTS, "2026-10-01");
+  assert.match(chartMarkup(onlySleep, "combined", "en-GB").s, /<svg/);
+  assert.equal(onlySleep.buckets[0].avgSpent, null);
+});
+
+test("combined grouped dates preserve minority check-ins and sleep-only records", () => {
+  const d = historyInsights({
+    "d-2026-01-01": day("green", [activity("Work", 10)]),
+    "d-2026-01-02": day("red", [activity("Rest", -4)], { poorSleep: true }),
+    "d-2026-01-03": day(null, [], { poorSleep: true }),
+  }, DEFAULTS, "2026-05-01", { from: "2026-01-01" });
+  assert.equal(d.bucketDays, 3);
+  assert.equal(d.buckets[0].avgSpent, 5); assert.equal(d.buckets[0].avgRecovery, 2);
+  assert.equal(d.buckets[0].avgUsed, 3);
+  assert.equal(d.buckets[0].green, 1); assert.equal(d.buckets[0].red, 1);
+  assert.equal(d.buckets[0].poorSleep, 2); assert.equal(d.buckets[0].recorded, 3);
+});
+
+
+test("calendar usage view distinguishes spending from net recovery and missing logs", () => {
+  const d = historyInsights({ "d-2026-10-01": day("green", [activity("Work", 8), activity("Rest", -10)]) }, DEFAULTS, "2026-10-02");
+  const cells = calendarWindow(d, DEFAULTS).cells;
+  assert.equal(cells[0].spent, 8); assert.equal(cells[0].net, -2);
+  assert.deepEqual(calendarPaint(cells[0], "used"), ["level-3", 8]);
+  assert.deepEqual(calendarPaint(cells[1], "used"), ["empty", "–"]);
+  assert.deepEqual(calendarPaint({ ...cells[0], spent: 0 }, "used"), ["level-1", 0]);
+  assert.match(describeCalendarDay(cells[0], "en-GB", "spoons"), /8 spoons used before recovery; -2 net spoons used/);
+});
