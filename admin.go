@@ -6,8 +6,8 @@ import (
 	"net"
 	"net/http"
 	"strconv"
- "time"
 	"strings"
+	"time"
 )
 
 // Everything in this file is account management. None of it reads a check-in
@@ -236,19 +236,35 @@ func (s *server) adminAudit(w http.ResponseWriter, r *http.Request) {
 	limit = min(limit, 500)
 	before, _ := strconv.ParseInt(r.URL.Query().Get("before"), 10, 64)
 	q := r.URL.Query()
-    identity, family := q.Get("person"), q.Get("family")
-    if len(identity) > 64 || !map[string]bool{"":true,"login":true,"account":true,"email":true,"backup":true,"settings":true}[family] { jsonError(w,400,"Choose a valid activity filter."); return }
-    var from, to int64
-    for name, dest := range map[string]*int64{"from": &from, "to": &to} {
-      if q.Get(name) != "" { d, err := time.Parse("2006-01-02",q.Get(name)); if err != nil { jsonError(w,400,"Choose a valid date."); return }; *dest = d.Unix(); if name == "to" { *dest += 86400 } }
-    }
-    if to != 0 && from >= to { jsonError(w,400,"End date must follow the start date."); return }
-    rows, err := s.db.QueryContext(r.Context(), `SELECT id, at, actor, action, target, detail, ip FROM audit_log
+	identity, family := q.Get("person"), q.Get("family")
+	if len(identity) > 64 || !map[string]bool{"": true, "login": true, "account": true, "email": true, "backup": true, "settings": true}[family] {
+		jsonError(w, 400, "Choose a valid activity filter.")
+		return
+	}
+	var from, to int64
+	for name, dest := range map[string]*int64{"from": &from, "to": &to} {
+		if q.Get(name) != "" {
+			d, err := time.Parse("2006-01-02", q.Get(name))
+			if err != nil {
+				jsonError(w, 400, "Choose a valid date.")
+				return
+			}
+			*dest = d.Unix()
+			if name == "to" {
+				*dest += 86400
+			}
+		}
+	}
+	if to != 0 && from >= to {
+		jsonError(w, 400, "End date must follow the start date.")
+		return
+	}
+	rows, err := s.db.QueryContext(r.Context(), `SELECT id, at, actor, action, target, detail, ip FROM audit_log
       WHERE (?=0 OR id<?) AND (?='' OR actor=? OR target=?) AND (?=0 OR at>=?) AND (?=0 OR at<?)
       AND (?='' OR (?='login' AND action LIKE 'login%') OR (?='email' AND (action LIKE '%email%' OR action='account_mail_accepted'))
       OR (?='backup' AND action LIKE '%backup%') OR (?='settings' AND (action LIKE '%settings%' OR action='defaults_changed'))
       OR (?='account' AND (action LIKE 'user_%' OR action LIKE 'password_%' OR action LIKE 'two_factor_%' OR action LIKE 'account_%' OR action LIKE 'sessions_%')))
-      ORDER BY id DESC LIMIT ?`, before,before,identity,identity,identity,from,from,to,to,family,family,family,family,family,family,limit)
+      ORDER BY id DESC LIMIT ?`, before, before, identity, identity, identity, from, from, to, to, family, family, family, family, family, family, limit)
 	if err != nil {
 		serverError(w, r, err)
 		return

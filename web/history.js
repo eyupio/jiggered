@@ -32,6 +32,10 @@ function download(name, text, type) {
 }
 
 export function init(ctx) {
+  const exportFile = (...args) => {
+    download(...args);
+    ctx.measure("export_created");
+  };
   const words = () => energyWords(themeOf(ctx));
   const saved = ctx.ui?.get("history") || {};
   let shown = savedCount(saved.shown, PAGE),
@@ -256,8 +260,7 @@ export function init(ctx) {
 
   $("csv-days").addEventListener("click", () => {
     flushSearch();
-    ctx.measure("export_created");
-    download(
+    exportFile(
       `jiggered-days-${ctx.today()}.csv`,
       daysCsv(selectedDocs(), ctx.settings()),
       "text/csv;charset=utf-8",
@@ -265,8 +268,7 @@ export function init(ctx) {
   });
   $("csv-activities").addEventListener("click", () => {
     flushSearch();
-    ctx.measure("export_created");
-    download(
+    exportFile(
       `jiggered-activities-${ctx.today()}.csv`,
       activitiesCsv(selectedDocs()),
       "text/csv;charset=utf-8",
@@ -274,8 +276,7 @@ export function init(ctx) {
   });
   $("csv-eps").addEventListener("click", () => {
     flushSearch();
-    ctx.measure("export_created");
-    download(
+    exportFile(
       `jiggered-episodes-${ctx.today()}.csv`,
       episodesCsv(selectedDocs(), { includeNotes: $("sum-notes").checked }),
       "text/csv;charset=utf-8",
@@ -288,7 +289,7 @@ export function init(ctx) {
     window.addEventListener("afterprint", () => document.body.classList.remove("printing"), {
       once: true,
     });
-    ctx.measure("export_created");
+    ctx.measure("print_requested");
     window.print();
   });
 

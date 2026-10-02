@@ -458,6 +458,7 @@ export function createStore({
             try {
               if (body !== undefined)
                 onTask(id === "settings" ? "settings_saved" : "capture_saved");
+              if (batch.some((op) => op.retryOf != null)) onTask("recovery_saved");
             } catch {}
             break;
           }

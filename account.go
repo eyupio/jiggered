@@ -10,9 +10,12 @@ func (s *server) handleMe(w http.ResponseWriter, r *http.Request) {
 	u := authOf(r).u
 	var docs int
 	var size int64
-	if err := s.db.QueryRowContext(r.Context(), `SELECT count(*),COALESCE(sum(size),0) FROM docs WHERE user_id=?`, u.ID).Scan(&docs, &size); err != nil { serverError(w, r, err); return }
+	if err := s.db.QueryRowContext(r.Context(), `SELECT count(*),COALESCE(sum(size),0) FROM docs WHERE user_id=?`, u.ID).Scan(&docs, &size); err != nil {
+		serverError(w, r, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"usage": map[string]any{"docs": docs, "bytes": size, "max_docs": maxDocsPerUser, "max_bytes": maxBytesPerUser},
+		"usage":                map[string]any{"docs": docs, "bytes": size, "max_docs": maxDocsPerUser, "max_bytes": maxBytesPerUser},
 		"id":                   u.ID,
 		"username":             u.Username,
 		"role":                 u.Role,

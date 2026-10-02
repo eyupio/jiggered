@@ -53,12 +53,12 @@ type user struct {
 // userStat is what an admin sees about an account: counts and sizes, never contents.
 type userStat struct {
 	user
-	Docs     int   `json:"docs"`
-	Bytes    int64 `json:"bytes"`
-	Sessions int   `json:"sessions"`
-	RecoveryReady bool `json:"recovery_ready"`
-	TwoFactor bool `json:"two_factor"`
-	RecoveryCodes int `json:"recovery_codes_left"`
+	Docs          int   `json:"docs"`
+	Bytes         int64 `json:"bytes"`
+	Sessions      int   `json:"sessions"`
+	RecoveryReady bool  `json:"recovery_ready"`
+	TwoFactor     bool  `json:"two_factor"`
+	RecoveryCodes int   `json:"recovery_codes_left"`
 }
 
 const userCols = "id, username, role, disabled, must_change_password, created_at, COALESCE(last_login_at, 0)"
@@ -285,8 +285,10 @@ func (s *server) deleteUser(ctx context.Context, id int64) error {
 		if err := guardLastAdmin(ctx, tx, u); err != nil {
 			return err
 		}
-		if err:=eraseUsage(ctx,tx,id);err!=nil{return err}
- _, err := tx.ExecContext(ctx, "DELETE FROM users WHERE id = ?", id)
+		if err := eraseUsage(ctx, tx, id); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, "DELETE FROM users WHERE id = ?", id)
 		return err
 	})
 }

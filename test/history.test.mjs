@@ -208,6 +208,8 @@ test("calendar colour modes distinguish unlogged, zero-point, recovery and episo
 
 test("profile preferences normalise defensively and retain Unicode names", () => {
   assert.deepEqual(normaliseProfile(), {
+    weeklyReview: false,
+    reviewDismissedWeek: "",
     avatar: "",
     region: "",
     displayName: "",

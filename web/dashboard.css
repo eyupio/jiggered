@@ -1360,3 +1360,18 @@
     gap: 8px;
   }
 }
+
+/* Keep the full touch targets inside narrow activity cards. */
+.app-shell .stepper {
+  gap: 4px;
+  justify-content: space-between;
+}
+.app-shell .step {
+  flex: 0 0 44px;
+  padding: 0;
+}
+@media (max-width: 480px) {
+  .app-shell .acts {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+  }
+}

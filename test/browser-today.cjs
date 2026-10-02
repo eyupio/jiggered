@@ -93,7 +93,7 @@ runBrowser({ name: "today", portEnv: "JIGGERED_TODAY_PORT" }, async (harness) =>
   assert.equal(await page.locator("#onboarding li.done").count(), 2, "both first steps are ticked");
   assert.match(
     await page.locator("#onboarding-title").textContent(),
-    /set up/,
+    /first records are ready.*Allowance review is optional/,
     "the finished checklist stays up for now",
   );
   assert.equal((await card.locator(".count").textContent()).trim(), "×1");

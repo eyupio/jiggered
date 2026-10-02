@@ -620,7 +620,7 @@ export function init(ctx) {
     if (visible)
       setHTML(
         $("weekly-review"),
-        html`<h2>Look back at your week</h2><p>${data.metrics.checked} of 7 days with check-ins · ${data.metrics.episodes} episodes recorded. These counts describe your log.</p><div class="row"><button class="primary" data-review-open>Review these seven days</button><button class="secondary" data-review-dismiss>Not this week</button><button class="secondary" data-review-disable>Turn off weekly reviews</button></div>`,
+        html`<h2>Look back at your week</h2><p>${data.metrics.checked} of 7 days with check-ins · ${data.metrics.episodes} episodes · ${data.days.reduce((n, d) => n + d.entries.length, 0)} activities recorded. ${data.metrics.checked < 5 ? "Limited records for this period. " : ""}These counts describe your log.</p><div class="row"><button class="primary" data-review-open>Review these seven days</button><button class="secondary" data-review-dismiss>Not this week</button><button class="secondary" data-review-disable>Turn off weekly reviews</button></div>`,
       );
   }
   $("weekly-review").addEventListener("click", (e) => {
@@ -629,6 +629,13 @@ export function init(ctx) {
       today = ctx.today();
     const weekday = (new Date(today + "T12:00:00Z").getUTCDay() + 6) % 7;
     if (e.target.closest("[data-review-open]")) {
+      ctx.store.dispatch({
+        id: "settings",
+        type: "settingsPatch",
+        arg: { profile: { ...profile, reviewDismissedWeek: addDays(today, -weekday) } },
+        before: { profile: raw?.profile },
+        original: raw,
+      });
       const to = addDays(today, -1);
       ctx.openHistoryPeriod(addDays(to, -6), to);
     } else if (e.target.closest("[data-review-dismiss],[data-review-disable]")) {

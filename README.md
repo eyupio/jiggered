@@ -591,3 +591,48 @@ with weakness, face drooping, speech problems or a severe headache, call 999.
 
 Logo and icons live in `assets/brand/` (SVG plus PNG) and `web/` (app icons). The fonts in `web/fonts/` are
 Atkinson Hyperlegible and Bricolage Grotesque, under the SIL Open Font License (see `web/fonts/LICENSE.txt`).
+
+### Completed product audit improvements
+
+The feature review is in [FEATURES_AUDIT.md](FEATURES_AUDIT.md); the implementation map is in
+[AUDIT_IMPLEMENTATION.md](AUDIT_IMPLEMENTATION.md).
+
+- **Today:** Other activities accept up to 60 Unicode characters, with an inline counter. Optionally add
+  one to your reusable activity list with its cost and group. Capture and list updates save independently;
+  check Recovery if either is refused. Help can reopen first-use setup; the allowance review is optional.
+- **History:** Selected days can show every activity and episode, edit the day, or prepare a one-day summary.
+  Return to the previous period restores filters and calendar selection. Activity details can be included
+  in print, or downloaded as one row per activity in CSV. The private-notes checkbox controls episode CSV
+  and print consistently; full JSON backups continue to contain your complete data. Empty exports explain
+  which filters or dates to adjust. Episode comparisons show previous-period logging coverage.
+- **Account:** Storage headroom is visible. Authenticator setup has an explicit Cancel action that clears its
+  pending secret. Successful email verification and password recovery lead to a Sign in action. The optional
+  weekly review is enabled in Profile: with at least three check-ins during the last completed seven days,
+  Today offers a gentle review. Dismiss it for the current week or disable it; no reminder emails are sent.
+- **Admin:** Search People and filter account states; view quota headroom, verified recovery readiness and
+  two-step status without addresses or secrets. Filter the activity log by exact actor/target, event family
+  and inclusive UTC dates; pagination keeps those filters. Events use plain language and service links.
+- **Backups:** Last attempt, last usable upload and last verified upload are separate. Retention failure after
+  a usable upload is a warning, not loss of the new copy. The latest usable and verified history rows survive
+  history pruning. Verification checks transfer integrity, not recovery. The in-app restore guide covers
+  plain/encrypted ZIPs, stopping the server, preserving the separate credential key, isolated rehearsals,
+  checking restored records and rollback. Rehearsal date/outcome are explicitly self-reported.
+- **Account email:** Schema v6 adds a durable encrypted delivery queue using the separate service key.
+  Four attempts at most, with 1/2/4-minute retry delays, never beyond token validity. Consumed, superseded
+  and expired queued links are discarded; acceptance/exhaustion erases the payload. Restart resumes pending
+  sends. SMTP acceptance does not guarantee inbox delivery, and interrupted sends may be duplicated.
+  Metadata is kept for seven days and Admin shows purpose/status/attempts without addresses or tokens.
+  Public request responses remain generic. Resending creates a new link and invalidates the old one.
+- **Optional usage:** Admin → Activity can offer local measurement, disabled by default. Each user separately
+  opts in in Account. Only enumerated task names, bounded weekly counts and active-day flags are accepted;
+  no health content, IPs, record identifiers or record dates. Weekly pseudonyms rotate using a per-account
+  random consent seed. Underlying consent remains linked to the account to support deletion: these data are
+  pseudonymous, not anonymous. Reports suppress every event group with fewer than five participants.
+  Events are retained for up to 90 days; users can disable and erase theirs, account deletion erases them,
+  and admins can clear all counts. No external analytics or new service costs; operators take on local
+  storage and privacy responsibility. Counts measure acknowledged sync batches and explicit views/exports,
+  not unique user records or clinical outcomes. Print requests are separate from generated exports because browser print completion cannot be confirmed. Recovery acknowledgements are counted separately when refused operations save after retry.
+
+Schema upgrades take the existing automatic pre-upgrade backup. Whole-instance restore also clears queued
+account-email payloads so restoring cannot resend old authentication links. Do not run an older build on
+schema v6. Usage reports and mail retries depend on the running server's maintenance scheduler.

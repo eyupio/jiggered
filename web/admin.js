@@ -47,16 +47,20 @@ const SENTENCE = {
   two_factor_disable: (e) => `${e.actor} disabled two-step verification`,
   two_factor_regenerate: (e) => `${e.actor} replaced recovery codes`,
   two_factor_admin_reset: (e) => `${e.actor} reset ${e.target}’s authenticator protection`,
-  email_verified: (e) => `${e.actor} verified a recovery email`,
+  email_verified: () => "Email ownership verified",
   account_registered: (e) => `${e.actor} registered an account`,
-  password_reset_email: (e) => `${e.actor} reset their password through email`,
+  remote_backup_interrupted: () =>
+    "Off-site backup interrupted; check the destination before retrying",
+  remote_backup_downloaded: (e) => `${e.actor} downloaded an off-site backup`,
+  usage_settings_changed: (e) => `${e.actor} changed optional usage measurement settings`,
+  password_recovered: (e) => `${e.actor} reset their password through email`,
   defaults_changed: (e) => `${e.actor} updated the shared product defaults`,
   settings_changed: (e) => `${e.actor} changed a setting`,
   settings_imported: () => `Settings were copied from the environment into the database`,
   migrated: (e) => `${e.target} took over the data from before accounts existed`,
 };
 const sentence = (e) =>
-  (SENTENCE[e.action] || ((x) => `${x.actor || "system"}: ${x.action}`))({
+  (SENTENCE[e.action] || ((x) => `${x.actor || "System"}: ${x.action.replaceAll("_", " ")}`))({
     ...e,
     actor: e.actor || "System",
   });
@@ -583,10 +587,12 @@ function wire(ctx) {
     }
     say(
       $("audit-msg"),
-      r.data.length ? `Updated ${new Date().toLocaleTimeString()}.` : "No activity in this page.",
+      r.data.length
+        ? `Updated ${new Date().toLocaleTimeString()}.`
+        : "No events match this page. Clear filters or choose a wider UTC date range.",
     );
     const line = (en) =>
-      html`<li><span>${sentence(en)}${en.detail ? html` <span class="meta">(${en.detail})</span>` : ""}${en.action.includes("email") ? html` <button class="secondary small" data-audit-open="email">Email & signup</button>` : en.action.includes("backup") ? html` <button class="secondary small" data-audit-open="backups">Backups</button>` : ""}</span><span class="meta">${new Date(en.at * 1000).toLocaleString()} (local)${en.ip ? " · " + en.ip : ""}</span></li>`;
+      html`<li><span>${sentence(en)}${en.detail ? html` <span class="meta">(${en.detail})</span>` : ""}${en.action.includes("email") || en.action === "account_mail_accepted" ? html` <button class="secondary small" data-audit-open="email">Email & signup</button>` : en.action.includes("backup") ? html` <button class="secondary small" data-audit-open="backups">Backups</button>` : ""}</span><span class="meta">${new Date(en.at * 1000).toLocaleString()} (local)${en.ip ? " · " + en.ip : ""}</span></li>`;
     if (fresh) setHTML($("audit"), html`${r.data.map(line)}`);
     else appendHTML($("audit"), html`${r.data.map(line)}`);
     if (r.data.length) oldest = r.data[r.data.length - 1].id;
@@ -844,7 +850,7 @@ function wire(ctx) {
     setHTML(
       $("usage-report"),
       r.data.rows.length
-        ? html`<table><thead><tr><th>Week (UTC)</th><th>Task</th><th>Participants</th><th>Completions</th></tr></thead><tbody>${r.data.rows.map((x) => html`<tr><td>${x.week}</td><td>${x.event.replaceAll("_", " ")}</td><td>${x.participants}</td><td>${x.tasks}</td></tr>`)}</tbody></table>`
+        ? html`<table><thead><tr><th>Week (UTC)</th><th>Task</th><th>Participants</th><th>Completions</th><th>Active on 2+ days</th></tr></thead><tbody>${r.data.rows.map((x) => html`<tr><td>${x.week}</td><td>${x.event.replaceAll("_", " ")}</td><td>${x.participants}</td><td>${x.tasks}</td><td>${x.repeat_days_participants ?? "Hidden (fewer than 5)"}</td></tr>`)}</tbody></table>`
         : html`<p class="meta">No reportable groups yet. Every event needs at least five consenting participants in the same week.</p>`,
     );
   }

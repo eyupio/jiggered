@@ -18,6 +18,7 @@ try {
   for (const script of [
     "browser-today",
     "browser-energy-theme",
+    "browser-product-improvements",
     "browser-view-state",
     "browser-history",
     "browser-mobile",

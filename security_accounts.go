@@ -189,7 +189,7 @@ func (s *server) forgotPassword(w http.ResponseWriter, r *http.Request) {
 	genericEmailResponse(w)
 }
 func (s *server) queueAccountMail(cfg serviceSettings, to, subject, body, kind, token string) {
- s.enqueueAccountMail(to,subject,body,kind,token)
+	s.enqueueAccountMail(to, subject, body, kind, token)
 }
 func (s *server) verifyEmailToken(w http.ResponseWriter, r *http.Request) {
 	if !s.authPublic(w, r) {

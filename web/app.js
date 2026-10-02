@@ -282,7 +282,7 @@ function fatal(text) {
   let settingsKey, settingsVal;
   let usageConsent = false;
   void api("GET", "/api/me/usage-consent").then((r) => {
-    usageConsent = r.ok && r.data.enabled === true;
+    usageConsent = r.ok && r.data.available === true && r.data.enabled === true;
   });
   const ctx = {
     setUsageConsent(value) {

@@ -253,8 +253,10 @@ func checkBackup(path string) error {
 	if version >= 5 {
 		need = append(need, "account_security", "recovery_codes", "auth_tokens", "login_challenges", "remote_backup_runs")
 	}
-	if version>=6 {need=append(need,"account_mail_deliveries","usage_consent","product_usage")}
- for _, name := range need {
+	if version >= 6 {
+		need = append(need, "account_mail_deliveries", "usage_consent", "product_usage")
+	}
+	for _, name := range need {
 		var n int
 		if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?", name).Scan(&n); err != nil || n == 0 {
 			if name == "docs" {
@@ -370,8 +372,12 @@ func clearSessions(path string) error {
 			}
 		}
 	}
-	if schema>=6 {if _,err=db.Exec("DELETE FROM account_mail_deliveries");err!=nil{return err}}
- _, err = db.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
+	if schema >= 6 {
+		if _, err = db.Exec("DELETE FROM account_mail_deliveries"); err != nil {
+			return err
+		}
+	}
+	_, err = db.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
 	return err
 }
 

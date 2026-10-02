@@ -51,7 +51,7 @@ export function init(ctx) {
   }
   $("account-usage").insertAdjacentHTML(
     "afterend",
-    `<form id="usage-consent-form"><h3>Optional product usage</h3><p class="meta">Off by default. With your permission, this instance stores coarse weekly task counts and days active for capture, History, export, settings and save failures, for up to 90 days. No symptoms, notes, activity names, record dates or IP addresses are sent. Admin reports hide groups smaller than five; consent is linked to your account for deletion. Disabling deletes your stored events. No external analytics service.</p><label class="radio"><input type="checkbox" id="usage-consent"> Help improve Jiggered with local task counts</label><button type="submit" class="secondary">Save usage preference</button><p id="usage-consent-msg" class="msg" role="status"></p></form>`,
+    `<form id="usage-consent-form"><h3>Optional product usage</h3><p class="meta">Off by default. With your permission, this instance stores coarse weekly task counts and days active for capture, History, generated exports, print requests, settings, save failures and recovered saves, for up to 90 days. No symptoms, notes, activity names, record dates or IP addresses are sent. Admin reports hide groups smaller than five; consent is linked to your account for deletion. Disabling deletes your stored events. No external analytics service.</p><label class="radio"><input type="checkbox" id="usage-consent"> Help improve Jiggered with local task counts</label><button type="submit" class="secondary">Save usage preference</button><p id="usage-consent-msg" class="msg" role="status"></p></form>`,
   );
   async function loadConsent() {
     const r = await api("GET", "/api/me/usage-consent");
@@ -61,19 +61,19 @@ export function init(ctx) {
       return;
     }
     $("usage-consent").checked = r.data.enabled;
-    $("usage-consent").disabled = !r.data.available;
+    $("usage-consent").disabled = !r.data.available && !r.data.enabled;
     $("usage-consent-form").querySelector("button").disabled = !r.data.available && !r.data.enabled;
     $("usage-consent-msg").textContent = r.data.available
       ? "Choose whether to participate."
       : "Measurement is disabled by the instance administrator.";
-    ctx.setUsageConsent(r.data.enabled);
+    ctx.setUsageConsent(r.data.available && r.data.enabled);
   }
   $("usage-consent-form").addEventListener("submit", (e) => {
     e.preventDefault();
     void withBusy(e.submitter, "Saving…", async () => {
       const r = await api("PUT", "/api/me/usage-consent", { enabled: $("usage-consent").checked });
       if (r.ok) {
-        ctx.setUsageConsent(r.data.enabled);
+        ctx.setUsageConsent(r.data.available && r.data.enabled);
         $("usage-consent-msg").textContent = r.data.enabled
           ? "Optional measurement enabled."
           : "Measurement disabled; your stored events were deleted.";

@@ -236,7 +236,8 @@ func (s *server) twoFactorAction(w http.ResponseWriter, r *http.Request) {
 		result["message"] = "Scan the QR code, then confirm a code from your app. Setup expires in 10 minutes."
 	case "cancel":
 		if _, err = tx.ExecContext(r.Context(), `UPDATE account_security SET pending_secret='',pending_until=0 WHERE user_id=?`, a.u.ID); err != nil {
-			serverError(w, r, err); return
+			serverError(w, r, err)
+			return
 		}
 		result["message"] = "Authenticator setup cancelled. Existing protection is unchanged."
 	case "enable":
