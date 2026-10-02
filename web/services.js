@@ -3,22 +3,22 @@ const field = (id, name, attrs = '', hint = '') => `<label class="field">${name}
 export const servicesMarkup = `
 <section class="panel service-panel" aria-labelledby="services-title">
  <div class="service-heading"><div><p class="eyebrow">DATA PROTECTION</p><h2 id="services-title">Off-site backups & email</h2></div><span class="badge" id="svc-status">Loading</span></div>
- <p class="meta">Keep a consistent copy of everyone's data in your own S3 bucket. Email alerts contain operational status only.</p>
- <div class="service-stats"><div><span class="meta">Last backup</span><b id="svc-last">—</b></div><div><span class="meta">Next scheduled</span><b id="svc-next">—</b></div></div>
+ <p class="meta" data-service-area="backups">Keep a consistent copy of everyone's data in your own S3 bucket. Email alerts contain operational status only.</p>
+ <div class="service-stats" data-service-area="backups"><div><span class="meta">Last backup</span><b id="svc-last">—</b></div><div><span class="meta">Next scheduled</span><b id="svc-next">—</b></div></div>
  <form id="services-form">
- <details open class="service-details"><summary>S3 destination <span class="meta">AWS · R2 · B2 · MinIO · compatible storage</span></summary>
+ <details open class="service-details" data-service-area="backups"><summary>S3 destination <span class="meta">AWS · R2 · B2 · MinIO · compatible storage</span></summary>
  <label class="radio"><input type="checkbox" id="svc-enabled"> Enable automatic remote backups</label>
  <div class="service-grid">${field('endpoint','Endpoint','type="url" placeholder="https://s3.eu-west-2.amazonaws.com"','The service endpoint; the bucket goes in its own field.')}${field('bucket','Bucket','maxlength="63" placeholder="my-private-backups"')}${field('region','Signing region','placeholder="us-east-1"')}${field('prefix','Folder prefix','maxlength="256"','A dedicated prefix keeps each installation separate.')}${field('access_key','Access key','type="password" autocomplete="new-password"','Leave blank to keep the saved key.')}${field('secret_key','Secret key','type="password" autocomplete="new-password"','Leave blank to keep the saved secret.')}</div>
  <div class="service-grid">${field('interval_hours','Run every (hours)','type="number" min="1" max="8760" required')}${field('keep','Backups to keep','type="number" min="0" max="1000" required','0 keeps every backup. Only this installation’s backup files are deleted.')}</div>
  <details><summary>Transfer & compatibility controls</summary><label class="radio"><input type="checkbox" id="svc-path_style" data-tooltip="Path style puts the bucket in the URL path. Usually on for MinIO, R2 and private storage; AWS also supports virtual-host style."> Use path-style addressing</label><label class="radio"><input type="checkbox" id="svc-verify" data-tooltip="Downloads the uploaded object and verifies its SHA-256 digest before deleting any older backups. This uses additional transfer bandwidth."> Verify every upload with SHA-256</label><label class="radio"><input type="checkbox" id="svc-allow_http"> Allow plain HTTP for a trusted private-network S3 service</label><label class="radio"><input type="checkbox" id="svc-clear-s3"> Remove saved S3 credentials when saving</label></details>
  </details>
- <details class="service-details"><summary>Email delivery <span class="meta">SMTP & notification preferences</span></summary>
+ <details open class="service-details" data-service-area="email"><summary>Email delivery <span class="meta">SMTP & notification preferences</span></summary>
  <label class="radio"><input type="checkbox" id="svc-mail-enabled"> Enable email delivery</label>
  <div class="service-grid">${field('host','SMTP host','placeholder="smtp.example.com"')}${field('port','Port','type="number" min="1" max="65535" required')}<label class="field">Connection security<select id="svc-tls"><option value="starttls">STARTTLS (usually 587)</option><option value="tls">Implicit TLS (usually 465)</option><option value="none">Unencrypted local relay (no authentication)</option></select></label>${field('username','SMTP username','autocomplete="off"')}${field('smtp_password','SMTP password or app password','type="password" autocomplete="new-password"','Leave blank to keep the saved password.')}${field('from','Sender address','type="email" placeholder="jiggered@example.com"')}</div>
  <label class="field">Notification recipients<textarea id="svc-to" rows="2" placeholder="admin@example.com, another@example.com"></textarea><span class="meta">Separate up to 20 addresses with commas or new lines. Account verification and recovery go to the account's own email address.</span></label>
  <div class="row"><label class="radio"><input type="checkbox" id="svc-on_failure"> Alert when backups fail</label><label class="radio"><input type="checkbox" id="svc-on_success"> Confirm successful backups</label></div><label class="radio"><input type="checkbox" id="svc-clear-email"> Remove saved SMTP password when saving</label>
  </details>
- <details class="service-details"><summary>Registration & recovery <span class="meta">Who can join this instance</span></summary>
+ <details open class="service-details" data-service-area="email"><summary>Registration & recovery <span class="meta">Who can join this instance</span></summary>
  <label class="radio"><input id="svc-registration" type="checkbox"> Allow people to register with a verified email address</label>
  <label class="radio"><input id="svc-recovery" type="checkbox"> Allow forgotten-password recovery by email</label>
  ${field('public_url','Public application URL','type="url" placeholder="https://jiggered.example.com"','Trusted base URL for email links. Never taken from a visitor’s request headers.')}
@@ -31,7 +31,7 @@ export const servicesMarkup = `
  <div class="service-actions"><button class="secondary" data-service-action="test_s3">Test S3 connection</button><button class="secondary" data-service-action="test_email">Send test email</button><button class="primary" data-service-action="backup">Back up now</button><button class="secondary" data-service-action="list">Browse remote backups</button></div>
  <p id="svc-msg" class="msg" role="status" aria-live="polite"></p>
  <div id="svc-remote" hidden><h3>Remote backups</h3><p class="meta">Downloads contain everyone's private data. To restore the whole database, use the server's restore command.</p><ul id="svc-objects" class="list"></ul></div>
- <details class="service-details" open><summary>Recent backup history</summary><ul id="svc-runs" class="list service-runs"></ul><button class="secondary small" id="svc-refresh">Refresh status</button></details>
+ <details class="service-details" open data-service-area="backups"><summary>Recent backup history</summary><ul id="svc-runs" class="list service-runs"></ul><button class="secondary small" id="svc-refresh">Refresh status</button></details>
 </section>`;
 export function initServices(ctx) {
  let saved = null, dirty = false, timer, destroyed = false, busy = false;

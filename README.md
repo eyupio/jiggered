@@ -162,6 +162,10 @@ appearance settings. Today’s energy ring follows the day’s saved allowance; 
 balances and recovery above the allowance visible. The ring is a personal planning visual, not a target or a
 measurement of health. The dashboard styling is included in the versioned offline app shell.
 
+Admin is organized into keyboard-accessible sections for People, Email & signup, Backups, Shared defaults,
+Connection and Activity. Desktop uses a sidebar; smaller screens use a compact menu. Service settings and the
+30-minute password cache stay in place while switching sections. Account actions expand per person.
+
 Admins can enable verified-email registration in Admin after configuring SMTP, or add people from the **Admin**
 tab or command line: the new person gets a random temporary password,
 shown once, and must choose their own the first time they sign in. Accounts, and everything else about how
