@@ -470,7 +470,7 @@ func newStatic(fsys fs.FS) *static {
 // The files a page loads, and the pages that load them, are named with this build's version
 // (/v/<version>/app.js). A changed file therefore always has a new URL, so nothing between the browser and this
 // server (a CDN with a four-hour default, a browser's own rules) can run an old script against a new page.
-var versionedFiles = []string{"/style.css", "/presence.css", "/app.js", "/login.js", "/early-nav.js"}
+var versionedFiles = []string{"/style.css", "/presence.css", "/dashboard.css", "/app.js", "/login.js", "/early-nav.js"}
 
 func (st *static) versionPage(page []byte) []byte {
 	for _, f := range versionedFiles {

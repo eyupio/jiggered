@@ -23,7 +23,7 @@ func TestPagesLoadVersionedAssets(t *testing.T) {
 			t.Errorf("login page lacks %s", want)
 		}
 	}
-	for _, want := range []string{`/v/` + ver[1] + `/style.css`, `/v/` + ver[1] + `/app.js`} {
+	for _, want := range []string{`/v/` + ver[1] + `/style.css`, `/v/` + ver[1] + `/dashboard.css`, `/v/` + ver[1] + `/app.js`} {
 		if !strings.Contains(index, want) {
 			t.Errorf("app page lacks %s", want)
 		}
@@ -42,6 +42,13 @@ func TestPagesLoadVersionedAssets(t *testing.T) {
 	}
 	if st := anon.do("GET", "/v/"+ver[1]+"/app.js", nil); st != 303 {
 		t.Errorf("app.js signed out = %d, want the same redirect as the unversioned one", st)
+	}
+	if st := anon.do("GET", "/v/"+ver[1]+"/dashboard.css", nil); st != 303 {
+		t.Errorf("private dashboard stylesheet signed out = %d", st)
+	}
+	resp, _ = c.req("GET", "/v/"+ver[1]+"/dashboard.css", nil)
+	if resp.StatusCode != 200 || !strings.Contains(resp.Header.Get("Cache-Control"), "immutable") {
+		t.Error("signed-in dashboard stylesheet must use the versioned cache")
 	}
 	resp, _ = c.req("GET", "/v/"+ver[1]+"/today.js", nil)
 	if resp.StatusCode != 200 || !strings.Contains(resp.Header.Get("Content-Type"), "javascript") {
@@ -66,6 +73,9 @@ func TestServiceWorkerListsVersionedFiles(t *testing.T) {
 	}
 	if strings.Contains(sw, `"/app.js"`) || strings.Contains(sw, `"/style.css"`) {
 		t.Error("sw.js still lists unversioned files")
+	}
+	if !strings.Contains(sw, `"/v/`+ver[1]+`/dashboard.css"`) {
+		t.Error("offline app must retain the dashboard design")
 	}
 }
 

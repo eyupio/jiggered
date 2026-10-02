@@ -147,7 +147,7 @@ export function init(ctx) {
     else render();
   });
 
-  const actButton = ({ item: x, i }) => html`<button class="act${x.c < 0 ? " rec" : ""}" data-i="${i}"><span>${x.a}</span><span class="c">${costLabel(x.c)}</span></button>`;
+  const actButton = ({ item: x, i }) => html`<button class="act${x.c < 0 ? " rec" : ""}" data-i="${i}"><span>${x.a}</span><span class="c">${costLabel(x.c)}</span><span class="activity-add" aria-hidden="true"><span>Record</span><b>+</b></span></button>`;
   // An activity already logged on this day: green, how many times, and − / + to take one off or add another.
   const selectedCard = (count, { item: x, i }) => html`<div class="act on${x.c < 0 ? " rec" : ""}"><span class="name">${x.a}</span><span class="c">${costLabel(x.c)}</span><span class="stepper"><button type="button" class="step" data-step="-1" data-i="${i}" aria-label="Remove one ${x.a}">−</button><b class="count" aria-label="${count} ${count === 1 ? "time" : "times"} logged">×${count}</b><button type="button" class="step" data-step="1" data-i="${i}" aria-label="Add one more ${x.a}">+</button></span></div>`;
   // Long lists get a search box, a favourites row (most and latest used), sections by group and "Show more" paging.
@@ -215,6 +215,14 @@ export function init(ctx) {
     renderOngoing(ctx, $("today-ongoing"));
     $("spentline").textContent = spent >= 0 ? `${spent} spent` : `${-spent} recovered`;
 
+    // The ring is a view of the saved allowance, not a target. Keep the actual
+    // number unbounded when recovery takes it above the allowance or spending below zero.
+    const fraction = cap > 0 ? Math.max(0, Math.min(1, left / cap)) : 0;
+    $("energy-progress").setAttribute("stroke-dasharray", `${fraction * 100} 100`);
+    $("energy-visual").dataset.level = left < 0 ? "over" : left === 0 ? "empty" : left <= 3 ? "low" : "ready";
+    $("energy-caption").textContent = left < 0 ? "Beyond your planned allowance" : left > cap ? "Recovery added points back" : left === 0 ? "Your balance, without judgement" : "Your own planning aid";
+    $("energy-entry-count").textContent = `${d.entries.length} ${d.entries.length === 1 ? "activity" : "activities"} logged`;
+
     const cells = $("cells");
     // Updated in place so the bar eases between states instead of being rebuilt (which looked like a flash).
     cells.style.gridTemplateColumns = `repeat(${Math.min(budget, 15)},1fr)`;
@@ -248,5 +256,3 @@ export function init(ctx) {
 
   return { render, open, day: () => viewDate, show() { if (entryForm.hidden) restoreDraft(); render() } };
 }
-
-

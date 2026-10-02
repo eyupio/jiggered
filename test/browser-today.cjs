@@ -128,8 +128,37 @@ const groups = page => page.evaluate(() => [...document.querySelectorAll('#acts 
     assert.equal(await page.locator('#acts button.act', { hasText: name }).count(), 1, 'the plain button is back');
 
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false, 'no horizontal overflow at phone width');
+
+    // The new visual must preserve the ledger's full value: a bounded ring
+    // must never hide overspending, recovery above the allowance, or a zero allowance.
+    for (const sample of [
+      { status: 'green', penalty: 0, costs: [4], left: 6, fill: 60, level: 'ready' },
+      { status: 'green', penalty: 0, costs: [7, 7], left: -4, fill: 0, level: 'over' },
+      { status: 'green', penalty: 0, costs: [-3], left: 13, fill: 100, level: 'ready' },
+      { status: 'red', penalty: 10, costs: [], left: 0, fill: 0, level: 'empty' },
+    ]) {
+      const status = await page.evaluate(async sample => {
+        const now = new Date(), date = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        const id = 'd-' + date, docs = await (await fetch('/api/docs')).json();
+        const body = { date, budget: 10, sleepPenalty: 3, status: sample.status, statusPenalty: sample.penalty,
+          entries: sample.costs.map((c,i) => ({ id: 'visual-'+i, a: 'Visual check '+i, c, t: '10:00' })) };
+        const response = await fetch('/api/docs/'+id, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'jiggered', 'If-Match': `"${docs[id].rev}"` }, body: JSON.stringify(body) });
+        return response.status;
+      }, sample);
+      assert.equal(status, 200, 'sample accepted by the real document API');
+      await page.reload(); await saved(page);
+      assert.equal(Number((await page.locator('#left').textContent()).trim().split(/\s/)[0]), sample.left, 'readout preserves the full balance');
+      assert.equal(Number((await page.locator('#energy-progress').getAttribute('stroke-dasharray')).split(' ')[0]), sample.fill, 'ring reflects the allowance');
+      assert.equal(await page.locator('#energy-visual').getAttribute('data-level'), sample.level);
+    }
+    await page.locator('#t-history').click();
+    assert.equal(await page.locator('#view-heading').textContent(), 'Your days, in perspective.');
+    await page.reload(); await saved(page);
+    assert.equal(await page.locator('#view-heading').textContent(), 'Your days, in perspective.', 'view heading survives a direct reload');
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    assert.equal(await page.locator('#energy-progress').evaluate(el => getComputedStyle(el).transitionDuration), '0s');
     assert.deepEqual(errors, []);
-    console.log('PASS: Today: checklist ticks itself, check-in collapses with Undo, groups start open, logged activities turn green with a count, -/+ and Undo, logged in place, opened groups stay open, plain button returns');
+    console.log('PASS: Today: checklist, check-in/Undo, groups, logged-in-place activity controls, live energy ring including negative/above-budget/zero allowance, view headings and reduced motion');
   } catch (e) {
     console.error(e.stack);
     if (logs) console.error(logs);
@@ -141,4 +170,3 @@ const groups = page => page.evaluate(() => [...document.querySelectorAll('#acts 
     fs.rmSync(dir, { recursive: true, force: true });
   }
 })();
-

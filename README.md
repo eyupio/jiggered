@@ -145,6 +145,11 @@ remain `noindex`. `/login` opens sign-in, and `/register` opens registration whe
 the page explains how to request an account and the landing page links to sign-in instead. The public pages use only
 self-hosted assets and respect reduced-motion preferences.
 
+The signed-in views share the landing page’s typography and palette while retaining personal light/dark/device
+appearance settings. Today’s energy ring follows the day’s saved allowance; its numeric readout keeps negative
+balances and recovery above the allowance visible. The ring is a personal planning visual, not a target or a
+measurement of health. The dashboard styling is included in the versioned offline app shell.
+
 Admins can enable verified-email registration in Admin after configuring SMTP, or add people from the **Admin**
 tab or command line: the new person gets a random temporary password,
 shown once, and must choose their own the first time they sign in. Accounts, and everything else about how

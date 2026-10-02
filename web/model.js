@@ -44,9 +44,9 @@ export const DEFAULTS = Object.freeze({
 export const ONSET = ["Built up gradually", "Sudden"];
 export const DURATIONS = ["Still going", "Under 15 min", "15–60 min", "1–4 hours", "4–12 hours", "Most of a day", "Over a day", "Ended (duration unknown)"];
 export const ADVICE = {
-  green: "Normal plan. Still leave gaps between demanding things.",
-  amber: "Cut today's plan. Drop or move one demanding thing now.",
-  red: "Essentials only. Protect your energy and plan recovery time.",
+  green: "A good starting point. There’s still room for pauses.",
+  amber: "Somewhere in between. A little breathing space may help.",
+  red: "A low-energy starting point. Take the day at your own pace.",
 };
 // "" means whatever the browser uses.
 export const LOCALES = [["en-GB", "English (UK)"], ["en-US", "English (US)"], ["en-AU", "English (Australia)"], ["en-CA", "English (Canada)"],

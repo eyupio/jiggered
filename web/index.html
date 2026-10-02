@@ -13,11 +13,13 @@
 <link rel="preload" href="/fonts/atkinson-400-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/bricolage-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/dashboard.css">
 </head>
-<body>
+<body class="app-shell" data-view="today">
+<a class="app-skip" href="#view-heading">Skip to your dashboard</a>
 <div class="wrap">
   <header>
-    <div class="title"><img src="/icon.svg" alt="" width="36" height="36"><div><h1>Jiggered</h1><span class="date" id="today"></span></div></div>
+    <div class="title"><img src="/icon.svg" alt="" width="36" height="36"><div><span class="app-wordmark">jiggered.</span><span class="date" id="today"></span></div></div>
     <div class="head-actions">
       <button class="ghost" type="button" data-help="" data-tooltip="Find answers about logging, settings, sharing and saving problems.">Help</button>
       <details class="menu" id="account-menu">
@@ -33,11 +35,15 @@
   <div class="banner" id="banner" hidden></div>
   <section class="panel recovery" id="recovery" hidden aria-label="Recover unsaved changes"></section>
   <section class="panel defaults-notice" id="defaults-notice" hidden aria-label="Shared defaults updated" role="region"></section>
+  <div class="dashboard-masthead">
+    <div><p class="dashboard-eyebrow">YOUR OWN RHYTHM</p><h1 id="view-heading" tabindex="-1">A little space for today.</h1><p id="view-description">Check in, make room for rest, and take the day at your pace.</p></div>
+    <div class="dashboard-emblem" aria-hidden="true"><svg viewBox="0 0 100 100" fill="none"><g stroke="currentColor" stroke-width="6" stroke-linecap="round"><path d="M50 12v76M12 50h76M23 23l54 54M23 77l54-54"/></g></svg><span>Patterns, not pressure.</span></div>
+  </div>
   <nav role="tablist" id="tabs" aria-label="Main views">
-    <button role="tab" id="t-today" aria-controls="today-panel" tabindex="0" aria-selected="true" data-tab="today">Today</button>
-    <button role="tab" id="t-episode" aria-controls="episode-panel" tabindex="-1" aria-selected="false" data-tab="episode">Episode</button>
-    <button role="tab" id="t-history" aria-controls="history-panel" tabindex="-1" aria-selected="false" data-tab="history">History</button>
-    <button role="tab" id="t-account" aria-controls="account-panel" tabindex="-1" aria-selected="false" data-tab="account">Account</button>
+    <button role="tab" id="t-today" aria-controls="today-panel" tabindex="0" aria-selected="true" data-tab="today" data-heading="A little space for today." data-description="Check in, make room for rest, and take the day at your pace.">Today</button>
+    <button role="tab" id="t-episode" aria-controls="episode-panel" tabindex="-1" aria-selected="false" data-tab="episode" data-heading="A moment to notice." data-description="Record what happened, how it felt, and anything you’d like to remember.">Episode</button>
+    <button role="tab" id="t-history" aria-controls="history-panel" tabindex="-1" aria-selected="false" data-tab="history" data-heading="Your days, in perspective." data-description="Look back with curiosity. Patterns can be useful; they don’t define your days.">History</button>
+    <button role="tab" id="t-account" aria-controls="account-panel" tabindex="-1" aria-selected="false" data-tab="account" data-heading="Make this space yours." data-description="Your energy budget, your preferences, and the little things that matter to you.">Account</button>
   </nav>
 
   <section role="tabpanel" aria-labelledby="t-today" id="today-panel">
@@ -53,35 +59,39 @@
     <p class="notice" id="day-notice" hidden>You're looking at a past day. Changes here are saved to that day. <button class="x" id="day-back">Back to today</button></p>
 
     <div class="today-side">
-    <div class="panel">
+    <div class="panel checkin-panel">
       <div class="daynav">
         <button class="ghost" id="day-prev" aria-label="Previous day">‹</button>
         <label class="mid" for="day-pick"><b id="day-label">Today</b><span class="day-date" id="day-date"></span><input type="date" id="day-pick" class="day-pick" aria-label="Choose a day"></label>
         <button class="ghost" id="day-next" aria-label="Next day">›</button>
       </div>
-      <div class="label-row"><div class="label" id="checkin-label">Morning check-in</div><button type="button" class="help-tip" aria-label="Help with the check-in" data-tooltip="How are you feeling as the day starts? Your pick sets today's plan. Tap the selected one again to clear it.">?</button></div>
+      <div class="label-row"><h2 id="checkin-label">Start where you are.</h2><button type="button" class="help-tip" aria-label="Help with the check-in" data-tooltip="How are you feeling as the day starts? Your pick sets today's plan. Tap the selected one again to clear it.">?</button></div>
+      <p class="meta checkin-prompt">How is your energy as this day starts?</p>
       <div class="checkin-done" id="checkin-done" hidden><span id="checkin-done-text"></span><button type="button" class="x" id="checkin-change">Change</button></div>
       <div class="checkin" id="checkin" role="group" aria-labelledby="checkin-label">
-        <button data-s="green" aria-pressed="false"><b>Green</b><span class="mood">Good day</span><span class="cost">Full points</span></button>
-        <button data-s="amber" aria-pressed="false"><b>Amber</b><span class="mood">Shaky</span><span class="cost">−3 points</span></button>
-        <button data-s="red" aria-pressed="false"><b>Red</b><span class="mood">Rough</span><span class="cost">−6 points</span></button>
+        <button data-s="green" aria-pressed="false"><b>Green</b><span class="mood">Feeling good</span><span class="cost">Full points</span></button>
+        <button data-s="amber" aria-pressed="false"><b>Amber</b><span class="mood">In between</span><span class="cost">−3 points</span></button>
+        <button data-s="red" aria-pressed="false"><b>Red</b><span class="mood">Low energy</span><span class="cost">−6 points</span></button>
       </div>
       <p class="advice" id="advice">How are you starting today? Pick one.</p>
     </div>
 
-    <div class="panel">
-      <div class="gauge-head">
-        <div><div class="label-row"><div class="label" id="balance-label">Points left today</div><button type="button" class="help-tip" aria-label="Help with energy points" data-tooltip="Points are personal estimates. Positive activity costs spend points; negative costs record recovery. Your balance can go below zero or above your starting budget.">?</button></div><div class="big" id="left">10 <small>of 10</small></div></div>
-        <div class="meta" id="spentline">0 spent</div>
+    <div class="panel energy-panel">
+      <div class="label-row"><h2>Your energy, at a glance.</h2><button type="button" class="help-tip" aria-label="Help with energy points" data-tooltip="Points are personal estimates. Positive activity costs spend points; negative costs record recovery. Your balance can go below zero or above your starting budget. The ring shows the balance within your starting allowance; the number always shows the full balance.">?</button></div>
+      <div class="live-energy" id="energy-visual" data-level="ready">
+        <svg class="energy-svg" viewBox="0 0 200 200" aria-hidden="true"><circle class="energy-track" cx="100" cy="100" r="84"/><circle class="energy-progress" id="energy-progress" cx="100" cy="100" r="84" pathLength="100" stroke-dasharray="0 100"/></svg>
+        <div class="energy-readout"><div class="label" id="balance-label">Points left today</div><div class="big" id="left">—</div><p class="energy-caption" id="energy-caption">Your own planning aid</p></div>
       </div>
+      <div class="energy-summary"><span class="meta" id="spentline">—</span><span id="energy-entry-count" class="meta">No activities logged</span></div>
       <div class="cells" id="cells" aria-hidden="true"></div>
       <label class="switch-row" for="sleep"><span class="switch-text"><b id="sleep-title">Slept badly last night</b><small id="sleep-label">Takes 3 points off today</small></span><input type="checkbox" role="switch" id="sleep" class="switch"><span class="switch-ui" aria-hidden="true"></span></label>
       <details class="hint"><summary>How points work</summary><p>Points are your own planning aid. Demanding activities spend points; recovery gives points back. Your morning check-in sets the day's allowance: Green keeps your full budget, while Amber and Red take off the amounts you set in Account. Poor sleep takes off its own amount too. Zero-cost activities just record what happened. You can go below zero or above your starting budget. This is a log, not a recommendation to do more.</p><div class="row"><button class="x" data-settings="set-budget">Edit my budget</button> <button class="x" data-settings="set-acts">Edit my activities</button></div></details>
     </div>
     </div>
 
-    <div class="panel">
-      <div class="label-row"><h2>Tap what you've done</h2><span class="row"><button class="help-link x" data-help="activities">How it works</button><button class="x" data-settings="set-acts">Edit</button></span></div>
+    <div class="panel activities-panel">
+      <div class="label-row"><h2>The little things in your day.</h2><span class="row"><button class="help-link x" data-help="activities">How it works</button><button class="x" data-settings="set-acts">Edit</button></span></div>
+      <p class="meta">Tap an activity to record it. Notice what takes energy, and what gives a little back.</p>
       <label class="timerow" id="act-time-row" hidden>Time, if you remember <input type="time" id="act-time"></label>
       <label class="field act-search" id="act-search-row" hidden><span class="sr-only">Search activities</span><input type="search" id="act-search" placeholder="Search activities" autocomplete="off"></label>
       <div class="group-filter" id="act-filter" role="group" aria-label="Show activities from" hidden></div>
@@ -296,4 +306,3 @@
 <script type="module" src="/app.js"></script>
 </body>
 </html>
-
