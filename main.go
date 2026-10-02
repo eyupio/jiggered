@@ -352,6 +352,9 @@ func (s *server) routes() http.Handler {
 	})
 
 	mux.Handle("GET /api/me", auth(s.handleMe))
+	mux.Handle("GET /api/me/usage-consent", auth(s.usageConsent))
+	mux.Handle("PUT /api/me/usage-consent", auth(s.usageConsent))
+	mux.Handle("POST /api/me/usage", auth(s.recordUsage))
 	mux.Handle("GET /api/me/security", auth(s.securityStatus))
 	mux.Handle("POST /api/me/security/email", auth(s.requestRecoveryEmail))
 	mux.Handle("POST /api/me/security/two-factor", auth(s.twoFactorAction))
@@ -383,6 +386,8 @@ func (s *server) routes() http.Handler {
 	mux.Handle("GET /api/admin/settings", admin(s.adminGetSettings))
 	mux.Handle("PATCH /api/admin/settings", admin(s.adminPatchSettings))
 	mux.Handle("POST /api/admin/backup", admin(s.adminBackup))
+	mux.Handle("GET /api/admin/usage", admin(s.adminUsage))
+	mux.Handle("PUT /api/admin/usage", admin(s.adminUsage))
 	mux.Handle("GET /api/admin/services", admin(s.adminGetServices))
 	mux.Handle("PUT /api/admin/services", admin(s.adminSaveServices))
 	mux.Handle("POST /api/admin/services/action", admin(s.adminServiceAction))

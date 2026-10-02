@@ -29,7 +29,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: gofmt
-        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+        run: test -z "$(gofmt -l .)" || { gofmt -d .; exit 1; }
       - name: Go vulnerability scan
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@v1.8.0

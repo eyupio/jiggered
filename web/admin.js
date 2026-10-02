@@ -33,13 +33,34 @@ const SENTENCE = {
   backup_downloaded: (e) => `${e.actor} downloaded a backup`,
   import: (e) => `${e.actor} restored from a file`,
   admin_created: (e) => `${e.target} was set up as the first admin`,
+  account_email_failed: () => "Account email could not be sent. Check Email & signup.",
+  account_mail_accepted: () => "Account email accepted by SMTP; inbox delivery is not confirmed",
+  remote_backup_started: (e) => `${e.actor} started an off-site backup`,
+  remote_backup_success: () => "Off-site backup completed",
+  remote_backup_warning: () => "Backup copy uploaded; retention needs attention",
+  remote_backup_failed: () => "Off-site backup failed. Check Backups.",
+  remote_settings_changed: (e) => `${e.actor} changed backup/email configuration`,
+  email_test_sent: (e) => `${e.actor} sent a test email`,
+  two_factor_setup: (e) => `${e.actor} started authenticator setup`,
+  two_factor_cancel: (e) => `${e.actor} cancelled authenticator setup`,
+  two_factor_enable: (e) => `${e.actor} enabled two-step verification`,
+  two_factor_disable: (e) => `${e.actor} disabled two-step verification`,
+  two_factor_regenerate: (e) => `${e.actor} replaced recovery codes`,
+  two_factor_admin_reset: (e) => `${e.actor} reset ${e.target}’s authenticator protection`,
+  email_verified: () => "Email ownership verified",
+  account_registered: (e) => `${e.actor} registered an account`,
+  remote_backup_interrupted: () =>
+    "Off-site backup interrupted; check the destination before retrying",
+  remote_backup_downloaded: (e) => `${e.actor} downloaded an off-site backup`,
+  usage_settings_changed: (e) => `${e.actor} changed optional usage measurement settings`,
+  password_recovered: (e) => `${e.actor} reset their password through email`,
   defaults_changed: (e) => `${e.actor} updated the shared product defaults`,
   settings_changed: (e) => `${e.actor} changed a setting`,
   settings_imported: () => `Settings were copied from the environment into the database`,
   migrated: (e) => `${e.target} took over the data from before accounts existed`,
 };
 const sentence = (e) =>
-  (SENTENCE[e.action] || ((x) => `${x.actor || "system"}: ${x.action}`))({
+  (SENTENCE[e.action] || ((x) => `${x.actor || "System"}: ${x.action.replaceAll("_", " ")}`))({
     ...e,
     actor: e.actor || "System",
   });
@@ -55,6 +76,7 @@ const MARKUP = `${servicesMarkup}
     <div class="panel">
       <h2>People</h2>
       <p class="meta">You can add people, reset passwords, sign devices out and remove accounts. These screens don't show anyone's check-ins or episodes, only how many they have. Remember that resetting a password lets you sign in as that person, and a backup contains everything.</p>
+      <div class="row2"><label class="field">Find a person<input id="people-search" type="search" /></label><label class="field">Account state<select id="people-state"><option value="">All people</option><option value="enabled">Enabled</option><option value="disabled">Disabled</option><option value="new">Awaiting first password</option></select></label></div><p class="meta" id="people-matches" role="status"></p>
       <ul class="list people" id="users"></ul>
       <p class="msg" id="users-msg" aria-live="polite"></p><button class="secondary" id="users-retry">Refresh people</button>
     </div>
@@ -75,9 +97,11 @@ const MARKUP = `${servicesMarkup}
     </div>
     <div class="panel">
       <h2>Activity</h2>
+      <form id="audit-filters" class="row2"><label class="field">Person (exact username)<input type="search" id="audit-person" maxlength="64" /></label><label class="field">Event type<select id="audit-family"><option value="">All events</option><option value="login">Sign-in</option><option value="account">Accounts & access</option><option value="email">Email delivery</option><option value="backup">Backups</option><option value="settings">Settings</option></select></label><label class="field">From (UTC)<input type="date" id="audit-from" /></label><label class="field">To (UTC)<input type="date" id="audit-to" /></label><div class="row"><button type="submit" class="primary">Apply filters</button><button type="reset" class="secondary">Clear filters</button></div></form>
       <ul class="list audit" id="audit"></ul><p class="msg" id="audit-msg" role="status"></p><button class="secondary" id="audit-refresh">Refresh activity</button>
       <button class="secondary" id="audit-more" hidden>Show older</button>
     </div>
+    <div class="panel"><h2>Optional local usage measurement</h2><p class="meta">Disabled by default. Turning this on only offers users a separate opt-in in Account. No health details or external service. Weekly aggregates require at least five consenting participants per event; counts are capped at 100 per person/event/week and retained for up to 90 days. Users can disable and delete their events. This adds local storage and privacy responsibility.</p><form id="usage-form"><label class="radio"><input id="usage-enabled" type="checkbox"> Offer optional measurement on this instance</label><label class="radio"><input id="usage-clear" type="checkbox"> Delete all collected task counts when saving</label><label class="field">Your admin password<input id="usage-password" type="password" autocomplete="current-password" required></label><button type="submit" class="secondary">Save measurement settings</button><p id="usage-msg" class="msg" role="status"></p></form><div id="usage-report"></div></div>
     <div class="panel"><h2>Shared product defaults</h2><p class="meta">Starting activities, symptoms, triggers and points for new users. Existing personal lists are preserved. Users can adopt these from Account. Order here becomes the starting quick-access order.</p><form id="defaults-form"></form><button class="secondary" id="defaults-reload">Reload latest defaults</button></div>
     <div class="panel">
       <h2>Connection</h2>
@@ -151,7 +175,7 @@ const ADMIN_SECTIONS = [
     hint: "Recent admin events",
     title: "Instance activity",
     description: "See account and administration events in one place.",
-    panels: ["audit"],
+    panels: ["audit", "usage-form"],
   },
 ];
 
@@ -214,6 +238,10 @@ function initAdminNavigation(panel, ctx) {
     }
     if (focus) $("admin-tab-" + id).focus();
   }
+  panel.addEventListener("click", (e) => {
+    const button = e.target.closest("[data-audit-open]");
+    if (button) select(button.dataset.auditOpen);
+  });
   tabs.forEach((tab) => tab.addEventListener("click", () => select(tab.dataset.adminSection)));
   workspace.querySelector(".admin-nav").addEventListener("keydown", (event) => {
     const index = tabs.indexOf(event.target);
@@ -272,6 +300,11 @@ export function mount(ctx) {
   return {
     ...view,
     snapshot: () => ({
+      auditFilters: Object.fromEntries(
+        ["person", "family", "from", "to"].map((k) => [k, $("audit-" + k).value]),
+      ),
+      peopleSearch: $("people-search").value,
+      peopleState: $("people-state").value,
       auditShown: Math.max(30, $("audit").children.length),
       encryptBackup: $("backup-encrypt").checked,
       section: panel.querySelector('[data-admin-section][aria-selected="true"]').dataset
@@ -313,6 +346,20 @@ function wire(ctx) {
       loadAudit(true);
     });
   });
+  const auditFilters = () =>
+    Object.fromEntries(["person", "family", "from", "to"].map((k) => [k, $("audit-" + k).value]));
+  for (const key of ["person", "family", "from", "to"])
+    $("audit-" + key).value = savedUI.auditFilters?.[key] || "";
+  $("audit-filters").addEventListener("submit", (e) => {
+    e.preventDefault();
+    loadAudit(true);
+  });
+  $("audit-filters").addEventListener("reset", () => setTimeout(() => loadAudit(true), 0));
+  $("people-search").value = savedUI.peopleSearch || "";
+  $("people-state").value = savedUI.peopleState || "";
+  $("people-search").addEventListener("input", renderUsers);
+  $("people-state").addEventListener("change", renderUsers);
+  let limits = { docs: 10000, bytes: 25 * 1024 * 1024 };
   let users = [],
     oldest = 0,
     loaded = false;
@@ -344,6 +391,7 @@ function wire(ctx) {
     }
     say($("users-msg"), `Updated ${new Date().toLocaleTimeString()}.`);
     users = r.data.users;
+    limits = r.data.limits || limits;
     const admins = users.filter((user) => user.role === "admin").length;
     $("admin-people-count").textContent =
       `${users.length} ${users.length === 1 ? "person" : "people"} · ${admins} ${admins === 1 ? "admin" : "admins"}`;
@@ -352,14 +400,27 @@ function wire(ctx) {
   }
 
   function renderUsers() {
+    const query = $("people-search").value.trim().toLowerCase(),
+      state = $("people-state").value;
+    const matches = users.filter(
+      (u) =>
+        u.username.toLowerCase().includes(query) &&
+        (!state ||
+          (state === "disabled" && u.disabled) ||
+          (state === "enabled" && !u.disabled) ||
+          (state === "new" && u.must_change_password && !u.disabled)),
+    );
+    $("people-matches").textContent =
+      `${matches.length} of ${users.length} people${matches.length ? "" : ". Clear your search or filters to see everyone."}`;
     ctx.ui?.details($("users"));
     setHTML(
       $("users"),
-      html`${users.map((u) => {
+      html`${matches.map((u) => {
         const self = u.id === me.id;
         return html`<li data-id="${u.id}" data-name="${u.username}">
         <div class="top"><b>${u.username}</b>${self ? html` <span class="badge">you</span>` : ""}${u.role === "admin" ? html` <span class="badge">admin</span>` : ""}${u.disabled ? html` <span class="badge off">disabled</span>` : ""}${u.must_change_password && !u.disabled ? html` <span class="badge wait">hasn't chosen a password yet</span>` : ""}</div>
-        <div class="meta">${u.last_login_at ? "Last signed in " + ago(u.last_login_at) : "Never signed in"} · ${u.docs} ${u.docs === 1 ? "entry" : "entries"} (${fmtBytes(u.bytes)}) · signed in on ${u.sessions} ${u.sessions === 1 ? "device" : "devices"}</div>
+        <div class="meta">${u.last_login_at ? "Last signed in " + ago(u.last_login_at) : "Never signed in"} · ${u.docs} ${u.docs === 1 ? "entry" : "entries"} (${fmtBytes(u.bytes)} of ${fmtBytes(limits.bytes)}; ${u.docs}/${limits.docs} records) · signed in on ${u.sessions} ${u.sessions === 1 ? "device" : "devices"}</div>
+        <p class="meta">Recovery email: ${u.recovery_ready ? "verified" : "not verified"} · Two-step: ${u.two_factor ? `enabled (${u.recovery_codes_left} unused recovery codes)` : "off"}${u.docs >= limits.docs * 0.9 || u.bytes >= limits.bytes * 0.9 ? " · Near storage limit; offer export and support" : ""}</p>
         ${
           self
             ? ""
@@ -368,7 +429,7 @@ function wire(ctx) {
           <button class="secondary small" data-act="signout"${u.sessions ? "" : " disabled"}>Sign out everywhere</button>
           <button class="secondary small" data-act="${u.disabled ? "enable" : "disable"}">${u.disabled ? "Enable" : "Disable"}</button>
           <button class="secondary small" data-act="${u.role === "admin" ? "demote" : "promote"}">${u.role === "admin" ? "Remove admin" : "Make admin"}</button>
-          <button class="secondary small" data-act="two-factor-reset">Reset two-step verification</button>
+          <button class="secondary small" data-act="two-factor-reset"${u.two_factor ? "" : html`disabled`}>Reset two-step verification</button>
           <button class="danger small" data-act="delete">Delete</button>
         </div></details>`
         }
@@ -512,7 +573,12 @@ function wire(ctx) {
     const limit = fresh ? Math.min(100, target) : 30;
     const r = await api(
       "GET",
-      "/api/admin/audit?limit=" + limit + (fresh || !oldest ? "" : "&before=" + oldest),
+      "/api/admin/audit?" +
+        new URLSearchParams({
+          ...auditFilters(),
+          limit: String(limit),
+          ...(fresh || !oldest ? {} : { before: String(oldest) }),
+        }),
     );
     if (!$("audit-msg")) return;
     if (!r.ok) {
@@ -521,10 +587,12 @@ function wire(ctx) {
     }
     say(
       $("audit-msg"),
-      r.data.length ? `Updated ${new Date().toLocaleTimeString()}.` : "No activity in this page.",
+      r.data.length
+        ? `Updated ${new Date().toLocaleTimeString()}.`
+        : "No events match this page. Clear filters or choose a wider UTC date range.",
     );
     const line = (en) =>
-      html`<li><span>${sentence(en)}${en.detail ? html` <span class="meta">(${en.detail})</span>` : ""}</span><span class="meta">${ago(en.at)}${en.ip ? " · " + en.ip : ""}</span></li>`;
+      html`<li><span>${sentence(en)}${en.detail ? html` <span class="meta">(${en.detail})</span>` : ""}${en.action.includes("email") || en.action === "account_mail_accepted" ? html` <button class="secondary small" data-audit-open="email">Email & signup</button>` : en.action.includes("backup") ? html` <button class="secondary small" data-audit-open="backups">Backups</button>` : ""}</span><span class="meta">${new Date(en.at * 1000).toLocaleString()} (local)${en.ip ? " · " + en.ip : ""}</span></li>`;
     if (fresh) setHTML($("audit"), html`${r.data.map(line)}`);
     else appendHTML($("audit"), html`${r.data.map(line)}`);
     if (r.data.length) oldest = r.data[r.data.length - 1].id;
@@ -534,6 +602,11 @@ function wire(ctx) {
     }
     ctx.ui?.set("admin", {
       ...ctx.ui.get("admin"),
+      auditFilters: Object.fromEntries(
+        ["person", "family", "from", "to"].map((k) => [k, $("audit-" + k).value]),
+      ),
+      peopleSearch: $("people-search").value,
+      peopleState: $("people-state").value,
       auditShown: Math.max(30, $("audit").children.length),
     });
     return r.data.length > 0;
@@ -767,6 +840,38 @@ function wire(ctx) {
     defaultSaving = false;
   });
 
+  async function loadUsageReport() {
+    const r = await api("GET", "/api/admin/usage");
+    if (!r.ok) {
+      $("usage-msg").textContent = r.error;
+      return;
+    }
+    $("usage-enabled").checked = r.data.enabled;
+    setHTML(
+      $("usage-report"),
+      r.data.rows.length
+        ? html`<table><thead><tr><th>Week (UTC)</th><th>Task</th><th>Participants</th><th>Completions</th><th>Active on 2+ days</th></tr></thead><tbody>${r.data.rows.map((x) => html`<tr><td>${x.week}</td><td>${x.event.replaceAll("_", " ")}</td><td>${x.participants}</td><td>${x.tasks}</td><td>${x.repeat_days_participants ?? "Hidden (fewer than 5)"}</td></tr>`)}</tbody></table>`
+        : html`<p class="meta">No reportable groups yet. Every event needs at least five consenting participants in the same week.</p>`,
+    );
+  }
+  $("usage-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    void withBusy(e.submitter, "Saving…", async () => {
+      const password = $("usage-password").value;
+      const r = await api(
+        "PUT",
+        "/api/admin/usage",
+        { enabled: $("usage-enabled").checked, clear: $("usage-clear").checked, password },
+        { "X-Jiggered-Password": password },
+      );
+      $("usage-password").value = "";
+      $("usage-msg").textContent = r.ok ? "Measurement settings saved." : r.error;
+      if (r.ok) {
+        $("usage-clear").checked = false;
+        await loadUsageReport();
+      }
+    });
+  });
   return {
     render() {},
     destroy() {
@@ -783,6 +888,7 @@ function wire(ctx) {
         loadAudit(true, true),
         loadConnection(),
         loadProductDefaults(),
+        loadUsageReport(),
       ]);
     },
   };

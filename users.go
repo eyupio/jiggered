@@ -53,9 +53,12 @@ type user struct {
 // userStat is what an admin sees about an account: counts and sizes, never contents.
 type userStat struct {
 	user
-	Docs     int   `json:"docs"`
-	Bytes    int64 `json:"bytes"`
-	Sessions int   `json:"sessions"`
+	Docs          int   `json:"docs"`
+	Bytes         int64 `json:"bytes"`
+	Sessions      int   `json:"sessions"`
+	RecoveryReady bool  `json:"recovery_ready"`
+	TwoFactor     bool  `json:"two_factor"`
+	RecoveryCodes int   `json:"recovery_codes_left"`
 }
 
 const userCols = "id, username, role, disabled, must_change_password, created_at, COALESCE(last_login_at, 0)"
@@ -158,7 +161,10 @@ func (s *server) listUsers(ctx context.Context) ([]userStat, error) {
 		SELECT u.id, u.username, u.role, u.disabled, u.must_change_password, u.created_at, COALESCE(u.last_login_at, 0),
 		  (SELECT count(*) FROM docs d WHERE d.user_id = u.id),
 		  (SELECT COALESCE(sum(size), 0) FROM docs d WHERE d.user_id = u.id),
-		  (SELECT count(*) FROM sessions s WHERE s.user_id = u.id AND s.expires_at > ?)
+		  (SELECT count(*) FROM sessions s WHERE s.user_id = u.id AND s.expires_at > ?),
+          EXISTS(SELECT 1 FROM account_security a WHERE a.user_id=u.id AND a.email IS NOT NULL AND a.email!=''),
+          COALESCE((SELECT enabled FROM account_security a WHERE a.user_id=u.id),0),
+          (SELECT count(*) FROM recovery_codes c WHERE c.user_id=u.id)
 		FROM users u ORDER BY u.username`, time.Now().Unix())
 	if err != nil {
 		return nil, err
@@ -168,7 +174,7 @@ func (s *server) listUsers(ctx context.Context) ([]userStat, error) {
 	for rows.Next() {
 		var st userStat
 		var disabled, must int
-		if err := rows.Scan(&st.ID, &st.Username, &st.Role, &disabled, &must, &st.CreatedAt, &st.LastLogin, &st.Docs, &st.Bytes, &st.Sessions); err != nil {
+		if err := rows.Scan(&st.ID, &st.Username, &st.Role, &disabled, &must, &st.CreatedAt, &st.LastLogin, &st.Docs, &st.Bytes, &st.Sessions, &st.RecoveryReady, &st.TwoFactor, &st.RecoveryCodes); err != nil {
 			return nil, err
 		}
 		st.Disabled, st.MustChange = disabled != 0, must != 0
@@ -277,6 +283,9 @@ func (s *server) setDisabled(ctx context.Context, id int64, disabled bool) error
 func (s *server) deleteUser(ctx context.Context, id int64) error {
 	return s.withUserTx(ctx, id, func(tx *sql.Tx, u *user) error {
 		if err := guardLastAdmin(ctx, tx, u); err != nil {
+			return err
+		}
+		if err := eraseUsage(ctx, tx, id); err != nil {
 			return err
 		}
 		_, err := tx.ExecContext(ctx, "DELETE FROM users WHERE id = ?", id)

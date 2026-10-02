@@ -189,32 +189,7 @@ func (s *server) forgotPassword(w http.ResponseWriter, r *http.Request) {
 	genericEmailResponse(w)
 }
 func (s *server) queueAccountMail(cfg serviceSettings, to, subject, body, kind, token string) {
-	select {
-	case s.mailSem <- struct{}{}:
-	default:
-		s.audit(context.Background(), "system", "account_email_failed", "", "email queue is busy", "")
-		return
-	}
-	s.serviceJobs.Add(1)
-	go func() {
-		defer s.serviceJobs.Done()
-		defer func() { <-s.mailSem }()
-		parent := s.serviceCtx
-		if parent == nil {
-			parent = context.Background()
-		}
-		ctx, cancel := context.WithTimeout(parent, 25*time.Second)
-		defer cancel()
-		cfg.Email.To = []string{to}
-		link := strings.TrimRight(cfg.Accounts.PublicURL, "/") + "/login#" + kind + "=" + token
-		label := "Verify email"
-		if kind == "reset" {
-			label = "Reset password"
-		}
-		if err := s.sendBrandedNotification(ctx, cfg.Email, subject, body, link, label); err != nil {
-			s.audit(ctx, "system", "account_email_failed", "", "SMTP delivery failed; check email configuration", "")
-		}
-	}()
+	s.enqueueAccountMail(to, subject, body, kind, token)
 }
 func (s *server) verifyEmailToken(w http.ResponseWriter, r *http.Request) {
 	if !s.authPublic(w, r) {

@@ -2,11 +2,14 @@
 
 import { energyWords, energyAmount, energyCopy, themeOf, SPOON_PATH } from "./energy-theme.js";
 import { $, html, setHTML, uid, fmtLongDay } from "./util.js";
+import { normaliseProfile } from "./profile.js";
+import { historyInsights } from "./history-model.js";
 import { renderOngoing } from "./episodes.js";
 import { PICKER, usage, favourites, groupItems, matches, selection } from "./picker.js";
 import { savedText, savedCount } from "./view-state.js";
 import { validDate } from "./history-model.js";
 import {
+  LIMITS,
   readableDay,
   identifyEntries,
   balanceLabel,
@@ -112,6 +115,12 @@ export function init(ctx) {
       original: raw,
     });
   }
+  $("onboarding-keep").addEventListener("click", () => {
+    patchSettings({
+      onboarding: { ...(ctx.store.view("settings")?.onboarding || {}), budget: true },
+    });
+    render();
+  });
   $("onboarding-dismiss").addEventListener("click", () => {
     patchSettings({
       onboarding: { ...(ctx.store.view("settings")?.onboarding || {}), dismissed: true },
@@ -210,6 +219,18 @@ export function init(ctx) {
     const latest = day().entries.findLast((en) => en.a === x.a);
     if (latest) removeEntry(latest);
   });
+  function nameCount() {
+    const count = [...$("entry-name").value.trim()].length;
+    $("entry-name-count").textContent = `${count} / 60 characters`;
+    $("entry-name-count").classList.toggle("err", count > 60);
+    $("entry-name").setAttribute("aria-invalid", String(count > 60));
+    $("entry-name").setCustomValidity(count > 60 ? "Use at most 60 characters." : "");
+  }
+  $("entry-name").addEventListener("input", nameCount);
+  $("entry-save-choice").addEventListener(
+    "change",
+    () => ($("entry-group-row").hidden = !$("entry-save-choice").checked),
+  );
   function edit(entry = null) {
     editing = entry;
     editingDate = key();
@@ -219,6 +240,11 @@ export function init(ctx) {
     $("entry-cost").value = entry?.c ?? 1;
     $("entry-time").value = entry?.t ?? (key() === ctx.today() ? hhmm(new Date()) : "");
     $("entry-msg").textContent = "";
+    $("entry-save-choice-row").hidden = !!entry;
+    $("entry-save-choice").checked = false;
+    $("entry-group-row").hidden = true;
+    $("entry-group").value = "";
+    nameCount();
     $("entry-name").focus();
   }
   function restoreDraft() {
@@ -228,6 +254,10 @@ export function init(ctx) {
     $("entry-name").value = draft.a;
     $("entry-cost").value = draft.c;
     $("entry-time").value = draft.t;
+    $("entry-save-choice").checked = draft.saveChoice === true;
+    $("entry-group").value = draft.group || "";
+    $("entry-group-row").hidden = !$("entry-save-choice").checked;
+    nameCount();
     $("entry-msg").textContent = "Unfinished activity draft restored.";
   }
   $("other-activity").addEventListener("click", () => edit());
@@ -242,6 +272,8 @@ export function init(ctx) {
       a: $("entry-name").value,
       c: $("entry-cost").value,
       t: $("entry-time").value,
+      saveChoice: $("entry-save-choice").checked,
+      group: $("entry-group").value,
     }),
   );
   entryForm.addEventListener("submit", async (e) => {
@@ -267,6 +299,19 @@ export function init(ctx) {
       $("entry-msg").textContent = copy(
         "Use a name of 1–60 characters and whole-number points from −10 to 10.",
       );
+      return;
+    }
+    const saveChoice = !editing && $("entry-save-choice").checked;
+    const group = $("entry-group").value.trim();
+    const settings = ctx.store.view("settings"),
+      activities = ctx.settings().activities;
+    if (
+      saveChoice &&
+      (activities.some((x) => x.a.toLowerCase() === changes.a.toLowerCase()) ||
+        activities.length >= LIMITS.items)
+    ) {
+      $("entry-msg").textContent =
+        "This name already exists, or your activity list is full. Untick Also add to record it once, or edit your list in Account.";
       return;
     }
     const previous = editing,
@@ -305,6 +350,24 @@ export function init(ctx) {
           }
         : undefined,
     );
+    if (saveChoice) {
+      const added = { id: uid(), a: changes.a, c: changes.c, ...(group ? { g: group } : {}) };
+      const choice = ctx.store.dispatch({
+        id: "settings",
+        type: "settingsPatch",
+        arg: { activities: [...activities, added] },
+        before: { activities: settings?.activities },
+        original: settings,
+      });
+      choice.then(() => {
+        const failed = ctx.store.failures().some((f) => f.id === "settings");
+        ctx.toast(
+          failed
+            ? "Activity captured separately. Your reusable choice needs attention in Recovery."
+            : "Reusable activity choice queued separately; check saving status.",
+        );
+      });
+    }
     await ticket;
   });
   function entryAction(e) {
@@ -522,6 +585,7 @@ export function init(ctx) {
 
     renderActivities(S);
     renderOnboarding(S, past);
+    renderWeekly(past);
 
     $("activity-log").hidden = !d.entries.length;
     $("energy-activities").hidden = !d.entries.length;
@@ -540,6 +604,58 @@ export function init(ctx) {
     );
   }
 
+  function renderWeekly(past) {
+    const raw = ctx.store.view("settings"),
+      profile = normaliseProfile(raw?.profile),
+      today = ctx.today();
+    const weekday = (new Date(today + "T12:00:00Z").getUTCDay() + 6) % 7,
+      week = addDays(today, -weekday);
+    const to = addDays(today, -1),
+      from = addDays(to, -6),
+      data = historyInsights(ctx.store.all(), ctx.settings(), today, { from, to });
+    const visible =
+      !past &&
+      profile.weeklyReview &&
+      profile.reviewDismissedWeek !== week &&
+      data.metrics.checked >= 3;
+    $("weekly-review").hidden = !visible;
+    if (visible)
+      setHTML(
+        $("weekly-review"),
+        html`<h2>Look back at your week</h2><p>${data.metrics.checked} of 7 days with check-ins · ${data.metrics.episodes} episodes · ${data.days.reduce((n, d) => n + d.entries.length, 0)} activities recorded. ${data.metrics.checked < 5 ? "Limited records for this period. " : ""}These counts describe your log.</p><div class="row"><button class="primary" data-review-open>Review these seven days</button><button class="secondary" data-review-dismiss>Not this week</button><button class="secondary" data-review-disable>Turn off weekly reviews</button></div>`,
+      );
+  }
+  $("weekly-review").addEventListener("click", (e) => {
+    const raw = ctx.store.view("settings"),
+      profile = normaliseProfile(raw?.profile),
+      today = ctx.today();
+    const weekday = (new Date(today + "T12:00:00Z").getUTCDay() + 6) % 7;
+    if (e.target.closest("[data-review-open]")) {
+      ctx.store.dispatch({
+        id: "settings",
+        type: "settingsPatch",
+        arg: { profile: { ...profile, reviewDismissedWeek: addDays(today, -weekday) } },
+        before: { profile: raw?.profile },
+        original: raw,
+      });
+      const to = addDays(today, -1);
+      ctx.openHistoryPeriod(addDays(to, -6), to);
+    } else if (e.target.closest("[data-review-dismiss],[data-review-disable]")) {
+      const next = {
+        ...profile,
+        ...(e.target.closest("[data-review-disable]")
+          ? { weeklyReview: false }
+          : { reviewDismissedWeek: addDays(today, -weekday) }),
+      };
+      ctx.store.dispatch({
+        id: "settings",
+        type: "settingsPatch",
+        arg: { profile: next },
+        before: { profile: raw?.profile },
+        original: raw,
+      });
+    }
+  });
   function renderOnboarding(S, past) {
     const raw = ctx.store.view("settings"),
       ob = raw?.onboarding || {},
@@ -554,7 +670,7 @@ export function init(ctx) {
     if (!show) return;
     onboardingSeen = true;
     $("onboarding-title").textContent = done
-      ? "You're set up. See you tomorrow morning."
+      ? "Your first records are ready. Allowance review is optional."
       : "Get started in under a minute";
     $("step-checkin").classList.toggle("done", checked);
     $("step-activity").classList.toggle("done", logged);
@@ -564,6 +680,13 @@ export function init(ctx) {
 
   return {
     render,
+    reopenSetup() {
+      patchSettings({
+        onboarding: { ...(ctx.store.view("settings")?.onboarding || {}), dismissed: false },
+      });
+      onboardingSeen = true;
+      open(ctx.today());
+    },
     open,
     day: () => viewDate,
     snapshot: () => ({

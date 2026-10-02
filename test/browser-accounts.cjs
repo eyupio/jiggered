@@ -318,6 +318,17 @@ runBrowser(
     await join.locator("#password").fill("replacement-password1");
     await join.locator("#signin-form [type=submit]").click();
     await join.locator("#t-account").waitFor();
+    // Readiness-aware support actions are enabled only for protected accounts.
+    await join.locator("#t-account").click();
+    await join.locator("#security-status").filter({ hasText: "Password only" }).waitFor();
+    await join.locator("#security-password").fill("replacement-password1");
+    await join.locator("#security-start").click();
+    await join.locator("#security-setup").waitFor();
+    const memberSecret = await join.locator("#security-secret").textContent();
+    await join.locator("#security-password").fill("replacement-password1");
+    await join.locator("#security-code").fill(totp(memberSecret));
+    await join.locator("#security-enable").click();
+    await join.locator("#security-recovery").waitFor();
     const memberCookies = await context.cookies();
     await join.close();
     await context.clearCookies();

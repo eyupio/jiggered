@@ -142,8 +142,40 @@ function initAuth() {
       const value = await r.json().catch(() => ({}));
       message.textContent = value.message || value.error || "Request failed. Try again.";
       message.classList.toggle("err", !r.ok);
+      if (
+        !r.ok &&
+        (which === "verify" || which === "reset") &&
+        !form.querySelector("[data-new-link]")
+      ) {
+        const next = document.createElement("button");
+        next.type = "button";
+        next.className = "secondary";
+        next.dataset.newLink = "";
+        next.textContent = "Request a new link";
+        next.addEventListener("click", () => {
+          history.replaceState(null, "", "/login");
+          show(which === "reset" ? "forgot" : "register");
+        });
+        message.after(next);
+      }
       if (r.ok) {
+        if (which === "register" || which === "forgot") {
+          button.textContent = "Send another link";
+          message.textContent +=
+            " Check spam folders. To request another link, submit this form again; a newer link replaces the previous one.";
+        }
         success?.();
+        if (which === "verify" || which === "reset") {
+          button.hidden = true;
+          form.querySelectorAll("label,.password-toggle").forEach((el) => (el.hidden = true));
+          const next = document.createElement("button");
+          next.type = "button";
+          next.className = "primary";
+          next.textContent = "Sign in";
+          next.addEventListener("click", () => location.assign("/login"));
+          message.after(next);
+          next.focus();
+        }
         form.querySelectorAll("input[type=password]").forEach((el) => (el.value = ""));
       }
     } catch {

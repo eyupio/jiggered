@@ -84,6 +84,7 @@ export function init(ctx) {
     "Maintain shared defaults and support accounts",
     html`<p>Admin changes require your current password each time. Admin lets you create accounts, reset passwords, revoke sessions, change roles and disable or remove accounts. A new or reset temporary password is shown once; the person changes it at sign-in.</p><p>Shared product defaults set starting budgets and lists for new users. Reorder, add, edit or remove items in the same editor as personal settings, then save. Reload latest defaults after a conflicting change; your draft is kept.</p><p>Existing users keep personal choices unless they adopt shared defaults from Account. The final active admin cannot be removed or demoted. Activity records account-management events; it does not expose personal health logs.</p><p>Database backups contain everyone's data. Off-site backups & email lets you set up S3-compatible storage, scheduling, retention, verification and SMTP alerts. Test the saved configuration before relying on it. Registration and email recovery require working SMTP and a trusted public application URL. Keep the separate credential encryption key securely when restoring to another host. Connection settings should match your actual reverse-proxy setup.</p><button class="secondary" data-help-go="admin">Open Admin</button>`,
   ];
+  topics[0][3] = html`${topics[0][3]}<button class="secondary" data-help-setup>Review first-use setup</button>`;
   const list = $("help-topics"),
     search = $("help-search");
   const saved = ctx.ui?.get("help") || {};
@@ -121,6 +122,7 @@ export function init(ctx) {
   $("help-panel").addEventListener("click", (e) => {
     const b = e.target.closest("[data-help-go]");
     if (b) ctx.go(b.dataset.helpGo);
+    if (e.target.closest("[data-help-setup]")) ctx.reopenSetup();
   });
   function open(topic) {
     search.value = "";

@@ -7,7 +7,7 @@ export const securityMarkup = `<section class="panel" id="security-panel" aria-l
  <label>Your current password<input id="security-password" type="password" autocomplete="current-password" required></label>
  <div id="security-setup" hidden><p class="meta">1. Scan the QR code in your authenticator app, or enter the key manually.<br>2. Enter the app's six-digit code below, then confirm.</p><img class="security-qr" id="security-qr" alt="Authenticator setup QR code"><p class="security-secret" id="security-secret"></p></div>
  <label id="security-code-label" hidden>Authenticator or unused recovery code<input id="security-code" autocomplete="one-time-code" autocapitalize="none" spellcheck="false"></label>
- <div class="service-actions"><button class="primary" type="button" id="security-start" data-tooltip="A code must be confirmed before two-step verification is enabled. Recovery codes are shown once after setup.">Set up authenticator</button><button class="primary" type="button" id="security-enable" hidden>Confirm & enable</button><button class="secondary" type="button" id="security-regenerate" hidden>Create new recovery codes</button><button class="danger" type="button" id="security-disable" hidden>Disable two-step verification</button></div>
+ <div class="service-actions"><button class="primary" type="button" id="security-start" data-tooltip="A code must be confirmed before two-step verification is enabled. Recovery codes are shown once after setup.">Set up authenticator</button><button class="primary" type="button" id="security-enable" hidden>Confirm & enable</button><button class="secondary" type="button" id="security-cancel" hidden>Cancel setup</button><button class="secondary" type="button" id="security-regenerate" hidden>Create new recovery codes</button><button class="danger" type="button" id="security-disable" hidden>Disable two-step verification</button></div>
  <p class="msg" id="security-msg" role="status" aria-live="polite"></p></form>
  <div id="security-recovery" hidden><h3>Keep your recovery codes safe</h3><p class="meta">Each code works once if you lose access to your authenticator. These codes are shown only now. Store them privately; keep them separate from your password.</p><div id="security-codes" class="security-codes"></div><div class="service-actions"><button class="secondary" id="security-download" type="button">Download codes</button><button class="primary" id="security-hide" type="button">I've saved my codes</button></div></div>
  <button class="secondary small" id="security-refresh">Refresh security status</button>
@@ -33,6 +33,7 @@ export function initSecurity(ctx) {
     $("security-email-form").hidden = !r.data.email_available;
     $("security-start").hidden = enabled || pending;
     $("security-enable").hidden = !pending;
+    $("security-cancel").hidden = !pending;
     $("security-regenerate").hidden = !enabled;
     $("security-disable").hidden = !enabled;
     $("security-code-label").hidden = !enabled && !pending;
@@ -98,6 +99,7 @@ export function initSecurity(ctx) {
   for (const [id, act] of [
     ["start", "setup"],
     ["enable", "enable"],
+    ["cancel", "cancel"],
     ["regenerate", "regenerate"],
     ["disable", "disable"],
   ])
