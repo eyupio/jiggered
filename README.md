@@ -51,6 +51,17 @@ Account, 3 and 6 by default; shared defaults can set them too). The amount is st
 changing the setting later, or a day from before this existed, keeps the numbers it had. It stacks with poor sleep, and
 the day never goes below zero points available.
 
+### Optional spoon theory theme
+
+In **Account → Profile → Energy language**, choose **Spoons** and **Save profile**.
+Points remain the default. The spoon theory theme uses spoons for energy labels,
+activity costs, history and printed summaries, with a spoon visual for the daily
+budget. One spoon represents one point; the theme preserves budgets, calculations
+and historical values. It follows your private profile across devices and can be
+switched back at any time. Drafts follow the existing offline saving and recovery
+flow. JSON backups include the preference; CSV column names remain stable for
+existing spreadsheets.
+
 ### Staying where you were
 
 A browser refresh returns you to the same tab (it is in the address, so a link such as `/#history` opens that tab), the
@@ -521,12 +532,15 @@ admin password confirmation, copied-token revocation, reader-tab logout and revo
 npm install --no-save --package-lock=false playwright@1.56.1
 npx playwright install chromium
 node test/browser-today.cjs
+node test/browser-energy-theme.cjs
 node test/browser-history.cjs
 node test/browser-mobile.cjs
 node test/browser.cjs
 ```
 
-They build a temporary binary/database and clean them up. `JIGGERED_BROWSER_PATH` selects a preinstalled browser;
+The server walkthroughs build a temporary binary/database and clean them up.
+`test/browser-energy-theme.cjs` runs the real interface against an in-memory API fixture, checking keyboard selection,
+drafts, saving, another device, history/print language, mobile/dark layout and switching back without changing logs. `JIGGERED_BROWSER_PATH` selects a preinstalled browser;
 `JIGGERED_BROWSER_ARGS` is an optional JSON array of launch arguments (`browser.cjs`). `JIGGERED_SCREENSHOT_DIR` saves
 review screenshots (`browser.cjs`); `GO_BINARY` or `JIGGERED_TEST_BINARY` selects the build tool or an already-built app.
 The browser dependency is only for development and CI; it is not served or added to the container.

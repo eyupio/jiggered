@@ -1,5 +1,6 @@
 // Shared, non-interactive tooltips: hoverable, focusable triggers, Escape dismissal and tap help buttons.
 // Plain text only; critical guidance also lives in Help and beside the relevant fields.
+import { energyCopy, themeOf } from "./energy-theme.js";
 const HINTS = {
  "#svc-interval_hours":"Schedules from when enabled or changed; a manual backup also starts a fresh interval.",
  "#svc-keep":"Only this installation’s backup objects are pruned. Set 0 to keep every remote backup.",
@@ -41,7 +42,7 @@ const HINTS = {
   "[data-remove]": "Remove this preset from the draft. Save to apply; logged records stay unchanged.",
 };
 
-export function initTooltips() {
+export function initTooltips(ctx) {
   const tip = document.createElement("div");
   tip.id = "jiggered-tooltip"; tip.className = "tooltip"; tip.setAttribute("role", "tooltip"); tip.hidden = true;
   document.body.append(tip);
@@ -51,7 +52,7 @@ export function initTooltips() {
   function decorate(root) {
     for (const [selector, text] of Object.entries(HINTS)) {
       const nodes = [...root.querySelectorAll(selector)]; if (root.matches?.(selector)) nodes.push(root);
-      for (const el of nodes) { el.dataset.tooltip = text; el.removeAttribute("title") }
+      for (const el of nodes) { el.dataset.tooltip = text; if (/\bpoints?\b/i.test(text) && !el.closest("#admin-panel")) el.dataset.energyTooltip = text; el.removeAttribute("title") }
     }
   }
   function position() {
@@ -71,7 +72,7 @@ export function initTooltips() {
   }
   function show(el) {
     hide(); active = el; described.set(el,el.getAttribute("aria-describedby") || "");
-    tip.textContent = el.dataset.tooltip; tip.hidden = false;
+    tip.textContent = el.dataset.energyTooltip ? energyCopy(el.dataset.energyTooltip, themeOf(ctx)) : el.dataset.tooltip; tip.hidden = false;
     el.setAttribute("aria-describedby",[described.get(el),tip.id].filter(Boolean).join(" "));
     position();
   }

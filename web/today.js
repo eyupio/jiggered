@@ -1,15 +1,18 @@
 // The Today tab: morning check-in, the points gauge, tapping activities. It can also show and edit a past day.
 
+import { energyWords, energyAmount, energyCopy, themeOf, SPOON_PATH } from "./energy-theme.js";
 import { $, html, setHTML, uid, fmtLongDay } from "./util.js";
 import { renderOngoing } from "./episodes.js";
 import { PICKER, usage, favourites, groupItems, matches, selection } from "./picker.js";
 import { readableDay, identifyEntries, balanceLabel, ADVICE, dayId, emptyDay, used, capOf, hhmm, addDays, listDays } from "./model.js";
 
-const points = n => `${n} ${n === 1 ? "point" : "points"}`;
+
 const costLabel = c => c > 0 ? "−" + c : c < 0 ? "+" + -c : "0";
 const named = s => s[0].toUpperCase() + s.slice(1);
 
 export function init(ctx) {
+  const points = n => energyAmount(n, themeOf(ctx));
+  const copy = text => energyCopy(text, themeOf(ctx));
   let viewDate = null; // null follows the clock, so the screen moves on by itself at midnight
   let actsKey = "", editing = null, editingDate = "", query = "", groupFilter = ""; // groupFilter "" shows every group
   const more = new Map(), closed = new Set(); // per-group paging and the groups the person closed (all start open, so a new list shows buttons), kept while this tab is open
@@ -59,7 +62,7 @@ export function init(ctx) {
     patchSettings({ budget: n, sleepPenalty: Math.min(S.sleepPenalty, n), amberPenalty: Math.min(S.amberPenalty, n), redPenalty: Math.min(S.redPenalty, n), onboarding: { ...(ctx.store.view("settings")?.onboarding || {}), budget: true } });
     const today = dayId(ctx.today());
     if (ctx.store.view(today)) ctx.store.dispatch({ id: today, type: "restamp", arg: { budget: n, sleepPenalty: Math.min(S.sleepPenalty, n) } });
-    ctx.toast(`Daily points set to ${n}. Change it any time in Account.`);
+    ctx.toast(`Daily ${energyWords(themeOf(ctx)).plural} set to ${n}. Change it any time in Account.`);
   });
   $("act-filter").addEventListener("click", e => {
     const b = e.target.closest("[data-filter]");
@@ -118,7 +121,7 @@ export function init(ctx) {
     if (editingDate !== key()) { render(); ctx.toast("The day changed. Your unfinished activity is kept on the previous day."); return }
     const original = ctx.store.view(id());
     const changes = { a: $("entry-name").value.trim(), c: Number($("entry-cost").value), t: $("entry-time").value };
-    if (!changes.a || [...changes.a].length > 60 || !Number.isInteger(changes.c) || changes.c < -10 || changes.c > 10) { $("entry-msg").textContent = "Use a name of 1–60 characters and whole-number points from −10 to 10."; return }
+    if (!changes.a || [...changes.a].length > 60 || !Number.isInteger(changes.c) || changes.c < -10 || changes.c > 10) { $("entry-msg").textContent = copy("Use a name of 1–60 characters and whole-number points from −10 to 10."); return }
     const previous = editing, target = id(), stamp = { budget: ctx.settings().budget, sleepPenalty: ctx.settings().sleepPenalty };
     if (previous && !day().entries.some(x => x.id === previous.id)) { $("entry-msg").textContent = "This activity was removed. Cancel or log it as an Other activity."; return }
     const changed = previous ? Object.fromEntries(Object.entries(changes).filter(([k,v]) => v !== previous[k])) : changes;
@@ -154,9 +157,9 @@ export function init(ctx) {
     else render();
   });
 
-  const actButton = ({ item: x, i }) => html`<button class="act${x.c < 0 ? " rec" : ""}" data-i="${i}"><span>${x.a}</span><span class="c">${costLabel(x.c)}</span><span class="activity-add" aria-hidden="true"><span>Record</span><b>+</b></span></button>`;
+  const actButton = ({ item: x, i }) => html`<button class="act${x.c < 0 ? " rec" : ""}" data-i="${i}"><span>${x.a}</span><span class="c">${costLabel(x.c)}<span class="sr-only"> ${energyWords(themeOf(ctx)).plural}</span></span><span class="activity-add" aria-hidden="true"><span>Record</span><b>+</b></span></button>`;
   // An activity already logged on this day: green, how many times, and − / + to take one off or add another.
-  const selectedCard = (count, { item: x, i }) => html`<div class="act on${x.c < 0 ? " rec" : ""}"><span class="name">${x.a}</span><span class="c">${costLabel(x.c)}</span><span class="stepper"><button type="button" class="step" data-step="-1" data-i="${i}" aria-label="Remove one ${x.a}">−</button><b class="count" aria-label="${count} ${count === 1 ? "time" : "times"} logged">×${count}</b><button type="button" class="step" data-step="1" data-i="${i}" aria-label="Add one more ${x.a}">+</button></span></div>`;
+  const selectedCard = (count, { item: x, i }) => html`<div class="act on${x.c < 0 ? " rec" : ""}"><span class="name">${x.a}</span><span class="c">${costLabel(x.c)}<span class="sr-only"> ${energyWords(themeOf(ctx)).plural}</span></span><span class="stepper"><button type="button" class="step" data-step="-1" data-i="${i}" aria-label="Remove one ${x.a}">−</button><b class="count" aria-label="${count} ${count === 1 ? "time" : "times"} logged">×${count}</b><button type="button" class="step" data-step="1" data-i="${i}" aria-label="Add one more ${x.a}">+</button></span></div>`;
   // Long lists get a search box, a favourites row (most and latest used), sections by group and "Show more" paging.
   // Short lists look exactly as before. Buttons keep their index into the settings list, so tapping is unchanged.
   function renderActivities(S) {
@@ -173,7 +176,7 @@ export function init(ctx) {
     const sections = (q ? [{ key: "search", name: "", rows: found, size: PICKER.searchPage }]
       : groupFilter ? [{ key: "g:" + groupFilter, name: "", rows, size: PICKER.searchPage }]
       : all.map(g => ({ key: "g:" + g.name, name: g.name, rows: g.rows, size: PICKER.page }))).filter(s => s.rows.length || (!q && !groupFilter && !s.name));
-    const listKey = JSON.stringify([S.activities, q, groupFilter, favs.map(f => f.i), [...more], [...closed], long, selected.map(r => [r.i, count.get(r.item.a)])]);
+    const listKey = JSON.stringify([S.activities, themeOf(ctx), q, groupFilter, favs.map(f => f.i), [...more], [...closed], long, selected.map(r => [r.i, count.get(r.item.a)])]);
     if (listKey === actsKey) return; // only rebuild the buttons when something shown has changed
     actsKey = listKey;
     // One tap on a group narrows the list to it; tapping it again, or "All", brings everything back.
@@ -205,20 +208,21 @@ export function init(ctx) {
 
     const collapsed = !!d.status && !changing;
     $("checkin").hidden = collapsed; $("checkin-done").hidden = !collapsed;
-    if (collapsed) { const c = d.statusPenalty || 0; setHTML($("checkin-done-text"), html`<span class="dot ${d.status}"></span><b>${named(d.status)}</b> · ${c ? `−${points(c)}` : "full points"}`) }
+    if (collapsed) { const c = d.statusPenalty || 0; setHTML($("checkin-done-text"), html`<span class="dot ${d.status}"></span><b>${named(d.status)}</b> · ${c ? `−${points(c)}` : copy("full points")}`) }
     document.querySelectorAll("#checkin button").forEach(b => {
       b.setAttribute("aria-pressed", b.dataset.s === d.status);
       const cost = S[b.dataset.s + "Penalty"] || 0; // green never costs anything
-      b.querySelector(".cost").textContent = cost ? `−${points(cost)}` : "Full points";
+      b.querySelector(".cost").textContent = cost ? `−${points(cost)}` : copy("Full points");
     });
     const took = d.statusPenalty || 0;
     $("advice").textContent = d.status ? ADVICE[d.status] + (took ? ` ${d.status[0].toUpperCase() + d.status.slice(1)} takes ${points(took)} off ${past ? "this day" : "today"}.` : "") : past ? "No check-in for this day." : "How are you starting today? Pick one.";
     $("sleep").checked = !!d.poorSleep;
     const sleepCost = d.sleepPenalty ?? S.sleepPenalty, when = past ? "this day" : "today";
     $("sleep-title").textContent = past ? "Slept badly that night" : "Slept badly last night";
-    $("sleep-label").textContent = !sleepCost ? "Recorded only: costs no points" : d.poorSleep ? `Taking ${points(sleepCost)} off ${when}` : `Takes ${points(sleepCost)} off ${when}`;
+    $("sleep-label").textContent = !sleepCost ? copy("Recorded only: costs no points") : d.poorSleep ? `Taking ${points(sleepCost)} off ${when}` : `Takes ${points(sleepCost)} off ${when}`;
     setHTML($("left"), html`${left} <small>of ${cap}</small>`);
-    $("balance-label").textContent = balanceLabel(left, cap);
+    $("balance-label").textContent = copy(balanceLabel(left, cap));
+    document.querySelector(".energy-spoon").toggleAttribute("hidden", themeOf(ctx) !== "spoons");
     renderOngoing(ctx, $("today-ongoing"));
     $("spentline").textContent = spent >= 0 ? `${spent} spent` : `${-spent} recovered`;
 
@@ -227,7 +231,7 @@ export function init(ctx) {
     const fraction = cap > 0 ? Math.max(0, Math.min(1, left / cap)) : 0;
     $("energy-progress").setAttribute("stroke-dasharray", `${fraction * 100} 100`);
     $("energy-visual").dataset.level = left < 0 ? "over" : left === 0 ? "empty" : left <= 3 ? "low" : "ready";
-    $("energy-caption").textContent = left < 0 ? "Beyond your planned allowance" : left > cap ? "Recovery added points back" : left === 0 ? "Your balance, without judgement" : "Your own planning aid";
+    $("energy-caption").textContent = left < 0 ? "Beyond your planned allowance" : left > cap ? copy("Recovery added points back") : left === 0 ? "Your balance, without judgement" : "Your own planning aid";
     $("energy-entry-count").textContent = `${d.entries.length} ${d.entries.length === 1 ? "activity" : "activities"} logged`;
 
     const cells = $("cells");
@@ -235,7 +239,9 @@ export function init(ctx) {
     cells.style.gridTemplateColumns = `repeat(${Math.min(budget, 15)},1fr)`;
     while (cells.children.length < budget) cells.append(Object.assign(document.createElement("div"), { className: "cell" }));
     while (cells.children.length > budget) cells.lastChild.remove();
-    [...cells.children].forEach((c, i) => { c.className = i >= cap ? "cell lost" : i >= Math.max(0, left) ? "cell spent" : "cell" });
+    [...cells.children].forEach((c, i) => { if (themeOf(ctx) === "spoons" && !c.firstChild) setHTML(c, html`<svg viewBox="0 0 24 24"><path d="${SPOON_PATH}"/></svg>`);
+      else if (themeOf(ctx) !== "spoons") c.replaceChildren();
+      c.className = i >= cap ? "cell lost" : i >= Math.max(0, left) ? "cell spent" : "cell" });
     cells.className = "cells" + (left <= 0 ? " out" : left <= 3 ? " low" : "");
 
     renderActivities(S);
@@ -244,12 +250,12 @@ export function init(ctx) {
     $("activity-log").hidden = !d.entries.length;
     $("energy-activities").hidden = !d.entries.length;
     // Keep keyboard focus on unchanged pills when background sync re-renders Today.
-    const nextPillsKey = JSON.stringify([key(), d.entries]);
+    const nextPillsKey = JSON.stringify([key(), d.entries, themeOf(ctx)]);
     if (pillsKey !== nextPillsKey) {
       pillsKey = nextPillsKey;
-      setHTML($("energy-activity-pills"), html`${d.entries.map(e => html`<li class="energy-activity-pill${e.c < 0 ? " recovery" : ""}"><button type="button" class="energy-activity-edit" data-entry="${e.id}" data-action="edit" aria-label="Edit ${e.a}${e.t ? ` at ${e.t}` : ""}" title="Edit ${e.a}"><span class="energy-activity-name">${e.a}</span><span class="energy-activity-detail">${e.t ? html`<time>${e.t}</time>` : ""}<b>${costLabel(e.c)}<span class="sr-only"> points</span></b></span></button><button type="button" class="energy-activity-remove" data-entry="${e.id}" data-action="remove" aria-label="Remove ${e.a}${e.t ? ` at ${e.t}` : ""}" title="Remove ${e.a}"><span aria-hidden="true">×</span></button></li>`)}`);
+      setHTML($("energy-activity-pills"), html`${d.entries.map(e => html`<li class="energy-activity-pill${e.c < 0 ? " recovery" : ""}"><button type="button" class="energy-activity-edit" data-entry="${e.id}" data-action="edit" aria-label="Edit ${e.a}${e.t ? ` at ${e.t}` : ""}" title="Edit ${e.a}"><span class="energy-activity-name">${e.a}</span><span class="energy-activity-detail">${e.t ? html`<time>${e.t}</time>` : ""}<b>${costLabel(e.c)}<span class="sr-only"> ${energyWords(themeOf(ctx)).plural}</span></b></span></button><button type="button" class="energy-activity-remove" data-entry="${e.id}" data-action="remove" aria-label="Remove ${e.a}${e.t ? ` at ${e.t}` : ""}" title="Remove ${e.a}"><span aria-hidden="true">×</span></button></li>`)}`);
     }
-    setHTML($("entries"), html`${d.entries.map((e, i) => html`<li><div class="logged-activity"><span class="meta logged-time">${e.t || "Time not set"}</span><span class="logged-name">${e.a}</span><b class="logged-cost">${costLabel(e.c)}</b></div><div class="logged-actions"><button type="button" class="secondary logged-edit" data-entry="${e.id}" data-action="edit" aria-label="Edit ${e.a}">Edit</button><button type="button" class="secondary logged-remove" data-entry="${e.id}" data-action="remove" aria-label="Remove ${e.a}">Remove</button></div></li>`)}`);
+    setHTML($("entries"), html`${d.entries.map((e, i) => html`<li><div class="logged-activity"><span class="meta logged-time">${e.t || "Time not set"}</span><span class="logged-name">${e.a}</span><b class="logged-cost">${costLabel(e.c)}<span class="sr-only"> ${energyWords(themeOf(ctx)).plural}</span></b></div><div class="logged-actions"><button type="button" class="secondary logged-edit" data-entry="${e.id}" data-action="edit" aria-label="Edit ${e.a}">Edit</button><button type="button" class="secondary logged-remove" data-entry="${e.id}" data-action="remove" aria-label="Remove ${e.a}">Remove</button></div></li>`)}`);
   }
 
   function renderOnboarding(S, past) {

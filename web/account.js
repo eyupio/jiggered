@@ -1,5 +1,6 @@
 // The Account tab: who you are, your password, where you're signed in, your settings and your data.
 
+import { themeOf } from "./energy-theme.js";
 import { $, api, html, setHTML, appendHTML, describeUA, ago, saveFeedback, withBusy, downloadFile } from "./util.js";
 import { createEditor, editorMarkup } from "./editor.js";
 import { dayId, normaliseSettings, identifyActivities, defaultsGap, mergeDefaults } from "./model.js";
@@ -81,7 +82,7 @@ export function init(ctx) {
   let dirty = false, ticket = null, savedSettings = null, stampDone = false;
   const setDirty = v => { dirty = v; form.querySelector("[data-discard]").disabled = !v }; // nothing to discard until something is typed
   setDirty(false);
-  const editor = createEditor(form, "set", () => { setDirty(true); ctx.drafts?.put("settings", { value: editor.read(), baseline }) });
+  const editor = createEditor(form, "set", () => { setDirty(true); ctx.drafts?.put("settings", { value: editor.read(), baseline }) }, () => themeOf(ctx));
   const savedDraft = ctx.drafts?.get("settings");
   editor.fill(savedDraft?.value || savedDraft || baseline);
   if (savedDraft?.baseline) baseline = savedDraft.baseline; setDirty(!!savedDraft);
@@ -193,7 +194,7 @@ export function init(ctx) {
 
   return {
     render() { renderSettings(); profile.render() },
-    focus: key => editor.focus(key),
+    focus: key => { if (key === "profile-panel") { $(key).scrollIntoView({ block: "start" }); $("profile-form").elements.energyTheme[0].focus() } else editor.focus(key) },
     recover(value) { baseline = { ...ctx.settings(), activities: identifyActivities(ctx.settings().activities) }; editor.fill(normaliseSettings(value)); setDirty(true); ticket = null; ctx.drafts?.put("settings", { value: editor.read(), baseline }); say($("set-msg"), "Recovered copy opened. Save it, then resolve or discard the old recovery item."); editor.focus("set-acts"); if (value.profile) profile.recover(value.profile) },
     show() {
       if (!dirty && !ticket) { baseline = { ...ctx.settings(), activities: identifyActivities(ctx.settings().activities) }; editor.fill(baseline) }

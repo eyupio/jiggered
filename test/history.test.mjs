@@ -100,7 +100,7 @@ test("calendar colour modes distinguish unlogged, zero-point, recovery and episo
 });
 
 test("profile preferences normalise defensively and retain Unicode names", () => {
-  assert.deepEqual(normaliseProfile(), { displayName: "", focus: "", theme: "system", historyRange: "30" });
+  assert.deepEqual(normaliseProfile(), { displayName: "", focus: "", theme: "system", historyRange: "30", energyTheme: "points" });
   const p = normaliseProfile({ displayName: "  Paul Jennings  ", focus: "🙂".repeat(170), theme: "injected", historyRange: "7" });
   assert.equal(p.displayName, "Paul Jennings"); assert.equal([...p.focus].length, 160); assert.equal(p.theme, "system"); assert.equal(p.historyRange, "7");
   assert.equal(profileInitials("Paul Jennings"), "PJ"); assert.equal(profileInitials("🙂 Person"), "🙂P");

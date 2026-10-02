@@ -136,7 +136,7 @@ function fatal(text) {
     editSettings(section) { go("account"); views.account.focus(section) },
   };
   const notice = initDefaultsNotice(ctx, { canWrite: () => coordination.writable && !store.status().restoring });
-  const tooltips = initTooltips();
+  const tooltips = initTooltips(ctx);
   const views = {
     today: todayView.init(ctx), episode: episodesView.init(ctx), history: historyView.init(ctx),
     account: accountView.init(ctx), help: helpView.init(ctx),

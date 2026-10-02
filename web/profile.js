@@ -1,12 +1,13 @@
 // Personal profile shares the existing private settings document and operation/outbox semantics.
 import { $, html, setHTML, saveFeedback } from "./util.js";
 import { listDays, listEpisodes } from "./model.js";
+import { energyTheme, energyWords, applyEnergyTheme } from "./energy-theme.js";
 import { HISTORY_RANGES } from "./history-model.js";
 
 export function normaliseProfile(value) {
   const p = value && typeof value === "object" ? value : {};
   const text = (v, n) => typeof v === "string" ? [...v.trim()].slice(0, n).join("") : "";
-  return { displayName: text(p.displayName, 60), focus: text(p.focus, 160),
+  return { energyTheme: energyTheme(p), displayName: text(p.displayName, 60), focus: text(p.focus, 160),
     theme: ["system", "light", "dark"].includes(p.theme) ? p.theme : "system",
     historyRange: HISTORY_RANGES.some(([key]) => key === p.historyRange) ? p.historyRange : "30" };
 }
@@ -23,21 +24,28 @@ export function profileIdentity(ctx) {
   $("acc-badge").textContent = ctx.me.role === "admin" ? "Administrator" : "Personal account";
   $("who").textContent = name; $("who-initials").textContent = profileInitials(name);
   applyAppearance(p);
+  document.documentElement.dataset.energyTheme = p.energyTheme;
+  applyEnergyTheme(p.energyTheme);
 }
 
 export function initProfile(ctx) {
-  const form = $("profile-form"), fields = ["displayName", "focus", "theme", "historyRange"];
+  const form = $("profile-form"), fields = ["displayName", "focus", "theme", "historyRange", "energyTheme"];
   let baseline, dirty = false, ticket = null, submitted = null;
   const raw = () => ctx.store?.view("settings")?.profile;
   const read = () => Object.fromEntries(fields.map(k => [k, form.elements[k].value.trim()]));
-  const fill = value => { const p = normaliseProfile(value); for (const key of fields) form.elements[key].value = p[key]; count() };
+  const fill = value => { const p = normaliseProfile(value); for (const key of fields) form.elements[key].value = p[key]; count(); preview() };
+  function preview() {
+    const words = energyWords(form.elements.energyTheme.value);
+    $("energy-theme-preview").textContent = `8 ${words.plural} left today`;
+    $("energy-theme-preview").nextElementSibling.textContent = `A 2-${words.singular} activity leaves 6 ${words.plural}.`;
+  }
   function count() { $("profile-focus-count").textContent = `${[...form.elements.focus.value].length} / 160`; $("profile-discard").disabled = !dirty }
   setHTML($("profile-range"), html`${HISTORY_RANGES.map(([key, label]) => html`<option value="${key}">${label}</option>`)}`);
   baseline = raw(); const draft = ctx.drafts?.get("profile"); dirty = !!draft;
   if (draft) baseline = draft.baseline;
   fill(draft?.value || baseline);
   if (dirty) $("profile-msg").textContent = "Unfinished profile draft restored from this device.";
-  form.addEventListener("input", () => { dirty = true; count(); ctx.drafts?.put("profile", { value: read(), baseline }) });
+  form.addEventListener("input", () => { dirty = true; count(); preview(); ctx.drafts?.put("profile", { value: read(), baseline }) });
   $("profile-discard").addEventListener("click", () => {
     if (dirty && !confirm("Discard the unfinished profile draft?")) return;
     dirty = false; baseline = raw(); ctx.drafts?.remove("profile"); fill(baseline);
