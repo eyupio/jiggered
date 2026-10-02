@@ -369,9 +369,14 @@
 .app-shell .today-side {
   gap: 22px;
   position: static;
+  min-width: 0;
 }
 .app-shell .energy-panel {
   background: var(--surface);
+  min-width: 0;
+}
+.energy-activities {
+  min-width: 0;
 }
 .live-energy {
   position: relative;
@@ -455,6 +460,76 @@
 }
 .energy-summary .meta {
   font-size: 12px;
+}
+.energy-activities > .meta {
+  margin: 0 0 10px;
+  font-size: 12px;
+}
+.energy-activity-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.energy-activity-pill {
+  display: flex;
+  max-width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--bg);
+}
+.energy-activity-pill.recovery {
+  background: var(--accent-soft);
+}
+.app-shell .energy-activity-pill button {
+  background: transparent;
+  color: var(--fg);
+  border: 0;
+  min-height: 44px;
+  margin: 0;
+}
+.app-shell .energy-activity-edit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 10px 8px 15px;
+  border-radius: 24px 0 0 24px;
+  font-size: 12px;
+  text-align: left;
+}
+.energy-activity-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.energy-activity-detail {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.energy-activity-detail b {
+  color: var(--fg);
+}
+.app-shell .energy-activity-pill button.energy-activity-remove {
+  flex: 0 0 44px;
+  border-left: 1px solid var(--line);
+  border-radius: 0 24px 24px 0;
+  padding: 0;
+  font-size: 19px;
+  color: var(--muted);
+}
+.app-shell .energy-activity-pill button:hover {
+  background: var(--accent-soft);
+}
+.app-shell .energy-activity-remove:hover {
+  color: var(--red);
 }
 .app-shell .cells {
   gap: 4px;
