@@ -72,6 +72,7 @@ const EPISODES = 900;
       window.__rebuilds = 0;
       new MutationObserver(() => { window.__rebuilds++; }).observe(document.getElementById('history-charts'), { childList: true });
     });
+    await page.evaluate(() => { document.getElementById('history-filter-panel').open = true });
     await page.locator('#hist-query').click();
     await page.keyboard.type('walk', { delay: 40 });
     assert.equal((await page.locator('#history-count').textContent()).trim(), 'Updating…', 'it says it is working while it waits for a pause');

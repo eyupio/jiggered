@@ -11,6 +11,7 @@ import * as accountView from "./account.js";
 import * as helpView from "./help.js";
 import { initTooltips } from "./tooltips.js";
 import { initDefaultsNotice } from "./defaults-notice.js";
+import { profileInitials } from "./profile.js";
 // admin.js is only loaded, and its tab only created, for admins: see syncAdmin
 
 const ME_KEY = "jiggered:me";
@@ -43,7 +44,7 @@ function fatal(text) {
   if (me === SIGN_IN) return;
   if (!me) { fatal("Can't reach the server, and nobody has signed in on this device yet. Connect once to get started."); return }
   setPageUser(me.id);
-  $("who").textContent = me.username;
+  $("who").textContent = me.username; $("who-initials").textContent = profileInitials(me.username);
   $("today").textContent = fmtLongDay(dkey(new Date()), "en-GB");
 
   // A temporary password was just handed out: nothing else works until it is changed.
@@ -52,8 +53,10 @@ function fatal(text) {
     document.querySelectorAll("section[id$=-panel]").forEach(p => { p.hidden = p.id !== "account-panel" });
     document.querySelectorAll("#account-panel > .panel:not(#pw-panel)").forEach(p => { p.hidden = true });
     $("sync").hidden = true;
+    document.querySelectorAll("header [data-help]").forEach(b => { b.hidden = true }); // nothing to open until the password is changed
     $("banner").hidden = false;
-    $("banner").textContent = "Choose a new password to continue. The one you were given was only temporary.";
+    $("banner").classList.add("welcome");
+    $("banner").textContent = "Welcome to Jiggered. Choose a new password to continue (the one you were given was only temporary), then you'll do a ten-second morning check-in.";
     $("account-panel").hidden = false;
     accountView.init({ me, settings: () => normaliseSettings(), store: null, today: () => dkey(new Date()) });
     $("pw-cur").focus();
@@ -79,7 +82,7 @@ function fatal(text) {
   for (const type of ["click","submit","input","change","pointerdown","keydown"]) document.addEventListener(type, e => {
     if (!store.status().readOnly && !store.status().restoring) return;
     const target = e.target;
-    const safe = target.closest?.("#tabs,#signout,#help-panel,[data-help],.help-tip,.daynav,#history-panel,#account-shortcuts,#export-device,#export-all,#day-back,[data-settings],#entry-cancel,#tab-reload");
+    const safe = target.closest?.("#tabs,#signout,#account-menu,#help-panel,[data-help],.help-tip,.daynav,#history-panel,#account-shortcuts,#export-device,#export-all,#day-back,[data-settings],#entry-cancel,#tab-reload");
     if (safe) return;
     if (target.closest?.("button,input,textarea,select,form,.drag-handle")) { e.preventDefault(); e.stopImmediatePropagation() }
   },true);
@@ -117,22 +120,22 @@ function fatal(text) {
     },
     toast,
     go,
+    back() { go(views[beforeHelp] && beforeHelp !== "help" ? beforeHelp : "today") },
     leave() { leaving = true; store.clear(); drafts.clear(); forget(); try { sessionStorage.removeItem(`jiggered:nav:${me.id}`) } catch { /* nothing to clear */ } location.href = "/login" }, // wipe this device's copy, then go to the sign-in page
     openDay(date) { go("today"); views.today.open(date) },
     editEpisode(id) { views.episode.edit(id) },
     editSettings(section) { go("account"); views.account.focus(section) },
   };
   const notice = initDefaultsNotice(ctx, { canWrite: () => coordination.writable && !store.status().restoring });
-  const hintKey = `jiggered:onboarding:${me.id}:${me.username}`;
-  $("onboarding-dismiss").addEventListener("click", () => { $("onboarding").hidden = true; try { Promise.resolve(storage?.setItem(hintKey, "dismissed")).catch(() => {}) } catch { /* harmless preference */ } });
   const tooltips = initTooltips();
   const views = {
     today: todayView.init(ctx), episode: episodesView.init(ctx), history: historyView.init(ctx),
     account: accountView.init(ctx), help: helpView.init(ctx),
   };
 
-  let active = "today", historyScroll = 0;
+  let active = "today", historyScroll = 0, beforeHelp = "today";
   function go(tab) {
+    if (tab === "help" && active !== "help") beforeHelp = active;
     if (active === "history" && tab !== active) historyScroll = window.scrollY;
     if (!views[tab]) tab = "today"; // e.g. the Admin tab of someone who has just stopped being an admin
     if (tab !== active && views[active] && views[active].hide) views[active].hide();
@@ -143,7 +146,7 @@ function fatal(text) {
     for (const b of document.querySelectorAll("#tabs button")) { b.setAttribute("aria-selected", b.dataset.tab === tab); b.tabIndex = b.dataset.tab === tab ? 0 : -1 }
     for (const t of Object.keys(views)) $(t + "-panel").hidden = t !== tab;
     views[tab].show();
-    $("t-" + tab).scrollIntoView({ block: "nearest", inline: "nearest" }); // on a narrow phone the tab bar scrolls sideways
+    $("t-" + tab)?.scrollIntoView({ block: "nearest", inline: "nearest" }); // Help has no tab of its own // on a narrow phone the tab bar scrolls sideways
     scrollTo(0, tab === "history" ? historyScroll : 0);
   }
   const renderActive = () => { accountView.identity(ctx); notice.update(); views[active] && views[active].render() };
@@ -156,6 +159,13 @@ function fatal(text) {
     const next = e.key === "Home" ? 0 : e.key === "End" ? buttons.length - 1 : (i + (e.key === "ArrowRight" ? 1 : -1) + buttons.length) % buttons.length;
     go(buttons[next].dataset.tab); buttons[next].focus();
   });
+  // The account menu closes when something in it is chosen, or on a tap anywhere else.
+  document.addEventListener("click", e => {
+    const menu = $("account-menu");
+    if (menu.open && !e.target.closest("#account-menu summary")) menu.open = false;
+    const goto = e.target.closest("[data-menu-go]"); if (goto) { go(goto.dataset.menuGo); return }
+  }, true);
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && $("account-menu").open) { $("account-menu").open = false; $("account-menu").querySelector("summary").focus() } });
   document.addEventListener("click", e => {
     const help = e.target.closest("[data-help]"); if (help) { views.help.open(help.dataset.help); return }
     const settings = e.target.closest("[data-settings]"), finish = e.target.closest("[data-finish-episode]");
@@ -314,5 +324,5 @@ function fatal(text) {
   notice.update();
   restorePlace();
   // Freeze the starting defaults into this account so future shared edits do not replace personal choices.
-  if (coordination.writable && defaultsTag && store.status().loaded && !store.view("settings")) { $("onboarding").hidden = storage?.getItem(hintKey) === "dismissed"; store.dispatch({ id: "settings", type: "replace", arg: normaliseSettings(sharedDefaults) }) }
+  if (coordination.writable && defaultsTag && store.status().loaded && !store.view("settings")) store.dispatch({ id: "settings", type: "replace", arg: normaliseSettings(sharedDefaults) })
 })();

@@ -9,8 +9,15 @@ export function renderOngoing(ctx, el) {
   setHTML(el, html`<h2>Still going (${items.length})</h2>${items.slice(0, 10).map(([id, e]) => html`<p>${e.when.replace("T", " ")} · ${e.symptoms.join(", ") || "Episode"} <button class="secondary" data-finish-episode="${id}">Record when it ended</button></p>`)}${items.length > 10 ? html`<p>More ongoing episodes are in History.</p>` : ""}`);
 }
 
+// "Still going" is only a sensible default for something that started just now; for anything older the person chooses.
+export function defaultDuration(when, now = new Date()) {
+  const start = new Date(when);
+  return Number.isFinite(start.getTime()) && now - start >= -60_000 && now - start <= 30 * 60_000 ? "Still going" : "";
+}
+
 export function init(ctx) {
   const find = { sym: { q: "", all: false, group: "" }, trig: { q: "", all: false, group: "" } }; // search text, "show all" and chosen group per long list
+  let durChosen = false; // the person picked a duration themselves, so a changed start time no longer re-defaults it
   let editing = null, dirty = false, chipsKey = "", ticket = null, original = {}, submitted = null;
   const form = $("epform"), drafts = ctx.drafts;
   const slot = () => editing ? `episode-edit:${editing}` : "episode-new";
@@ -62,8 +69,8 @@ export function init(ctx) {
     chips("ep-sym", S.symptoms, "sym", "checkbox", ep?.symptoms || [], undefined, fs, S.symptomGroups);
     chips("ep-onset", ONSET, "onset", "radio");
     chips("ep-trig", S.triggers, "trig", "checkbox", ep?.before || [], undefined, ft, S.triggerGroups);
-    const current = $("ep-dur").value || DURATIONS[0];
-    setHTML($("ep-dur"), html`${[...new Set([...DURATIONS, ...(ep?.duration ? [ep.duration] : [])])].map(d => html`<option>${d}</option>`)}`);
+    const current = $("ep-dur").value;
+    setHTML($("ep-dur"), html`<option value="" disabled>Choose how long it lasted</option>${[...new Set([...DURATIONS, ...(ep?.duration ? [ep.duration] : [])])].map(d => html`<option>${d}</option>`)}`);
     $("ep-dur").value = current;
   }
   function fill(value) {
@@ -74,13 +81,13 @@ export function init(ctx) {
       const values = name === "sym" ? ep.symptoms : name === "trig" ? ep.before : [ep.onset];
       form.querySelectorAll(`input[name=${name}]`).forEach(i => { i.checked = values.includes(i.value) });
     }
-    $("ep-dur").value = ep.duration || DURATIONS[0];
+    $("ep-dur").value = ep.duration || defaultDuration($("ep-when").value);
     $("ep-ended").value = ep.endedAt || "";
     $("ep-notes").value = ep.notes;
     narrow("sym"); narrow("trig");
   }
   function restore(id = null) {
-    editing = id; ticket = null; submitted = null;
+    editing = id; ticket = null; submitted = null; durChosen = false;
     for (const name of ["sym", "trig"]) { find[name].q = ""; find[name].all = false; find[name].group = "" }
     const draft = drafts?.get(slot());
     original = draft?.original || (id ? ctx.store.view(id) || {} : {});
@@ -126,6 +133,8 @@ export function init(ctx) {
     });
     $(`ep-${name}-more`).addEventListener("click", () => { find[name].all = !find[name].all; narrow(name) });
   }
+  $("ep-dur").addEventListener("change", () => { durChosen = true });
+  $("ep-when").addEventListener("change", () => { if (!editing && !durChosen) { $("ep-dur").value = defaultDuration($("ep-when").value); renderEnd() } });
   form.addEventListener("change", e => { if (e.target.name === "sym" || e.target.name === "trig") narrow(e.target.name) });
   form.addEventListener("input", e => { if (e.target.type === "search") return; if (ticket && ctx.store.outcome(ticket.n) === "failed") ticket = submitted = null; dirty = true; remember(); render() });
   $("episode-draft-list").addEventListener("click", e => { const b = e.target.closest("[data-draft]"); if (!b) return; remember(); restore(b.dataset.draft === "episode-new" ? null : b.dataset.draft.slice(13)) });
@@ -138,6 +147,7 @@ export function init(ctx) {
     e.preventDefault();
     if (ticket || !editing && !dirty) return;
     const value = body();
+    if (!value.duration) { $("eptoast").textContent = "Choose how long it lasted, or Still going if it hasn't stopped."; $("ep-dur").focus(); return }
     if (value.duration === "Still going") value.endedAt = "";
     const timeError = validateEpisodeTimes(value, original);
     if (timeError) { $("eptoast").textContent = timeError[1]; $(timeError[0]).focus(); return }
@@ -152,7 +162,7 @@ export function init(ctx) {
     ticket = ctx.store.dispatch({ id, type: editing ? "patch" : "replace", arg: patch, ...(editing ? { original, before: Object.fromEntries(Object.keys(patch).map(k => [k,original[k]])) } : {}) });
     submitted = { id, n: ticket.n }; remember(); render(); ticket.then(() => render());
   });
-  function renderEnd() { $("ep-ended-row").hidden = $("ep-dur").value === "Still going" }
+  function renderEnd() { $("ep-ended-row").hidden = !$("ep-dur").value || $("ep-dur").value === "Still going" }
   function render() {
     build(editing ? original : null); renderEnd();
     $("ep-when").max = !editing || !Number.isFinite(original.whenOffset) ? nowLocal() : "";
@@ -170,5 +180,5 @@ export function init(ctx) {
     renderOngoing(ctx, $("episode-ongoing"));
   }
   restore();
-  return { render, edit, recover: (id, value) => edit(id, value), show() { if (!editing && !dirty) $("ep-when").value = nowLocal(); render() }, hide: remember };
+  return { render, edit, recover: (id, value) => edit(id, value), show() { if (!editing && !dirty) { $("ep-when").value = nowLocal(); if (!durChosen) $("ep-dur").value = defaultDuration($("ep-when").value) } render() }, hide: remember };
 }

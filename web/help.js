@@ -30,6 +30,7 @@ export function init(ctx) {
   };
   search.addEventListener("input", filter);
   $("help-clear").addEventListener("click", () => { search.value = ""; filter(); search.focus() });
+  $("help-back").addEventListener("click", () => ctx.back());
   $("help-panel").addEventListener("click", e => { const b = e.target.closest("[data-help-go]"); if (b) ctx.go(b.dataset.helpGo) });
   function open(topic) {
     search.value = ""; filter(); ctx.go("help");

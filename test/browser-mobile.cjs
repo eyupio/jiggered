@@ -58,7 +58,7 @@ const openKeys = page => page.evaluate(() => [...document.querySelectorAll('#set
 
     // 2. A shortcut from Today opens the list it names and no other, with focus inside it.
     await page.locator('#t-today').click();
-    await page.locator('#today-panel [data-settings="set-acts"]').first().click();
+    await page.locator('#today-panel [data-settings="set-acts"]:visible').first().click();
     await page.waitForFunction(() => document.querySelector('#settings-panel details[data-section="acts"]')?.open);
     assert.deepEqual(await openKeys(page), ['acts'], 'only Activities opened');
     assert.equal(await page.evaluate(() => !!document.activeElement?.closest('details[data-section="acts"]')), true, 'focus is inside the Activities list');
@@ -104,20 +104,22 @@ const openKeys = page => page.evaluate(() => [...document.querySelectorAll('#set
     assert.match(await page.locator('#history-insights').textContent(), /Patterns need at least a few/, 'a nearly empty history shows the short note, not the full insight cards');
     const historyHeight = await page.evaluate(() => document.documentElement.scrollHeight);
 
+    await page.evaluate(() => { document.getElementById('history-filter-panel').open = true });
     await page.locator('#hist-query').fill('walk');
     await page.waitForFunction(() => !/Updating/.test(document.getElementById('history-count').textContent));
-    const nav = () => page.evaluate(() => document.querySelector('nav').getBoundingClientRect().bottom);
+    // The tab bar is at the top on wide screens and along the bottom on phones; either way a heading must be clear of it.
+    const nav = () => page.evaluate(() => { const n = document.querySelector('nav').getBoundingClientRect(); return n.top > innerHeight / 2 ? 0 : n.bottom });
     for (const [target, panel] of [['history-records', '#history-records'], ['history-share', '#history-share']]) {
       await page.locator(`#history-shortcuts [data-history-target="${target}"]`).click();
       // On screen and clear of the tab bar. The last panel may stay lower down: the page cannot scroll past its end.
-      await page.waitForFunction(sel => { const r = document.querySelector(sel + ' h2').getBoundingClientRect(); return r.top >= document.querySelector('nav').getBoundingClientRect().bottom && r.top < window.innerHeight - 40 }, panel, { timeout: 5000 });
+      await page.waitForFunction(sel => { const r = document.querySelector(sel + ' h2').getBoundingClientRect(); const n = document.querySelector('nav').getBoundingClientRect(), low = n.top > innerHeight / 2; return r.top >= (low ? 0 : n.bottom) && r.top < (low ? n.top : innerHeight) - 40 }, panel, { timeout: 5000 });
       const top = await page.evaluate(sel => document.querySelector(sel + ' h2').getBoundingClientRect().top, panel);
       assert.ok(top >= (await nav()), `the ${target} heading (top ${Math.round(top)}) is not hidden under the sticky tab bar`);
       assert.equal(await page.evaluate(sel => document.activeElement === document.querySelector(sel + ' h2'), panel), true, 'focus moves to the heading');
       assert.equal(await page.locator('#hist-query').inputValue(), 'walk', 'the search is still there after jumping');
     }
     await page.locator('#history-shortcuts [data-history-target="trends-panel"]').click();
-    await page.waitForFunction(() => { const t = document.getElementById('trends-panel').getBoundingClientRect().top; return t >= document.querySelector('nav').getBoundingClientRect().bottom && t < window.innerHeight - 40 });
+    await page.waitForFunction(() => { const t = document.getElementById('trends-panel').getBoundingClientRect().top; const n = document.querySelector('nav').getBoundingClientRect(), low = n.top > innerHeight / 2; return t >= (low ? 0 : n.bottom) && t < (low ? n.top : innerHeight) - 40 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false, 'no horizontal overflow on History');
 
     // 6. An offline episode save, then the connection returns while the page reloads: the save may finish before the

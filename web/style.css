@@ -22,25 +22,24 @@
 *{box-sizing:border-box}
 [hidden]{display:none !important} /* section{display:grid} would otherwise outrank the browser's own [hidden] rule and show every tab at once */
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.45}
-.wrap{max-width:560px;margin:0 auto;padding-inline:16px;padding-block:12px 48px}
-header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.wrap{max-width:1120px;margin:0 auto;padding-inline:16px;padding-block:max(12px, env(safe-area-inset-top, 0px)) 48px}
+header{position:relative;display:flex;justify-content:space-between;align-items:center;gap:12px}
 h1{font-family:var(--display);font-size:1.6rem;margin:0;text-wrap:balance}
 h2{font-family:var(--display);font-size:1.15rem;margin:0 0 10px}
-.date{color:var(--muted);font-size:.9rem}
-nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;gap:6px;padding-block:10px;margin-top:6px}
-nav button{flex:1;font:inherit;font-weight:700;padding:10px 6px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.date{display:block;color:var(--muted);font-size:.9rem}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;gap:6px;padding-block:10px;margin-top:6px;overflow-x:auto;scrollbar-width:none}
+nav button{flex:1 0 auto;font:inherit;font-size:.9rem;font-weight:700;padding:10px 12px;white-space:nowrap;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
 nav button[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--bg)}
 section{display:grid;gap:18px}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:12px;align-content:start}
 .label{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
 .checkin{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.checkin button{font:inherit;padding:12px 6px;border-radius:10px;border:2px solid var(--line);background:transparent;color:var(--fg);cursor:pointer;display:grid;gap:2px;justify-items:center}
-.checkin button b{font-size:1rem}
-.checkin button small{color:var(--muted);font-size:.75rem}
+.checkin button{font:inherit;padding:12px 4px;border-radius:10px;border:2px solid var(--line);background:transparent;color:var(--fg);cursor:pointer;display:grid;gap:6px;justify-items:center;align-content:start;text-align:center}
+.checkin button b{font-size:1rem;display:inline-flex;align-items:center;gap:6px}
 .checkin button[data-s="green"][aria-pressed="true"]{border-color:var(--green);background:color-mix(in srgb,var(--green) 14%,transparent)}
 .checkin button[data-s="amber"][aria-pressed="true"]{border-color:var(--amber);background:color-mix(in srgb,var(--amber) 14%,transparent)}
 .checkin button[data-s="red"][aria-pressed="true"]{border-color:var(--red);background:color-mix(in srgb,var(--red) 14%,transparent)}
-.advice{margin:10px 0 0;font-size:.9rem;color:var(--muted)}
+.advice{margin:10px 0 0;font-size:.95rem;color:var(--fg);min-height:2.9em}
 .gauge-head{display:flex;justify-content:space-between;align-items:end;gap:8px}
 .big{font-family:var(--display);font-size:2.6rem;line-height:1;font-variant-numeric:tabular-nums}
 .big small{font-size:1rem;color:var(--muted);font-family:var(--body)}
@@ -98,9 +97,8 @@ textarea{min-height:70px;resize:vertical}
 .primary{font:inherit;font-weight:700;padding:12px;border-radius:10px;border:0;background:var(--accent);color:var(--bg);cursor:pointer}
 .warn{border-left:4px solid var(--red);padding:10px 12px;background:color-mix(in srgb,var(--red) 9%,transparent);border-radius:8px;font-size:.9rem}
 .toast{color:var(--green);font-weight:700;min-height:1.2em;margin:0}
-.strip{display:grid;grid-template-columns:repeat(14,1fr);gap:3px}
-.strip div,.strip button{aspect-ratio:1;max-width:100%;border-radius:4px;background:var(--spent);border:0;padding:0}
-.strip button{cursor:pointer}
+.strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:.4rem}
+.strip button{min-height:48px;max-width:100%;border-radius:4px;background:var(--spent);border:0;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.3rem;color:#142a22;font-size:.85rem}
 .strip .green{background:var(--green)}.strip .amber{background:var(--amber)}.strip .red{background:var(--red)}
 .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:var(--spent)}
 .dot.green{background:var(--green)}.dot.amber{background:var(--amber)}.dot.red{background:var(--red)}
@@ -108,15 +106,14 @@ textarea{min-height:70px;resize:vertical}
 .ep:last-child{border-bottom:0}
 .ep b{font-variant-numeric:tabular-nums}
 .meta{color:var(--muted);font-size:.85rem}
-.sync{font-size:.8rem;color:var(--muted)}
+.sync{color:var(--muted);transition:opacity .2s ease}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}.act:active{transform:none}}
 /* Self-hosted additions */
-.wrap{padding-top:max(12px, env(safe-area-inset-top, 0px))}
 .head-actions{display:flex;gap:8px;align-items:center}
 .ghost{font:inherit;font-size:.85rem;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer;text-decoration:none}
 .ghost:hover{color:var(--fg)}
-.login{min-height:100vh;display:grid;place-items:center;padding-inline:16px}
+.login{min-height:100vh;display:grid;place-items:center;align-content:center;gap:12px;padding-inline:16px}
 .login .panel{width:100%;max-width:380px;display:grid;gap:16px}
 .login label{display:grid;gap:6px;font-weight:700}
 .login input{font:inherit;width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
@@ -125,14 +122,11 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .tag{color:var(--muted);margin:0;font-size:.95rem}
 #checkin{margin-top:8px}
 .strip-note{margin:8px 0 0}
-.date{display:block}
 .login .brand{width:56px;height:56px;border-radius:14px;margin-bottom:10px}
 .title{display:flex;gap:10px;align-items:center}.title img{border-radius:9px}
 
 /* Accounts, settings, admin and history extras */
-nav{overflow-x:auto;scrollbar-width:none}
 nav::-webkit-scrollbar{display:none}
-nav button{flex:1 0 auto;font-size:.9rem;padding:10px 12px;white-space:nowrap} /* never squeezed: on a very narrow phone the bar scrolls sideways instead */
 @media (max-width:380px){nav button{font-size:.84rem;padding-inline:8px}}
 button:disabled{opacity:.5;cursor:default}
 input[type=text],input[type=password],input[type=number],input[type=date],input[type=time],input[type=file]{font:inherit;width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
@@ -140,11 +134,11 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 .who{color:var(--muted);font-size:.85rem}
 .banner{margin-top:10px;padding:10px 12px;border-radius:10px;border-left:4px solid var(--amber);background:color-mix(in srgb,var(--amber) 12%,transparent);font-size:.92rem}
 .notice{margin:0;font-size:.9rem;color:var(--muted)}
-.daynav{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:10px 12px}
-.daynav .mid{display:grid;justify-items:center;gap:4px;min-width:0}
+.daynav{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.daynav .mid{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px 10px;min-width:0}
 .daynav b{font-family:var(--display)}
 .daynav input[type=date]{width:auto;max-width:100%;padding:6px 8px;font-size:.9rem}
-.daynav .ghost{font-size:1.2rem;padding:4px 12px}
+.daynav .ghost{font-size:1.2rem;padding:4px 12px;min-width:44px;min-height:44px}
 .timerow{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:.9rem;color:var(--muted)}
 .timerow input{width:auto}
 .field{display:grid;gap:6px;font-weight:700;font-size:.95rem}
@@ -152,7 +146,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 .hint{margin:0;color:var(--muted);font-size:.85rem}
 .msg{margin:0;min-height:1.2em;font-weight:700;color:var(--green)}
 .msg.err{color:var(--red)}
-.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .row select{flex:1;min-width:0;width:auto}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .radio{display:flex;gap:8px;align-items:center;font-size:.92rem}
@@ -185,7 +179,6 @@ ul.audit li{display:grid;gap:2px;justify-content:stretch;font-size:.88rem}
 .toastbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));max-width:min(92vw,520px);background:var(--fg);color:var(--bg);padding:10px 14px;border-radius:12px;display:flex;gap:12px;align-items:center;z-index:20;font-size:.92rem;box-shadow:0 4px 18px rgba(0,0,0,.25)}
 .toastbar[hidden]{display:none}
 .toastbar button{font:inherit;font-weight:700;background:none;border:0;color:var(--accent-soft);cursor:pointer;text-decoration:underline}
-.sync{text-align:center;margin:18px 0 0}
 .fatal{margin:40px 0;text-align:center}
 
 /* The doctor's summary: hidden on screen, shown alone only while printing it */
@@ -208,7 +201,7 @@ ul.audit li{display:grid;gap:2px;justify-content:stretch;font-size:.88rem}
 
 /* Ordered settings: one stable row layout, generous touch handles, clear drag/drop feedback. */
 .ordered-list { display:grid; gap:.5rem; margin-bottom:.75rem }
-.order-row { display:flex; align-items:center; gap:.45rem; border:1px solid var(--line,#d5ddd8); border-radius:.65rem; background:var(--surface); padding:.45rem }
+.order-row { display:flex; align-items:center; gap:.45rem; border:1px solid var(--line); border-radius:.65rem; background:var(--surface); padding:.45rem }
 .order-row > input[type=text] { min-width:0; flex:1; width:0 }
 .order-row .order-cost { width:4.5rem; flex:0 0 4.5rem }
 .drag-handle { min-width:44px; min-height:44px; padding:.25rem; cursor:grab; touch-action:none; font-size:1.6rem; color:var(--accent); background:transparent; border:0; border-radius:.4rem }
@@ -217,22 +210,19 @@ ul.audit li{display:grid;gap:2px;justify-content:stretch;font-size:.88rem}
 .order-actions button { min-height:44px; min-width:40px; padding:.25rem; font-size:1rem; text-decoration:none; border-radius:.4rem }
 .order-actions button:hover:not(:disabled) { background:var(--accent-soft); color:var(--accent) }
 .drop-placeholder { outline:2px dashed var(--accent); opacity:.45 }
-.drag-preview { position:fixed; z-index:10000; pointer-events:none; box-shadow:0 12px 32px #163d3b40; transform:rotate(1deg); opacity:.96 }
-[aria-invalid=true] { outline:2px solid #a73131; outline-offset:2px }
+.drag-preview { position:fixed; z-index:10000; pointer-events:none; box-shadow:0 12px 32px color-mix(in srgb,var(--fg) 25%,transparent); transform:rotate(1deg); opacity:.96 }
+[aria-invalid=true] { outline:2px solid var(--red); outline-offset:2px }
 .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap }
-.recovery { border:2px solid #a73131 }
-.recovery-item { margin-top:1rem; border-top:1px solid #d5ddd8; padding-top:.75rem; overflow-wrap:anywhere }
-.sync { margin:.5rem 0 1rem; font-size:.95rem; text-align:left }
+.recovery { border:2px solid var(--red) }
+.recovery-item { margin-top:1rem; border-top:1px solid var(--line); padding-top:.75rem; overflow-wrap:anywhere }
 .filters { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.75rem }
 .filters .field { margin:0 }
-.strip { grid-template-columns:repeat(7,minmax(0,1fr)); gap:.4rem }
-.strip button { min-height:48px; height:auto; aspect-ratio:auto; display:flex; align-items:center; justify-content:center; gap:.3rem; color:#142a22; font-size:.85rem }
 .strip button.red { color:#fff }
 .strip button:not(.green):not(.amber):not(.red) { color:var(--fg) }
 input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--fg) }
-#summary-preview { max-height:26rem; overflow:auto; margin-top:1rem; border:1px solid #d5ddd8; padding:.75rem }
+#summary-preview { max-height:26rem; overflow:auto; margin-top:1rem; border:1px solid var(--line); padding:.75rem }
 #summary-preview table { border-collapse:collapse; font-size:.85rem }
-#summary-preview td,#summary-preview th { border:1px solid #d5ddd8; padding:.35rem; text-align:left }
+#summary-preview td,#summary-preview th { border:1px solid var(--line); padding:.35rem; text-align:left }
 #reveal-pw { white-space:pre-wrap; overflow-wrap:anywhere }
 @media(max-width:480px) { .order-row { flex-wrap:wrap } .order-row > input[type=text] { flex-basis:calc(100% - 60px) } .order-row .order-cost { margin-left:48px } .order-actions { margin-left:auto } .filters { grid-template-columns:1fr } }
 @media(prefers-reduced-motion:reduce) { * { scroll-behavior:auto!important } }
@@ -242,6 +232,8 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
 .label-row h2 { margin-bottom:0 }
 .help-tip { display:inline-flex; align-items:center; justify-content:center; flex:0 0 32px; width:32px; height:32px; border:1px solid var(--line); border-radius:50%; background:var(--accent-soft); color:var(--accent); font:700 .95rem var(--body); cursor:help }
 .help-tip:hover { border-color:var(--accent) }
+.help-tip { position:relative }
+.help-tip::after { content:""; position:absolute; inset:-6px }
 .help-link { white-space:nowrap; min-height:36px }
 .help-eyebrow,.help-category { color:var(--accent); font-size:.8rem; font-weight:700 }
 .help-eyebrow { margin:0 0 .4rem }
@@ -264,16 +256,12 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
 @media print { #jiggered-tooltip { display:none!important } }
 
 /* Panels stack their children with one consistent gap, so adjacent buttons never touch. */
-.panel{display:grid;gap:12px;align-content:start}
 .panel > h2,.panel > .label-row h2{margin-bottom:0}
 .panel > .x,.panel > .secondary,.panel > .primary{justify-self:start}
 .panel .switch-row,.panel .advice,.panel .cells,.panel .hint{margin-top:0}
 .panel .hint summary{cursor:pointer;color:var(--accent);font-weight:700}
 .panel details.hint{display:grid;gap:8px}
 .panel details.hint p{margin:8px 0 0}
-.row{gap:10px}
-.checkin button{padding:14px 6px;text-align:center}
-.advice{font-size:.95rem;color:var(--fg)}
 .gauge-head .big{margin-top:6px}
 @media(max-width:480px){
   .panel > .secondary,.panel > .primary{justify-self:stretch}
@@ -308,11 +296,9 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
 .order-row .order-group{flex:0 1 8rem;min-width:0}
 
 /* Calm interaction: nothing below the header may move when a save starts or finishes. */
-.sync{min-height:1.5em;margin:.5rem 0;line-height:1.5;text-align:left;transition:opacity .2s ease}
 .sync[data-state="saved"]{opacity:0}
 .sync[data-state="attention"]{opacity:1}
 .sync.err{color:var(--red);font-weight:700}
-.advice{min-height:2.9em}
 .checkin button,.cell,.act{transition:background-color .18s ease,border-color .18s ease,color .18s ease,transform .1s ease}
 .cell{transition:background-color .25s ease,border-color .25s ease}
 @media(prefers-reduced-motion:reduce){.sync,.checkin button,.cell,.act{transition:none!important}}
@@ -320,7 +306,7 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
 /* Group filter on Today, and the shared-defaults notice */
 .group-filter{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 16px}
 .group-filter[hidden]{display:none}
-.pill{font:inherit;font-size:.9rem;white-space:nowrap;flex:none;min-height:40px;padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.pill{font:inherit;font-size:.9rem;white-space:nowrap;flex:none;min-height:44px;padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
 .pill .meta{font-variant-numeric:tabular-nums}
 .pill:hover{border-color:var(--accent)}
 .pill[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);font-weight:700}
@@ -339,8 +325,6 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
 #ep-sym-more,#ep-trig-more{width:100%;min-height:44px;margin-top:12px}
 
 /* Morning check-in: status dot and name, a one-word feel, and what it costs as its own badge */
-.checkin button{gap:6px;padding:12px 4px;align-content:start}
-.checkin button b{display:inline-flex;align-items:center;gap:6px}
 .checkin button b::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--dot);flex:none}
 .checkin button[data-s="green"]{--dot:var(--green)}
 .checkin button[data-s="amber"]{--dot:var(--amber)}
@@ -353,8 +337,6 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
 @media(max-width:360px){.checkin{gap:5px}.checkin button .cost{padding:3px 7px}}
 
 /* History and profile: generous desktop canvas, the same calm phone experience. */
-body[data-view="history"] .wrap{max-width:1120px}
-body[data-view="account"] .wrap{max-width:760px}
 .history-intro,.profile-hero{background:linear-gradient(130deg,var(--accent-soft),var(--surface) 75%);border-color:color-mix(in srgb,var(--accent) 30%,var(--line));padding:24px}
 .history-intro h2,.profile-hero h2{font-size:1.7rem;letter-spacing:-.03em;margin:0;overflow-wrap:anywhere}
 .history-intro .meta{max-width:70ch}
@@ -479,3 +461,87 @@ body[data-view="account"] .wrap{max-width:760px}
 #trends-panel,#history-records,#history-share,#profile-panel,#settings-panel,#pw-panel{scroll-margin-top:84px}
 #history-records h2:focus,#history-share h2:focus{outline:none}
 #history-records h2:focus-visible,#history-share h2:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+/* Touch targets: text-style buttons are at least 44px tall, without changing how they read. */
+.x{min-height:44px;padding:0 6px;display:inline-flex;align-items:center;text-underline-offset:3px}
+.panel > .x{margin-inline:-6px}
+
+/* Today: the check-in shrinks to one line once chosen, so the activities rise up the screen. */
+.checkin-done{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.checkin-done .dot{margin-right:8px}
+.checkin-done b{font-family:var(--display)}
+
+/* First-run checklist */
+.onboarding{border-left:4px solid var(--accent)}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.steps li{display:flex;gap:10px;align-items:flex-start}
+.steps .tick{flex:none;width:22px;height:22px;margin-top:1px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:.8rem;font-weight:800;color:var(--surface)}
+.steps li.done .tick{background:var(--accent);border-color:var(--accent)}
+.steps li.done .tick::before{content:"✓"}
+.steps li.done > span:last-child{color:var(--muted);text-decoration:line-through}
+.step-budget{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.step-budget input{width:5.5rem}
+
+/* Help is a view opened from the header, not a tab: Back returns to where you were. */
+#help-back{justify-self:start;margin-bottom:6px}
+
+/* Episode form: one label style throughout, and Save stays in reach on a phone. */
+.field-block{display:grid;gap:6px}
+.legend{font-weight:700}
+.save-bar{display:grid;gap:10px}
+@media(max-width:700px){.save-bar{position:sticky;bottom:0;z-index:4;background:var(--surface);margin-inline:-16px;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}}
+.banner.welcome{border-left-color:var(--accent);background:var(--accent-soft)}
+
+/* One frame width for every view, so the header and tabs never jump; each view sets its own content width. */
+#today-panel,#episode-panel{width:100%;max-width:560px;margin-inline:auto}
+#account-panel,#help-panel{width:100%;max-width:760px;margin-inline:auto}
+.today-side{display:grid;gap:18px;align-content:start}
+@media(min-width:960px){
+  #today-panel{max-width:none;grid-template-columns:minmax(320px,400px) minmax(0,1fr);align-items:start}
+  #today-panel > *{grid-column:2}
+  #today-panel > #onboarding,#today-panel > #today-ongoing,#today-panel > #day-notice{grid-column:1/-1}
+  #today-panel > .today-side{grid-column:1;grid-row:span 2;position:sticky;top:76px}
+}
+
+/* Header: one row. The save status floats under it and takes no space; the account menu holds sign-out. */
+#sync{position:absolute;right:0;top:100%;z-index:6;margin:2px 0 0;max-width:min(100%,440px);padding:4px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-size:.8rem;text-align:right;min-height:0;line-height:1.4}
+#sync[data-state="saved"]{pointer-events:none}
+.menu{position:relative}
+.menu > summary{list-style:none;display:flex;align-items:center;gap:8px;min-height:44px;cursor:pointer;border-radius:999px;padding:2px 10px 2px 2px}
+.menu > summary::-webkit-details-marker{display:none}
+.menu > summary:hover .avatar{box-shadow:0 0 0 2px var(--accent-soft)}
+.menu > summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:var(--bg);font:700 .9rem var(--display)}
+.menu-pop{position:absolute;right:0;top:calc(100% + 6px);z-index:25;min-width:210px;display:grid;padding:6px;border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:0 8px 28px color-mix(in srgb,var(--fg) 18%,transparent)}
+.menu-pop form{display:block}
+.menu-item{font:inherit;width:100%;min-height:44px;padding:8px 12px;text-align:left;border:0;border-radius:8px;background:none;color:var(--fg);cursor:pointer}
+.menu-item:hover,.menu-item:focus-visible{background:var(--accent-soft)}
+
+/* The day: the date reads in the person's own format and opens the native picker. */
+.daynav .mid{position:relative;cursor:pointer}
+.day-date{color:var(--muted);font-size:.85rem;text-decoration:underline dotted;text-underline-offset:3px}
+.day-pick{position:absolute;left:50%;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;padding:0;border:0}
+
+/* History: a starter panel for new accounts, and filters that fold away. */
+.starter-hidden{display:none!important}
+.starter-progress{display:flex;gap:6px}
+.starter-progress span{flex:1;height:10px;border-radius:5px;background:var(--spent)}
+.starter-progress span.on{background:var(--accent)}
+.history-starter > .secondary{justify-self:start}
+.history-filter-panel > summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;cursor:pointer}
+.history-filter-panel > summary::-webkit-details-marker{display:none}
+.history-filter-panel > summary h2::before{content:"▸ ";color:var(--accent)}
+.history-filter-panel[open] > summary h2::before{content:"▾ "}
+.history-filter-panel > summary .meta{text-align:right;overflow-wrap:anywhere}
+
+/* Phones: the tabs move to a bar along the bottom, within reach of a thumb and never clipped. */
+@media(max-width:600px){
+  nav{position:fixed;top:auto;bottom:0;left:0;right:0;margin:0;padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));gap:4px;background:var(--surface);border-top:1px solid var(--line);z-index:15;overflow:visible}
+  nav button{flex:1 1 0;min-width:0;min-height:48px;padding:8px 2px;font-size:.8rem;border:0;border-radius:10px;background:none}
+  nav button[aria-selected="true"]{background:var(--accent-soft);color:var(--accent)}
+  .wrap{padding-bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+  .toastbar{bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+  .save-bar{bottom:calc(64px + env(safe-area-inset-bottom,0px))}
+  .date,.who{display:none}
+  header{min-height:48px}
+}

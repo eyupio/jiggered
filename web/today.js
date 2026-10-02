@@ -3,35 +3,62 @@
 import { $, html, setHTML, uid, fmtLongDay } from "./util.js";
 import { renderOngoing } from "./episodes.js";
 import { PICKER, usage, favourites, groupItems, matches, selection } from "./picker.js";
-import { readableDay, identifyEntries, balanceLabel, ADVICE, dayId, emptyDay, used, capOf, hhmm, addDays } from "./model.js";
+import { readableDay, identifyEntries, balanceLabel, ADVICE, dayId, emptyDay, used, capOf, hhmm, addDays, listDays } from "./model.js";
 
 const points = n => `${n} ${n === 1 ? "point" : "points"}`;
 const costLabel = c => c > 0 ? "−" + c : c < 0 ? "+" + -c : "0";
+const named = s => s[0].toUpperCase() + s.slice(1);
 
 export function init(ctx) {
   let viewDate = null; // null follows the clock, so the screen moves on by itself at midnight
   let actsKey = "", editing = null, editingDate = "", query = "", groupFilter = ""; // groupFilter "" shows every group
-  const more = new Map(), opened = new Set(); // per-group paging and the groups the person opened (all start closed), kept while this tab is open
+  const more = new Map(), closed = new Set(); // per-group paging and the groups the person closed (all start open, so a new list shows buttons), kept while this tab is open
+  let changing = false, onboardingSeen = false; // re-choosing a check-in that is set; whether the first-run checklist showed this session
   const entryForm = $("entry-form");
 
   const key = () => viewDate ?? ctx.today();
   const id = () => dayId(key());
   const day = () => { const d = readableDay(ctx.store.view(id()), key()); return { ...d, entries: identifyEntries(d.entries) } };
   // Each change is an operation on the day, stamped with the budget in force so history keeps its own numbers.
-  const op = (type, arg, before) => {
+  const op = (type, arg, before, target = id()) => {
     const S = ctx.settings();
-    return ctx.store.dispatch({ id: id(), type, arg, before, original: ctx.store.view(id()), stamp: { budget: S.budget, sleepPenalty: S.sleepPenalty, amberPenalty: S.amberPenalty, redPenalty: S.redPenalty } });
+    return ctx.store.dispatch({ id: target, type, arg, before, original: ctx.store.view(id()), stamp: { budget: S.budget, sleepPenalty: S.sleepPenalty, amberPenalty: S.amberPenalty, redPenalty: S.redPenalty } });
   };
 
   function open(date) {
     viewDate = date === ctx.today() ? null : date;
-    editing = null; entryForm.hidden = true; restoreDraft(); render();
+    editing = null; changing = false; entryForm.hidden = true; restoreDraft(); render();
   }
 
   $("checkin").addEventListener("click", e => {
     const b = e.target.closest("button");
     if (!b) return;
-    op("setStatus", day().status === b.dataset.s ? null : b.dataset.s);
+    const was = day().status, next = was === b.dataset.s ? null : b.dataset.s, target = id();
+    changing = false;
+    op("setStatus", next);
+    // A cleared or changed check-in changes the day's points, so it can always be taken back.
+    if (was) ctx.toast(next ? `Changed to ${named(next)}.` : "Check-in cleared.", { label: "Undo", fn: () => op("setStatus", was, undefined, target) });
+  });
+  $("checkin-change").addEventListener("click", () => {
+    changing = true; render();
+    $("checkin").querySelector('[aria-pressed="true"]')?.focus();
+  });
+  // First-run checklist: the first two steps tick themselves from what is logged; the budget is set right here.
+  function patchSettings(arg) {
+    const raw = ctx.store.view("settings");
+    if (!raw) return;
+    return ctx.store.dispatch({ id: "settings", type: "settingsPatch", arg, before: Object.fromEntries(Object.keys(arg).map(k => [k, raw[k]])), original: raw });
+  }
+  $("onboarding-dismiss").addEventListener("click", () => { patchSettings({ onboarding: { ...(ctx.store.view("settings")?.onboarding || {}), dismissed: true } }); onboardingSeen = false; render() });
+  $("onboarding-budget").addEventListener("change", e => {
+    const n = Math.round(Number(e.target.value)), S = ctx.settings();
+    if (!Number.isInteger(n) || n < 1 || n > 30) { e.target.value = S.budget; return }
+    if (n === S.budget) return;
+    // Penalties may not exceed the budget, so they shrink with it.
+    patchSettings({ budget: n, sleepPenalty: Math.min(S.sleepPenalty, n), amberPenalty: Math.min(S.amberPenalty, n), redPenalty: Math.min(S.redPenalty, n), onboarding: { ...(ctx.store.view("settings")?.onboarding || {}), budget: true } });
+    const today = dayId(ctx.today());
+    if (ctx.store.view(today)) ctx.store.dispatch({ id: today, type: "restamp", arg: { budget: n, sleepPenalty: Math.min(S.sleepPenalty, n) } });
+    ctx.toast(`Daily points set to ${n}. Change it any time in Account.`);
   });
   $("act-filter").addEventListener("click", e => {
     const b = e.target.closest("[data-filter]");
@@ -46,7 +73,7 @@ export function init(ctx) {
   $("acts").addEventListener("toggle", e => {
     const g = e.target.dataset?.group;
     if (!g) return;
-    if (e.target.open) opened.add(g); else opened.delete(g);
+    if (e.target.open) closed.delete(g); else closed.add(g);
   }, true);
   $("sleep").addEventListener("change", e => op("setPoorSleep", e.target.checked));
   const logOne = x => op("addEntry", { id: uid(), a: x.a, c: x.c, t: key() !== ctx.today() ? $("act-time").value : hhmm(new Date()) });
@@ -112,6 +139,8 @@ export function init(ctx) {
   $("day-prev").addEventListener("click", () => open(addDays(key(), -1)));
   $("day-next").addEventListener("click", () => { if (key() < ctx.today()) open(addDays(key(), 1)) });
   $("day-back").addEventListener("click", () => open(ctx.today()));
+  // The date reads in the person's own format; tapping it opens the native picker underneath.
+  $("day-date").closest("label").addEventListener("click", e => { if (e.target === $("day-pick")) return; e.preventDefault(); try { $("day-pick").showPicker() } catch { $("day-pick").focus() } });
   $("day-pick").addEventListener("change", e => {
     const v = e.target.value;
     if (/^\d{4}-\d{2}-\d{2}$/.test(v) && v <= ctx.today()) open(v);
@@ -129,29 +158,28 @@ export function init(ctx) {
     const rows = (groupFilter ? all.find(g => g.name === groupFilter).rows : S.activities.map((item, i) => ({ item, i }))), long = S.activities.length > PICKER.searchFrom;
     $("act-search-row").hidden = !long;
     const q = long ? query.trim() : "";
-    // Logged activities are pinned in their own block at the top and left out of the lists below, so they stay in
-    // view however long the list is, and are never buried under "Show more" or a collapsed group.
+    // Favourites come from other days, so the row stays put while you log today.
+    // A logged activity changes in place (green, ×count, − and +) rather than moving, so nothing shifts under a finger.
     const { count, selected } = selection(S.activities.map((item, i) => ({ item, i })), day().entries);
-    const pickedAt = new Set(selected.map(r => r.i)), unpicked = r => !pickedAt.has(r.i);
-    const favs = !q && !groupFilter && long ? favourites(rows.map(r => r.item.a), usage(ctx.store.all(), ctx.today()).acts).map(n => rows.find(r => r.item.a === n)).filter(unpicked) : [];
+    const favs = !q && !groupFilter && long ? favourites(rows.map(r => r.item.a), usage(Object.fromEntries(Object.entries(ctx.store.all()).filter(([k]) => k !== id())), ctx.today()).acts).map(n => rows.find(r => r.item.a === n)) : [];
     const found = q ? rows.filter(r => matches(q, r.item.a + " " + (r.item.g || ""))) : rows;
-    const sections = (q ? [{ key: "search", name: "", rows: found.filter(unpicked), size: PICKER.searchPage }]
-      : groupFilter ? [{ key: "g:" + groupFilter, name: "", rows: rows.filter(unpicked), size: PICKER.searchPage }]
-      : all.map(g => ({ key: "g:" + g.name, name: g.name, rows: g.rows.filter(unpicked), size: PICKER.page }))).filter(s => s.rows.length || (!q && !groupFilter && !s.name));
-    const listKey = JSON.stringify([S.activities, q, groupFilter, favs.map(f => f.i), [...more], [...opened], long, selected.map(r => [r.i, count.get(r.item.a)])]);
+    const sections = (q ? [{ key: "search", name: "", rows: found, size: PICKER.searchPage }]
+      : groupFilter ? [{ key: "g:" + groupFilter, name: "", rows, size: PICKER.searchPage }]
+      : all.map(g => ({ key: "g:" + g.name, name: g.name, rows: g.rows, size: PICKER.page }))).filter(s => s.rows.length || (!q && !groupFilter && !s.name));
+    const listKey = JSON.stringify([S.activities, q, groupFilter, favs.map(f => f.i), [...more], [...closed], long, selected.map(r => [r.i, count.get(r.item.a)])]);
     if (listKey === actsKey) return; // only rebuild the buttons when something shown has changed
     actsKey = listKey;
     // One tap on a group narrows the list to it; tapping it again, or "All", brings everything back.
     $("act-filter").hidden = names.length < 2;
     setHTML($("act-filter"), html`<button type="button" class="pill" data-filter="" aria-pressed="${!groupFilter}">All <span class="meta">${S.activities.length}</span></button>${names.map(g => html`<button type="button" class="pill" data-filter="${g.name}" aria-pressed="${groupFilter === g.name}">${g.name} <span class="meta">${g.n}</span></button>`)}`);
-    const grid = list => html`<div class="acts">${list.map(actButton)}</div>`;
+    const tile = r => count.get(r.item.a) ? selectedCard(count.get(r.item.a), r) : actButton(r);
+    const grid = list => html`<div class="acts">${list.map(tile)}</div>`;
     const part = s => {
       const shown = more.get(s.key) ?? s.size, hide = s.rows.length - shown;
       const body = html`${grid(s.rows.slice(0, shown))}${hide > 0 ? html`<button class="secondary small" data-more="${s.key}">Show ${Math.min(hide, s.size)} more of ${s.rows.length}</button>` : ""}`;
-      return s.name ? html`<details class="act-group" data-group="${s.key}"${opened.has(s.key) ? " open" : ""}><summary>${s.name} <span class="meta">${s.rows.length}</span></summary>${body}</details>` : body;
+      return s.name ? html`<details class="act-group" data-group="${s.key}"${closed.has(s.key) ? "" : " open"}><summary>${s.name} <span class="meta">${s.rows.length}</span></summary>${body}</details>` : body;
     };
-    const pinned = selected.length ? html`<div class="act-picked"><h3 class="label">Logged ${key() === ctx.today() ? "today" : "this day"}</h3><div class="acts">${selected.map(r => selectedCard(count.get(r.item.a), r))}</div></div>` : "";
-    setHTML($("acts"), html`${pinned}${favs.length ? html`<div class="act-fav"><h3 class="label">Frequent and recent</h3>${grid(favs)}</div>` : ""}${sections.map(part)}${q && !found.length ? html`<p class="empty">No activity matches${groupFilter ? ` in ${groupFilter}. Choose All to search every group` : ""}. Use Other activity to log it once.</p>` : ""}`);
+    setHTML($("acts"), html`${favs.length ? html`<div class="act-fav"><h3 class="label">Frequent and recent</h3>${grid(favs)}</div>` : ""}${sections.map(part)}${q && !found.length ? html`<p class="empty">No activity matches${groupFilter ? ` in ${groupFilter}. Choose All to search every group` : ""}. Use Other activity to log it once.</p>` : ""}`);
     $("noacts").hidden = S.activities.length > 0;
   }
 
@@ -162,11 +190,15 @@ export function init(ctx) {
 
     $("day-label").textContent = past ? fmtLongDay(k, S.locale) : "Today";
     $("day-pick").value = k;
+    $("day-date").textContent = past ? "Change day" : fmtLongDay(k, S.locale); // the person's date format, not the browser's
     $("day-pick").max = ctx.today();
     $("day-next").disabled = !past;
     $("day-notice").hidden = !past;
     $("act-time-row").hidden = !past;
 
+    const collapsed = !!d.status && !changing;
+    $("checkin").hidden = collapsed; $("checkin-done").hidden = !collapsed;
+    if (collapsed) { const c = d.statusPenalty || 0; setHTML($("checkin-done-text"), html`<span class="dot ${d.status}"></span><b>${named(d.status)}</b> · ${c ? `−${points(c)}` : "full points"}`) }
     document.querySelectorAll("#checkin button").forEach(b => {
       b.setAttribute("aria-pressed", b.dataset.s === d.status);
       const cost = S[b.dataset.s + "Penalty"] || 0; // green never costs anything
@@ -192,9 +224,26 @@ export function init(ctx) {
     cells.className = "cells" + (left <= 0 ? " out" : left <= 3 ? " low" : "");
 
     renderActivities(S);
+    renderOnboarding(S, past);
 
     setHTML($("entries"), html`${d.entries.map((e, i) => html`<li><span><span class="meta">${e.t}</span> ${e.a} <b>${costLabel(e.c)}</b></span><span class="row"><button class="x" data-entry="${e.id}" data-action="edit" aria-label="Edit ${e.a}">Edit</button><button class="x" data-entry="${e.id}" data-action="remove" aria-label="Remove ${e.a}">Remove</button></span></li>`)}`);
     $("noentries").hidden = d.entries.length > 0;
+  }
+
+  function renderOnboarding(S, past) {
+    const raw = ctx.store.view("settings"), ob = raw?.onboarding || {}, days = listDays(ctx.store.all());
+    const checked = days.some(x => x.status), logged = days.some(x => x.entries.length), done = checked && logged;
+    // Shown to an account that hasn't made its first check-in and log yet; once both are done it stays up, all ticked,
+    // until the app is next opened, so it doesn't vanish under the person's finger.
+    const show = !!raw && !ob.dismissed && !past && (!done || onboardingSeen);
+    $("onboarding").hidden = !show;
+    if (!show) return;
+    onboardingSeen = true;
+    $("onboarding-title").textContent = done ? "You're set up. See you tomorrow morning." : "Get started in under a minute";
+    $("step-checkin").classList.toggle("done", checked);
+    $("step-activity").classList.toggle("done", logged);
+    $("step-budget").classList.toggle("done", !!ob.budget);
+    if (document.activeElement !== $("onboarding-budget")) $("onboarding-budget").value = S.budget;
   }
 
   return { render, open, day: () => viewDate, show() { if (entryForm.hidden) restoreDraft(); render() } };
