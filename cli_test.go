@@ -66,7 +66,7 @@ func TestCLIBackupToFile(t *testing.T) {
 	if err != nil || !strings.Contains(errOut, dest) {
 		t.Fatalf("backup: %v %q", err, errOut)
 	}
-	decoded:=unpackTestBackup(t,dest,"")
+	decoded := unpackTestBackup(t, dest, "")
 	if got := scalar(t, decoded, "SELECT count(*) FROM docs"); got != 1 {
 		t.Errorf("the copy has %d docs, want 1", got)
 	}
@@ -93,7 +93,7 @@ func TestCLIBackupWithNoArgumentGoesToTheBackupFolder(t *testing.T) {
 	if len(files) != 1 || !strings.Contains(errOut, files[0]) {
 		t.Fatalf("backups = %v, message %q", files, errOut)
 	}
-	if got := scalar(t, unpackTestBackup(t,files[0],""), "SELECT count(*) FROM docs"); got != 1 {
+	if got := scalar(t, unpackTestBackup(t, files[0], ""), "SELECT count(*) FROM docs"); got != 1 {
 		t.Errorf("the default backup has %d docs", got)
 	}
 }
@@ -111,7 +111,7 @@ func TestCLIBackupToStdout(t *testing.T) {
 	if err := os.WriteFile(dest, []byte(out), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if got := scalar(t, unpackTestBackup(t,dest,""), "SELECT count(*) FROM docs"); got != 1 {
+	if got := scalar(t, unpackTestBackup(t, dest, ""), "SELECT count(*) FROM docs"); got != 1 {
 		t.Errorf("stdout copy has %d docs", got)
 	}
 	left, _ := filepath.Glob(filepath.Join(backupDir(e.dbPath), ".tmp-*"))
