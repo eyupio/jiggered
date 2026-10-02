@@ -49,6 +49,8 @@ function fatal(text) {
 
   // A temporary password was just handed out: nothing else works until it is changed.
   if (me.must_change_password) {
+    $("view-heading").textContent = "A space of your own.";
+    $("view-description").textContent = "Choose a new password, then make yourself at home.";
     $("tabs").hidden = true;
     document.querySelectorAll("section[id$=-panel]").forEach(p => { p.hidden = p.id !== "account-panel" });
     document.querySelectorAll("#account-panel > .panel:not(#pw-panel)").forEach(p => { p.hidden = true });
@@ -149,6 +151,9 @@ function fatal(text) {
     tooltips.hide();
     active = tab;
     document.body.dataset.view = tab;
+    const intro = $("t-" + tab)?.dataset;
+    $("view-heading").textContent = intro?.heading || (tab === "admin" ? "Care for this shared space." : "A little guidance, when you need it.");
+    $("view-description").textContent = intro?.description || (tab === "admin" ? "Manage accounts, shared defaults and the services that keep this instance running." : "Find your way around, one small step at a time.");
     try { history.replaceState(null, "", "#" + tab) } catch { /* the address bar is only a convenience */ }
     for (const b of document.querySelectorAll("#tabs button")) { b.setAttribute("aria-selected", b.dataset.tab === tab); b.tabIndex = b.dataset.tab === tab ? 0 : -1 }
     for (const t of Object.keys(views)) $(t + "-panel").hidden = t !== tab;
@@ -333,4 +338,3 @@ function fatal(text) {
   // Freeze the starting defaults into this account so future shared edits do not replace personal choices.
   if (coordination.writable && defaultsTag && store.status().loaded && !store.view("settings")) store.dispatch({ id: "settings", type: "replace", arg: normaliseSettings(sharedDefaults) })
 })();
-

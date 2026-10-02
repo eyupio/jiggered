@@ -6,7 +6,7 @@ const CACHE = "jiggered-app-v1";
 // Everything the signed-in app needs to start. server_test.go checks this against the files that ship.
 const SHELL = [
   "/", "/early-nav.js", "/app.js", "/sync.js", "/device.js", "/editor.js", "/model.js", "/picker.js", "/defaults-notice.js", "/util.js", "/today.js", "/episodes.js", "/history.js", "/history-model.js", "/history-charts.js", "/history-matrix.js", "/profile.js", "/account.js", "/admin.js", "/services.js", "/security.js", "/help.js", "/tooltips.js",
-  "/style.css", "/manifest.webmanifest", "/icon.svg", "/icon-192.png", "/favicon-32.png", "/apple-touch-icon.png",
+  "/style.css", "/dashboard.css", "/manifest.webmanifest", "/icon.svg", "/icon-192.png", "/favicon-32.png", "/apple-touch-icon.png",
   "/fonts/atkinson-400-latin.woff2", "/fonts/atkinson-400-latin-ext.woff2", "/fonts/atkinson-700-latin.woff2",
   "/fonts/atkinson-700-latin-ext.woff2", "/fonts/bricolage-latin.woff2",
 ];
