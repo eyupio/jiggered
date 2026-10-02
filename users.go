@@ -194,6 +194,11 @@ func (s *server) setPassword(ctx context.Context, id int64, hash string, mustCha
 		if _, err := tx.ExecContext(ctx, "UPDATE users SET password_hash = ?, must_change_password = ? WHERE id = ?", hash, boolInt(mustChange), id); err != nil {
 			return err
 		}
+		for _, q := range []string{"DELETE FROM auth_tokens WHERE user_id = ?", "DELETE FROM login_challenges WHERE user_id = ?"} {
+			if _, err := tx.ExecContext(ctx, q, id); err != nil {
+				return err
+			}
+		}
 		_, err := tx.ExecContext(ctx, "DELETE FROM sessions WHERE user_id = ? AND sid != ?", id, keepSID)
 		return err
 	})
@@ -221,6 +226,11 @@ func (s *server) setDisabled(ctx context.Context, id int64, disabled bool) error
 		if disabled {
 			if err := guardLastAdmin(ctx, tx, u); err != nil {
 				return err
+			}
+			for _, q := range []string{"DELETE FROM auth_tokens WHERE user_id = ?", "DELETE FROM login_challenges WHERE user_id = ?"} {
+				if _, err := tx.ExecContext(ctx, q, id); err != nil {
+					return err
+				}
 			}
 			if _, err := tx.ExecContext(ctx, "DELETE FROM sessions WHERE user_id = ?", id); err != nil {
 				return err
@@ -278,6 +288,9 @@ func (s *server) audit(ctx context.Context, actor, action, target, detail, ip st
 func (s *server) prune() {
 	now := time.Now()
 	s.db.Exec("DELETE FROM sessions WHERE expires_at < ?", now.Unix())
+	s.db.Exec("DELETE FROM auth_tokens WHERE expires < ?", now.Unix())
+	s.db.Exec("DELETE FROM login_challenges WHERE expires < ?", now.Unix())
+	s.db.Exec("UPDATE account_security SET pending_secret='',pending_until=0 WHERE pending_until < ?", now.Unix())
 	s.db.Exec("DELETE FROM audit_log WHERE at < ?", now.Add(-auditKeepFor).Unix())
 	for _, kind := range []string{auditSelfService, "NOT " + auditSelfService} {
 		s.db.Exec("DELETE FROM audit_log WHERE "+kind+" AND id <= (SELECT id FROM audit_log WHERE "+kind+" ORDER BY id DESC LIMIT 1 OFFSET ?)", auditMaxRows)

@@ -4,6 +4,7 @@ import { $, api, html, setHTML, appendHTML, describeUA, ago, saveFeedback, withB
 import { createEditor, editorMarkup } from "./editor.js";
 import { dayId, normaliseSettings, identifyActivities, defaultsGap, mergeDefaults } from "./model.js";
 import { describeGap, previewGap } from "./defaults-notice.js";
+import { initSecurity, securityMarkup } from "./security.js";
 import { initProfile, profileIdentity } from "./profile.js";
 
 function say(el, text, bad = false) {
@@ -24,6 +25,8 @@ export function init(ctx) {
   const { me } = ctx;
   identity(ctx);
   const profile = initProfile(ctx);
+  $("pwform").closest(".panel").insertAdjacentHTML("afterend",securityMarkup);
+  const security = initSecurity(ctx);
   $("account-shortcuts").addEventListener("click", e => {
     const target = e.target.closest("[data-account-target]"); if (!target) return;
     const panel = $(target.dataset.accountTarget);
@@ -196,6 +199,7 @@ export function init(ctx) {
       if (!dirty && !ticket) { baseline = { ...ctx.settings(), activities: identifyActivities(ctx.settings().activities) }; editor.fill(baseline) }
       renderSettings(); paintGap();
       profile.show();
+      security.load();
       loadSessions();
     },
   };

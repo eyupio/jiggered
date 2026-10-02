@@ -212,7 +212,9 @@ func (s *server) storedSettings(ctx context.Context) (values map[string]string, 
 		if err := rows.Scan(&k); err != nil {
 			return nil, nil, err
 		}
-		explicit[k] = true
+		if _, known := settingEnv[k]; known {
+			explicit[k] = true
+		}
 	}
 	return st.strings(), explicit, rows.Err()
 }

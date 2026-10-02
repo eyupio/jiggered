@@ -62,7 +62,7 @@ let pageUser = null;
 export const setPageUser = id => { pageUser = id };
 
 export async function api(method, path, body, headers = {}) {
-  const opts = { method, signal: AbortSignal.timeout(path.startsWith("/api/restore") || path.startsWith("/api/import") || path === "/api/export" ? 300000 : 20000), credentials: "same-origin", headers: { ...headers, "X-Requested-With": "jiggered", ...(pageUser != null && { "X-Jiggered-User": String(pageUser) }) } };
+  const opts = { method, signal: AbortSignal.timeout(path.startsWith("/api/restore") || path.startsWith("/api/import") || path === "/api/export" ? 300000 : path === "/api/admin/services/action" ? 45000 : 20000), credentials: "same-origin", headers: { ...headers, "X-Requested-With": "jiggered", ...(pageUser != null && { "X-Jiggered-User": String(pageUser) }) } };
   if (body !== undefined) { opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body) }
   let r;
   try { r = await fetch(path, opts) }

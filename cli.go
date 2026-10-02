@@ -33,6 +33,7 @@ Accounts (work on the database directly, so they still work if you are locked ou
   jiggered user list
   jiggered user add <name> [--admin]   create an account with a one-time temporary password
   jiggered user reset-password <name>  new temporary password, signs the account out everywhere
+  jiggered user reset-two-factor <name> remove authenticator protection after verifying identity
   jiggered user disable <name>         block sign-in and end its sessions
   jiggered user enable <name>
   jiggered user promote <name>         make an admin
@@ -184,6 +185,9 @@ func checkBackup(path string) error {
 	if version >= 4 {
 		need = append(need, "doc_revs")
 	}
+	if version >= 5 {
+		need = append(need, "account_security", "recovery_codes", "auth_tokens", "login_challenges", "remote_backup_runs")
+	}
 	for _, name := range need {
 		var n int
 		if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?", name).Scan(&n); err != nil || n == 0 {
@@ -282,6 +286,17 @@ func clearSessions(path string) error {
 	defer db.Close()
 	if _, err := db.Exec("DELETE FROM sessions"); err != nil {
 		return err
+	}
+	var schema int
+	if err = db.QueryRow("PRAGMA user_version").Scan(&schema); err != nil {
+		return err
+	}
+	if schema >= 5 {
+		for _, q := range []string{"DELETE FROM auth_tokens", "DELETE FROM login_challenges", "UPDATE account_security SET pending_secret='',pending_until=0"} {
+			if _, err = db.Exec(q); err != nil {
+				return err
+			}
+		}
 	}
 	_, err = db.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
 	return err
@@ -398,7 +413,7 @@ func cmdSettings(args []string, out io.Writer) error {
 
 func cmdUser(args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: jiggered user list|add|reset-password|disable|enable|promote|demote|delete\n\n%s", usage)
+		return fmt.Errorf("usage: jiggered user list|add|reset-password|reset-two-factor|disable|enable|promote|demote|delete\n\n%s", usage)
 	}
 	cfg, err := loadConfig()
 	if err != nil {
@@ -489,6 +504,21 @@ func (s *server) runUserCommand(ctx context.Context, args []string, out io.Write
 		return err
 	}
 	switch cmd {
+	case "reset-two-factor":
+		err = s.withUserTx(ctx, t.ID, func(tx *sql.Tx, _ *user) error {
+			for _, q := range []string{`UPDATE account_security SET secret='',enabled=0,last_step=-1,pending_secret='',pending_until=0 WHERE user_id=?`, `DELETE FROM recovery_codes WHERE user_id=?`, `DELETE FROM login_challenges WHERE user_id=?`, `DELETE FROM sessions WHERE user_id=?`} {
+				if _, err := tx.ExecContext(ctx, q, t.ID); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		s.audit(ctx, "cli", "two_factor_admin_reset", t.Username, "all sessions revoked", "")
+		fmt.Fprintf(out, "Two-step verification reset for %s. All devices were signed out.\n", t.Username)
+		return nil
 	case "reset-password":
 		pw, err := tempPassword()
 		if err != nil {

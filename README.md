@@ -132,8 +132,9 @@ action. These choices do not alter other users' records. Exported backups and re
 
 ## People and the admin
 
-There is no sign-up page. You create the first account, an admin, from the command line (see **Run it**). Admins
-add everyone else from the **Admin** tab or the command line: the new person gets a random temporary password,
+Registration is closed by default. Create the first account, an admin, from the command line (see **Run it**).
+Admins can enable verified-email registration in Admin after configuring SMTP, or add people from the **Admin**
+tab or command line: the new person gets a random temporary password,
 shown once, and must choose their own the first time they sign in. Accounts, and everything else about how
 Jiggered behaves, live in the database; the environment only says where that is.
 
@@ -145,7 +146,7 @@ each person signed in.
 
 That is a boundary in the app, not encryption, and it has limits you should know about:
 
-- An admin can reset anyone's password and then sign in with the temporary one, which shows them that person's
+- An admin can reset anyone's password and, if two-step verification is enabled, reset that protection too. They can then sign in with the temporary password, which shows them that person's
   data (and signs the person out). The activity log records the reset, but then records what they do as that
   person.
 - A backup is a copy of the whole database: everyone's logs, password hashes and the activity log. Any admin can
@@ -319,6 +320,68 @@ docker compose start jiggered
 
 It checks the file first (it must have every table its schema version needs), signs everyone out, keeps the database it replaces as `/data/backups/pre-restore-*.db`, and removes the old
 `-wal` file. Upgrades also leave a `pre-upgrade-*.db` copy there. Nothing deletes the `backups` folder for you.
+
+### Off-site backups, email and sign-in security
+
+In **Admin → Off-site backups & email**, configure an existing private S3-compatible bucket, endpoint,
+signing region, folder prefix and credentials. AWS S3, R2, B2 and MinIO-style services are supported using
+Signature Version 4. Choose path-style addressing for private/compatible services, or virtual-host addressing
+for AWS. HTTPS is the default; plain HTTP requires explicit opt-in for a trusted private network. Redirects
+are refused so credentials cannot be forwarded to a different endpoint. Use dedicated static credentials;
+instance roles, STS session credentials and multipart uploads are not implemented.
+
+- Set an interval from 1 to 8760 hours, pause the schedule, or run **Back up now**. Changing or enabling a schedule
+  starts its interval from the save time. A successful manual backup also moves the next scheduled run.
+- **Test S3 connection** checks write, read, delete and list permissions using a disposable probe.
+- **Verify every upload** reads it back and compares SHA-256 before retention. It is on by default and uses extra
+  transfer bandwidth. Retention keeps the latest configured number (30 by default); 0 disables deletion. Only
+  correctly named backup objects belonging to this installation and prefix are deleted. Other files and other
+  installations are preserved. Bucket versioning or object lock may retain older object versions separately.
+- History records upload/verification/retention errors and email delivery separately. Only one backup runs at a
+  time. Uploads run in the background with a 30-minute deadline; a restart marks unfinished work interrupted.
+  Failed attempts observe the configured interval. Browse shows the latest 200 owned remote backups.
+- Give the bucket policy `s3:ListBucket` on the bucket and `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject` on the
+  dedicated prefix. Enable the provider's encryption at rest and keep the bucket private. Uploaded SQLite
+  snapshots contain everyone's data; credential encryption does not encrypt the health records.
+
+SMTP supports required STARTTLS (usually 587), implicit TLS (usually 465), or an unauthenticated private relay.
+TLS certificate verification stays enabled. Configure sender, recipients, credentials and success/failure
+preferences, then use **Send test email**. Acceptance by SMTP does not guarantee inbox delivery. Backup alerts
+contain operational status, never check-ins or episode content. The local relay option refuses authentication
+credentials over plain text.
+
+**Registration & recovery** is closed by default. To enable it, save working SMTP and a trusted HTTPS public
+application URL, then opt into registration and/or forgotten-password recovery. Email links use this URL rather
+than visitor-supplied Host headers (localhost HTTP is allowed for testing). Registration creates ordinary users
+only after email verification. Existing users add a recovery address in **Account → Sign-in security** and verify
+it before it becomes active. Links expire after 30 minutes, work once, and are removed by password changes,
+account disablement and restores. Reset requests give the same public response for known and unknown addresses.
+
+Users can optionally enable **two-step verification** in Account: scan the locally generated QR code, confirm
+an authenticator code, and save the ten recovery codes shown once. It uses standard 30-second, six-digit TOTP;
+replayed codes are refused and each recovery code works once. No session is created until both steps succeed.
+Password recovery requires a factor if enabled and preserves protection. Disabling 2FA or replacing recovery
+codes requires the current password and a valid factor. Other devices are signed out after security changes.
+An admin can reset a lost authenticator from People after verifying identity; this is audited and signs out all
+of that person's devices. A locked-out sole administrator can use the host-only command:
+
+```sh
+docker compose exec jiggered /jiggered user reset-two-factor NAME
+```
+
+**Keep the credential key separately.** S3 credentials, SMTP passwords and authenticator secrets are encrypted
+with AES-GCM using `/data/.jiggered-service-key` (beside APP_DB for other installations), created with private
+permissions. Database snapshots deliberately exclude this key. Store a secure copy separately and restore it
+alongside the database on a new host; without it, saved credentials and authenticator secrets cannot be opened.
+Recovery codes still work, and operators can re-enter service credentials or reset authenticator protection.
+The volume and its credential key must survive container upgrades. Local backup retention is unchanged.
+
+Saving configuration, test actions and downloading remote snapshots require the admin's current password.
+Saved secrets are never returned to the UI. Empty secret fields keep existing values; explicit clear controls
+remove them. Configuration saves detect conflicting revisions and ask you to reload rather than overwrite.
+
+Download a remote snapshot in Admin and use the existing whole-database restore command. Restore clears
+sessions, pending sign-in challenges and emailed tokens; it never signs anyone back in automatically.
 
 ### Keeping backups
 

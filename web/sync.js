@@ -262,6 +262,7 @@ export function createStore({
   // including one while the body is arriving, leaves the copy on this device exactly as it was and reports offline.
   function load() {
     if (queuedLoad) return queuedLoad; // a refresh is already waiting its turn and will see everything this one would
+    let retryPending = false;
     const run = exclusive(async () => {
       queuedLoad = null;
       try {
@@ -269,7 +270,7 @@ export function createStore({
         const r = await doFetch("/api/docs", { credentials: "same-origin", headers, signal: snapshotTimeout() });
         if (r.status === 401) { onAuthLost(); return false }
         if (r.status === 304 && snapshotTag) { offline = false; notify(); return true }
-        if (!r.ok) { offline = true; notify(); return false }
+        if (!r.ok) { retryPending = true; offline = true; notify(); return false }
         const server = await r.json();
         const tag = r.headers?.get?.("ETag") || null;
         base = {}; revs = {};
@@ -279,11 +280,18 @@ export function createStore({
         persist(); notify();
         return true;
       } catch {
-        offline = true; notify(); return false; // a dropped connection or a body that never finished: keep what we have
+        retryPending = true; offline = true; notify(); return false; // a dropped connection or a body that never finished: keep what we have
       }
     });
     queuedLoad = run;
-    return run.then(ok => { if (ok && pending.length) flush(); return ok });
+    return run.then(ok => {
+      if (ok && pending.length) flush();
+      // A reload discards the old retry timer. Resume a hydrated outbox even when the browser misses its online event.
+      else if (retryPending && pending.length && !retryTimer && !readOnly() && !restoring) {
+        retryTimer = setTimer(() => { retryTimer = null; retryCount++; flush() }, BACKOFF[Math.min(retryCount, BACKOFF.length - 1)]);
+      }
+      return ok;
+    });
   }
 
   return { hydrate, clear, withRestore, refreshDevice, view, all, dispatch, flush, load, status, outcome, failures, discardFailed, retryFailed, recoveryExport };

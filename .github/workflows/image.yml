@@ -68,6 +68,10 @@ jobs:
         env:
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
         run: node test/browser-mobile.cjs
+      - name: Sign-in security and backup settings
+        env:
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+        run: node test/browser-security.cjs
       - name: Full walkthrough
         env:
           NODE_PATH: ${{ runner.temp }}/pw/node_modules

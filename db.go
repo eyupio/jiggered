@@ -62,7 +62,7 @@ func openDB(path string, first *seedAdmin) (*sql.DB, error) {
 
 // migrations run in order, each in its own transaction. Never edit one that
 // has shipped; append a new one.
-var migrations = []func(tx *sql.Tx, first *seedAdmin) error{migrateBaseline, migrateAccounts, migrateSettings, migrateDocRevs}
+var migrations = []func(tx *sql.Tx, first *seedAdmin) error{migrateBaseline, migrateAccounts, migrateSettings, migrateDocRevs, migrateSecurityAccounts}
 
 func migrate(db *sql.DB, path string, first *seedAdmin) error {
 	var cur int

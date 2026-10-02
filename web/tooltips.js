@@ -1,6 +1,15 @@
 // Shared, non-interactive tooltips: hoverable, focusable triggers, Escape dismissal and tap help buttons.
 // Plain text only; critical guidance also lives in Help and beside the relevant fields.
 const HINTS = {
+ "#svc-interval_hours":"Schedules from when enabled or changed; a manual backup also starts a fresh interval.",
+ "#svc-keep":"Only this installation’s backup objects are pruned. Set 0 to keep every remote backup.",
+ "[data-service-action=\"test_s3\"]":"Checks write, read, delete and list permissions using a disposable probe in your saved prefix.",
+ "[data-service-action=\"test_email\"]":"Sends a test to your configured notification recipients. SMTP acceptance does not guarantee inbox delivery.",
+ "[data-service-action=\"backup\"]":"Creates a consistent SQLite snapshot and uploads it in the background. Your tab can be closed safely.",
+ "[data-service-action=\"list\"]":"Lists the latest remote snapshots belonging to this instance. Downloading requires your admin password.",
+ "#security-regenerate":"Replaces all previous recovery codes. Save the new codes immediately; they are displayed once.",
+ "#security-disable":"Requires your password and a valid factor, and signs out your other devices.",
+ "[data-act=\"two-factor-reset\"]":"For a verified person who has lost their authenticator and recovery codes. This removes protection and signs out every device.",
   "#day-prev": "Review or correct the previous day. Changes stay on that day.",
   "#day-next": "Move forward one day. Future days cannot be logged.",
   "#day-pick": "Choose today or an earlier day to review and correct its log.",

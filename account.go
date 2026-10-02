@@ -44,6 +44,9 @@ func (s *server) verifyOwnPassword(w http.ResponseWriter, r *http.Request, u *us
 		return false
 	}
 	giveBack()
+	if a := authOf(r); a != nil {
+		a.verifiedHash = hash
+	}
 	return true
 }
 

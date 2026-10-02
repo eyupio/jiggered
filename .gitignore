@@ -4,3 +4,6 @@
 /jiggered
 /backups/
 node_modules/
+
+.jiggered-service-key
+.service-key-*
