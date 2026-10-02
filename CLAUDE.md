@@ -42,6 +42,7 @@ frontend build step.
 | Path | What it is |
 | --- | --- |
 | `main.go` | Wiring: config, `server`, `routes()`, security headers, cross-site guard, static files |
+| `public.go`, `web/public/` | Public route registry, metadata/templates, signup availability, sitemap, robots and llms index; deployment opt-in indexing |
 | `db.go` | Opening SQLite, the append-only `migrations` list, the pre-upgrade snapshot |
 | `auth.go` | Sessions, `requireAuth`/`requireAdmin` (`guard`), login, lockouts, client address |
 | `users.go` | Account store, last-admin guard, audit log, pruning |
@@ -83,8 +84,9 @@ the tabs; `admin.js` is mounted only for admins; `sw.js` is the service worker;
   Signed-out `/` serves the landing; signed-in `/` serves the private app. The last active
   admin can't be demoted, disabled or deleted; nobody can do that to themselves
   through the admin API.
-- **Configuration lives in the database.** The environment only says where it is
-  (`APP_DB`, `APP_ADDR`). `APP_USERNAME`, `APP_PASSWORD(_HASH)`, `APP_SECURE_COOKIE`,
+- **Configuration lives in the database.** Deployment controls include `APP_DB`, `APP_ADDR`,
+  `APP_PUBLIC_ORIGIN` and `APP_PUBLIC_INDEXING` (public indexing is off by default).
+  `APP_USERNAME`, `APP_PASSWORD(_HASH)`, `APP_SECURE_COOKIE`,
   `APP_TRUST_PROXY`, `APP_PROXY_HOPS` are one-time seeds, read only to fill in
   what the database lacks; the database wins after that. The tables in
   `README.md` are the reference: keep them and `.env.example` in step with

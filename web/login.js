@@ -17,13 +17,10 @@ authOptions
     document.querySelectorAll("[data-registration-copy]").forEach((el) => {
       el.textContent = open ? el.dataset.open : el.dataset.closed;
     });
-    if (!open)
-      document.querySelectorAll("[data-register-link]").forEach((link) => {
-        link.href = "/login";
-        link.firstChild.textContent = link.classList.contains("small")
-          ? "Sign in "
-          : "Open your personal log ";
-      });
+    document.querySelectorAll("[data-register-link]").forEach((link) => {
+      link.href = open ? "/register" : "/login";
+      link.firstChild.textContent = open ? "Create your free account " : "Log in ";
+    });
   })
   .catch(() => {
     const status = document.getElementById("registration-status");

@@ -7,7 +7,7 @@ if(!process.env.JIGGERED_TEST_BINARY)require('node:child_process').execFileSync(
 const port=process.env.JIGGERED_TEST_PORT||'18793';const base='http://127.0.0.1:'+port;
 const screenshot=async(page,name)=>{if(process.env.JIGGERED_SCREENSHOT_DIR){fs.mkdirSync(process.env.JIGGERED_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:path.join(process.env.JIGGERED_SCREENSHOT_DIR,name),fullPage:true})}};
 const {spawn}=require('node:child_process');
-const server=spawn(binary,[],{env:{...process.env,APP_DB:path.join(dir,'jiggered.db'),APP_ADDR:'127.0.0.1:'+port,APP_USERNAME:'admin',APP_PASSWORD:'preview-password1',APP_SECURE_COOKIE:'false'},stdio:['ignore','ignore','pipe']});
+const server=spawn(binary,[],{env:{...process.env,APP_DB:path.join(dir,'jiggered.db'),APP_ADDR:'127.0.0.1:'+port,APP_USERNAME:'admin',APP_PASSWORD:'preview-password1',APP_SECURE_COOKIE:'false',APP_PUBLIC_ORIGIN:base,APP_PUBLIC_INDEXING:'true'},stdio:['ignore','ignore','pipe']});
 process.on('exit',()=>server.kill());
 const net=require('node:net');const mailMessages=[];
 const relay=net.createServer(conn=>{conn.setEncoding('utf8');conn.write('220 local SMTP\r\n');let buffer='',data=false,body='';conn.on('data',chunk=>{buffer+=chunk;let idx;while((idx=buffer.indexOf('\r\n'))>=0){const line=buffer.slice(0,idx);buffer=buffer.slice(idx+2);if(data){if(line==='.') {mailMessages.push(body);data=false;body='';conn.write('250 queued\r\n')}else body+=line+'\n';continue}if(/^(EHLO|HELO|MAIL|RCPT)/.test(line))conn.write('250 ok\r\n');else if(line==='DATA'){data=true;conn.write('354 data\r\n')}else if(line==='QUIT'){conn.end('221 bye\r\n')}else conn.write('500 no\r\n')}})});
@@ -19,11 +19,11 @@ await new Promise(resolve=>relay.listen(0,'127.0.0.1',resolve));
 const browser=await chromium.launch({headless:true,...(process.env.JIGGERED_BROWSER_PATH?{executablePath:process.env.JIGGERED_BROWSER_PATH}:{}),args:JSON.parse(process.env.JIGGERED_BROWSER_ARGS||'[]')});
 const context=await browser.newContext({viewport:{width:1440,height:1000}});const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
 await page.goto(base+'/');await page.locator('#hero-title').waitFor();
-await page.locator('[data-register-link]').first().filter({hasText:'Sign in'}).waitFor();
+await page.locator('[data-register-link]').first().filter({hasText:'Log in'}).waitFor();
 assert.equal(await page.locator('[data-register-link]').first().getAttribute('href'),'/login');
 assert.equal(await page.locator('#registration-status').textContent(),'REGISTRATION CLOSED');
 assert.match(await page.locator('[data-registration-copy]').first().textContent(),/currently closed/);
-assert.equal(await page.locator('link[rel=canonical]').getAttribute('href'),'/welcome');
+assert.equal(await page.locator('link[rel=canonical]').getAttribute('href'),base+'/welcome');
 await page.route('**/api/auth/options',route=>route.fulfill({status:503,body:'Unavailable'}));
 await page.goto(base+'/welcome');await page.locator('#registration-status').filter({hasText:'SIGNUP AVAILABILITY UNKNOWN'}).waitFor();
 assert.match(await page.locator('[data-registration-copy]').first().textContent(),/couldn’t check/);
@@ -83,7 +83,7 @@ await page.locator('#t-account').click();await page.locator('#security-panel').s
 // Exercise signup, verification, recovery and new-password sign-in through real forms and a local relay.
 const adminCookies=await context.cookies();await page.close();await context.clearCookies();const visitor=context,join=await visitor.newPage();await join.setViewportSize({width:320,height:780});join.on('pageerror',e=>errors.push(e.message));
 await join.goto(base+'/');await join.locator('#registration-status').filter({hasText:'OPEN FOR REGISTRATION'}).waitFor();
-assert.match(await join.locator('[data-registration-copy]').first().textContent(),/Registration is open/);
+assert.match(await join.locator('[data-registration-copy]').first().textContent(),/Free accounts are available/);
 assert.equal(await join.locator('[data-register-link]').last().getAttribute('href'),'/register');
 assert.equal(await join.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'mobile landing overflow');
 await screenshot(join,'open-registration-landing-mobile.png');
