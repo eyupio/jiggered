@@ -165,57 +165,31 @@ runBrowser({ name: "mobile", portEnv: "JIGGERED_MOBILE_PORT" }, async (harness) 
   await page.waitForFunction(
     () => !/Updating/.test(document.getElementById("history-count").textContent),
   );
-  // The tab bar is at the top on wide screens and along the bottom on phones; either way a heading must be clear of it.
-  const nav = () =>
-    page.evaluate(() => {
-      const n = document.querySelector("nav").getBoundingClientRect();
-      return n.top > innerHeight / 2 ? 0 : n.bottom;
-    });
-  for (const [target, panel] of [
-    ["history-records", "#history-records"],
-    ["history-share", "#history-share"],
-  ]) {
-    await page.locator(`#history-shortcuts [data-history-target="${target}"]`).click();
-    // On screen and clear of the tab bar. The last panel may stay lower down: the page cannot scroll past its end.
-    await page.waitForFunction(
-      (sel) => {
-        const r = document.querySelector(sel + " h2").getBoundingClientRect();
-        const n = document.querySelector("nav").getBoundingClientRect(),
-          low = n.top > innerHeight / 2;
-        return r.top >= (low ? 0 : n.bottom) && r.top < (low ? n.top : innerHeight) - 40;
-      },
-      panel,
-      { timeout: 5000 },
-    );
-    const top = await page.evaluate(
-      (sel) => document.querySelector(sel + " h2").getBoundingClientRect().top,
-      panel,
-    );
-    assert.ok(
-      top >= (await nav()),
-      `the ${target} heading (top ${Math.round(top)}) is not hidden under the sticky tab bar`,
-    );
+  // Optional detail is reachable by a native summary or the primary action, with the search intact.
+  for (const id of ["history-records", "history-explore"]) {
+    await page.locator(`#${id} > summary`).click();
+    assert.equal(await page.locator(`#${id}`).getAttribute("open"), "");
     assert.equal(
-      await page.evaluate(
-        (sel) => document.activeElement === document.querySelector(sel + " h2"),
-        panel,
-      ),
+      await page.locator(`#${id} > summary`).evaluate((el) => el === document.activeElement),
       true,
-      "focus moves to the heading",
     );
-    assert.equal(
-      await page.locator("#hist-query").inputValue(),
-      "walk",
-      "the search is still there after jumping",
-    );
+    assert.equal(await page.locator("#hist-query").inputValue(), "walk");
+    await page.locator(`#${id} > summary`).click();
   }
-  await page.locator('#history-shortcuts [data-history-target="trends-panel"]').click();
+  await page.locator("#history-prepare").click();
   await page.waitForFunction(() => {
-    const t = document.getElementById("trends-panel").getBoundingClientRect().top;
-    const n = document.querySelector("nav").getBoundingClientRect(),
-      low = n.top > innerHeight / 2;
-    return t >= (low ? 0 : n.bottom) && t < (low ? n.top : innerHeight) - 40;
+    const heading = document.querySelector("#history-share h2").getBoundingClientRect();
+    const nav = document.querySelector("nav").getBoundingClientRect();
+    return (
+      heading.top >= (nav.top > innerHeight / 2 ? 0 : nav.bottom) && heading.top < innerHeight - 100
+    );
   });
+  assert.equal(
+    await page.locator("#history-share h2").evaluate((el) => el === document.activeElement),
+    true,
+  );
+  assert.equal(await page.locator("#summary-preview").isVisible(), true);
+  assert.equal(await page.locator("#hist-query").inputValue(), "walk");
   assert.equal(
     await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
     false,

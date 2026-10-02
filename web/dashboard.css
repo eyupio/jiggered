@@ -12,6 +12,9 @@
   --red: #b55f4b;
   --spent: #e2e7da;
   --ring-track: #e8ecdf;
+  --matrix-green: #56734d;
+  --matrix-red: #ad5744;
+  --matrix-status-ink: #fff;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -27,6 +30,9 @@
     --red: #ea9b84;
     --spent: #3b4d3f;
     --ring-track: #394b3d;
+    --matrix-green: var(--green);
+    --matrix-red: var(--red);
+    --matrix-status-ink: #17221c;
   }
 }
 :root[data-theme="dark"] {
@@ -42,6 +48,9 @@
   --red: #ea9b84;
   --spent: #3b4d3f;
   --ring-track: #394b3d;
+  --matrix-green: var(--green);
+  --matrix-red: var(--red);
+  --matrix-status-ink: #17221c;
 }
 .app-shell {
   margin: 0;
@@ -632,21 +641,6 @@
 .app-shell .help-intro {
   background: var(--accent-soft);
 }
-.app-shell .history-intro h2 {
-  font-size: 30px;
-}
-.app-shell .range-presets {
-  margin-top: 7px;
-}
-.app-shell .range-presets button {
-  min-height: 40px;
-  border-radius: 7px;
-  background: var(--surface);
-}
-.app-shell .range-presets button[aria-pressed="true"] {
-  background: var(--accent);
-  color: var(--bg);
-}
 .app-shell .metric {
   background: var(--surface);
   padding: 23px;
@@ -721,6 +715,36 @@
 .app-shell #account-panel,
 .app-shell #help-panel {
   max-width: 820px;
+}
+/* History has one heading; its calendar and selected day carry the page. */
+.app-shell .matrix-cell.green,
+.app-shell .matrix-cell.recovery {
+  background: var(--matrix-green);
+  color: var(--matrix-status-ink);
+}
+.app-shell .matrix-cell.red {
+  background: var(--matrix-red);
+  color: var(--matrix-status-ink);
+}
+.app-shell .matrix-cell.amber {
+  color: #101710;
+}
+.app-shell[data-view="history"] .dashboard-masthead {
+  padding-block: 24px;
+}
+.app-shell[data-view="history"] .dashboard-masthead h1 {
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+.app-shell[data-view="history"] .dashboard-eyebrow,
+.app-shell[data-view="history"] .dashboard-emblem {
+  display: none;
+}
+.app-shell #history-panel > details:not([open]) {
+  padding-block: 10px;
+}
+.app-shell #history-panel > .history-intro {
+  background: var(--surface);
 }
 @media (min-width: 960px) {
   .app-shell #today-panel {
@@ -821,9 +845,6 @@
   }
   .app-shell .metric b {
     font-size: 31px;
-  }
-  .app-shell .history-intro h2 {
-    font-size: 27px;
   }
 }
 @media (max-width: 360px) {

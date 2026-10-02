@@ -100,7 +100,7 @@ The browser runner compiles once, then runs all nine shared scenarios:
 
 | Script                          | Coverage                                                                                      |
 | ------------------------------- | --------------------------------------------------------------------------------------------- |
-| `test/browser-view-state.cjs`   | Refresh restoration, slow first paint, photos and regional warnings (in-memory API fixture)   |
+| `test/browser-view-state.cjs`   | Calm History, shared exports, refresh restoration, photos and regions (in-memory API fixture) |
 | `test/browser-energy-theme.cjs` | Energy language, previews, saving, cross-device and responsive themes (in-memory API fixture) |
 | `test/browser-today.cjs`        | Activity picker, logging, adjustments and Undo                                                |
 | `test/browser-history.cjs`      | Large-account History, search, filters and mobile calendar                                    |

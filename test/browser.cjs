@@ -321,7 +321,7 @@ runBrowser({ name: "walkthrough", username: "auditadmin" }, async (harness) => {
   });
   await phone.locator("#hist-query").fill("Browser episode");
   assert.equal(await phone.locator("#eps .ep").count(), 1);
-  await phone.locator("#sum-preview").click();
+  await phone.locator("#history-prepare").click();
   assert.ok(await phone.locator("#summary-preview").isVisible());
   await screenshot(phone, "history-mobile.png");
   const idb = await phone.evaluate(async () => {

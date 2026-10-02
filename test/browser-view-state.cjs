@@ -53,7 +53,7 @@ runBrowser({ name: "view-state", startServer: false }, async (harness) => {
       const panel = document.querySelector("#history-panel");
       if (panel && !panel.hidden && !document.body.classList.contains("app-loading")) {
         window.historyPaints.push({
-          period: document.querySelector('[data-range][aria-pressed="true"]')?.dataset.range,
+          period: document.querySelector("#history-range")?.value,
           count: document.querySelector("#history-count").textContent,
         });
       }
@@ -127,7 +127,7 @@ runBrowser({ name: "view-state", startServer: false }, async (harness) => {
   }
   await page.goto("http://localhost:18759/#history");
   await ready();
-  await page.locator('[data-range="7"]').click();
+  await page.locator("#history-range").selectOption("7");
   assert.match(await page.locator("#history-count").textContent(), /^4 days/);
   addDays(7);
   slow = true;
@@ -139,7 +139,203 @@ runBrowser({ name: "view-state", startServer: false }, async (harness) => {
     "first visible frame uses saved 7-day period and final records, never 30 days or cached 4 days",
   );
   slow = false;
+  // Calm keeps the calendar and day visible, with optional detail closed until requested.
+  for (const id of ["history-share", "history-records", "history-explore"])
+    assert.equal(await page.locator("#" + id).getAttribute("open"), null);
+  Object.assign(docs["d-" + today].body, {
+    status: "amber",
+    statusPenalty: 3,
+    entries: [
+      { id: "conversation", a: "Hard conversation", c: 3, t: "09:56" },
+      { id: "driving", a: "Driving (30 min)", c: 2, t: "12:30" },
+    ],
+  });
+  docs["d-" + dayAt(1)].body.entries = [{ id: "rest", a: "Rest", c: -2 }];
+  docs["d-" + dayAt(1)].body.status = "green";
+  docs["d-" + dayAt(2)].body.entries = [];
+  delete docs["d-" + dayAt(4)];
+  docs["e-900"] = {
+    rev: 1,
+    body: {
+      when: dayAt(4) + "T09:00",
+      symptoms: ["Headache"],
+      before: [],
+      notes: "Private note for clinician",
+      duration: "10 minutes",
+      onset: "Gradual",
+    },
+  };
+  await reload();
+  assert.equal(await page.locator(".matrix-balance > b").textContent(), "2");
+  assert.match(
+    await page.locator(".matrix-activities").textContent(),
+    /Hard conversation.*09:56.*−3.*Driving.*12:30.*−2/,
+  );
+  const latestCell = page.locator('[data-matrix-grid] [data-date="' + today + '"]');
+  await latestCell.focus();
+  await latestCell.press("ArrowUp");
+  assert.equal(await page.locator('[data-matrix-grid] button[tabindex="0"]').count(), 1);
+  await page.locator('[data-matrix-grid] button[tabindex="0"]').press("Enter");
+  assert.equal(
+    await page.locator('[data-date="' + dayAt(1) + '"]').getAttribute("aria-pressed"),
+    "true",
+  );
+  await page.locator('[data-matrix-grid] button[tabindex="0"]').press("Escape");
+  assert.equal(await page.locator('[data-matrix-grid] [aria-pressed="true"]').count(), 0);
+  await latestCell.click();
+  await page.locator("[data-matrix-mode]").selectOption("remaining");
+  await page.locator("[data-matrix-prev]").click();
+  assert.equal(
+    await page.locator(".matrix-balance > b").textContent(),
+    "12",
+    "recovery retains negative net usage",
+  );
+  await page.locator("[data-matrix-prev]").click();
+  assert.equal(
+    await page.locator(".matrix-balance > b").textContent(),
+    "—",
+    "a check-in alone does not invent an activity balance",
+  );
+  await page.locator('[data-matrix-grid] [data-date="' + dayAt(4) + '"]').click();
+  assert.match(
+    await page.locator("[data-matrix-reading]").textContent(),
+    /No matching day log.*Headache/s,
+  );
+  await page.locator("[data-matrix-edit]").click();
+  assert.equal(await page.locator("#ep-title").textContent(), "Edit episode");
+  await page.locator("#t-history").click();
+  await page.locator('[data-matrix-grid] [data-date="' + today + '"]').click();
+  await page.locator("[data-matrix-mode]").selectOption("checkin");
+  if (process.env.JIGGERED_SCREENSHOT_DIR) {
+    fs.mkdirSync(process.env.JIGGERED_SCREENSHOT_DIR, { recursive: true });
+    await page.evaluate(() => {
+      document.activeElement.blur();
+      scrollTo(0, 0);
+    });
+    await page.setViewportSize({
+      width: 1280,
+      height: await page.evaluate(() => document.documentElement.scrollHeight),
+    });
+    await page.mouse.move(1000, 5);
+    await page.screenshot({
+      path: path.join(process.env.JIGGERED_SCREENSHOT_DIR, "calm-history-desktop.png"),
+    });
+    await page.setViewportSize({ width: 1280, height: 900 });
+  }
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      true,
+      "Calm fits phone widths",
+    );
+    if (width === 390 && process.env.JIGGERED_SCREENSHOT_DIR) {
+      await page.evaluate(() => {
+        document.activeElement.blur();
+        scrollTo(0, 0);
+      });
+      await page.setViewportSize({
+        width,
+        height: await page.evaluate(() => document.documentElement.scrollHeight),
+      });
+      await page.mouse.move(0, 0);
+      await page.screenshot({
+        path: path.join(process.env.JIGGERED_SCREENSHOT_DIR, "calm-history-phone.png"),
+      });
+      await page.setViewportSize({ width, height: 900 });
+    }
+    for (const range of ["7", "30", "90", "180", "365"]) {
+      await page.locator("#history-range").selectOption(range);
+      assert.equal(await page.locator("[data-matrix-grid] button").count(), Number(range));
+      assert.equal(
+        await page.locator("[data-matrix-grid]").evaluate((el) => el.children.length % 7),
+        0,
+      );
+      assert.equal(
+        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+        true,
+      );
+    }
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.locator("#history-range").selectOption("7");
+  await page.locator("#history-prepare").click();
+  assert.equal(await page.locator("#sum-notes").isChecked(), false);
+  assert.match(await page.locator("#summary-preview").textContent(), /7 days:.*Episodes \(1\)/s);
+  assert.doesNotMatch(
+    await page.locator("#summary-preview").textContent(),
+    /Private note for clinician/,
+  );
+  await page.locator("#sum-notes").check();
+  assert.match(await page.locator("#summary-preview").textContent(), /Private note for clinician/);
+  await reload();
+  assert.equal(
+    await page.locator("#sum-notes").isChecked(),
+    true,
+    "explicit note choice is sticky",
+  );
+  await page.locator("#sum-notes").uncheck();
+  await page.locator("#history-filter-panel summary").click();
+  await page.locator("#hist-from").fill(dayAt(1));
+  await page.locator("#hist-to").fill(today);
+  await page.locator("#hist-query").fill("driving");
+  await page.waitForFunction(() =>
+    document.querySelector("#history-count").textContent.startsWith("1 day and 0 episodes"),
+  );
+  assert.equal(await page.locator("#history-range").inputValue(), "custom");
+  assert.match(
+    await page.locator("#summary-preview").textContent(),
+    /Custom dates:.*Filters:.*driving.*Episodes \(0\)/s,
+  );
+  assert.doesNotMatch(
+    await page.locator("#summary-preview").textContent(),
+    /Private note for clinician|Rest/,
+  );
+  const csvDownload = page.waitForEvent("download");
+  await page.locator("#csv-days").click();
+  const csv = fs.readFileSync(await (await csvDownload).path(), "utf8");
+  assert.ok(csv.includes(today));
+  assert.ok(!csv.includes(dayAt(1)), "CSV and summary share the filtered selection");
+  // Export immediately after typing: the pending search must complete before a file is produced.
+  await page.locator("#hist-query").fill("rest");
+  const latestDownload = page.waitForEvent("download");
+  await page.locator("#csv-days").click();
+  const latestCsv = fs.readFileSync(await (await latestDownload).path(), "utf8");
+  assert.ok(latestCsv.includes(dayAt(1)) && !latestCsv.includes(today));
+  await page.locator("#hist-query").fill("driving");
+  await page.locator("#hist-query").press("Enter");
+  await page.evaluate(() => {
+    window.print = () => {
+      window.printedSummary = document.querySelector("#print-view").innerHTML;
+      window.dispatchEvent(new Event("afterprint"));
+    };
+  });
+  await page.locator("#sum-print").click();
+  assert.equal(
+    await page.evaluate(() => window.printedSummary),
+    await page.locator("#summary-preview").innerHTML(),
+  );
+  await page.locator('#history-filters [type="reset"]').click();
+  assert.equal(
+    await page.locator("#hist-from").inputValue(),
+    dayAt(1),
+    "clearing search retains custom dates",
+  );
+  await page.locator("#hist-to").fill(dayAt(2));
+  for (const id of ["history-prepare", "sum-print", "csv-days", "csv-eps"])
+    assert.equal(
+      await page.locator("#" + id).isDisabled(),
+      true,
+      "invalid dates cannot export a stale selection",
+    );
+  assert.match(await page.locator("#summary-preview").textContent(), /Choose valid dates/);
+  await page.locator("#history-range").selectOption("7");
+  await page.locator("#sum-preview").click();
+  await page.locator("#history-share > summary").click();
+  await page.locator("#history-filter-panel > summary").click();
+  delete docs["e-900"];
   addDays(70);
+
   for (let i = 0; i < 42; i++)
     docs["e-" + (1000 + i)] = {
       rev: 1,
@@ -153,14 +349,16 @@ runBrowser({ name: "view-state", startServer: false }, async (harness) => {
       },
     };
   await reload();
-  await page.locator('[data-range="90"]').click();
+  await page.locator("#history-range").selectOption("90");
+  await page.locator("#history-records summary").click();
+  await page.locator("#history-explore > summary").click();
+  await page.locator("#history-share summary").click();
   await page.locator("#more-days").click();
   await page.locator("#more-eps").click();
   await page.locator("[data-matrix-mode]").selectOption("episodes");
   await page.locator('[data-matrix-grid] [data-date="' + dayAt(5) + '"]').click();
   await page.locator("#chart-energy-select").selectOption("2");
   await page.locator("#chart-energy-data summary").click();
-  await page.locator("#sum-range").selectOption("90");
   await page.locator("#sum-notes").uncheck();
   await page.locator("#sum-preview").click();
   await page.evaluate(() => scrollTo(0, 700));
@@ -178,10 +376,24 @@ runBrowser({ name: "view-state", startServer: false }, async (harness) => {
   );
   assert.equal(await page.locator("#chart-energy-select").inputValue(), "2");
   assert.equal(await page.locator("#chart-energy-data").getAttribute("open"), "");
-  assert.equal(await page.locator("#sum-range").inputValue(), "90");
+  assert.equal(await page.locator("#history-range").inputValue(), "90");
+  for (const id of ["history-records", "history-explore", "history-share"])
+    assert.equal(
+      await page.locator("#" + id).getAttribute("open"),
+      "",
+      "open section survives refresh",
+    );
+  assert.match(await page.locator("#summary-preview").textContent(), /90 days:/);
   assert.equal(await page.locator("#sum-notes").isChecked(), false);
   assert.equal(await page.locator("#summary-preview").isVisible(), true);
   assert.equal(await page.evaluate(() => scrollY), 700);
+  await page.setViewportSize({ width: 320, height: 900 });
+  assert.equal(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    true,
+    "open records, charts and preview fit a small phone",
+  );
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.locator("#history-filter-panel summary").click();
   await page.locator("#hist-symptom").selectOption("Tingling");
   await page.locator("#hist-status").selectOption("amber");
@@ -322,6 +534,19 @@ runBrowser({ name: "view-state", startServer: false }, async (harness) => {
   assert.equal(await page.locator("#profile-photo-preview img").count(), 0);
   assert.equal(await page.evaluate(() => sessionStorage.getItem("jiggered:view:1:alex")), null);
   assert.equal(await page.locator("#t-admin").count(), 0);
+  await page.locator("#t-history").click();
+  assert.equal(await page.locator("[data-matrix-grid]").isVisible(), true);
+  assert.match(
+    await page.locator("[data-matrix-reading]").textContent(),
+    /No matching check-in.*No matching day log/,
+  );
+  assert.equal(
+    await page.locator(".matrix-facts").textContent(),
+    "0Check-ins0Episodes0Poor-sleep days",
+  );
+  await page.locator("[data-matrix-open]").click();
+  assert.equal(await page.locator("#today-panel").isVisible(), true);
+  await page.locator("#t-account").click();
   // Broken hashes and blocked presentation storage cannot prevent the app from opening.
   await page.goto("http://localhost:18759/#%");
   await ready();
@@ -353,7 +578,7 @@ runBrowser({ name: "view-state", startServer: false }, async (harness) => {
   assert.deepEqual(errors, []);
   await context.close();
   console.log(
-    "View state: first visible range/count, filters, paging, calendar, graph, summary, scroll, day/edit drafts, Help, Admin, private photos and regional warnings passed.",
+    "Calm History and view state: shared period/filters/exports, private-note opt-in, missing/recovery days, responsive calendar, first visible range/count, paging, graph, summary, scroll, day/edit drafts, Help, Admin, photos and regional warnings passed.",
   );
 }).catch((error) => {
   console.error(error);

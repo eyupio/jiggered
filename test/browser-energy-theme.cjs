@@ -132,8 +132,8 @@ runBrowser({ name: "energy-theme", startServer: false }, async (harness) => {
   assert.match(await page.locator('[data-chart="combined"]').textContent(), /Net spoons/);
   assert.match(await page.locator(".energy-report").textContent(), /spoons used before recovery/);
   assert.match(await page.locator("#history-charts").textContent(), /One point per day/);
-  await page.locator("#sum-preview").click();
-  assert.match(await page.locator("#summary-preview").textContent(), /Spoons spent/);
+  await page.locator("#history-prepare").click();
+  assert.match(await page.locator("#summary-preview").textContent(), /Net spoons used/);
   await page.locator("header [data-help]").click();
   await page.locator("#help-search").fill("spoon");
   assert.ok(await page.locator("#help-spoons").isVisible());
