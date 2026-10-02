@@ -72,12 +72,15 @@ const groups = page => page.evaluate(() => [...document.querySelectorAll('#acts 
     const name = (await firstButton.locator('span').first().textContent()).trim();
     const inList = el => el.evaluate(e => { const a = e.getBoundingClientRect(), b = document.getElementById('acts').getBoundingClientRect(); return { x: a.x - b.x, y: a.y - b.y } });
     const before = await inList(firstButton);
+    const beforeHeight = await firstButton.evaluate(el => el.getBoundingClientRect().height);
     await firstButton.click();
     await saved(page);
 
     const card = page.locator('#acts details.act-group .act.on', { hasText: name }).first();
     await card.waitFor();
     const after = await inList(card);
+    assert.ok(Math.abs(await card.evaluate(el => el.getBoundingClientRect().height) - beforeHeight) < 2, "selection keeps the tile height");
+    assert.equal(await page.getByRole("heading", { name: "So far", exact: true }).count(), 0);
     assert.ok(Math.abs(after.y - before.y) < 2 && Math.abs(after.x - before.x) < 2, 'a logged activity changes in place instead of moving');
     assert.equal(await page.locator('#onboarding li.done').count(), 2, 'both first steps are ticked');
     assert.match(await page.locator('#onboarding-title').textContent(), /set up/, 'the finished checklist stays up for now');
@@ -138,3 +141,4 @@ const groups = page => page.evaluate(() => [...document.querySelectorAll('#acts 
     fs.rmSync(dir, { recursive: true, force: true });
   }
 })();
+

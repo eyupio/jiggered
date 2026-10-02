@@ -64,6 +64,18 @@ const EPISODES = 900;
     await page.waitForFunction(() => document.querySelector('#sync')?.dataset.state === 'saved');
 
     await page.locator('#t-history').click();
+    await page.setViewportSize({ width: 390, height: 900 });
+    for (const range of [7, 30, 90, 180, 365]) {
+      await page.locator(`#history-presets [data-range="${range}"]`).click();
+      for (const mode of ['checkin', 'points', 'sleep', 'episodes']) {
+        await page.locator('[data-matrix-mode]').selectOption(mode);
+        assert.equal(await page.locator('[data-matrix-grid] button').count(), range, 'the whole chosen range is visible on mobile');
+        const sizes = await page.locator('.matrix-calendar').evaluate(el => ({ width: el.getBoundingClientRect().width, parent: el.parentElement.getBoundingClientRect().width, slots: el.querySelector('[data-matrix-grid]').children.length }));
+        assert.ok(Math.abs(sizes.width - sizes.parent) < 2, 'calendar fills the row');
+        assert.equal(sizes.slots % 7, 0, 'both partial weeks have complete rows');
+      }
+    }
+    await page.setViewportSize({ width: 1100, height: 900 });
     await page.locator('#history-presets [data-range="all"]').click();
     await page.waitForFunction(([d, e]) => new RegExp(`${d} days? and ${e} episodes?`).test(document.getElementById('history-count').textContent), [DAYS, EPISODES]);
 
@@ -115,3 +127,4 @@ const EPISODES = 900;
     fs.rmSync(dir, { recursive: true, force: true });
   }
 })();
+

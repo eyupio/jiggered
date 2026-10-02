@@ -172,3 +172,8 @@ test("date checks are the same with and without the cache", () => {
     assert.equal(validDate(v), !!direct, "and again from the cache");
   }
 });
+
+
+ test("180-day preset includes exactly 180 calendar days", () => {
+  assert.deepEqual(historyRange({}, "2026-10-02", "180"), { from: "2026-04-06", to: "2026-10-02" });
+});
