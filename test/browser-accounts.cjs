@@ -38,6 +38,41 @@ await page.locator('.service-details').filter({has:page.locator('#svc-mail-enabl
 await page.locator('#svc-mail-enabled').check();await page.locator('#svc-host').fill('127.0.0.1');await page.locator('#svc-port').fill(String(relay.address().port));await page.locator('#svc-tls').selectOption('none');await page.locator('#svc-from').fill('server@example.com');await page.locator('#svc-to').fill('admin@example.com');
 await page.locator('.service-details').filter({has:page.locator('#svc-registration')}).locator('summary').click();await page.locator('#svc-registration').check();await page.locator('#svc-recovery').check();await page.locator('#svc-public_url').fill(base);
 await page.locator('#svc-password').fill('preview-password1');await page.locator('#services-form [type=submit]').click();await page.locator('#svc-msg').filter({hasText:'Configuration saved'}).waitFor();assert.equal(await page.locator('#svc-password').inputValue(),'');
+await page.locator('#svc-auth-status').filter({hasText:'remembered until'}).waitFor();
+assert.equal(await page.locator('#svc-password').getAttribute('required'),null);
+const testEmail=page.locator('[data-service-action="test_email"]');
+await testEmail.click();await page.locator('#svc-msg').filter({hasText:'Test email accepted'}).waitFor();
+assert(mailMessages.some(m=>m.includes('Jiggered test notification')),'SMTP relay received test email');
+// Password input alone must never mark settings dirty; a rejected password clears the remembered value.
+await page.locator('#svc-password').fill('wrong-password');
+assert.equal(await testEmail.textContent(),'Send test email');
+await testEmail.click();await page.locator('#svc-msg').filter({hasText:"isn't your current password"}).waitFor();
+await page.locator('#svc-password').fill('preview-password1');
+await testEmail.click();await page.locator('#svc-msg').filter({hasText:'Test email accepted'}).waitFor();
+await page.locator('#svc-auth-status').filter({hasText:'remembered until'}).waitFor();
+const expiryMessage=await page.locator('#svc-auth-status').textContent();
+// A changed setting is saved before sending; no second password entry is needed.
+await page.locator('#svc-from').fill('updated@example.com');
+assert.equal(await testEmail.textContent(),'Save & send test email');
+await testEmail.click();await page.locator('#svc-msg').filter({hasText:'Test email accepted'}).waitFor();
+assert.equal(await testEmail.textContent(),'Send test email');
+assert(mailMessages.some(m=>m.includes('From: updated@example.com')),'test used the newly saved sender');
+assert.equal(await page.locator('#svc-auth-status').textContent(),expiryMessage,'reuse does not extend the 30-minute window');
+// Expiry is checked at use time, even if a background tab delayed the timer.
+await page.evaluate(()=>{window.realNow=Date.now;Date.now=()=>window.realNow()+30*60*1000+1000});
+await testEmail.click();await page.locator('#svc-msg').filter({hasText:'Enter your admin password'}).waitFor();
+assert.notEqual(await page.locator('#svc-password').getAttribute('required'),null);
+await page.evaluate(()=>{Date.now=window.realNow;delete window.realNow});
+await page.locator('#svc-password').fill('preview-password1');await testEmail.click();await page.locator('#svc-msg').filter({hasText:'Test email accepted'}).waitFor();
+// A failed save must not send a test against stale settings.
+const sentBefore=mailMessages.length;
+await page.locator('#svc-port').fill('0');await testEmail.click();await page.locator('#svc-msg.err').waitFor();
+assert.equal(mailMessages.length,sentBefore);
+await page.locator('#svc-port').fill(String(relay.address().port));
+await page.locator('#services-form [type=submit]').click();await page.locator('#svc-msg').filter({hasText:'Configuration saved'}).waitFor();
+await page.reload();await page.locator('#t-admin').click();await page.locator('#svc-auth-status').filter({hasText:'Enter your admin password'}).waitFor();
+await testEmail.click();await page.locator('#svc-msg').filter({hasText:'Enter your admin password'}).waitFor();
+
 await page.locator('#t-account').click();await page.locator('#security-status').filter({hasText:'Password only'}).waitFor();await page.locator('#security-password').fill('preview-password1');await page.locator('#security-start').click();await page.locator('#security-setup').waitFor();const secret=await page.locator('#security-secret').textContent();
 // Produce TOTP in the harness using the RFC counter and HMAC, independently of the Go implementation.
 function totp(secret){const crypto=require('node:crypto'),alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';let bits='';for(const c of secret)bits+=alphabet.indexOf(c).toString(2).padStart(5,'0');const key=Buffer.from(bits.match(/.{8}/g).map(x=>parseInt(x,2)));const counter=Buffer.alloc(8);counter.writeBigUInt64BE(BigInt(Math.floor(Date.now()/30000)));const h=crypto.createHmac('sha1',key).update(counter).digest(),o=h[19]&15;return ((h.readUInt32BE(o)&0x7fffffff)%1000000).toString().padStart(6,'0')}

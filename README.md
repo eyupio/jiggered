@@ -142,7 +142,12 @@ unknown status. Repository visibility and licensing remain separate from hosted 
 To open registration on the hosted instance, configure and test SMTP under **Admin → Off-site backups & email**,
 then set the trusted HTTPS **Public application URL**, enable **Registration** (and **Password recovery** if wanted), and save
 with your current admin password. Visit `/welcome` and `/register` signed out to confirm signup is offered.
-Complete an email-verification signup before announcing the launch. SMTP credentials stay in the instance’s
+Complete an email-verification signup before announcing the launch.
+
+The service-admin password is remembered only in the open page’s memory for a fixed 30 minutes after a
+successful request; reload, sign-out, rejected authentication or expiry clears it. The server still checks every
+request. Typing that password does not mark settings changed. Email and S3 test buttons save pending settings
+before testing, and do not run the test if saving fails. SMTP credentials stay in the instance’s
 service settings; do not commit them or enable registration by default for other installations.
 
 Registration is closed by default. Create the first account, an admin, from the command line (see **Run it**).
