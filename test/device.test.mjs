@@ -31,3 +31,13 @@ test("editing lock allows one writer, fails closed without locks and releases on
  const locks={request:async(name,opts,fn)=>{if(held)return fn(null);held=true;try{return await fn({name})}finally{held=false}}};
  const a=await claimEditingTab(locks,'user');assert.equal(a.writable,true);const b=await claimEditingTab(locks,'user');assert.equal(b.writable,false);a.close();await new Promise(r=>setImmediate(r));const c=await claimEditingTab(locks,'user');assert.equal(c.writable,true);c.close();assert.equal((await claimEditingTab(null,'user')).writable,false);
 });
+
+
+test('read-only logout fences stale writers and clears legacy identity and drafts',async()=>{
+ const {PURGE_KEY}=await import('../web/device.js');const legacy=new Storage();
+ legacy.setItem('jiggered:me','private identity');legacy.setItem('jiggered:v1:1:a','private log');legacy.setItem('jiggered:drafts:1:a:new','private draft');
+ const writer=await openDeviceStorage({indexedDB:null,legacy,coordination:{writable:true}});
+ const reader=await openDeviceStorage({indexedDB:null,legacy,coordination:{writable:false}});
+ await reader.purge();assert.equal(legacy.getItem('jiggered:me'),null);assert.equal(legacy.getItem('jiggered:v1:1:a'),null);assert.equal(legacy.getItem('jiggered:drafts:1:a:new'),null);
+ writer.setItem('jiggered:v1:1:a','stale private log');assert.equal(legacy.getItem('jiggered:v1:1:a'),null);assert.equal(writer.getItem('jiggered:v1:1:a'),null);assert.ok(legacy.getItem(PURGE_KEY));
+});

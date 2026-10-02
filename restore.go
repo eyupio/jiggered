@@ -18,20 +18,26 @@ func (s *server) restoreDocs(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, 400, "Mode must be add or overwrite.")
 		return
 	}
-	allowSlowTransfer(w)
-	raw, ok := readBody(w, r, importLimit(), "That export is too large.")
+	release, ok := s.admitImport(w, r)
 	if !ok {
 		return
 	}
-	var in map[string]json.RawMessage
-	if json.Unmarshal(raw, &in) != nil || in == nil || len(in) == 0 {
+	defer release()
+	allowSlowTransfer(w)
+	in, ok := readExport(w, r)
+	if !ok {
+		return
+	}
+	if len(in) == 0 {
 		jsonError(w, 400, "Choose a non-empty Jiggered export (not a device recovery file).")
 		return
 	}
 	issues := []string{}
 	for _, id := range slices.Sorted(maps.Keys(in)) {
 		if err := validateDoc(id, in[id]); err != nil {
-			issues = append(issues, fmt.Sprintf("%s: %s", id, err))
+			if len(issues) < 100 {
+				issues = append(issues, fmt.Sprintf("%s: %s", id, err))
+			}
 		}
 	}
 	if len(issues) > 0 {

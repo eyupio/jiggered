@@ -8,6 +8,32 @@ import (
 	"time"
 )
 
+type adminMutationKey struct{}
+
+var errStaleAuthorization = errors.New("authorization changed; sign in and confirm again")
+
+func guardMutation(ctx context.Context, tx *sql.Tx) error {
+	if active, _ := ctx.Value(adminMutationKey{}).(bool); !active {
+		return nil
+	}
+	a, _ := ctx.Value(authKey{}).(*authInfo)
+	if a == nil || len(a.verified) == 0 {
+		return errStaleAuthorization
+	}
+	var n int
+	err := tx.QueryRowContext(ctx, `SELECT count(*) FROM users u JOIN sessions s ON s.user_id=u.id
+        WHERE u.id=? AND u.role='admin' AND u.disabled=0 AND u.must_change_password=0
+        AND u.password_hash=? AND s.token_hash=? AND s.sid=? AND s.expires_at>?`,
+		a.u.ID, string(a.verified), a.hash, a.sid, time.Now().Unix()).Scan(&n)
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return errStaleAuthorization
+	}
+	return nil
+}
+
 var (
 	errUserExists = errors.New("that username is taken")
 	errNoUser     = errors.New("no such user")
@@ -101,6 +127,9 @@ func (s *server) createUser(ctx context.Context, name, hash, role string, mustCh
 		return nil, err
 	}
 	defer tx.Rollback()
+	if err := guardMutation(ctx, tx); err != nil {
+		return nil, err
+	}
 	var taken int
 	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM users WHERE username = ?", name).Scan(&taken); err != nil {
 		return nil, err
@@ -162,6 +191,9 @@ func (s *server) withUserTx(ctx context.Context, id int64, fn func(tx *sql.Tx, u
 		return err
 	}
 	defer tx.Rollback()
+	if err := guardMutation(ctx, tx); err != nil {
+		return err
+	}
 	u, err := scanUser(tx.QueryRowContext(ctx, "SELECT "+userCols+" FROM users WHERE id = ?", id))
 	if err != nil {
 		return err
@@ -245,11 +277,23 @@ func (s *server) deleteUser(ctx context.Context, id int64) error {
 // revokeSessions ends the account's sessions except the one whose public id is
 // exceptSID ("" ends them all) and says how many it ended.
 func (s *server) revokeSessions(ctx context.Context, userID int64, exceptSID string) (int64, error) {
-	res, err := s.db.ExecContext(ctx, "DELETE FROM sessions WHERE user_id = ? AND sid != ?", userID, exceptSID)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
 	}
-	return res.RowsAffected()
+	defer tx.Rollback()
+	if err := guardMutation(ctx, tx); err != nil {
+		return 0, err
+	}
+	res, err := tx.ExecContext(ctx, "DELETE FROM sessions WHERE user_id = ? AND sid != ?", userID, exceptSID)
+	if err != nil {
+		return 0, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return n, tx.Commit()
 }
 
 const (
@@ -261,7 +305,7 @@ const (
 // changing their own password, signing their devices out, importing. They are kept under a cap of their own, so
 // a flood of them can't push the record of what an admin did out of the log. Everything else (admin and
 // command-line actions, settings, backups) has a cap that only an admin can fill.
-const auditSelfService = `(action IN ('login', 'login_failed', 'login_refused', 'password_check_failed', 'password_changed', 'session_revoked', 'import')
+const auditSelfService = `(action IN ('login', 'login_failed', 'login_refused', 'password_check_failed', 'password_changed', 'session_revoked', 'import', 'restore', 'account_deleted')
 	OR (action = 'sessions_revoked' AND actor = target))`
 
 // audit records who did what. Best effort: a failure to log never fails the request.
@@ -282,4 +326,45 @@ func (s *server) prune() {
 	for _, kind := range []string{auditSelfService, "NOT " + auditSelfService} {
 		s.db.Exec("DELETE FROM audit_log WHERE "+kind+" AND id <= (SELECT id FROM audit_log WHERE "+kind+" ORDER BY id DESC LIMIT 1 OFFSET ?)", auditMaxRows)
 	}
+}
+
+// The checked credential and live calling session must still match when the password changes.
+// Revoke every old token, including copies of the caller's cookie, and issue a new token atomically.
+func (s *server) changePassword(ctx context.Context, a *authInfo, hash, ip, ua string) (string, time.Time, error) {
+	token, err := randomHex(32)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	sid, err := randomHex(8)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	now := time.Now()
+	exp := now.Add(sessionTTL)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	defer tx.Rollback()
+	res, err := tx.ExecContext(ctx, `UPDATE users SET password_hash=?, must_change_password=0
+ WHERE id=? AND password_hash=? AND disabled=0 AND EXISTS
+ (SELECT 1 FROM sessions WHERE user_id=? AND token_hash=? AND sid=? AND expires_at>?)`,
+		hash, a.u.ID, string(a.verified), a.u.ID, a.hash, a.sid, now.Unix())
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	if n != 1 {
+		return "", time.Time{}, errStaleAuthorization
+	}
+	if _, err = tx.ExecContext(ctx, "DELETE FROM sessions WHERE user_id=?", a.u.ID); err != nil {
+		return "", time.Time{}, err
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO sessions(token_hash,sid,user_id,created_at,last_seen_at,expires_at,ip,user_agent) VALUES(?,?,?,?,?,?,?,?)`, hashToken(token), sid, a.u.ID, now.Unix(), now.Unix(), exp.Unix(), ip, cleanText(ua, 200)); err != nil {
+		return "", time.Time{}, err
+	}
+	return token, exp, tx.Commit()
 }

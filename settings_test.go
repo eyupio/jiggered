@@ -58,6 +58,7 @@ func TestSettingsStartAtTheSafeDefaults(t *testing.T) {
 func TestSettingsRoundTripAndTheDatabaseIsTheSource(t *testing.T) {
 	e := newTestServer(t)
 	e.set("trust_proxy", "true")
+	e.set("trusted_proxy_cidrs", "127.0.0.1/32,10.0.0.0/8,198.51.100.1/32")
 	e.set("proxy_hops", " 3 ")
 	if got := e.s.settings(); !got.TrustProxy || got.ProxyHops != 3 || got.SecureCookie {
 		t.Errorf("settings = %+v", got)
@@ -116,6 +117,7 @@ func TestSettingsReachARunningServerWithoutARestart(t *testing.T) {
 func TestSettingsSurviveTheDatabaseBeingBusyOrBroken(t *testing.T) {
 	e := newTestServer(t)
 	e.set("trust_proxy", "true")
+	e.set("trusted_proxy_cidrs", "127.0.0.1/32,10.0.0.0/8,198.51.100.1/32")
 	e.s.settings() // cached
 	e.s.db.Close()
 	e.s.cache.mu.Lock()
@@ -244,6 +246,7 @@ func TestProxySettingsFollowTheDatabase(t *testing.T) {
 		t.Errorf("by default the header is not believed: %s", got)
 	}
 	e.set("trust_proxy", "true")
+	e.set("trusted_proxy_cidrs", "127.0.0.1/32,10.0.0.0/8,198.51.100.1/32")
 	if got := seen("6.6.6.6, 203.0.113.9"); got != "203.0.113.9" {
 		t.Errorf("trusted, one hop: %s", got)
 	}
@@ -286,7 +289,7 @@ func TestAdminSettingsAPI(t *testing.T) {
 	}
 
 	// Turning the proxy setting on is visible straight away in what the admin is told they look like.
-	if st := fetch("PATCH", map[string]any{"trust_proxy": true}, "X-Forwarded-For", "203.0.113.9"); st != 200 || !got.TrustProxy || got.Seen.ClientIP != "203.0.113.9" {
+	if st := fetch("PATCH", map[string]any{"trust_proxy": true, "trusted_proxy_cidrs": "127.0.0.1/32"}, "X-Forwarded-For", "203.0.113.9"); st != 200 || !got.TrustProxy || got.Seen.ClientIP != "203.0.113.9" {
 		t.Errorf("PATCH trust_proxy = %d %+v", st, got)
 	}
 	if st := fetch("PATCH", map[string]any{"proxy_hops": 2}); st != 200 || got.ProxyHops != 2 || !got.TrustProxy {
@@ -303,7 +306,7 @@ func TestAdminSettingsAPI(t *testing.T) {
 			changes = append(changes, en.Detail+" by "+en.Actor)
 		}
 	}
-	want := []string{"proxy_hops: 2 -> 1 by admin", "trust_proxy: true -> false by admin", "proxy_hops: 1 -> 2 by admin", "trust_proxy: false -> true by admin"}
+	want := []string{"proxy_hops: 2 -> 1 by admin", "trust_proxy: true -> false by admin", "proxy_hops: 1 -> 2 by admin", "trusted_proxy_cidrs:  -> 127.0.0.1/32 by admin", "trust_proxy: false -> true by admin"}
 	if strings.Join(changes, "|") != strings.Join(want, "|") {
 		t.Errorf("audit = %v, want %v", changes, want)
 	}
@@ -369,7 +372,7 @@ func TestCLISettings(t *testing.T) {
 		t.Fatalf("settings: %v", err)
 	}
 	for _, want := range []string{"secure_cookie  false", "trust_proxy    false  (default)", "proxy_hops     1      (default)"} {
-		if !regexp.MustCompile(regexp.QuoteMeta(want)).MatchString(out) {
+		if !regexp.MustCompile(strings.ReplaceAll(regexp.QuoteMeta(want), " ", `\s+`)).MatchString(out) {
 			t.Errorf("settings output lacks %q:\n%s", want, out)
 		}
 	}
@@ -379,7 +382,7 @@ func TestCLISettings(t *testing.T) {
 	}
 	out, _, _, _ = cli(t, "", "settings")
 	line := regexp.MustCompile(`(?m)^secure_cookie.*$`).FindString(out)
-	if !strings.HasPrefix(line, "secure_cookie  true") || strings.Contains(line, "(default)") {
+	if !regexp.MustCompile(`^secure_cookie\s+true`).MatchString(line) || strings.Contains(line, "(default)") {
 		t.Errorf("after set, the line should say true and no longer be marked as the default: %q", line)
 	}
 	if v, _, _ := e.s.storedSettings(t.Context()); v["secure_cookie"] != "true" {
@@ -399,7 +402,7 @@ func TestCLISettings(t *testing.T) {
 	// and the environment does not leak in: the database is the source
 	t.Setenv("APP_TRUST_PROXY", "true")
 	out, _, _, _ = cli(t, "", "settings")
-	if !strings.Contains(out, "trust_proxy    false") {
+	if !regexp.MustCompile(`trust_proxy\s+false`).MatchString(out) {
 		t.Errorf("an environment variable must not override what the CLI shows:\n%s", out)
 	}
 }
@@ -533,6 +536,7 @@ func TestJSONBodiesMustBeASingleValue(t *testing.T) {
 	r, _ := http.NewRequest("PATCH", c.base+"/api/admin/settings", strings.NewReader(`{"trust_proxy":true} {"trust_proxy":false}`))
 	r.Header.Set("Content-Type", "application/json")
 	r.Header.Set("X-Requested-With", "jiggered")
+	r.Header.Set("X-Jiggered-Password", adminPass)
 	got, err := c.hc.Do(r)
 	if err != nil {
 		t.Fatal(err)

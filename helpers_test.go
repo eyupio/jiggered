@@ -78,9 +78,10 @@ func newTestServer(t *testing.T, tweak ...func(*config)) *testEnv {
 }
 
 type client struct {
-	t    *testing.T
-	base string
-	hc   *http.Client
+	t        *testing.T
+	base     string
+	hc       *http.Client
+	password string
 }
 
 // newClient is a browser: its own cookie jar, and it does not follow redirects.
@@ -116,6 +117,9 @@ func (c *client) req(method, path string, body any, headers ...string) (*http.Re
 	}
 	if method != http.MethodGet && method != http.MethodHead {
 		r.Header.Set("X-Requested-With", "jiggered")
+		if strings.HasPrefix(path, "/api/admin/") {
+			r.Header.Set("X-Jiggered-Password", c.password)
+		}
 	}
 	if body != nil {
 		r.Header.Set("Content-Type", "application/json")
@@ -171,6 +175,9 @@ func (c *client) login(name, pw string, headers ...string) string {
 	resp.Body.Close()
 	if resp.StatusCode == http.StatusForbidden {
 		return "403"
+	}
+	if resp.Header.Get("Location") == "/" {
+		c.password = pw
 	}
 	return resp.Header.Get("Location")
 }

@@ -375,18 +375,12 @@ test("server trouble is retried with growing delays, then recovers", async () =>
   assert.equal(s.docs.get(DAY).body.status, "red");
 });
 
-test("being signed out keeps the queue and stops trying", async () => {
-  const s = new FakeServer(), d = device(s);
-  s.authed = false;
-  await d.store.dispatch(op(DAY, "setStatus", "red"));
-  assert.equal(d.authLost, 1);
-  assert.equal(d.store.status().pending, 1, "kept for when they sign back in");
-  assert.equal(d.timers.length, 0);
-  assert.equal(await d.store.load(), false);
-  assert.equal(d.authLost, 2);
-  s.authed = true; // signed back in
-  await d.store.flush();
-  assert.equal(s.docs.get(DAY).body.status, "red");
+test("being signed out purges private data and stops retrying", async () => {
+ const s = new FakeServer(), d = device(s); s.authed=false;
+ await d.store.dispatch(op(DAY,"setStatus","red"));
+ assert.equal(d.authLost,1); assert.equal(d.store.status().pending,0);
+ assert.deepEqual(d.store.all(),{}); assert.equal(d.timers.length,0);
+ s.authed=true; await d.store.flush(); assert.equal(s.docs.has(DAY),false);
 });
 
 test("bug: a slow refresh could land after a save and undo it; network work now runs one piece at a time", async () => {
@@ -516,3 +510,4 @@ test("deleted activity wins until explicit restoration, even when refreshed befo
  await a.store.dispatch(op(DAY,'removeEntry',logged));await b.store.load();await b.store.dispatch({id:DAY,type:'editEntry',arg:{id:logged.id,changes:{c:0}},before:logged,original:{date:'2026-10-01',entries:[logged]}});
  assert.equal(server.docs.get(DAY).body.entries.length,0);const failure=b.store.failures()[0];assert.equal(failure.deletedEntry,true);assert.equal(failure.body.entries[0].c,0);await b.store.retryFailed(failure.key);assert.equal(server.docs.get(DAY).body.entries[0].c,0);
 });
+

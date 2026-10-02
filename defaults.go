@@ -174,11 +174,21 @@ func (s *server) productPutDefaults(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
+	tx, err := s.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	defer tx.Rollback()
+	if err := guardMutation(r.Context(), tx); err != nil {
+		s.adminFail(w, r, err)
+		return
+	}
 	var result sql.Result
 	if exists {
-		result, err = s.db.ExecContext(r.Context(), "UPDATE instance_settings SET value=?,updated_at=? WHERE key='product_defaults' AND value=?", string(b), time.Now().Unix(), old)
+		result, err = tx.ExecContext(r.Context(), "UPDATE instance_settings SET value=?,updated_at=? WHERE key='product_defaults' AND value=?", string(b), time.Now().Unix(), old)
 	} else {
-		result, err = s.db.ExecContext(r.Context(), "INSERT OR IGNORE INTO instance_settings(key,value,updated_at) VALUES('product_defaults',?,?)", string(b), time.Now().Unix())
+		result, err = tx.ExecContext(r.Context(), "INSERT OR IGNORE INTO instance_settings(key,value,updated_at) VALUES('product_defaults',?,?)", string(b), time.Now().Unix())
 	}
 	if err != nil {
 		serverError(w, r, err)
@@ -191,6 +201,10 @@ func (s *server) productPutDefaults(w http.ResponseWriter, r *http.Request) {
 	}
 	if n != 1 {
 		jsonError(w, 409, "Defaults changed elsewhere. Reload before saving.")
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		serverError(w, r, err)
 		return
 	}
 	s.audit(r.Context(), authOf(r).u.Username, "defaults_changed", "", "Updated shared product defaults", s.clientIP(r))

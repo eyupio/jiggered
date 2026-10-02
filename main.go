@@ -67,6 +67,8 @@ type server struct {
 	dummyHash []byte // compared against when the username doesn't exist
 	backupMu  sync.Mutex
 	cache     settingsCache
+	importMu  sync.Mutex
+	imports   map[int64]bool
 }
 
 func main() {

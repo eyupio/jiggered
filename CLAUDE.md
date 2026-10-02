@@ -7,7 +7,7 @@ setup guide; this file is the index and the rules.
 
 Jiggered ("worn out", Yorkshire) is a small self-hosted tracker for daily
 energy check-ins and symptom episodes. One Go binary (module
-`github.com/jnnngs/jiggered`, Go 1.26) serves a static ES-module frontend and a
+`github.com/jnnngs/jiggered`, Go 1.27.1) serves a static ES-module frontend and a
 JSON API backed by SQLite. Several people can each have an account, with an
 admin to manage them; password login. It ships as one container image on GHCR.
 
@@ -113,6 +113,7 @@ the tabs; `admin.js` is mounted only for admins; `sw.js` is the service worker;
   `migrate_test.go` upgrades a real legacy-shaped database.
 - **Everything about docs and sessions is scoped to the signed-in person**, using
   `authOf(r)`, never an id from the request.
+- **Admin writes require `X-Jiggered-Password` for a fresh password check and revalidate actor/session/role in the mutation transaction.**
 - **Admin endpoints return account metadata only, never a personal doc body.**
   Shared product defaults (`product_defaults` in `instance_settings`) are intentionally visible to signed-in users;
   edits require admin plus a current ETag and never rewrite existing personal lists.
@@ -153,3 +154,4 @@ index and the universal rules. A `CLAUDE.md` in a subfolder, if one is ever
 justified by that folder's own tooling, appends scoped context and must never
 contradict or overwrite this file. There is none today: the Go code is one flat
 package and `web/` has no tooling of its own.
+

@@ -10,6 +10,8 @@ services:
       - "127.0.0.1:8080:8080"   # put a reverse proxy with HTTPS in front
     volumes:
       - jiggered-data:/data
+    mem_limit: 512m
+    cpus: 2
     read_only: true
     security_opt:
       - no-new-privileges:true
@@ -17,3 +19,4 @@ services:
 
 volumes:
   jiggered-data:
+
