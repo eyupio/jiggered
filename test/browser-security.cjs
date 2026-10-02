@@ -1,5 +1,5 @@
 // Local-only security regression: real IndexedDB, two tabs, copied cookie and admin step-up.
-const {chromium}=require('playwright');
+const {chromium,request}=require('playwright');
 const {spawn,execFileSync}=require('node:child_process');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),assert=require('node:assert/strict');
 const dir=fs.mkdtempSync(path.join(os.tmpdir(),'jiggered-security-'));
@@ -15,9 +15,9 @@ const server=spawn(binary,[],{env:{...process.env,APP_ADDR:new URL(base).host,AP
  const headers={'X-Requested-With':'jiggered'};
  const denied=await context.request.post(base+'/api/admin/users',{headers,data:{username:'intruder',role:'admin'}});assert.equal(denied.status(),403);
  await page.locator('#t-admin').click();await page.locator('#new-name').fill('safeuser');await page.locator('#admin-confirm-pw').fill('local-preview-password');await page.locator('#adduser [type=submit]').click();await page.locator('#adduser-msg').filter({hasText:'Created safeuser.'}).waitFor();assert.equal(await page.locator('#admin-confirm-pw').inputValue(),'');
- const stolen=await browser.newContext();await stolen.addCookies(await context.cookies());
+ const stolen=await request.newContext({storageState:await context.storageState()});
  const changed=await context.request.post(base+'/api/me/password',{headers,data:{current:'local-preview-password',new:'changed-owner-password'}});assert.equal(changed.status(),204);
- assert.equal((await stolen.request.get(base+'/api/docs')).status(),401);assert.equal((await context.request.get(base+'/api/docs')).status(),200);await stolen.close();
+ assert.equal((await stolen.get(base+'/api/docs')).status(),401);assert.equal((await context.request.get(base+'/api/docs')).status(),200);await stolen.dispose();
  // Put private acknowledged and unsent copies on the writer, then sign out from its reader.
  await page.locator('#t-today').click();await page.locator('#checkin [data-s=amber]').click();await page.waitForFunction(()=>document.querySelector('#sync')?.dataset.state==='saved');
  await page.route('**/api/docs/*',route=>route.fulfill({status:503,body:'{}',contentType:'application/json'}));

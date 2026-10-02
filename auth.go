@@ -374,13 +374,20 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	// rather than cleared: otherwise anyone with an account could sign in between guesses to get unlimited tries
 	// at other people's.
 	giveBackIP()
-	s.userLimit.reset(u.Username)
+	giveBackUser()
 	if u.Disabled {
 		s.audit(ctx, u.Username, "login_refused", u.Username, "account is disabled", ip)
 		http.Redirect(w, r, "/login?e=disabled", http.StatusSeeOther)
 		return
 	}
 
+	if pending, e := s.beginTwoFactor(w, r, u, hash); e != nil {
+		serverError(w, r, e)
+		return
+	} else if pending {
+		return
+	}
+	s.userLimit.reset(u.Username)
 	token, exp, err := s.newSession(ctx, u.ID, hash, ip, r.UserAgent())
 	if errors.Is(err, errStaleLogin) {
 		log.Printf("sign-in for %q dropped: the account changed while the password was being checked", u.Username)
@@ -420,7 +427,7 @@ func (s *server) newSession(ctx context.Context, userID int64, verified []byte, 
 	now := time.Now()
 	exp := now.Add(sessionTTL)
 	res, err := s.db.ExecContext(ctx, `INSERT INTO sessions(token_hash, sid, user_id, created_at, last_seen_at, expires_at, ip, user_agent)
-		SELECT ?, ?, id, ?, ?, ?, ?, ? FROM users WHERE id = ? AND password_hash = ? AND disabled = 0`,
+		SELECT ?, ?, id, ?, ?, ?, ?, ? FROM users WHERE id = ? AND password_hash = ? AND disabled = 0 AND NOT EXISTS (SELECT 1 FROM account_security a WHERE a.user_id=users.id AND a.enabled=1)`,
 		hashToken(token), sid, now.Unix(), now.Unix(), exp.Unix(), ip, cleanText(ua, 200), userID, string(verified))
 	if err != nil {
 		return "", time.Time{}, err

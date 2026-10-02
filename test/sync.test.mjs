@@ -511,3 +511,18 @@ test("deleted activity wins until explicit restoration, even when refreshed befo
  assert.equal(server.docs.get(DAY).body.entries.length,0);const failure=b.store.failures()[0];assert.equal(failure.deletedEntry,true);assert.equal(failure.body.entries[0].c,0);await b.store.retryFailed(failure.key);assert.equal(server.docs.get(DAY).body.entries[0].c,0);
 });
 
+
+test("a queued change survives an offline reload and retries without an online event", async () => {
+  const s = new FakeServer(), first = device(s);
+  s.down = true;
+  await first.store.dispatch(op(DAY, "setStatus", "amber"));
+  const reloaded = device(s, { storage: first.storage });
+  assert.equal(await reloaded.store.load(), false);
+  assert.deepEqual(reloaded.timers.map(t => t.ms), [2000]);
+  await reloaded.store.load();
+  assert.equal(reloaded.timers.length, 1, "failed refreshes share one retry");
+  s.down = false;
+  await reloaded.fireTimer();
+  assert.equal(reloaded.store.status().pending, 0);
+  assert.equal(s.docs.get(DAY).body.status, "amber");
+});

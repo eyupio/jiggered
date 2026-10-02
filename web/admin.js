@@ -8,6 +8,7 @@
 import { $, api, html, setHTML, appendHTML, fmtBytes, ago, withBusy } from "./util.js";
 
 import { createEditor, editorMarkup } from "./editor.js";
+import { servicesMarkup, initServices } from "./services.js";
 import { DEFAULTS } from "./model.js";
 
 // One plain sentence per kind of event, from the entry's actor and target.
@@ -41,7 +42,8 @@ function say(el, text, bad = false) {
   el.classList.toggle("err", bad);
 }
 
-const MARKUP = `
+const MARKUP = `${servicesMarkup}
+<dialog id="factor-reset-dialog" class="panel security-dialog" aria-labelledby="factor-reset-title"><form id="factor-reset-form"><h2 id="factor-reset-title">Reset two-step verification</h2><p class="meta" id="factor-reset-description"></p><label>Your admin password<input id="factor-reset-password" type="password" autocomplete="current-password" required></label><label>Your authenticator or recovery code<input id="factor-reset-code" autocomplete="one-time-code" autocapitalize="none"><span class="meta">Required if your own account has two-step verification enabled.</span></label><p class="msg" role="status" id="factor-reset-msg"></p><div class="service-actions"><button class="danger" type="submit">Reset & sign out devices</button><button class="secondary" type="button" id="factor-reset-cancel">Cancel</button></div></form></dialog>
     <div class="panel"><label class="field">Your password, to confirm the next admin change<input type="password" id="admin-confirm-pw" autocomplete="current-password"></label><p class="hint">Enter it again for each change to accounts, connection settings or shared defaults.</p></div>
     <div class="panel">
       <h2>People</h2>
@@ -105,11 +107,16 @@ export function mount(ctx) {
   panel.innerHTML = MARKUP;
   $("account-panel").after(panel);
   const view = wire(ctx);
-  return { ...view, destroy() { tab.remove(); panel.remove() } };
+  return { ...view, destroy() { view.destroy(); tab.remove(); panel.remove() } };
 }
 
 function wire(ctx) {
   const { me } = ctx;
+  const services = initServices(ctx);
+ let factorResetTarget="";
+ $("factor-reset-cancel").addEventListener("click",()=>{$("factor-reset-form").reset();$("factor-reset-dialog").close()});
+ $("factor-reset-dialog").addEventListener("close",()=>$("factor-reset-form").reset());
+ $("factor-reset-form").addEventListener("submit",e=>{e.preventDefault();withBusy(e.target.querySelector("[type=submit]"),"Resetting…",async()=>{const password=$("factor-reset-password").value,code=$("factor-reset-code").value;$("factor-reset-form").reset();const r=await api("POST","/api/admin/users/"+encodeURIComponent(factorResetTarget)+"/two-factor-reset",{password,code},{"X-Jiggered-Password":password});if(!r.ok)return say($("factor-reset-msg"),r.error,true);$("factor-reset-dialog").close();say($("users-msg"),r.data.message);loadAudit(true)})});
   let users = [], oldest = 0, loaded = false;
 
   function confirmation() {
@@ -146,6 +153,7 @@ function wire(ctx) {
           <button class="secondary small" data-act="signout"${u.sessions ? "" : " disabled"}>Sign out everywhere</button>
           <button class="secondary small" data-act="${u.disabled ? "enable" : "disable"}">${u.disabled ? "Enable" : "Disable"}</button>
           <button class="secondary small" data-act="${u.role === "admin" ? "demote" : "promote"}">${u.role === "admin" ? "Remove admin" : "Make admin"}</button>
+          <button class="secondary small" data-act="two-factor-reset">Reset two-step verification</button>
           <button class="danger small" data-act="delete">Delete</button>
         </div>`}
       </li>`;
@@ -176,6 +184,11 @@ function wire(ctx) {
     say(msg, "");
     let r;
     switch (b.dataset.act) {
+      case "two-factor-reset": {
+        factorResetTarget=name; $('factor-reset-form').reset();say($('factor-reset-msg'),'');
+        $('factor-reset-description').textContent=`This removes ${name}’s authenticator protection and signs out every device. Verify their identity before continuing.`;
+        $('factor-reset-dialog').showModal();$('factor-reset-password').focus();return;
+      }
       case "reset":
         if (!confirm(`Reset ${name}'s password? They'll be signed out everywhere and given a temporary one.`)) return;
         r = await adminAPI("POST", path + "/reset-password");
@@ -334,8 +347,10 @@ function wire(ctx) {
 
   return {
     render() {},
+    destroy() { services.destroy() },
     show() {
       if (!loaded) { loaded = true; $("reveal").hidden = true }
+      services.load();
       loadUsers();
       loadAudit(true);
       loadConnection();

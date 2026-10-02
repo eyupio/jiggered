@@ -76,6 +76,10 @@ jobs:
         env:
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
         run: node test/browser-security.cjs
+      - name: Account enrollment, recovery and backup settings
+        env:
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+        run: node test/browser-accounts.cjs
       - name: Full walkthrough
         env:
           NODE_PATH: ${{ runner.temp }}/pw/node_modules

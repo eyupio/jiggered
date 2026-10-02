@@ -59,16 +59,22 @@ type config struct {
 }
 
 type server struct {
-	cfg       config
-	db        *sql.DB
-	ipLimit   *loginLimiter // failed sign-ins per client address
-	userLimit *loginLimiter // failed sign-ins per account, from anywhere
-	hashSem   chan struct{}
-	dummyHash []byte // compared against when the username doesn't exist
-	backupMu  sync.Mutex
-	cache     settingsCache
-	importMu  sync.Mutex
-	imports   map[int64]bool
+	publicLimit   *loginLimiter
+	recoveryLimit *loginLimiter
+	cfg           config
+	db            *sql.DB
+	ipLimit       *loginLimiter // failed sign-ins per client address
+	userLimit     *loginLimiter // failed sign-ins per account, from anywhere
+	hashSem       chan struct{}
+	dummyHash     []byte // compared against when the username doesn't exist
+	backupMu      sync.Mutex
+	cache         settingsCache
+	serviceMu     sync.Mutex
+	serviceJobs   sync.WaitGroup
+	mailSem       chan struct{}
+	serviceCtx    context.Context
+	importMu      sync.Mutex
+	imports       map[int64]bool
 }
 
 func main() {
@@ -114,6 +120,9 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	s.serviceCtx = ctx
+	schedulerDone := make(chan struct{})
+	go func() { defer close(schedulerDone); s.serviceScheduler(ctx) }()
 	ln, err := net.Listen("tcp", cfg.addr) // bind first, so "listening" is only ever said when it's true
 	if err != nil {
 		log.Fatal(err)
@@ -130,20 +139,28 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Printf("shutdown did not finish cleanly: %v", err) // requests still running after 10s are cut off
 	}
+	<-schedulerDone
+	s.serviceJobs.Wait()
 }
 
 func newServer(cfg config, db *sql.DB) (*server, error) {
+	if err := (&server{cfg: cfg, db: db}).initServices(); err != nil {
+		return nil, err
+	}
 	dummy, err := bcrypt.GenerateFromPassword([]byte("not-a-real-password"), bcryptCost)
 	if err != nil {
 		return nil, err
 	}
 	return &server{
-		cfg:       cfg,
-		db:        db,
-		ipLimit:   newLoginLimiter(10, 15*time.Minute),
-		userLimit: newLoginLimiter(10, 15*time.Minute),
-		hashSem:   make(chan struct{}, maxHashing),
-		dummyHash: dummy,
+		cfg:           cfg,
+		db:            db,
+		ipLimit:       newLoginLimiter(10, 15*time.Minute),
+		publicLimit:   newLoginLimiter(10, 15*time.Minute),
+		recoveryLimit: newLoginLimiter(3, 15*time.Minute),
+		userLimit:     newLoginLimiter(10, 15*time.Minute),
+		hashSem:       make(chan struct{}, maxHashing),
+		mailSem:       make(chan struct{}, 4),
+		dummyHash:     dummy,
 	}, nil
 }
 
@@ -185,6 +202,8 @@ func (s *server) maintain() {
 		s.prune()
 		s.ipLimit.sweep()
 		s.userLimit.sweep()
+		s.publicLimit.sweep()
+		s.recoveryLimit.sweep()
 		<-t.C
 	}
 }
@@ -295,6 +314,12 @@ func (s *server) routes() http.Handler {
 		serveHTML(w, r, files, files.versionPage(page))
 	})
 	mux.HandleFunc("POST /login", s.handleLogin)
+	mux.HandleFunc("GET /api/auth/options", s.publicAuthOptions)
+	mux.HandleFunc("POST /api/auth/register", s.registerAccount)
+	mux.HandleFunc("POST /api/auth/forgot-password", s.forgotPassword)
+	mux.HandleFunc("POST /api/auth/reset-password", s.resetPasswordToken)
+	mux.HandleFunc("POST /api/auth/verify", s.verifyEmailToken)
+	mux.HandleFunc("POST /api/auth/two-step", s.finishTwoFactor)
 	mux.HandleFunc("POST /logout", s.handleLogout)
 
 	for _, p := range publicAssets {
@@ -314,6 +339,10 @@ func (s *server) routes() http.Handler {
 	})
 
 	mux.Handle("GET /api/me", auth(s.handleMe))
+	mux.Handle("GET /api/me/security", auth(s.securityStatus))
+	mux.Handle("POST /api/me/security/email", auth(s.requestRecoveryEmail))
+	mux.Handle("POST /api/me/security/two-factor", auth(s.twoFactorAction))
+	mux.Handle("POST /api/admin/users/{name}/two-factor-reset", admin(s.adminResetTwoFactor))
 	mux.Handle("DELETE /api/me", auth(s.deleteSelf))
 	mux.Handle("POST /api/me/password", auth(s.handleChangePassword))
 	mux.Handle("GET /api/me/sessions", auth(s.listSessions))
@@ -341,6 +370,9 @@ func (s *server) routes() http.Handler {
 	mux.Handle("GET /api/admin/settings", admin(s.adminGetSettings))
 	mux.Handle("PATCH /api/admin/settings", admin(s.adminPatchSettings))
 	mux.Handle("POST /api/admin/backup", admin(s.adminBackup))
+	mux.Handle("GET /api/admin/services", admin(s.adminGetServices))
+	mux.Handle("PUT /api/admin/services", admin(s.adminSaveServices))
+	mux.Handle("POST /api/admin/services/action", admin(s.adminServiceAction))
 
 	mux.Handle("GET /", auth(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {

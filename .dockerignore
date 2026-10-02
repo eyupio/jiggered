@@ -5,3 +5,6 @@
 *_test.go
 test/
 node_modules/
+
+**/.jiggered-service-key
+**/.service-key-*
