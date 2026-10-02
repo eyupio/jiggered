@@ -1388,3 +1388,15 @@
   padding: 8px;
   text-align: left;
 }
+
+.app-shell #audit-filters {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.app-shell #audit-filters > .row {
+  grid-column: 1 / -1;
+}
+@media (max-width: 600px) {
+  .app-shell #audit-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -54,7 +54,7 @@ docs["d-" + date].body.entries = Array.from({ length: 8 }, (_, i) => ({
 runBrowser({ name: "product-improvements", startServer: false }, async (harness) => {
   const browser = await harness.launchBrowser();
   const errors = [];
-  async function open(viewport) {
+  async function open(viewport, role = "user") {
     const context = await browser.newContext({
       viewport,
       timezoneId: "UTC",
@@ -67,7 +67,7 @@ runBrowser({ name: "product-improvements", startServer: false }, async (harness)
       const json = (body) =>
         route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
       if (pathname === "/api/me")
-        return json({ id: 1, username: "alex", role: "user", must_change_password: false });
+        return json({ id: 1, username: "alex", role, must_change_password: false });
       if (pathname === "/api/defaults") return json(defaults);
       if (pathname === "/api/docs") return json(docs);
       if (pathname.startsWith("/api/docs/") && request.method() === "PUT") {
@@ -79,6 +79,21 @@ runBrowser({ name: "product-improvements", startServer: false }, async (harness)
       if (pathname === "/api/me/sessions") return json([]);
       if (pathname === "/api/me/security")
         return json({ two_factor: false, email_available: false });
+      if (pathname === "/api/admin/users") return json({ users: [], version: "test" });
+      if (pathname === "/api/admin/audit") return json([]);
+      if (pathname === "/api/admin/settings")
+        return json({
+          trust_proxy: false,
+          proxy_hops: 1,
+          seen: { remote_addr: "127.0.0.1", client_ip: "127.0.0.1" },
+        });
+      if (pathname === "/api/admin/usage") return json({ enabled: false, rows: [] });
+      if (pathname === "/api/admin/services")
+        return route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: '{"error":"Fixture has no services"}',
+        });
       if (pathname.startsWith("/api/")) return json({});
       const file = path.join(root, pathname === "/" ? "index.html" : pathname);
       if (!file.startsWith(root) || !fs.existsSync(file)) return route.fulfill({ status: 404 });
@@ -101,6 +116,18 @@ runBrowser({ name: "product-improvements", startServer: false }, async (harness)
     await page.locator("#acts button.act").first().waitFor();
     await page.waitForFunction(() => document.querySelector("#sync").dataset.state === "saved");
     return { context, page };
+  }
+  for (const width of [320, 375, 768]) {
+    const { context, page } = await open({ width, height: 1000 }, "admin");
+    await page.locator("#t-admin").click();
+    await page.locator("#admin-tab-activity").click();
+    await page.locator("#audit-person").waitFor();
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+      false,
+      `admin audit filters fit at ${width}`,
+    );
+    await context.close();
   }
   for (const width of [320, 375, 768, 960, 1280]) {
     const { context, page } = await open({ width, height: 1000 });
