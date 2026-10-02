@@ -37,6 +37,7 @@ runBrowser({ name: "history", portEnv: "JIGGERED_HISTORY_PORT" }, async (harness
           {
             date,
             status: ["green", "amber", "red"][i % 3],
+            poorSleep: i % 4 === 0,
             entries:
               i % 2 === 0
                 ? [
@@ -92,7 +93,7 @@ runBrowser({ name: "history", portEnv: "JIGGERED_HISTORY_PORT" }, async (harness
   await page.setViewportSize({ width: 390, height: 900 });
   for (const range of [7, 30, 90, 180, 365]) {
     await page.locator(`#history-presets [data-range="${range}"]`).click();
-    for (const mode of ["checkin", "points", "sleep", "episodes"]) {
+    for (const mode of ["checkin", "used", "points", "sleep", "episodes"]) {
       await page.locator("[data-matrix-mode]").selectOption(mode);
       assert.equal(
         await page.locator("[data-matrix-grid] button").count(),
@@ -117,6 +118,57 @@ runBrowser({ name: "history", portEnv: "JIGGERED_HISTORY_PORT" }, async (harness
       ),
     [DAYS, EPISODES],
   );
+
+  assert.equal(await page.locator('[data-chart="combined"] svg').count(), 1);
+  assert.match(
+    await page.locator(".energy-report").textContent(),
+    /1800 points used before recovery.*600 recovered.*1200 net/,
+  );
+  await page.locator("#chart-combined-select").selectOption("0");
+  assert.match(
+    await page.locator('[data-chart="combined"] [data-detail]').textContent(),
+    /Used points 3/,
+  );
+  for (const width of [800, 1100]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const selector of [
+      ".label-row",
+      ".history-chart",
+      ".chart-legend",
+      ".chart-inspector",
+      ".chart-data",
+    ]) {
+      const positions = await page.evaluate(
+        (selector) =>
+          ["energy", "episodes"].map(
+            (kind) =>
+              document.querySelector(`[data-chart="${kind}"] ${selector}`).getBoundingClientRect()
+                .top,
+          ),
+        selector,
+      );
+      assert.ok(Math.abs(positions[0] - positions[1]) < 1, `${selector} aligns at ${width}px`);
+    }
+  }
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.locator('[data-chart="combined"] .chart-data').evaluate((el) => {
+      el.open = true;
+    });
+    assert.ok(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+      `no horizontal overflow at ${width}px`,
+    );
+  }
+  await page.setViewportSize({ width: 800, height: 900 });
+  await page.locator('[data-chart="combined"] .chart-data').evaluate((el) => {
+    el.open = false;
+  });
+  if (process.env.JIGGERED_HISTORY_SCREENSHOT)
+    await page
+      .locator("#history-graphs")
+      .screenshot({ path: process.env.JIGGERED_HISTORY_SCREENSHOT });
+  await page.setViewportSize({ width: 1100, height: 900 });
 
   // One word, typed quickly, is one update: count how many times the charts are rebuilt while it is typed.
   await page.evaluate(() => {

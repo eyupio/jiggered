@@ -1,4 +1,4 @@
-// A bounded calendar, inspired by the activity view: one tab stop, four colour modes, pinned day details.
+// A bounded calendar, inspired by the activity view: one tab stop, energy and symptom colour modes, pinned day details.
 import { energyWords, themeOf } from "./energy-theme.js";
 import { html, setHTML, fmtDay } from "./util.js";
 import { addDays, used, capOf } from "./model.js";
@@ -22,6 +22,7 @@ export function calendarWindow(data, S, end = data.to, limit = 366) {
       logged: !!day,
       activity,
       poorSleep: !!day?.poorSleep,
+      spent: activity ? day.entries.reduce((n, e) => n + Math.max(0, e.c), 0) : null,
       net: activity ? used(day) : null,
       allowance: day ? capOf(day, S) : null,
       episodes: counts.get(date) || 0,
@@ -31,13 +32,17 @@ export function calendarWindow(data, S, end = data.to, limit = 366) {
   return { from, to: end, offset, cells, weeks: Math.ceil((offset + cells.length) / 7) };
 }
 export function describeCalendarDay(c, locale, theme = "points") {
-  return `${fmtDay(c.date, locale)}. ${c.status ? c.status + " check-in" : "No matching check-in"}. ${c.net === null ? "No activities logged" : `${c.net} net ${energyWords(theme).plural} used, ${c.allowance} available`}. ${c.poorSleep ? "Sleep marked poor" : "Sleep not marked poor"}. ${c.episodes} matching ${c.episodes === 1 ? "episode" : "episodes"} recorded.`;
+  return `${fmtDay(c.date, locale)}. ${c.status ? c.status + " check-in" : "No matching check-in"}. ${c.net === null ? "No activities logged" : `${c.spent === undefined ? "" : `${c.spent} ${energyWords(theme).plural} used before recovery; `}${c.net} net ${energyWords(theme).plural} used, ${c.allowance} available`}. ${c.poorSleep ? "Sleep marked poor" : "Sleep not marked poor"}. ${c.episodes} matching ${c.episodes === 1 ? "episode" : "episodes"} recorded.`;
 }
 export function calendarPaint(c, mode) {
   if (mode === "checkin") return [c.status || "empty", c.status ? c.status[0].toUpperCase() : "–"];
   if (mode === "sleep") return [c.poorSleep ? "amber" : "empty", c.poorSleep ? "!" : "–"];
   if (mode === "episodes")
     return [c.episodes ? "level-" + Math.min(4, c.episodes) : "empty", c.episodes || "–"];
+  if (mode === "used")
+    return c.spent === null
+      ? ["empty", "–"]
+      : ["level-" + Math.min(4, Math.max(1, Math.ceil(c.spent / 3))), c.spent];
   if (c.net === null) return ["empty", "–"];
   return [
     c.net < 0 ? "recovery" : "level-" + Math.min(4, Math.max(1, Math.ceil(c.net / 3))),
@@ -57,7 +62,7 @@ export function initMatrix(root, ctx, explore) {
     limit = () => 366;
   setHTML(
     root,
-    html`<div class="label-row"><div><h2>Your days at a glance</h2><p class="hint">A calendar of what you've recorded. Choose a colour view, then select a day.</p></div><label class="field matrix-mode">Colour days by<select data-matrix-mode><option value="checkin">Morning check-in</option><option value="points" data-energy-copy="Net activity points">Net activity points</option><option value="sleep">Poor sleep marked</option><option value="episodes">Episodes recorded</option></select></label></div><div class="matrix-period"><span class="meta" data-matrix-period></span><div class="row"><button class="secondary small" data-matrix-earlier>Earlier days</button><button class="secondary small" data-matrix-later>Later days</button></div></div><div class="matrix-layout"><div class="matrix-calendar"><div class="matrix-months" data-matrix-months aria-hidden="true"></div><div class="matrix-weekdays" aria-hidden="true"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div><div class="matrix-grid" data-matrix-grid role="group" aria-label="Daily calendar. Arrow keys move between days; Enter selects; Escape clears selection."></div></div><aside class="matrix-reading" data-matrix-reading aria-label="Selected day"></aside></div><div class="chart-legend matrix-legend" data-matrix-legend></div><p class="hint">Arrow keys move through days; Enter selects, Escape clears. On a small screen, use the day selector for an easier target. Grey means no matching record for the chosen view.</p><label class="field matrix-day">Choose a day<select data-matrix-day></select></label>`,
+    html`<div class="label-row"><div><h2>Your days at a glance</h2><p class="hint">A calendar of what you've recorded. Choose a colour view, then select a day.</p></div><label class="field matrix-mode">Colour days by<select data-matrix-mode><option value="checkin">Morning check-in</option><option value="used" data-energy-copy="Activity points used">Activity points used</option><option value="points" data-energy-copy="Net activity points">Net activity points</option><option value="sleep">Poor sleep marked</option><option value="episodes">Episodes recorded</option></select></label></div><div class="matrix-period"><span class="meta" data-matrix-period></span><div class="row"><button class="secondary small" data-matrix-earlier>Earlier days</button><button class="secondary small" data-matrix-later>Later days</button></div></div><div class="matrix-layout"><div class="matrix-calendar"><div class="matrix-months" data-matrix-months aria-hidden="true"></div><div class="matrix-weekdays" aria-hidden="true"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div><div class="matrix-grid" data-matrix-grid role="group" aria-label="Daily calendar. Arrow keys move between days; Enter selects; Escape clears selection."></div></div><aside class="matrix-reading" data-matrix-reading aria-label="Selected day"></aside></div><div class="chart-legend matrix-legend" data-matrix-legend></div><p class="hint">Arrow keys move through days; Enter selects, Escape clears. On a small screen, use the day selector for an easier target. Grey means no matching record for the chosen view.</p><label class="field matrix-day">Choose a day<select data-matrix-day></select></label>`,
   );
   const get = (selector) => root.querySelector(selector),
     grid = get("[data-matrix-grid]");
@@ -72,7 +77,7 @@ export function initMatrix(root, ctx, explore) {
     }
     setHTML(
       get("[data-matrix-reading]"),
-      html`<span class="label">${chosen === c.date ? "Selected day" : "Day detail"}</span><h3>${fmtDay(c.date, S.locale)}</h3><dl><div><dt>Check-in</dt><dd>${c.status || "Not recorded"}</dd></div><div><dt>Net ${energyWords(themeOf(ctx)).plural}</dt><dd>${c.net === null ? "No activity log" : c.net}</dd></div><div><dt>Allowance</dt><dd>${c.allowance === null ? "No day log" : c.allowance}</dd></div><div><dt>Sleep</dt><dd>${c.poorSleep ? "Marked poor" : "Not marked poor"}</dd></div><div><dt>Episodes</dt><dd>${c.episodes} recorded</dd></div></dl><div class="row"><button class="secondary small" data-matrix-open>Open day</button>${c.episodes ? html`<button class="secondary small" data-matrix-episodes>View episodes</button>` : ""}</div>`,
+      html`<span class="label">${chosen === c.date ? "Selected day" : "Day detail"}</span><h3>${fmtDay(c.date, S.locale)}</h3><dl><div><dt>Check-in</dt><dd>${c.status || "Not recorded"}</dd></div><div><dt>Used ${energyWords(themeOf(ctx)).plural}</dt><dd>${c.spent === null ? "No activity log" : c.spent}</dd></div><div><dt>Net ${energyWords(themeOf(ctx)).plural}</dt><dd>${c.net === null ? "No activity log" : c.net}</dd></div><div><dt>Allowance</dt><dd>${c.allowance === null ? "No day log" : c.allowance}</dd></div><div><dt>Sleep</dt><dd>${c.poorSleep ? "Marked poor" : "Not marked poor"}</dd></div><div><dt>Episodes</dt><dd>${c.episodes} recorded</dd></div></dl><div class="row"><button class="secondary small" data-matrix-open>Open day</button>${c.episodes ? html`<button class="secondary small" data-matrix-episodes>View episodes</button>` : ""}</div>`,
     );
   }
   function paint() {
@@ -123,7 +128,7 @@ export function initMatrix(root, ctx, explore) {
         ? html`<span><i class="legend-green"></i>G · Green</span><span><i class="legend-amber"></i>A · Amber</span><span><i class="legend-red"></i>R · Red</span>`
         : mode === "sleep"
           ? html`<span><i class="legend-amber"></i>! · Sleep marked poor</span><span>Unmarked sleep is not necessarily good sleep</span>`
-          : html`<span>Less</span>${[1, 2, 3, 4].map((level) => html`<i class="matrix-key level-${level}" aria-hidden="true"></i>`)}<span>More ${mode === "episodes" ? "recorded episodes" : `net ${energyWords(themeOf(ctx)).plural} used`}</span>${mode === "points" ? html`<span><i class="legend-green"></i>− · Negative net ${energyWords(themeOf(ctx)).plural} / recovery</span>` : ""}`;
+          : html`<span>Less</span>${[1, 2, 3, 4].map((level) => html`<i class="matrix-key level-${level}" aria-hidden="true"></i>`)}<span>More ${mode === "episodes" ? "recorded episodes" : `${mode === "used" ? "activity" : "net"} ${energyWords(themeOf(ctx)).plural} used`}</span>${mode === "points" ? html`<span><i class="legend-green"></i>− · Negative net ${energyWords(themeOf(ctx)).plural} / recovery</span>` : ""}`;
     setHTML(
       get("[data-matrix-legend]"),
       html`${legend}<span><i></i>No matching record / unmarked</span>`,

@@ -74,7 +74,7 @@ test("history uses spoon units in accessible descriptions while chart points ret
   );
   assert.match(
     describeCalendarDay(
-      { date: "2026-10-01", net: 2, allowance: 10, episodes: 0 },
+      { date: "2026-10-01", spent: 4, net: 2, allowance: 10, episodes: 0 },
       "en-GB",
       "spoons",
     ),

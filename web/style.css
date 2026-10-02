@@ -1906,6 +1906,43 @@ input[type="search"] {
 }
 .chart-card {
   min-width: 0;
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 6;
+  row-gap: 0;
+}
+.chart-combined {
+  grid-column: 1/-1;
+  display: block;
+  grid-row: auto;
+  border-top: 1px solid var(--line);
+  padding-top: 24px;
+}
+.chart-spent {
+  stroke: var(--fg);
+  stroke-width: 2;
+  stroke-dasharray: 3 4;
+  fill: none;
+}
+.chart-spent-point {
+  fill: var(--fg);
+}
+.chart-sleep {
+  fill: var(--amber);
+}
+.chart-legend .legend-spent {
+  background: var(--fg);
+  border-radius: 0;
+  height: 3px;
+  width: 15px;
+}
+.chart-legend .legend-sleep {
+  background: var(--amber);
+  border-radius: 0;
+}
+.energy-report {
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
 }
 .history-chart {
   display: block;
@@ -2112,6 +2149,13 @@ input[type="search"] {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
   align-items: start;
+}
+.history-records > .panel {
+  min-width: 0;
+}
+.history-records .ep {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .history-records .dayrow {
   flex-wrap: wrap;
@@ -3220,5 +3264,15 @@ input[type="search"] {
   }
   .logged-actions button {
     width: 100%;
+  }
+}
+
+@media (max-width: 700px) {
+  .history-visuals .chart-card {
+    display: block;
+    grid-row: auto;
+  }
+  .chart-combined {
+    grid-column: auto;
   }
 }

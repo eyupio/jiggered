@@ -125,6 +125,12 @@ runBrowser({ name: "energy-theme", startServer: false }, async (harness) => {
   await page.locator(".energy-panel").screenshot({ path: "/tmp/jiggered-spoons-today.png" });
   await page.locator("#t-history").click();
   assert.match(await page.locator("#history-charts").textContent(), /Net spoons/);
+  assert.equal(
+    await page.locator("[data-matrix-mode] option[value=used]").textContent(),
+    "Activity spoons used",
+  );
+  assert.match(await page.locator('[data-chart="combined"]').textContent(), /Net spoons/);
+  assert.match(await page.locator(".energy-report").textContent(), /spoons used before recovery/);
   assert.match(await page.locator("#history-charts").textContent(), /One point per day/);
   await page.locator("#sum-preview").click();
   assert.match(await page.locator("#summary-preview").textContent(), /Spoons spent/);

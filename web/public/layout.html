@@ -4,10 +4,8 @@
 <title>{{.Title}}</title>
 <meta name="description" content="{{.Description}}" />
 <meta name="robots" content="{{.Robots}}" />
-{{if .URL}}<link rel="canonical" href="{{.URL}}" /><meta
-  property="og:url"
-  content="{{.URL}}"
-/>{{end}}
+{{if .URL}}<link rel="canonical" href="{{.URL}}" />
+<meta property="og:url" content="{{.URL}}" />{{end}}
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Jiggered" />
 <meta property="og:title" content="{{.Title}}" />
