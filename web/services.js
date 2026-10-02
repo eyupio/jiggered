@@ -10,6 +10,7 @@ export const servicesMarkup = `
  <label class="radio"><input type="checkbox" id="svc-enabled"> Enable automatic remote backups</label>
  <div class="service-grid">${field('endpoint','Endpoint','type="url" placeholder="https://s3.eu-west-2.amazonaws.com"','The service endpoint; the bucket goes in its own field.')}${field('bucket','Bucket','maxlength="63" placeholder="my-private-backups"')}${field('region','Signing region','placeholder="us-east-1"')}${field('prefix','Folder prefix','maxlength="256"','A dedicated prefix keeps each installation separate.')}${field('access_key','Access key','type="password" autocomplete="new-password"','Leave blank to keep the saved key.')}${field('secret_key','Secret key','type="password" autocomplete="new-password"','Leave blank to keep the saved secret.')}</div>
  <div class="service-grid">${field('interval_hours','Run every (hours)','type="number" min="1" max="8760" required')}${field('keep','Backups to keep','type="number" min="0" max="1000" required','0 keeps every backup. Only this installation’s backup files are deleted.')}</div>
+ <details><summary>ZIP & encryption</summary><p class="meta">Remote backups are compressed ZIP archives. Optionally encrypt them with a password you keep separately.</p><label class="radio"><input type="checkbox" id="svc-encrypt"> Encrypt remote backups with a password</label>${field('encryption_password','Backup encryption password','type="password" autocomplete="new-password" minlength="8"','Leave blank to keep the saved password. You’ll need it to restore encrypted backups.')}<label class="radio"><input type="checkbox" id="svc-clear-backup"> Remove saved backup encryption password when saving</label></details>
  <details><summary>Transfer & compatibility controls</summary><label class="radio"><input type="checkbox" id="svc-path_style" data-tooltip="Path style puts the bucket in the URL path. Usually on for MinIO, R2 and private storage; AWS also supports virtual-host style."> Use path-style addressing</label><label class="radio"><input type="checkbox" id="svc-verify" data-tooltip="Downloads the uploaded object and verifies its SHA-256 digest before deleting any older backups. This uses additional transfer bandwidth."> Verify every upload with SHA-256</label><label class="radio"><input type="checkbox" id="svc-allow_http"> Allow plain HTTP for a trusted private-network S3 service</label><label class="radio"><input type="checkbox" id="svc-clear-s3"> Remove saved S3 credentials when saving</label></details>
  </details>
  <details open class="service-details" data-service-area="email"><summary>Email delivery <span class="meta">SMTP & notification preferences</span></summary>
@@ -74,8 +75,8 @@ export function initServices(ctx) {
   for(const [k,v] of Object.entries(saved.remote)) { const el=$('svc-'+k); if(el) el.type==='checkbox'?el.checked=v:el.value=v }
   for(const [k,v] of Object.entries(saved.email)) { const el=$('svc-'+(k==='enabled'?'mail-enabled':k==='password'?'smtp_password':k));if(el) el.type==='checkbox'?el.checked=v:el.value=k==='to'?v.join(', '):v }
   for(const [k,v] of Object.entries(saved.accounts || {})){const el=$('svc-'+k);if(el)el.type==='checkbox'?el.checked=v:el.value=v}
-  for(const [id,exists] of [['access_key',data.access_key_saved],['secret_key',data.secret_key_saved],['smtp_password',data.smtp_password_saved]]) $('svc-'+id).placeholder=exists?'Saved securely · leave blank to keep':'Not configured';
-  $('svc-clear-s3').checked=false;$('svc-clear-email').checked=false;
+  for(const [id,exists] of [['access_key',data.access_key_saved],['secret_key',data.secret_key_saved],['smtp_password',data.smtp_password_saved],['encryption_password',data.backup_password_saved]]) $('svc-'+id).placeholder=exists?'Saved securely · leave blank to keep':'Not configured';
+  $('svc-clear-s3').checked=false;$('svc-clear-email').checked=false;$('svc-clear-backup').checked=false;
  }
  function status(data) {
   const last=data.runs?.[0];$('svc-last').textContent=last?`${date(last.started)} · ${last.status}`:'No remote backups yet';$('svc-next').textContent=data.next_at?date(data.next_at):'Schedule paused';
@@ -96,7 +97,7 @@ export function initServices(ctx) {
   for(const k of Object.keys(settings.email)){const el=$('svc-'+(k==='enabled'?'mail-enabled':k==='password'?'smtp_password':k));if(el)settings.email[k]=el.type==='checkbox'?el.checked:el.type==='number'?Number(el.value):k==='to'?el.value.split(/[,\n]/).map(x=>x.trim()).filter(Boolean):el.type==='password'?el.value:el.value.trim()}
   for(const k of Object.keys(settings.accounts||{})){const el=$('svc-'+k);if(el)settings.accounts[k]=el.type==='checkbox'?el.checked:el.type==='password'?el.value:el.value.trim()}
   const password=value;
-  const r=await api('PUT','/api/admin/services',{settings,password,clear_s3:$('svc-clear-s3').checked,clear_email:$('svc-clear-email').checked},{'X-Jiggered-Password':password});checkedPassword(password,r);if(destroyed)return false;
+  const r=await api('PUT','/api/admin/services',{settings,password,clear_s3:$('svc-clear-s3').checked,clear_email:$('svc-clear-email').checked,clear_backup:$('svc-clear-backup').checked},{'X-Jiggered-Password':password});checkedPassword(password,r);if(destroyed)return false;
   if(!r.ok){message(r.error,true);return false}fill(r.data);message('Configuration saved.');load(false);return true;
  }
  form.addEventListener('submit',e=>{e.preventDefault();if(busy)return;

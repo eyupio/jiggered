@@ -57,10 +57,17 @@ process.on('exit',()=>server.kill());
    }
   }
  }
+ // Manual backup encryption is independent of the admin confirmation password.
+ await page.locator('#admin-tab-backups').click();await page.locator('#backup-encrypt').check();
+ await page.locator('#backup-pw').fill('preview-password1');await page.locator('#backup-encryption-password').fill('archive-password1');await page.locator('#backup-encryption-confirm').fill('different-password');
+ await page.locator('#backup').click();await page.locator('#backup-msg').filter({hasText:'match it in both fields'}).waitFor();
+ await page.locator('#backup-encryption-confirm').fill('archive-password1');const downloadReady=page.waitForEvent('download');await page.locator('#backup').click();const download=await downloadReady;
+ assert.match(download.suggestedFilename(),/\.zip\.enc$/);const content=fs.readFileSync(await download.path());assert.equal(content.subarray(0,Buffer.byteLength('jiggered-backup-enc-v1\n')).toString(),'jiggered-backup-enc-v1\n');
+ await page.locator('#backup-msg').filter({hasText:'Backup downloaded'}).waitFor();assert.equal(await page.locator('#backup-encryption-password').inputValue(),'');
  // Adding a member keeps account management inside its own section.
  await page.locator('#admin-tab-people').click();await page.locator('#new-name').fill('newmember');await page.locator('#admin-confirm-pw').fill('preview-password1');await page.locator('#adduser [type=submit]').click();await page.locator('#adduser-msg').filter({hasText:'Created newmember'}).waitFor();
  const row=page.locator('[data-name="newmember"]');assert.equal(await row.locator('[data-act="reset"]').isVisible(),false);await row.locator('summary').click();assert.equal(await row.locator('[data-act="reset"]').isVisible(),true);
- await page.locator('#t-today').click();await page.locator('#t-admin').click();assert.equal(await page.locator('#admin-tab-people').getAttribute('aria-selected'),'true');
+ await page.locator('#brand-home').click();assert.equal(await page.locator('#t-today').getAttribute('aria-selected'),'true');assert.equal(await page.locator('#today-panel').isVisible(),true);await page.locator('#t-admin').click();assert.equal(await page.locator('#admin-tab-people').getAttribute('aria-selected'),'true');
  assert.deepEqual(errors,[]);console.log('PASS: admin sections, keyboard navigation, preserved edits/password cache, validation, account actions and responsive themes.');
  }finally{await browser?.close();server.kill()}
 })().catch(error=>{console.error(error);process.exitCode=1});

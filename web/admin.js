@@ -87,9 +87,11 @@ const MARKUP = `${servicesMarkup}
     </div>
     <div class="panel">
       <h2>Backup</h2>
-      <p class="meta">Downloads a copy of the whole database. It includes everyone's check-ins and episodes, so keep it somewhere private. To put one back, see "Backup and restore" in the README.</p>
+      <p class="meta">Downloads a compressed ZIP copy of the whole database. It includes everyone's check-ins and episodes, so keep it somewhere private. To put one back, see "Backup and restore" in the README.</p>
       <label>Your password, to confirm<input type="password" id="backup-pw" autocomplete="current-password" aria-describedby="backup-msg"></label>
-      <button class="secondary" id="backup">Download backup</button>
+      <label class="radio"><input type="checkbox" id="backup-encrypt"> Protect this download with an encryption password</label>
+      <div id="backup-encryption-fields" hidden><label>Encryption password<input type="password" id="backup-encryption-password" autocomplete="new-password" minlength="8"></label><label>Confirm encryption password<input type="password" id="backup-encryption-confirm" autocomplete="new-password"></label><p class="meta">Keep this password separately. Encrypted ZIP backups use Jiggered restore with a password file.</p></div>
+      <button class="secondary" id="backup">Download ZIP backup</button>
       <p class="msg" id="backup-msg" aria-live="polite"></p>
       <p class="meta" id="admin-version"></p>
     </div>
@@ -312,20 +314,23 @@ function wire(ctx) {
   $("audit-refresh").addEventListener("click", () => loadAudit(true));
   $("audit-more").addEventListener("click", () => loadAudit(false));
 
+  $("backup-encrypt").addEventListener("change",()=>{$("backup-encryption-fields").hidden=!$("backup-encrypt").checked;if(!$("backup-encrypt").checked){$("backup-encryption-password").value="";$("backup-encryption-confirm").value=""}});
   $("backup").addEventListener("click", async () => withBusy($("backup"), "Preparing…", async () => {
     const msg = $("backup-msg"), pw = $("backup-pw");
     if (!pw.value) { pw.focus(); return say(msg, "Enter your password to download a backup.", true) }
-    say(msg, "Preparing the backup…");
+    const encryptionPassword=$("backup-encrypt").checked?$("backup-encryption-password").value:"";
+    if($("backup-encrypt").checked && (encryptionPassword.length<8||encryptionPassword!==$("backup-encryption-confirm").value)){return say(msg,"Enter an encryption password of at least 8 characters and match it in both fields.",true)}
+    say(msg, "Preparing the ZIP backup…");
     let r;
-    try { r = await fetch("/api/admin/backup", { method: "POST", body: JSON.stringify({ password: pw.value }), signal: AbortSignal.timeout(300000), credentials: "same-origin", headers: { "Content-Type": "application/json", "X-Requested-With": "jiggered", "X-Jiggered-User": String(me.id) } }) }
+    try { r = await fetch("/api/admin/backup", { method: "POST", body: JSON.stringify({ password: pw.value,encryption_password:encryptionPassword }), signal: AbortSignal.timeout(300000), credentials: "same-origin", headers: { "Content-Type": "application/json", "X-Requested-With": "jiggered", "X-Jiggered-User": String(me.id) } }) }
     catch { return say(msg, "Couldn't reach the server. Check your connection and try again.", true) }
     if (!r.ok) {
       const why = await r.json().then(j => j.error, () => "");
       return say(msg, why || `The backup failed (${r.status}).`, true);
     }
-    pw.value = ""; // asked for again next time
+    pw.value = "";$("backup-encryption-password").value="";$("backup-encryption-confirm").value=""; // asked for again next time
     const url = URL.createObjectURL(await r.blob());
-    const name = (/filename="([^"]+)"/.exec(r.headers.get("Content-Disposition") || "") || [])[1] || "jiggered-backup.db";
+    const name = (/filename="([^"]+)"/.exec(r.headers.get("Content-Disposition") || "") || [])[1] || "jiggered-backup.zip";
     const a = Object.assign(document.createElement("a"), { href: url, download: name });
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);

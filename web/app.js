@@ -161,6 +161,7 @@ function fatal(text) {
     $("t-" + tab)?.scrollIntoView({ block: "nearest", inline: "nearest" }); // Help has no tab of its own // on a narrow phone the tab bar scrolls sideways
     scrollTo(0, tab === "history" ? historyScroll : 0);
   }
+  $("brand-home").addEventListener("click",e=>{if(e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;e.preventDefault();go("today")});
   const renderActive = () => { accountView.identity(ctx); notice.update(); views[active] && views[active].render() };
   $("tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) go(b.dataset.tab) });
 

@@ -26,18 +26,20 @@ import (
 
 // Secrets use a separate volume key: a database snapshot never contains the key that opens them.
 type remoteSettings struct {
-	Enabled       bool   `json:"enabled"`
-	Endpoint      string `json:"endpoint"`
-	Region        string `json:"region"`
-	Bucket        string `json:"bucket"`
-	Prefix        string `json:"prefix"`
-	PathStyle     bool   `json:"path_style"`
-	AllowHTTP     bool   `json:"allow_http"`
-	AccessKey     string `json:"access_key"`
-	SecretKey     string `json:"secret_key"`
-	IntervalHours int    `json:"interval_hours"`
-	Keep          int    `json:"keep"`
-	Verify        bool   `json:"verify"`
+	Encrypt            bool   `json:"encrypt"`
+	EncryptionPassword string `json:"encryption_password"`
+	Enabled            bool   `json:"enabled"`
+	Endpoint           string `json:"endpoint"`
+	Region             string `json:"region"`
+	Bucket             string `json:"bucket"`
+	Prefix             string `json:"prefix"`
+	PathStyle          bool   `json:"path_style"`
+	AllowHTTP          bool   `json:"allow_http"`
+	AccessKey          string `json:"access_key"`
+	SecretKey          string `json:"secret_key"`
+	IntervalHours      int    `json:"interval_hours"`
+	Keep               int    `json:"keep"`
+	Verify             bool   `json:"verify"`
 }
 type emailSettings struct {
 	Enabled   bool     `json:"enabled"`
@@ -174,7 +176,7 @@ func (s *server) loadServices(ctx context.Context, decrypt bool) (serviceSetting
 		return cfg, err
 	}
 	if decrypt {
-		for _, p := range []*string{&cfg.Remote.AccessKey, &cfg.Remote.SecretKey, &cfg.Email.Password} {
+		for _, p := range []*string{&cfg.Remote.AccessKey, &cfg.Remote.SecretKey, &cfg.Email.Password, &cfg.Remote.EncryptionPassword} {
 			*p, err = s.cryptSecret(*p, false)
 			if err != nil {
 				return cfg, err
@@ -185,15 +187,23 @@ func (s *server) loadServices(ctx context.Context, decrypt bool) (serviceSetting
 }
 func safeServices(cfg serviceSettings) map[string]any {
 	ak, sk, pw := cfg.Remote.AccessKey != "", cfg.Remote.SecretKey != "", cfg.Email.Password != ""
+	encryptedPassword := cfg.Remote.EncryptionPassword != ""
+	cfg.Remote.EncryptionPassword = ""
 	cfg.Remote.AccessKey = ""
 	cfg.Remote.SecretKey = ""
 	cfg.Email.Password = ""
-	return map[string]any{"settings": cfg, "access_key_saved": ak, "secret_key_saved": sk, "smtp_password_saved": pw}
+	return map[string]any{"settings": cfg, "access_key_saved": ak, "secret_key_saved": sk, "smtp_password_saved": pw, "backup_password_saved": encryptedPassword}
 }
 
 var bucketPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9.-]{1,62}$`)
 
 func validateServices(cfg serviceSettings) error {
+	if cfg.Remote.Encrypt && cfg.Remote.EncryptionPassword == "" {
+		return errors.New("Set a backup encryption password before enabling encryption.")
+	}
+	if err := validateBackupPassword(cfg.Remote.EncryptionPassword); err != nil {
+		return err
+	}
 	r := cfg.Remote
 	e := cfg.Email
 	if cfg.Accounts.PublicURL != "" {
@@ -299,10 +309,11 @@ func (s *server) adminGetServices(w http.ResponseWriter, r *http.Request) {
 }
 func (s *server) adminSaveServices(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Password   string          `json:"password"`
-		Settings   serviceSettings `json:"settings"`
-		ClearS3    bool            `json:"clear_s3"`
-		ClearEmail bool            `json:"clear_email"`
+		Password    string          `json:"password"`
+		Settings    serviceSettings `json:"settings"`
+		ClearS3     bool            `json:"clear_s3"`
+		ClearEmail  bool            `json:"clear_email"`
+		ClearBackup bool            `json:"clear_backup"`
 	}
 	if !readJSON(w, r, &in) || !s.verifyOwnPassword(w, r, authOf(r).u, in.Password) {
 		return
@@ -327,14 +338,14 @@ func (s *server) adminSaveServices(w http.ResponseWriter, r *http.Request) {
 		old      string
 		clear    bool
 		preserve bool
-	}{{&cfg.Remote.AccessKey, old.Remote.AccessKey, in.ClearS3, false}, {&cfg.Remote.SecretKey, old.Remote.SecretKey, in.ClearS3, false}, {&cfg.Email.Password, old.Email.Password, in.ClearEmail, false}}
+	}{{&cfg.Remote.AccessKey, old.Remote.AccessKey, in.ClearS3, false}, {&cfg.Remote.SecretKey, old.Remote.SecretKey, in.ClearS3, false}, {&cfg.Email.Password, old.Email.Password, in.ClearEmail, false}, {&cfg.Remote.EncryptionPassword, old.Remote.EncryptionPassword, in.ClearBackup, false}}
 	for i := range secrets {
 		p := &secrets[i]
 		if p.clear {
 			*p.value = ""
 		} else if *p.value == "" && p.old != "" {
 			p.preserve = true
-			*p.value = "[saved]"
+			*p.value = "[saved credential]"
 		}
 	}
 	if err = validateServices(cfg); err != nil {
@@ -384,7 +395,7 @@ func ownedBackup(cfg serviceSettings, key string) bool {
 		return false
 	}
 	tail := strings.TrimPrefix(key, prefix)
-	return regexp.MustCompile(`^\d{8}T\d{6}Z-[0-9a-f]{16}\.db$`).MatchString(tail)
+	return regexp.MustCompile(`^\d{8}T\d{6}Z-[0-9a-f]{16}\.(db|zip|zip\.enc)$`).MatchString(tail)
 }
 
 // Requests start a bounded background job, so closing a tab cannot interrupt an upload.
@@ -501,7 +512,7 @@ func (s *server) adminServiceAction(w http.ResponseWriter, r *http.Request) {
 		}
 		defer reader.Close()
 		http.NewResponseController(w).SetWriteDeadline(time.Now().Add(10 * time.Minute))
-		w.Header().Set("Content-Type", "application/vnd.sqlite3")
+		w.Header().Set("Content-Type", backupContentType(in.Key))
 		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filepath.Base(in.Key)))
 		w.Header().Set("Cache-Control", "no-store")
 		if size >= 0 {
@@ -550,7 +561,16 @@ func (s *server) runRemoteBackup(cfg serviceSettings, id int64, actor string) {
 			return err
 		}
 		defer os.Remove(tmp)
-		f, err := os.Open(tmp)
+		password := ""
+		if cfg.Remote.Encrypt {
+			password = cfg.Remote.EncryptionPassword
+		}
+		archive, err := archiveBackup(tmp, password)
+		if err != nil {
+			return err
+		}
+		defer os.Remove(archive)
+		f, err := os.Open(archive)
 		if err != nil {
 			return err
 		}
@@ -572,7 +592,7 @@ func (s *server) runRemoteBackup(cfg serviceSettings, id int64, actor string) {
 		if _, err = rand.Read(nonce[:]); err != nil {
 			return err
 		}
-		key = backupPrefix(cfg) + time.Now().UTC().Format("20060102T150405Z") + "-" + hex.EncodeToString(nonce[:]) + ".db"
+		key = backupPrefix(cfg) + time.Now().UTC().Format("20060102T150405Z") + "-" + hex.EncodeToString(nonce[:]) + backupExtension(password)
 		if err = c.put(ctx, key, f, size, digest); err != nil {
 			return err
 		}

@@ -21,8 +21,8 @@ import (
 const usage = `Jiggered ` + "(no arguments runs the server)" + `
 
   jiggered hash [password]             print a bcrypt hash for APP_PASSWORD_HASH
-  jiggered backup [file|-]             save a consistent copy of the database (no argument: into the data volume's backups folder; "-" writes it to stdout)
-  jiggered restore <file> --yes        put a backup in place of the database (stop the server first; what was there is kept)
+  jiggered backup [file|-] [--password-file PATH]  save a consistent ZIP backup (no argument: into the data volume's backups folder; "-" writes it to stdout)
+  jiggered restore <file> [--password-file PATH] --yes  put a backup in place of the database (stop the server first; what was there is kept)
   jiggered healthcheck                 exit 0 if the running server answers /healthz
   jiggered settings                    show the instance settings (they live in the database)
   jiggered settings set KEY VALUE      change one: secure_cookie, trust_proxy, proxy_hops, trusted_proxy_cidrs
@@ -95,9 +95,64 @@ const defaultDB = "/data/jiggered.db"
 
 // cmdBackup saves a consistent snapshot. Copying jiggered.db by itself is not a
 // backup: while the server runs, recent writes sit in the -wal file beside it.
+func archiveCLIArgs(args []string, restore bool) (dest, password string, confirmed bool, err error) {
+	var passwordFile string
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--password-file":
+			if passwordFile != "" || i+1 >= len(args) {
+				err = errors.New("Use --password-file PATH once.")
+				return
+			}
+			i++
+			passwordFile = args[i]
+		case "--yes":
+			if !restore || confirmed {
+				err = errors.New("--yes is only used once for restore.")
+				return
+			}
+			confirmed = true
+		default:
+			if dest != "" || strings.HasPrefix(args[i], "--") {
+				err = errors.New("usage: provide one backup destination or restore source.")
+				return
+			}
+			dest = args[i]
+			if dest == "" || dest == ":memory:" || strings.HasPrefix(dest, "file:") {
+				err = errors.New("Provide a real backup file path.")
+				return
+			}
+		}
+	}
+	if restore && dest == "" {
+		err = errors.New("usage: jiggered restore FILE [--password-file PATH] --yes")
+		return
+	}
+	if passwordFile != "" {
+		var f *os.File
+		f, err = os.Open(passwordFile)
+		if err != nil {
+			return
+		}
+		defer f.Close()
+		var value []byte
+		value, err = io.ReadAll(io.LimitReader(f, 1027))
+		if err != nil {
+			return
+		}
+		password = strings.TrimSuffix(strings.TrimSuffix(string(value), "\n"), "\r")
+		if password == "" {
+			err = errors.New("The encryption password file is empty.")
+			return
+		}
+		err = validateBackupPassword(password)
+	}
+	return
+}
 func cmdBackup(args []string, out, errw io.Writer) error {
-	if len(args) > 1 || (len(args) == 1 && args[0] != "-" && strings.HasPrefix(args[0], "-")) {
-		return errors.New("usage: jiggered backup [file|-]")
+	dest, password, _, err := archiveCLIArgs(args, false)
+	if err != nil {
+		return err
 	}
 	dbPath := envOr("APP_DB", defaultDB)
 	if _, err := os.Stat(dbPath); err != nil {
@@ -108,44 +163,54 @@ func cmdBackup(args []string, out, errw io.Writer) error {
 		return err
 	}
 	defer db.Close()
-
-	dest := ""
-	if len(args) == 1 {
-		dest = args[0]
-	} else {
-		if err := os.MkdirAll(backupDir(dbPath), 0o700); err != nil {
-			return err
+	if dest == "" {
+		dest = filepath.Join(backupDir(dbPath), "jiggered-"+time.Now().Format("20060102-150405")+backupExtension(password))
+	}
+	if dest == "-" {
+		if f, ok := out.(*os.File); ok {
+			if st, e := f.Stat(); e == nil && st.Mode()&os.ModeCharDevice != 0 {
+				return errors.New("refusing to write a backup to the terminal; redirect stdout to a file")
+			}
 		}
-		dest = filepath.Join(backupDir(dbPath), "jiggered-"+time.Now().Format("20060102-150405")+".db")
 	}
 	if dest != "-" {
 		if _, err := os.Stat(dest); err == nil {
 			return fmt.Errorf("%s already exists", dest)
 		}
-		if err := snapshot(db, dest); err != nil {
-			return err
-		}
-		fmt.Fprintf(errw, "saved a consistent copy of the database to %s\n", dest)
-		return nil
 	}
-	if f, ok := out.(*os.File); ok {
-		if st, err := f.Stat(); err == nil && st.Mode()&os.ModeCharDevice != 0 {
-			return errors.New("refusing to write a database to the terminal; redirect stdout to a file")
-		}
-	}
-	tmp, err := snapshotToTemp(db, dbPath)
+	snapshot, err := snapshotToTemp(db, dbPath)
 	if err != nil {
 		return err
 	}
-	defer os.Remove(tmp)
-	f, err := os.Open(tmp)
+	defer os.Remove(snapshot)
+	archive, err := archiveBackup(snapshot, password)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(archive)
+	f, err := os.Open(archive)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	os.Remove(tmp) // a closed pipe (| head) must not leave a whole copy behind
-	_, err = io.Copy(out, f)
-	return err
+	if dest == "-" {
+		_, err = io.Copy(out, f)
+		return err
+	}
+	target, err := os.OpenFile(dest, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(target, f)
+	if closeErr := target.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		os.Remove(dest)
+		return err
+	}
+	fmt.Fprintf(errw, "saved a consistent ZIP backup to %s\n", dest)
+	return nil
 }
 
 // checkBackup says whether path is a sound Jiggered database that this version can use. It opens the
@@ -207,15 +272,21 @@ func checkBackup(path string) error {
 // cmdRestore puts a backup in place of the database. Stop the server first. Whatever is there now is kept
 // in the backups folder, so a restore can itself be undone.
 func cmdRestore(args []string, out, errw io.Writer) error {
-	if len(args) < 1 || len(args) > 2 || (len(args) == 2 && args[1] != "--yes") {
-		return errors.New("usage: jiggered restore <backup file> --yes")
+	original, password, confirmed, err := archiveCLIArgs(args, true)
+	if err != nil {
+		return err
 	}
-	src, dst := args[0], envOr("APP_DB", defaultDB)
+	dst := envOr("APP_DB", defaultDB)
+	src, cleanup, err := unpackBackup(original, password, backupDir(dst))
+	if err != nil {
+		return err
+	}
+	defer cleanup()
 	if err := checkBackup(src); err != nil {
 		return err
 	}
-	if len(args) != 2 {
-		return fmt.Errorf("%s is a sound backup. This would replace the database at %s. Stop the server first, then run this again with --yes", src, dst)
+	if !confirmed {
+		return fmt.Errorf("%s is a sound backup. This would replace the database at %s. Stop the server first, then run this again with --yes", original, dst)
 	}
 	if real, err := filepath.EvalSymlinks(dst); err == nil {
 		dst = real // a symlinked APP_DB: replace what it points at, not the link

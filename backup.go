@@ -39,9 +39,14 @@ func (s *server) adminBackup(w http.ResponseWriter, r *http.Request) {
 	// A session alone is not enough to take everyone's data: the admin types their password for each download, so a
 	// stolen or left-open session can't fetch it. Checked (and rate-limited) like any password entry.
 	var in struct {
-		Password string `json:"password"`
+		Password           string `json:"password"`
+		EncryptionPassword string `json:"encryption_password"`
 	}
 	if !readJSON(w, r, &in) || !s.verifyOwnPassword(w, r, a.u, in.Password) {
+		return
+	}
+	if err := validateBackupPassword(in.EncryptionPassword); err != nil {
+		jsonError(w, 400, err.Error())
 		return
 	}
 	if !s.backupMu.TryLock() {
@@ -56,20 +61,27 @@ func (s *server) adminBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer os.Remove(tmp)
-	f, err := os.Open(tmp)
+	archive, err := archiveBackup(tmp, in.EncryptionPassword)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	defer os.Remove(archive)
+	os.Remove(tmp)
+	f, err := os.Open(archive)
 	if err != nil {
 		serverError(w, r, err)
 		return
 	}
 	defer f.Close()
-	os.Remove(tmp) // open handle keeps it readable; nothing is left behind however this ends
+	os.Remove(archive) // open handle keeps it readable; nothing is left behind however this ends
 	st, err := f.Stat()
 	if err != nil {
 		serverError(w, r, err)
 		return
 	}
-	w.Header().Set("Content-Type", "application/vnd.sqlite3")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="jiggered-backup-%s.db"`, time.Now().Format("2006-01-02-150405")))
+	w.Header().Set("Content-Type", backupContentType("backup"+backupExtension(in.EncryptionPassword)))
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="jiggered-backup-%s%s"`, time.Now().Format("2006-01-02-150405"), backupExtension(in.EncryptionPassword)))
 	w.Header().Set("Content-Length", strconv.FormatInt(st.Size(), 10))
 	w.Header().Set("Cache-Control", "no-store")
 	http.NewResponseController(w).SetWriteDeadline(time.Now().Add(5 * time.Minute))

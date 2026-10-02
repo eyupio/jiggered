@@ -437,13 +437,14 @@ func TestBackupDownload(t *testing.T) {
 	if !strings.HasPrefix(resp.Header.Get("Content-Disposition"), `attachment; filename="jiggered-backup-`) || resp.Header.Get("Cache-Control") != "no-store" {
 		t.Errorf("headers = %v", resp.Header)
 	}
-	if !bytes.HasPrefix(body, []byte("SQLite format 3\x00")) {
-		t.Fatalf("not a SQLite file: %q", body[:min(16, len(body))])
+	if !bytes.HasPrefix(body, []byte("PK\x03\x04")) {
+		t.Fatalf("not a ZIP file: %q", body[:min(16, len(body))])
 	}
 	restored := filepath.Join(t.TempDir(), "restored.db")
 	if err := os.WriteFile(restored, body, 0o600); err != nil {
 		t.Fatal(err)
 	}
+	restored=unpackTestBackup(t,restored,"")
 	if got := scalar(t, restored, "SELECT count(*) FROM users"); got != 2 {
 		t.Errorf("backup has %d users, want 2", got)
 	}

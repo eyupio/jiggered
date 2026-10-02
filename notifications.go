@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"net"
 	"net/smtp"
-	"strings"
 	"time"
 )
 
 // STARTTLS is mandatory in that mode; never silently fall back to cleartext.
 func (s *server) sendNotification(ctx context.Context, cfg emailSettings, subject, body string) error {
+	return s.sendBrandedNotification(ctx, cfg, subject, body, "", "")
+}
+func (s *server) sendBrandedNotification(ctx context.Context, cfg emailSettings, subject, body, actionURL, label string) error {
 	if cfg.Host == "" || cfg.From == "" || len(cfg.To) == 0 {
 		return errors.New("Save an SMTP host, sender and recipients first.")
 	}
@@ -72,10 +74,12 @@ func (s *server) sendNotification(ctx context.Context, cfg emailSettings, subjec
 	if err != nil {
 		return errors.New("SMTP refused the message.")
 	}
-	// Normalise line endings and keep provider errors/credentials out of the message.
-	subject = strings.NewReplacer("\r", " ", "\n", " ").Replace(subject)
-	body = strings.ReplaceAll(strings.ReplaceAll(body, "\r\n", "\n"), "\n", "\r\n")
-	_, err = fmt.Fprintf(writer, "From: %s\r\nTo: %s\r\nSubject: %s\r\nDate: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n%s\r\n", cfg.From, strings.Join(cfg.To, ", "), subject, time.Now().Format(time.RFC1123Z), body)
+	message, buildErr := brandedEmail(cfg, subject, body, actionURL, label)
+	if buildErr != nil {
+		writer.Close()
+		return errors.New("Could not prepare the email.")
+	}
+	_, err = writer.Write(message)
 	if err != nil {
 		return errors.New("SMTP message transfer failed.")
 	}

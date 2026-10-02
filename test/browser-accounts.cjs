@@ -56,7 +56,7 @@ await page.locator('#svc-from').fill('updated@example.com');
 assert.equal(await testEmail.textContent(),'Save & send test email');
 await testEmail.click();await page.locator('#svc-msg').filter({hasText:'Test email accepted'}).waitFor();
 assert.equal(await testEmail.textContent(),'Send test email');
-assert(mailMessages.some(m=>m.includes('From: updated@example.com')),'test used the newly saved sender');
+assert(mailMessages.some(m=>m.includes('From: \"Jiggered\" <updated@example.com>') || m.includes('From: Jiggered <updated@example.com>')),'test used the newly saved sender');
 assert.equal(await page.locator('#svc-auth-status').textContent(),expiryMessage,'reuse does not extend the 30-minute window');
 // Expiry is checked at use time, even if a background tab delayed the timer.
 await page.evaluate(()=>{window.realNow=Date.now;Date.now=()=>window.realNow()+30*60*1000+1000});
