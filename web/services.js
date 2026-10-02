@@ -24,7 +24,8 @@ export const servicesMarkup = `
  ${field('public_url','Public application URL','type="url" placeholder="https://jiggered.example.com"','Trusted base URL for email links. Never taken from a visitor’s request headers.')}
  <p class="meta">Registration creates ordinary accounts. SMTP must be enabled. Existing accounts can add a verified recovery email in Account. A password reset keeps 2FA enabled and requires a code.</p>
  </details>
- ${field('password','Your admin password','type="password" autocomplete="current-password" required','Required to save settings or run an action. It is cleared after each request.')}
+ ${field('password','Your admin password','type="password" autocomplete="current-password" required','Remembered in this page for 30 minutes after a successful check; cleared when you leave or reload.')}
+ <p id="svc-auth-status" class="meta" role="status"></p>
  <div class="service-actions"><button class="primary" type="submit">Save configuration</button><button class="secondary" id="svc-reload" type="button">Reload settings</button></div>
  </form>
  <div class="service-actions"><button class="secondary" data-service-action="test_s3">Test S3 connection</button><button class="secondary" data-service-action="test_email">Send test email</button><button class="primary" data-service-action="backup">Back up now</button><button class="secondary" data-service-action="list">Browse remote backups</button></div>
@@ -33,11 +34,43 @@ export const servicesMarkup = `
  <details class="service-details" open><summary>Recent backup history</summary><ul id="svc-runs" class="list service-runs"></ul><button class="secondary small" id="svc-refresh">Refresh status</button></details>
 </section>`;
 export function initServices(ctx) {
- let saved = null, dirty = false, timer, destroyed = false;
+ let saved = null, dirty = false, timer, destroyed = false, busy = false;
+ let cachedPassword = '', passwordUntil = 0, passwordTimer;
  const form = $('services-form'), message = (text, bad=false) => { if (!$('svc-msg')) return; $('svc-msg').textContent=text; $('svc-msg').classList.toggle('err',bad) };
+ function forgetPassword() {
+  cachedPassword='';passwordUntil=0;clearTimeout(passwordTimer);
+  if(destroyed)return;
+  $('svc-password').required=true;
+  $('svc-auth-status').textContent='Enter your admin password to save settings or run an action.';
+ }
+ function adminPassword() {
+  if(passwordUntil && Date.now()>=passwordUntil)forgetPassword();
+  const value=$('svc-password').value || cachedPassword;
+  if(!value){$('svc-password').focus();message('Enter your admin password to continue.',true)}
+  return value;
+ }
+ function checkedPassword(value,r) {
+  if(destroyed)return;
+  if(r.status===401||r.status===403||r.status===429){forgetPassword();return}
+  if(!r.ok)return;
+  // Only a successful server check starts the fixed window. Reusing it never extends it.
+  if($('svc-password').value){
+   cachedPassword=value;passwordUntil=Date.now()+30*60*1000;
+   clearTimeout(passwordTimer);passwordTimer=setTimeout(forgetPassword,30*60*1000);
+  }
+  $('svc-password').value='';$('svc-password').required=!cachedPassword;
+  if(cachedPassword)$('svc-auth-status').textContent='Admin password remembered until '+new Date(passwordUntil).toLocaleTimeString()+'. Reload this page to forget it now.';
+ }
+ function actionLabels() {
+  if(destroyed)return;
+  document.querySelector('[data-service-action="test_email"]').textContent=dirty?'Save & send test email':'Send test email';
+  document.querySelector('[data-service-action="test_s3"]').textContent=dirty?'Save & test S3 connection':'Test S3 connection';
+ }
+ function changed() {dirty=true;actionLabels()}
  const date = t => t ? new Date(t*1000).toLocaleString() : 'Not yet';
  function fill(data) {
   saved=data.settings;dirty=false;
+  actionLabels();
   for(const [k,v] of Object.entries(saved.remote)) { const el=$('svc-'+k); if(el) el.type==='checkbox'?el.checked=v:el.value=v }
   for(const [k,v] of Object.entries(saved.email)) { const el=$('svc-'+(k==='enabled'?'mail-enabled':k==='password'?'smtp_password':k));if(el) el.type==='checkbox'?el.checked=v:el.value=k==='to'?v.join(', '):v }
   for(const [k,v] of Object.entries(saved.accounts || {})){const el=$('svc-'+k);if(el)el.type==='checkbox'?el.checked=v:el.value=v}
@@ -54,35 +87,49 @@ export function initServices(ctx) {
   const r=await api('GET','/api/admin/services');if(destroyed||!$('svc-msg'))return;
   if(!r.ok)return message(r.error,true);if(replace||!saved)fill(r.data);status(r.data);
  }
- form.addEventListener('input',()=>dirty=true);
- form.addEventListener('submit',e=>{e.preventDefault();withBusy(form.querySelector('[type=submit]'),'Saving…',async()=>{
-  if(!saved)return message('Load the configuration first.',true);
+ form.addEventListener('input',e=>{if(e.target.id!=='svc-password')changed()});
+ async function save() {
+  if(!saved){message('Load the configuration first.',true);return false}
+  const value=adminPassword();if(!value)return false;
   const settings=structuredClone(saved);
-  for(const k of Object.keys(settings.remote)){const el=$('svc-'+k);if(el)settings.remote[k]=el.type==='checkbox'?el.checked:el.type==='number'?Number(el.value):el.type==='password'?el.value:el.type==='password'?el.value:el.value.trim()}
-  for(const k of Object.keys(settings.email)){const el=$('svc-'+(k==='enabled'?'mail-enabled':k==='password'?'smtp_password':k));if(el)settings.email[k]=el.type==='checkbox'?el.checked:el.type==='number'?Number(el.value):k==='to'?el.value.split(/[,\n]/).map(x=>x.trim()).filter(Boolean):el.type==='password'?el.value:el.type==='password'?el.value:el.value.trim()}
-  for(const k of Object.keys(settings.accounts||{})){const el=$('svc-'+k);if(el)settings.accounts[k]=el.type==='checkbox'?el.checked:el.type==='password'?el.value:el.type==='password'?el.value:el.value.trim()}
-  const password=$('svc-password').value;$('svc-password').value='';
-  const r=await api('PUT','/api/admin/services',{settings,password,clear_s3:$('svc-clear-s3').checked,clear_email:$('svc-clear-email').checked},{'X-Jiggered-Password':password});if(destroyed)return;
-  if(!r.ok)return message(r.error,true);fill(r.data);message('Configuration saved.');load(false);
- })});
+  for(const k of Object.keys(settings.remote)){const el=$('svc-'+k);if(el)settings.remote[k]=el.type==='checkbox'?el.checked:el.type==='number'?Number(el.value):el.type==='password'?el.value:el.value.trim()}
+  for(const k of Object.keys(settings.email)){const el=$('svc-'+(k==='enabled'?'mail-enabled':k==='password'?'smtp_password':k));if(el)settings.email[k]=el.type==='checkbox'?el.checked:el.type==='number'?Number(el.value):k==='to'?el.value.split(/[,\n]/).map(x=>x.trim()).filter(Boolean):el.type==='password'?el.value:el.value.trim()}
+  for(const k of Object.keys(settings.accounts||{})){const el=$('svc-'+k);if(el)settings.accounts[k]=el.type==='checkbox'?el.checked:el.type==='password'?el.value:el.value.trim()}
+  const password=value;
+  const r=await api('PUT','/api/admin/services',{settings,password,clear_s3:$('svc-clear-s3').checked,clear_email:$('svc-clear-email').checked},{'X-Jiggered-Password':password});checkedPassword(password,r);if(destroyed)return false;
+  if(!r.ok){message(r.error,true);return false}fill(r.data);message('Configuration saved.');load(false);return true;
+ }
+ form.addEventListener('submit',e=>{e.preventDefault();if(busy)return;
+  withBusy(form.querySelector('[type=submit]'),'Saving…',async()=>{busy=true;try{await save()}finally{busy=false}});
+ });
  $('svc-reload').addEventListener('click',()=>{if(!dirty||confirm('Discard your unsaved configuration changes?'))load(true)});
  $('svc-refresh').addEventListener('click',()=>load(false));
  async function action(button,action,key) {
-  if(dirty)return message('Save configuration changes before running an action.',true);
-  const password=$('svc-password').value;if(!password){$('svc-password').focus();return message('Enter your admin password to continue.',true)}$('svc-password').value='';
+  if(busy)return;
+  if(dirty&&!['test_email','test_s3'].includes(action))return message('Save configuration changes before running an action.',true);
   await withBusy(button,'Working…',async()=>{
+   busy=true;
+   try {
+   if(dirty){message('Saving configuration before testing…');if(!await save())return}
+   const value=adminPassword();if(!value)return;const password=value;
    message(action==='backup'?'Starting backup…':'Checking saved configuration…');
    if(action==='download'){
     let r;try{r=await fetch('/api/admin/services/action',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Requested-With':'jiggered','X-Jiggered-User':String(ctx.me.id),'X-Jiggered-Password':password},body:JSON.stringify({action,key,password}),signal:AbortSignal.timeout(600000)})}catch{return message('Download interrupted. Try again.',true)}
+    checkedPassword(password,r);
     if(!r.ok){const data=await r.json().catch(()=>({}));return message(data.error||'Download failed.',true)}
     const blob=await r.blob(),url=URL.createObjectURL(blob),a=Object.assign(document.createElement('a'),{href:url,download:key.split('/').pop()});a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);message('Remote backup downloaded.');return;
    }
-   const r=await api('POST','/api/admin/services/action',{action,password},{'X-Jiggered-Password':password});if(destroyed)return;if(!r.ok)return message(r.error,true);
+   const r=await api('POST','/api/admin/services/action',{action,password},{'X-Jiggered-Password':password});checkedPassword(password,r);if(destroyed)return;if(!r.ok)return message(r.error,true);
    if(action==='list'){$('svc-remote').hidden=false;setHTML($('svc-objects'),html`${r.data.objects.length?r.data.objects.map(o=>html`<li><span><b>${new Date(o.LastModified).toLocaleString()}</b><br><span class="meta">${fmtBytes(o.Size)} · ${o.Key.split('/').pop()}</span></span><button class="secondary small" data-remote-key="${o.Key}">Download</button></li>`):html`<li class="meta">No backups found in this installation's prefix.</li>`}`);message(r.data.truncated?'Showing the latest 200 backups.':'Remote backups loaded.')}
    else message(r.data.message||'Backup started. You can leave this page; progress is saved.');load(false);
+   }finally{busy=false}
   });
+  actionLabels();
  }
  document.querySelectorAll('[data-service-action]').forEach(b=>b.addEventListener('click',()=>action(b,b.dataset.serviceAction)));
  $('svc-objects').addEventListener('click',e=>{const b=e.target.closest('[data-remote-key]');if(b)action(b,'download',b.dataset.remoteKey)});
- return {load:()=>load(false),destroy(){destroyed=true;clearTimeout(timer)}};
+ function leavePage(){forgetPassword();if($('svc-password'))$('svc-password').value=''}
+ window.addEventListener('pagehide',leavePage);
+ forgetPassword();
+ return {load:()=>load(false),destroy(){destroyed=true;clearTimeout(timer);leavePage();window.removeEventListener('pagehide',leavePage)}};
 }
