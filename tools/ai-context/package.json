@@ -1,0 +1,8 @@
+{
+  "name": "jiggered-ai-context-build",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "repomix": "1.18.1"
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "output": {
+    "style": "json",
+    "compress": false,
+    "removeComments": false,
+    "removeEmptyLines": false,
+    "showLineNumbers": false
+  },
+  "include": [
+    "*.go",
+    "go.mod",
+    "go.sum",
+    "web/**/*.js",
+    "web/**/*.css",
+    "web/**/*.html",
+    "web/**/*.json",
+    "test/**/*.mjs",
+    "test/**/*.cjs",
+    "test/package.json",
+    ".github/workflows/*.yml",
+    "Dockerfile",
+    "compose.yaml",
+    "CLAUDE.md",
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "tools/ai-context/*.py",
+    "tools/ai-context/*.json",
+    "tools/ai-context/*.txt",
+    "tools/ai-context/*.yaml",
+    "tools/ai-context/Dockerfile"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "**/node_modules/**",
+      "**/.venv/**",
+      "**/__pycache__/**",
+      "**/.env*",
+      "**/*.db*",
+      "**/backups/**",
+      "**/*.pem",
+      "**/*.key",
+      "**/*lock*",
+      "**/.jiggered-service-key",
+      "**/.service-key-*",
+      ".ai-context/**"
+    ]
+  },
+  "security": { "enableSecurityCheck": true }
+}

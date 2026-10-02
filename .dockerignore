@@ -22,3 +22,6 @@ node_modules/
 **/*.swo
 **/*~
 /.local/
+/tools/ai-context/node_modules/
+/.ai-context/
+**/__pycache__/

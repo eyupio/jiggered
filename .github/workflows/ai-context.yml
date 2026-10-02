@@ -1,0 +1,63 @@
+name: AI context
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-context-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/ai-context/package-lock.json
+      - run: npm ci --prefix tools/ai-context --ignore-scripts
+      - name: Install isolated MCP test dependencies
+        run: |
+          python3 -m venv "$RUNNER_TEMP/context-venv"
+          "$RUNNER_TEMP/context-venv/bin/pip" install -r tools/ai-context/requirements.txt
+      - name: Context generation, freshness, limits and MCP authorization tests
+        run: '"$RUNNER_TEMP/context-venv/bin/python" -m unittest discover -s tools/ai-context -p "test_*.py" -v'
+      - name: Generate full-source packs and compressed overview
+        env:
+          AI_CONTEXT_SOURCE_SHA: ${{ github.sha }}
+          AI_CONTEXT_SOURCE_BRANCH: ${{ github.ref_name }}
+        run: python3 tools/ai-context/build.py
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ai-context-${{ github.sha }}
+          path: .ai-context/
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: ai-context-${{ github.sha }}
+          path: .ai-context/
+      - name: Publish generated data to private ai-context branch
+        run: python3 tools/ai-context/publish.py
