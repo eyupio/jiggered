@@ -208,6 +208,7 @@ test("profile preferences normalise defensively and retain Unicode names", () =>
     focus: "",
     theme: "system",
     historyRange: "30",
+    energyTheme: "points",
   });
   const p = normaliseProfile({
     displayName: "  Paul Jennings  ",

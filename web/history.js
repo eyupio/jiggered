@@ -1,5 +1,6 @@
 // The History tab: the last two weeks at a glance, trends, every day and episode, and ways to share them.
 
+import { energyWords, themeOf } from "./energy-theme.js";
 import { $, html, setHTML, fmtDay, fmtWhen, fmtLongDay } from "./util.js";
 import {
   addDays,
@@ -32,6 +33,7 @@ function download(name, text, type) {
 }
 
 export function init(ctx) {
+  const words = () => energyWords(themeOf(ctx));
   let shown = PAGE,
     episodesShown = PAGE,
     rangeMode = "30",
@@ -240,7 +242,7 @@ export function init(ctx) {
       ${focus() && $("sum-focus").checked ? html`<p><b>What I'm tracking:</b> ${focus()}</p>` : ""}
       <h2>Check-ins</h2>
       <p>${plural(sm.days.filter((d) => d.status).length, "day")} with a check-in: ${sm.green} green, ${sm.amber} amber, ${sm.red} red.
-        ${sm.avgUsed === null ? "" : `On the ${plural(sm.activityDays, "day")} with activities, the average net points were ${sm.avgUsed} (activities minus recovery; days with only a check-in are not counted).`}
+        ${sm.avgUsed === null ? "" : `On the ${plural(sm.activityDays, "day")} with activities, the average net ${words().plural} were ${sm.avgUsed} (activities minus recovery; days with only a check-in are not counted).`}
         ${sm.poorSleepDays ? `Poor sleep was recorded on ${plural(sm.poorSleepDays, "day")}.` : ""}</p>
       <h2>Episodes (${sm.episodes.length})</h2>
       ${
@@ -249,21 +251,15 @@ export function init(ctx) {
         <p>Most often noticed: ${list(sm.topSymptoms)}.</p>
         <p>Most often in the day or two before: ${list(sm.topTriggers)}.</p>
         <table><thead><tr><th>Started</th><th>What was noticed</th><th>How it came on</th><th>Approximate duration</th><th>Ended (local)</th><th>Before</th><th>Notes</th></tr></thead><tbody>
-        ${sm.episodes.map(
-          (e) =>
-            html`<tr><td>${fmtWhen(e.when, L)}</td><td>${(e.symptoms || []).join(", ")}</td><td>${e.onset || ""}</td><td>${e.duration || ""}</td><td>${e.endedAt ? fmtWhen(e.endedAt, L) : "Not recorded"}</td><td>${(e.before || []).join(", ")}</td><td>${$("sum-notes").checked ? e.notes || "" : "Omitted"}</td></tr>`,
-        )}
+        ${sm.episodes.map((e) => html`<tr><td>${fmtWhen(e.when, L)}</td><td>${(e.symptoms || []).join(", ")}</td><td>${e.onset || ""}</td><td>${e.duration || ""}</td><td>${e.endedAt ? fmtWhen(e.endedAt, L) : "Not recorded"}</td><td>${(e.before || []).join(", ")}</td><td>${$("sum-notes").checked ? e.notes || "" : "Omitted"}</td></tr>`)}
         </tbody></table>`
           : html`<p>None logged in this period.</p>`
       }
       <h2>Days</h2>
       ${
         sm.days.length
-          ? html`<table><thead><tr><th>Day</th><th>Check-in</th><th>Points spent</th><th>Poor sleep</th></tr></thead><tbody>
-        ${sm.days.map(
-          (d) =>
-            html`<tr><td>${fmtDay(d.date, L)}</td><td>${d.status ? d.status[0].toUpperCase() + d.status.slice(1) : "none"}</td><td>${used(d)} of ${capOf(d, S)}</td><td>${d.poorSleep ? "yes" : ""}</td></tr>`,
-        )}
+          ? html`<table><thead><tr><th>Day</th><th>Check-in</th><th>${words().title} spent</th><th>Poor sleep</th></tr></thead><tbody>
+        ${sm.days.map((d) => html`<tr><td>${fmtDay(d.date, L)}</td><td>${d.status ? d.status[0].toUpperCase() + d.status.slice(1) : "none"}</td><td>${used(d)} of ${capOf(d, S)}</td><td>${d.poorSleep ? "yes" : ""}</td></tr>`)}
         </tbody></table>`
           : html`<p>No days logged in this period.</p>`
       }
@@ -306,6 +302,10 @@ export function init(ctx) {
       docs = ctx.store.all(),
       today = ctx.today();
     renderStarter(docs);
+    if (!$("summary-preview").hidden) {
+      renderSummary();
+      $("summary-preview").innerHTML = $("print-view").innerHTML;
+    }
     const f = focus();
     $("history-lens").textContent = f
       ? `You wanted to notice: “${f}”`
@@ -383,12 +383,12 @@ export function init(ctx) {
       const comparison =
         avgChange === null
           ? "Comparison needs 3 activity days in each period."
-          : `${avgChange === 0 ? "Unchanged" : `${Math.abs(avgChange)} ${avgChange > 0 ? "more" : "fewer"} points/day`} than the previous period (${p.logged} activity days).`;
+          : `${avgChange === 0 ? "Unchanged" : `${Math.abs(avgChange)} ${avgChange > 0 ? "more" : "fewer"} ${words().plural}/day`} than the previous period (${p.logged} activity days).`;
       setHTML(
         $("trends"),
         html`<div class="history-metrics">
         <div class="metric"><span class="label">${hasFilters ? "Matching check-ins" : "Check-ins"}</span><b>${m.checked}<small> / ${data.span}</small></b><span class="meta">${Math.round((m.checked / data.span) * 100)}% of calendar days</span></div>
-        <div class="metric"><span class="label">Average net points</span><b>${m.avgUsed === null ? "—" : m.avgUsed}</b><span class="meta">${plural(m.logged, "day")} with activities</span></div>
+        <div class="metric"><span class="label">Average net ${words().plural}</span><b>${m.avgUsed === null ? "—" : m.avgUsed}</b><span class="meta">${plural(m.logged, "day")} with activities</span></div>
         <div class="metric"><span class="label">Episodes recorded</span><b>${m.episodes}</b><span class="meta">${m.episodes - p.episodes === 0 ? "Same count as" : `${Math.abs(m.episodes - p.episodes)} ${m.episodes > p.episodes ? "more" : "fewer"} than`} previous period</span></div>
         <div class="metric"><span class="label">Past the allowance</span><b>${m.overBudget}<small> / ${m.logged}</small></b><span class="meta">Days with activities logged</span></div>
       </div>
@@ -407,21 +407,27 @@ export function init(ctx) {
       chartWindow = nextChartWindow;
       setHTML(
         $("history-charts"),
-        html`${chartMarkup(data, "energy", L)}${chartMarkup(data, "episodes", L)}`,
+        html`${chartMarkup(data, "energy", L, themeOf(ctx))}${chartMarkup(data, "episodes", L, themeOf(ctx))}`,
       );
-      connectCharts($("history-charts"), data, L, (bucket) => {
-        if (bucket.from === bucket.to) ctx.openDay(bucket.from);
-        else {
-          $("hist-from").value = bucket.from;
-          $("hist-to").value = bucket.to;
-          rangeMode = "custom";
-          shown = episodesShown = PAGE;
-          openFilters();
-          render();
-          $("history-filters").scrollIntoView({ block: "start" });
-          $("hist-from").focus({ preventScroll: true });
-        }
-      });
+      connectCharts(
+        $("history-charts"),
+        data,
+        L,
+        (bucket) => {
+          if (bucket.from === bucket.to) ctx.openDay(bucket.from);
+          else {
+            $("hist-from").value = bucket.from;
+            $("hist-to").value = bucket.to;
+            rangeMode = "custom";
+            shown = episodesShown = PAGE;
+            openFilters();
+            render();
+            $("history-filters").scrollIntoView({ block: "start" });
+            $("hist-from").focus({ preventScroll: true });
+          }
+        },
+        themeOf(ctx),
+      );
       for (const [kind, value] of remembered) {
         const select = $("history-charts").querySelector(`[data-chart="${kind}"] [data-inspect]`);
         if (select && Number(value) < data.buckets.length) {
@@ -434,12 +440,7 @@ export function init(ctx) {
 
     setHTML(
       $("days"),
-      html`${days
-        .slice(0, shown)
-        .map(
-          (d) =>
-            html`<li><button class="dayrow" data-day="${d.date}"><span><span class="dot ${d.status || ""}"></span>${fmtDay(d.date, L)}${d.poorSleep ? html` <span class="meta">· poor sleep</span>` : ""}<span class="meta"> · ${d.status || "no check-in"}</span></span><span class="meta">${used(d)} of ${capOf(d, S)} used</span></button></li>`,
-        )}`,
+      html`${days.slice(0, shown).map((d) => html`<li><button class="dayrow" data-day="${d.date}"><span><span class="dot ${d.status || ""}"></span>${fmtDay(d.date, L)}${d.poorSleep ? html` <span class="meta">· poor sleep</span>` : ""}<span class="meta"> · ${d.status || "no check-in"}</span></span><span class="meta">${used(d)} of ${capOf(d, S)} ${words().plural} used</span></button></li>`)}`,
     );
     $("more-days").hidden = days.length <= shown;
     $("nodays").hidden = days.length > 0;
@@ -447,8 +448,7 @@ export function init(ctx) {
     setHTML(
       $("eps"),
       html`${eps.slice(0, episodesShown).map(
-        ([id, x]) =>
-          html`<div class="ep"><b>${fmtWhen(x.when, L)}</b>
+        ([id, x]) => html`<div class="ep"><b>${fmtWhen(x.when, L)}</b>
       <span>${(x.symptoms || []).join(", ") || "No symptoms ticked"}</span>
       <span class="meta">${[x.onset, x.duration].filter(Boolean).join(" · ")}</span>
       ${(x.before || []).length ? html`<span class="meta">Before: ${x.before.join(", ")}</span>` : ""}
@@ -488,10 +488,7 @@ export function init(ctx) {
         });
     const ranking = (pairs, type) =>
       pairs.length
-        ? html`<ul class="pattern-ranking">${pairs.map(
-            ([name, count]) =>
-              html`<li><button class="pattern-link" ${type === "symptom" ? html`data-symptom="${name}"` : html`data-query="${name}"`} data-tooltip="Filter history by ${name}"><span>${name}</span><b>${count}</b></button><meter min="0" max="${Math.max(1, m.episodes)}" value="${count}" aria-label="${name}: recorded in ${count} of ${m.episodes} episodes"></meter></li>`,
-          )}</ul>`
+        ? html`<ul class="pattern-ranking">${pairs.map(([name, count]) => html`<li><button class="pattern-link" ${type === "symptom" ? html`data-symptom="${name}"` : html`data-query="${name}"`} data-tooltip="Filter history by ${name}"><span>${name}</span><b>${count}</b></button><meter min="0" max="${Math.max(1, m.episodes)}" value="${count}" aria-label="${name}: recorded in ${count} of ${m.episodes} episodes"></meter></li>`)}</ul>`
         : html`<p class="empty">No matching episode details recorded in this period.</p>`;
     setHTML(
       $("history-insights"),
@@ -500,15 +497,8 @@ export function init(ctx) {
       <article class="insight-card"><span class="label">Day of the week</span><h3>${weekday ? dayName(weekday) : "A little more history helps"}</h3><p class="meta">${weekday ? `Highest recorded share of amber/red check-ins among weekdays with at least 3 check-ins: ${weekday.bad} of ${weekday.checked} (${Math.round((weekday.bad / weekday.checked) * 100)}%).` : "Log at least 3 check-ins on a weekday to see its pattern here."}</p>${sampleWeekdays.length === 1 ? html`<p class="hint">Only one weekday has enough entries to compare so far.</p>` : ""}</article>
       <article class="insight-card"><span class="label">Most noticed</span><h3>Symptoms in your episodes</h3>${ranking(data.topSymptoms, "symptom")}<p class="hint">Each symptom counts once per episode. Tap to filter.</p></article>
       <article class="insight-card"><span class="label">Recorded beforehand</span><h3>In the day or two before</h3>${ranking(data.topTriggers, "query")}<p class="hint">What you recorded before episodes; this doesn't establish a cause.</p></article>
-      <article class="insight-card activity-patterns"><span class="label">Your everyday rhythm</span><h3>Most logged activities</h3>${
-        activities.length
-          ? html`<ul class="pattern-ranking">${activities.map(
-              (a) =>
-                html`<li><button class="pattern-link" data-query="${a.name}" data-tooltip="Find records containing ${a.name}"><span>${a.name}</span><b>${a.count}×</b></button><span class="meta">${a.spent} points spent · ${a.recovery} recovery points</span></li>`,
-            )}</ul>`
-          : html`<p class="empty">Activities you log will appear here. Historical costs stay as recorded.</p>`
-      }</article>
-      <article class="insight-card"><span class="label">Activity balance</span><h3>${m.recovery} recovery points recorded</h3><p class="meta">${m.spent} points spent on activities; ${m.recovery} recorded through negative-cost recovery entries.</p><p class="hint">These are your planning estimates. They don't measure physical recovery or tell you to do more.</p></article>
+      <article class="insight-card activity-patterns"><span class="label">Your everyday rhythm</span><h3>Most logged activities</h3>${activities.length ? html`<ul class="pattern-ranking">${activities.map((a) => html`<li><button class="pattern-link" data-query="${a.name}" data-tooltip="Find records containing ${a.name}"><span>${a.name}</span><b>${a.count}×</b></button><span class="meta">${a.spent} ${words().plural} spent · ${a.recovery} recovery ${words().plural}</span></li>`)}</ul>` : html`<p class="empty">Activities you log will appear here. Historical costs stay as recorded.</p>`}</article>
+      <article class="insight-card"><span class="label">Activity balance</span><h3>${m.recovery} recovery ${words().plural} recorded</h3><p class="meta">${m.spent} ${words().plural} spent on activities; ${m.recovery} recorded through negative-cost recovery entries.</p><p class="hint">These are your planning estimates. They don't measure physical recovery or tell you to do more.</p></article>
     </div>`,
     );
   }

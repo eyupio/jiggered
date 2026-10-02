@@ -28,7 +28,7 @@ The ten selected priorities are implemented in the working tree:
 | History fixture stability | Every seeded response body is consumed; unsuccessful seed requests identify their document and status. |
 | API error contract | Fetch and response-body failures return the same transport-error shape; regression tests cover interrupted bodies and server errors. |
 | Frontend readability | Prettier formats frontend and test sources; embedded template text is preserved. ESLint checks undefined/unused names. CI enforces both. |
-| Browser lifecycle | All seven scenarios use one shared readiness/cleanup harness; the suite and CI compile once. Failure logs/screenshots are retained by CI. |
+| Browser lifecycle | All eight scenarios use one shared readiness/cleanup harness; the suite and CI compile once. Failure logs/screenshots are retained by CI. |
 | Contributor setup | CONTRIBUTING.md covers prerequisites, first account creation, code map, checks, all scenarios and asset/migration rules. README and CLAUDE.md point to it. |
 | Service database failures | Background persistence failures log run/operation context without SQL arguments; scheduler reads and the admin history query check errors. |
 | Schema authority | Startup no longer duplicates the table DDL; the shipped migration remains unchanged. Regression test proves initialization does not create schema. |
@@ -36,13 +36,15 @@ The ten selected priorities are implemented in the working tree:
 | Reproducible tooling | Test-only npm dependencies and their transitive tree are locked; local scripts, npm caching and Dependabot use the manifest. |
 
 Validated locally: clean locked npm installation; frontend formatting and ESLint;
-**105 passing Node tests** (including readiness/failure-cleanup regression tests);
+**108 passing Node tests** (including readiness/failure-cleanup regression tests);
 `gofmt`, `go vet`, **`go test -race ./...`**, and a pure-Go application build;
-**all seven browser scenarios**, including History's 600 days/900 episodes.
+**all eight browser scenarios**, including History's 600 days/900 episodes.
 An AST comparison confirms all other production JavaScript changes are formatting
 only, apart from the API fix and confirmed-unused import/binding cleanup.
 The new workflow has not yet executed on GitHub; image publishing and external
 S3/SMTP integration were not part of this local implementation verification.
+The branch also incorporates the subsequently merged Today activity pills and
+optional spoon theory theme, including its in-memory browser fixture.
 The original findings and proposed PR boundaries below remain audit evidence.
 
 ## Scope and verification

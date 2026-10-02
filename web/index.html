@@ -166,8 +166,9 @@
             <li id="step-budget">
               <span class="tick" aria-hidden="true"></span
               ><label class="step-budget"
-                >Optional: points you plan around each day
-                <input type="number" id="onboarding-budget" min="1" max="30" inputmode="numeric"
+                ><span data-energy-copy="Optional: points you plan around each day "
+                  >Optional: points you plan around each day </span
+                ><input type="number" id="onboarding-budget" min="1" max="30" inputmode="numeric"
               /></label>
             </li>
           </ol>
@@ -225,8 +226,9 @@
               <button
                 type="button"
                 class="help-tip"
+                data-energy-label="Help with energy points"
                 aria-label="Help with energy points"
-                data-tooltip="Points are personal estimates. Positive activity costs spend points; negative costs record recovery. Your balance can go below zero or above your starting budget. The ring shows the balance within your starting allowance; the number always shows the full balance."
+                data-energy-tooltip="Points are personal estimates. Positive activity costs spend points; negative costs record recovery. Your balance can go below zero or above your starting budget. The ring shows the balance within your starting allowance; the number always shows the full balance."
               >
                 ?
               </button>
@@ -245,6 +247,11 @@
                 />
               </svg>
               <div class="energy-readout">
+                <svg class="energy-spoon" viewBox="0 0 24 24" aria-hidden="true" hidden>
+                  <path
+                    d="M12 2c-2.5 0-4 2.7-4 5.5 0 2.4 1.1 4.1 2.5 4.8L10 20a2 2 0 0 0 4 0l-.5-7.7C14.9 11.6 16 9.9 16 7.5 16 4.7 14.5 2 12 2Z"
+                  />
+                </svg>
                 <div class="label" id="balance-label">Points left today</div>
                 <div class="big" id="left">—</div>
                 <p class="energy-caption" id="energy-caption">Your own planning aid</p>
@@ -274,18 +281,22 @@
               ></span
             ></label>
             <details class="hint">
-              <summary>How points work</summary>
+              <summary><span data-energy-copy="How points work">How points work</span></summary>
               <p>
-                Points are your own planning aid. Demanding activities spend points; recovery gives
-                points back. Your morning check-in sets the day's allowance: Green keeps your full
-                budget, while Amber and Red take off the amounts you set in Account. Poor sleep
-                takes off its own amount too. Zero-cost activities just record what happened. You
-                can go below zero or above your starting budget. This is a log, not a recommendation
-                to do more.
+                <span
+                  data-energy-copy="Points are your own planning aid. Demanding activities spend points; recovery gives points back. Your morning check-in sets the day&#x27;s allowance: Green keeps your full budget, while Amber and Red take off the amounts you set in Account. Poor sleep takes off its own amount too. Zero-cost activities just record what happened. You can go below zero or above your starting budget. This is a log, not a recommendation to do more."
+                  >Points are your own planning aid. Demanding activities spend points; recovery
+                  gives points back. Your morning check-in sets the day's allowance: Green keeps
+                  your full budget, while Amber and Red take off the amounts you set in Account.
+                  Poor sleep takes off its own amount too. Zero-cost activities just record what
+                  happened. You can go below zero or above your starting budget. This is a log, not
+                  a recommendation to do more.</span
+                >
               </p>
               <div class="row">
                 <button class="x" data-settings="set-budget">Edit my budget</button>
                 <button class="x" data-settings="set-acts">Edit my activities</button>
+                <button class="x" data-settings="profile-panel">Choose points or spoons</button>
               </div>
             </details>
           </div>
@@ -334,16 +345,16 @@
             <label class="field">Activity<input id="entry-name" required maxlength="120" /></label>
             <div class="row2">
               <label class="field"
-                >Points it costs<input
-                  type="number"
-                  id="entry-cost"
-                  min="-10"
-                  max="10"
-                  step="1"
-                  required /></label
+                ><span data-energy-copy="Points it costs">Points it costs</span
+                ><input type="number" id="entry-cost" min="-10" max="10" step="1" required /></label
               ><label class="field">Time (optional)<input type="time" id="entry-time" /></label>
             </div>
-            <p class="hint">Negative points record recovery. Zero only records the activity.</p>
+            <p class="hint">
+              <span
+                data-energy-copy="Negative points record recovery. Zero only records the activity."
+                >Negative points record recovery. Zero only records the activity.</span
+              >
+            </p>
             <div class="row">
               <button class="primary" type="submit">Save activity</button
               ><button class="secondary" type="button" id="entry-cancel">Cancel</button>
@@ -692,6 +703,73 @@
               Appearance applies when you save. Your starting history period applies the next time
               you open the app.
             </p>
+            <fieldset class="energy-theme-picker" aria-describedby="energy-theme-hint">
+              <legend>Energy language</legend>
+              <p class="hint" id="energy-theme-hint">
+                Choose the way your energy budget is shown. Your numbers and activity costs stay the
+                same.
+              </p>
+              <div class="energy-theme-options">
+                <label class="energy-theme-option"
+                  ><input
+                    type="radio"
+                    name="energyTheme"
+                    value="points"
+                    aria-label="Points"
+                    aria-describedby="energy-points-description"
+                  /><span class="energy-theme-card"
+                    ><span class="energy-theme-top"
+                      ><span class="energy-theme-symbol" aria-hidden="true">✦</span><b>Points</b
+                      ><span class="energy-theme-check" aria-hidden="true">✓</span></span
+                    ><span id="energy-points-description"
+                      >The familiar, simple way to plan your daily energy.</span
+                    ><span class="energy-theme-example">8 points left today</span></span
+                  ></label
+                >
+                <label class="energy-theme-option"
+                  ><input
+                    type="radio"
+                    name="energyTheme"
+                    value="spoons"
+                    aria-label="Spoons"
+                    aria-describedby="energy-spoons-description"
+                  /><span class="energy-theme-card"
+                    ><span class="energy-theme-top"
+                      ><svg class="energy-theme-symbol" viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M12 2c-2.5 0-4 2.7-4 5.5 0 2.4 1.1 4.1 2.5 4.8L10 20a2 2 0 0 0 4 0l-.5-7.7C14.9 11.6 16 9.9 16 7.5 16 4.7 14.5 2 12 2Z"
+                        /></svg
+                      ><b>Spoons</b
+                      ><span class="energy-theme-check" aria-hidden="true">✓</span></span
+                    ><span id="energy-spoons-description"
+                      >Inspired by spoon theory: a way to describe limited daily energy.</span
+                    ><span class="energy-theme-example">8 spoons left today</span></span
+                  ></label
+                >
+              </div>
+              <div class="energy-theme-preview" aria-live="polite" aria-atomic="true">
+                <span class="label">Preview</span
+                ><b id="energy-theme-preview">8 points left today</b
+                ><span class="meta">A 2-point activity leaves 6 points.</span>
+              </div>
+              <details class="hint">
+                <summary>About spoon theory</summary>
+                <p>
+                  Christine Miserandino's spoon theory uses spoons as a metaphor for the energy
+                  available to someone living with chronic illness or disability. Everyday
+                  activities can use some of that limited supply.
+                </p>
+                <p>
+                  In Jiggered, one spoon represents one point. You choose your own estimates.
+                  Recovery entries reflect what you record, rather than a promise that rest restores
+                  energy. Your balance is a planning aid, without judgement.
+                </p>
+              </details>
+              <p class="hint">
+                Save profile to apply your choice across your devices. You can switch back at any
+                time.
+              </p>
+            </fieldset>
             <div class="row">
               <button class="primary" id="profile-save" type="submit">Save profile</button
               ><button class="secondary" type="button" id="profile-discard" disabled>
@@ -864,7 +942,8 @@
           <h2>Help with Jiggered</h2>
           <p>Get started, make the log fit your day, and keep your data safe.</p>
           <div class="row">
-            <button class="secondary" data-help="points">Understand points</button
+            <button class="secondary" data-help="points">
+              <span data-energy-copy="Understand points">Understand points</span></button
             ><button class="secondary" data-help="offline">Fix a saving problem</button>
           </div>
         </div>
@@ -873,7 +952,7 @@
             >Find an answer<input
               type="search"
               id="help-search"
-              placeholder="Try points, reorder, restore or offline"
+              placeholder="Try energy, reorder, restore or offline"
               autocomplete="off"
           /></label>
           <p class="meta" id="help-count" role="status"></p>

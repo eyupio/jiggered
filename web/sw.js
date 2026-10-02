@@ -22,6 +22,7 @@ const SHELL = [
   "/history-charts.js",
   "/history-matrix.js",
   "/profile.js",
+  "/energy-theme.js",
   "/account.js",
   "/admin.js",
   "/services.js",

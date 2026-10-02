@@ -1,4 +1,5 @@
 // Shared personal/default settings editor. Ordering works with pointer, touch, keyboard or buttons.
+import { applyEnergyTheme, energyCopy } from "./energy-theme.js";
 import { html, setHTML, uid } from "./util.js";
 import {
   LOCALES,
@@ -15,23 +16,23 @@ export const moveItem = (items, from, to) => {
   return out;
 };
 export function editorMarkup(prefix) {
-  return html`<div class="row2"><label class="field">Points per day<input type="number" id="${prefix}-budget" min="1" max="30" required></label><label class="field">Poor sleep costs<input type="number" id="${prefix}-penalty" min="0" max="30" required></label></div><div class="row2"><label class="field">Amber day costs<input type="number" id="${prefix}-amber" min="0" max="30" required></label><label class="field">Red day costs<input type="number" id="${prefix}-red" min="0" max="30" required></label></div><p class="hint">Points taken off the day when you choose Amber or Red at the morning check-in.</p><label class="field">Dates shown as<select id="${prefix}-locale">${LOCALES.map(([v, label]) => html`<option value="${v}">${label}</option>`)}</select></label>${[
+  return html`<div class="row2"><label class="field"><span ${prefix === "set" ? html`data-energy-copy="Points per day"` : ""}>Points per day</span><input type="number" id="${prefix}-budget" min="1" max="30" required></label><label class="field">Poor sleep costs<input type="number" id="${prefix}-penalty" min="0" max="30" required></label></div><div class="row2"><label class="field">Amber day costs<input type="number" id="${prefix}-amber" min="0" max="30" required></label><label class="field">Red day costs<input type="number" id="${prefix}-red" min="0" max="30" required></label></div><p class="hint" ${prefix === "set" ? html`data-energy-copy="Points taken off the day when you choose Amber or Red at the morning check-in."` : ""}>Points taken off the day when you choose Amber or Red at the morning check-in.</p><label class="field">Dates shown as<select id="${prefix}-locale">${LOCALES.map(([v, label]) => html`<option value="${v}">${label}</option>`)}</select></label>${[
     ["acts", "Activities"],
     ["sym", "Symptoms"],
     ["trig", "Triggers"],
   ].map(
     ([key, label]) =>
-      html`<details class="list-section" data-section="${key}"><summary><span>${label}</span> <span class="meta" data-count="${key}"></span></summary><div class="list-body"><p class="hint">Drag the handle to reorder, or use its arrow keys and the move buttons. Up to ${LIMITS.items} distinct names, 60 characters each.${key === "acts" ? " Points: −10 to 10; negative gives points back, zero only logs. Optional group names (for example Work or Home) sort long lists into sections on Today." : " Optional group names (for example Head and senses) become filter buttons on the Episode tab. A blank group uses the shared default group for that name, if there is one."}</p><div class="ordered-list" id="${prefix}-${key}" data-list="${key}"></div><button type="button" class="secondary" data-add="${key}">Add ${key === "acts" ? "activity" : key === "sym" ? "symptom" : "trigger"}</button></div></details>`,
+      html`<details class="list-section" data-section="${key}"><summary><span>${label}</span> <span class="meta" data-count="${key}"></span></summary><div class="list-body"><p class="hint">Drag the handle to reorder, or use its arrow keys and the move buttons. Up to ${LIMITS.items} distinct names, 60 characters each.${key === "acts" ? html`<span ${prefix === "set" ? html`data-energy-copy=" Points: −10 to 10; negative gives points back, zero only logs. Optional group names (for example Work or Home) sort long lists into sections on Today."` : ""}> Points: −10 to 10; negative gives points back, zero only logs. Optional group names (for example Work or Home) sort long lists into sections on Today.</span>` : " Optional group names (for example Head and senses) become filter buttons on the Episode tab. A blank group uses the shared default group for that name, if there is one."}</p><div class="ordered-list" id="${prefix}-${key}" data-list="${key}"></div><button type="button" class="secondary" data-add="${key}">Add ${key === "acts" ? "activity" : key === "sym" ? "symptom" : "trigger"}</button></div></details>`,
   )}<datalist id="${prefix}-groups-acts"></datalist><datalist id="${prefix}-groups-sym"></datalist><datalist id="${prefix}-groups-trig"></datalist>${prefix === "set" ? html`<p class="hint" data-gap hidden></p>` : ""}<p class="sr-only" role="status" data-order-status></p><div class="row"><button class="primary" type="submit">Save ${prefix === "def" ? "shared defaults" : "settings"}</button><button class="secondary" type="button" data-discard>Discard draft</button>${prefix === "set" ? html`<button class="secondary" type="button" data-merge>Add new shared items</button>` : ""}<button class="secondary" type="button" data-reset>${prefix === "def" ? "Use factory defaults" : "Replace with shared defaults"}</button></div><p class="msg" id="${prefix}-msg" role="status"></p>`;
 }
-export function createEditor(form, prefix, onChange = () => {}) {
+export function createEditor(form, prefix, onChange = () => {}, getTheme = () => "points") {
   const get = (key) => form.querySelector(`#${prefix}-${key}`);
   // Anything that sends the person to a field (a shortcut, a validation error) first opens the section holding it.
   const reveal = (el) => {
     for (let d = el?.closest("details"); d; d = d.parentElement?.closest("details")) d.open = true;
   };
   const row = (key, name = "", cost = 1, id = uid(), group = "") =>
-    html`<div class="order-row" data-row data-id="${id}"><button type="button" class="drag-handle" aria-label="Move ${name || "item"}; arrow keys reorder" title="Drag to reorder; arrow keys also work">⠿</button><input type="text" value="${name}" aria-label="${key === "acts" ? "Activity" : key === "sym" ? "Symptom" : "Trigger"} name" placeholder="Name">${key === "acts" ? html`<input class="order-cost" type="number" min="-10" max="10" step="1" value="${cost}" aria-label="Points it costs" required>` : ""}<input class="order-group" type="text" maxlength="30" list="${prefix}-groups-${key}" value="${group}" aria-label="Group (optional)" placeholder="Group"><div class="order-actions"><button type="button" data-move="-1" class="x" aria-label="Move up">↑</button><button type="button" data-move="1" class="x" aria-label="Move down">↓</button><button type="button" data-remove class="x" aria-label="Remove ${name || "item"}">×</button></div></div>`;
+    html`<div class="order-row" data-row data-id="${id}"><button type="button" class="drag-handle" aria-label="Move ${name || "item"}; arrow keys reorder" title="Drag to reorder; arrow keys also work">⠿</button><input type="text" value="${name}" aria-label="${key === "acts" ? "Activity" : key === "sym" ? "Symptom" : "Trigger"} name" placeholder="Name">${key === "acts" ? html`<input class="order-cost" type="number" min="-10" max="10" step="1" value="${cost}" ${prefix === "set" ? html`data-energy-label="Points it costs"` : ""} aria-label="Points it costs" required>` : ""}<input class="order-group" type="text" maxlength="30" list="${prefix}-groups-${key}" value="${group}" aria-label="Group (optional)" placeholder="Group"><div class="order-actions"><button type="button" data-move="-1" class="x" aria-label="Move up">↑</button><button type="button" data-move="1" class="x" aria-label="Move down">↓</button><button type="button" data-remove class="x" aria-label="Remove ${name || "item"}">×</button></div></div>`;
   function syncGroups() {
     for (const key of ["acts", "sym", "trig"]) {
       const dl = get("groups-" + key);
@@ -107,6 +108,7 @@ export function createEditor(form, prefix, onChange = () => {}) {
       const template = document.createElement("template");
       setHTML(template, row(add.dataset.add));
       list.append(template.content);
+      applyEnergyTheme(getTheme(), form);
       refresh(list);
       list.lastElementChild.querySelector("input").focus();
       onChange();
@@ -252,6 +254,7 @@ export function createEditor(form, prefix, onChange = () => {}) {
         refresh(get(key));
       }
       syncGroups();
+      applyEnergyTheme(getTheme(), form);
     },
     read() {
       return {
@@ -278,7 +281,9 @@ export function createEditor(form, prefix, onChange = () => {}) {
       const value = this.read(),
         errors = validateSettings(value);
       form.querySelectorAll("[aria-invalid]").forEach((el) => el.removeAttribute("aria-invalid"));
-      get("msg").textContent = errors.map(([, message]) => message).join(" ");
+      get("msg").textContent = errors
+        .map(([, message]) => energyCopy(message, getTheme()))
+        .join(" ");
       get("msg").classList.toggle("err", !!errors.length);
       for (const [field] of errors) {
         const el = get(field.replace("set-", ""));

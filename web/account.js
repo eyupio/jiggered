@@ -1,5 +1,6 @@
 // The Account tab: who you are, your password, where you're signed in, your settings and your data.
 
+import { themeOf } from "./energy-theme.js";
 import {
   $,
   api,
@@ -88,8 +89,9 @@ export function init(ctx) {
     setHTML(
       $("sessions"),
       html`${r.data.map(
-        (s) =>
-          html`<li><span><b>${describeUA(s.user_agent)}</b>${s.current ? html` <span class="badge">this device</span>` : ""}
+        (
+          s,
+        ) => html`<li><span><b>${describeUA(s.user_agent)}</b>${s.current ? html` <span class="badge">this device</span>` : ""}
       <br><span class="meta">${s.ip || "unknown address"} · active ${ago(s.last_seen_at)}</span></span>
       ${s.current ? "" : html`<button class="x" data-sid="${s.id}">Sign out</button>`}</li>`,
       )}`,
@@ -132,10 +134,15 @@ export function init(ctx) {
     form.querySelector("[data-discard]").disabled = !v;
   }; // nothing to discard until something is typed
   setDirty(false);
-  const editor = createEditor(form, "set", () => {
-    setDirty(true);
-    ctx.drafts?.put("settings", { value: editor.read(), baseline });
-  });
+  const editor = createEditor(
+    form,
+    "set",
+    () => {
+      setDirty(true);
+      ctx.drafts?.put("settings", { value: editor.read(), baseline });
+    },
+    () => themeOf(ctx),
+  );
   const savedDraft = ctx.drafts?.get("settings");
   editor.fill(savedDraft?.value || savedDraft || baseline);
   if (savedDraft?.baseline) baseline = savedDraft.baseline;
@@ -367,7 +374,12 @@ export function init(ctx) {
       renderSettings();
       profile.render();
     },
-    focus: (key) => editor.focus(key),
+    focus: (key) => {
+      if (key === "profile-panel") {
+        $(key).scrollIntoView({ block: "start" });
+        $("profile-form").elements.energyTheme[0].focus();
+      } else editor.focus(key);
+    },
     recover(value) {
       baseline = { ...ctx.settings(), activities: identifyActivities(ctx.settings().activities) };
       editor.fill(normaliseSettings(value));

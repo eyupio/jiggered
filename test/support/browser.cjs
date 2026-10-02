@@ -54,7 +54,7 @@ async function stopProcess(child) {
 }
 
 async function runBrowser(
-  { name, username = "tester", password = "local-preview-password", portEnv },
+  { name, username = "tester", password = "local-preview-password", portEnv, startServer = true },
   scenario,
 ) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `jiggered-${name}-`));
@@ -96,39 +96,42 @@ async function runBrowser(
     process.once("exit", onExit);
     process.once("SIGINT", onInterrupt);
     process.once("SIGTERM", onTerminate);
-    const binary = process.env.JIGGERED_TEST_BINARY
-      ? path.resolve(root, process.env.JIGGERED_TEST_BINARY)
-      : path.join(dir, "jiggered");
-    if (!process.env.JIGGERED_TEST_BINARY) {
-      execFileSync(process.env.GO_BINARY || "go", ["build", "-o", binary, "."], {
+    let base;
+    if (startServer) {
+      const binary = process.env.JIGGERED_TEST_BINARY
+        ? path.resolve(root, process.env.JIGGERED_TEST_BINARY)
+        : path.join(dir, "jiggered");
+      if (!process.env.JIGGERED_TEST_BINARY) {
+        execFileSync(process.env.GO_BINARY || "go", ["build", "-o", binary, "."], {
+          cwd: root,
+          stdio: "inherit",
+        });
+      }
+      const selectedPort =
+        (portEnv && process.env[portEnv]) || process.env.JIGGERED_TEST_PORT || (await freePort());
+      base = `http://127.0.0.1:${selectedPort}`;
+      server = spawn(binary, [], {
         cwd: root,
-        stdio: "inherit",
+        env: {
+          ...process.env,
+          APP_ADDR: new URL(base).host,
+          APP_DB: path.join(dir, "test.db"),
+          APP_USERNAME: username,
+          APP_PASSWORD: password,
+          APP_PASSWORD_HASH: "",
+          APP_SECURE_COOKIE: "false",
+        },
+        stdio: ["ignore", "pipe", "pipe"],
       });
+      server.on("error", (error) => {
+        startupError = error;
+      });
+      for (const stream of [server.stdout, server.stderr])
+        stream.on("data", (chunk) => {
+          logs = (logs + chunk).slice(-100000);
+        });
+      await waitForHealth(base, server, () => startupError);
     }
-    const selectedPort =
-      (portEnv && process.env[portEnv]) || process.env.JIGGERED_TEST_PORT || (await freePort());
-    const base = `http://127.0.0.1:${selectedPort}`;
-    server = spawn(binary, [], {
-      cwd: root,
-      env: {
-        ...process.env,
-        APP_ADDR: new URL(base).host,
-        APP_DB: path.join(dir, "test.db"),
-        APP_USERNAME: username,
-        APP_PASSWORD: password,
-        APP_PASSWORD_HASH: "",
-        APP_SECURE_COOKIE: "false",
-      },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    server.on("error", (error) => {
-      startupError = error;
-    });
-    for (const stream of [server.stdout, server.stderr])
-      stream.on("data", (chunk) => {
-        logs = (logs + chunk).slice(-100000);
-      });
-    await waitForHealth(base, server, () => startupError);
 
     await scenario({
       base,

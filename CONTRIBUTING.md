@@ -96,20 +96,23 @@ tests use disposable databases and local credentials; no S3 or external SMTP
 account is needed. CI runs these checks on pull requests before building the image.
 Do not commit build output, browser artifacts or database files.
 
-The browser runner compiles once, then runs all seven scenarios:
+The browser runner compiles once, then runs all eight scenarios:
 
-| Script                      | Coverage                                                        |
-| --------------------------- | --------------------------------------------------------------- |
-| `test/browser-today.cjs`    | Activity picker, logging, adjustments and Undo                  |
-| `test/browser-history.cjs`  | Large-account History, search, filters and mobile calendar      |
-| `test/browser-mobile.cjs`   | Phone-width Account editors and History navigation              |
-| `test/browser-security.cjs` | Password confirmation, revocation and reader-tab cleanup        |
-| `test/browser-accounts.cjs` | Local SMTP relay, registration, recovery, 2FA and mobile layout |
-| `test/browser-admin.cjs`    | Admin navigation, layout and encrypted manual backups           |
-| `test/browser.cjs`          | Full desktop/touch walkthrough, offline sync and recovery       |
+| Script                          | Coverage                                                                                      |
+| ------------------------------- | --------------------------------------------------------------------------------------------- |
+| `test/browser-energy-theme.cjs` | Energy language, previews, saving, cross-device and responsive themes (in-memory API fixture) |
+| `test/browser-today.cjs`        | Activity picker, logging, adjustments and Undo                                                |
+| `test/browser-history.cjs`      | Large-account History, search, filters and mobile calendar                                    |
+| `test/browser-mobile.cjs`       | Phone-width Account editors and History navigation                                            |
+| `test/browser-security.cjs`     | Password confirmation, revocation and reader-tab cleanup                                      |
+| `test/browser-accounts.cjs`     | Local SMTP relay, registration, recovery, 2FA and mobile layout                               |
+| `test/browser-admin.cjs`        | Admin navigation, layout and encrypted manual backups                                         |
+| `test/browser.cjs`              | Full desktop/touch walkthrough, offline sync and recovery                                     |
 
 Run one scenario with `node test/browser-today.cjs`; it compiles its own temporary
-binary. Both entry points share readiness checks, diagnostics and cleanup.
+binary. Both entry points share readiness checks, diagnostics and cleanup. The energy-theme
+scenario uses an in-memory API fixture and shares browser cleanup without starting
+a server.
 Optional environment variables:
 
 - `GO_BINARY`: Go executable to use for the fixture build.

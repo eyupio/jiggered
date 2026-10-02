@@ -1,5 +1,6 @@
 // Shared, non-interactive tooltips: hoverable, focusable triggers, Escape dismissal and tap help buttons.
 // Plain text only; critical guidance also lives in Help and beside the relevant fields.
+import { energyCopy, themeOf } from "./energy-theme.js";
 const HINTS = {
   "#svc-interval_hours":
     "Schedules from when enabled or changed; a manual backup also starts a fresh interval.",
@@ -58,7 +59,7 @@ const HINTS = {
     "Remove this preset from the draft. Save to apply; logged records stay unchanged.",
 };
 
-export function initTooltips() {
+export function initTooltips(ctx) {
   const tip = document.createElement("div");
   tip.id = "jiggered-tooltip";
   tip.className = "tooltip";
@@ -76,6 +77,8 @@ export function initTooltips() {
       if (root.matches?.(selector)) nodes.push(root);
       for (const el of nodes) {
         el.dataset.tooltip = text;
+        if (/\bpoints?\b/i.test(text) && !el.closest("#admin-panel"))
+          el.dataset.energyTooltip = text;
         el.removeAttribute("title");
       }
     }
@@ -126,7 +129,9 @@ export function initTooltips() {
     hide();
     active = el;
     described.set(el, el.getAttribute("aria-describedby") || "");
-    tip.textContent = el.dataset.tooltip;
+    tip.textContent = el.dataset.energyTooltip
+      ? energyCopy(el.dataset.energyTooltip, themeOf(ctx))
+      : el.dataset.tooltip;
     tip.hidden = false;
     el.setAttribute("aria-describedby", [described.get(el), tip.id].filter(Boolean).join(" "));
     position();

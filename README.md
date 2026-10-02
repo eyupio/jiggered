@@ -50,6 +50,17 @@ Account, 3 and 6 by default; shared defaults can set them too). The amount is st
 changing the setting later, or a day from before this existed, keeps the numbers it had. It stacks with poor sleep, and
 the day never goes below zero points available.
 
+### Optional spoon theory theme
+
+In **Account → Profile → Energy language**, choose **Spoons** and **Save profile**.
+Points remain the default. The spoon theory theme uses spoons for energy labels,
+activity costs, history and printed summaries, with a spoon visual for the daily
+budget. One spoon represents one point; the theme preserves budgets, calculations
+and historical values. It follows your private profile across devices and can be
+switched back at any time. Drafts follow the existing offline saving and recovery
+flow. JSON backups include the preference; CSV column names remain stable for
+existing spreadsheets.
+
 ### Staying where you were
 
 A browser refresh returns you to the same tab (it is in the address, so a link such as `/#history` opens that tab), the
@@ -503,7 +514,7 @@ sessions, pending sign-in challenges and emailed tokens; it never signs anyone b
 
 ## Development
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup, the code map, all seven
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup, the code map, all eight
 browser scenarios and change guidelines. Use Go 1.27.1 and Node 22.13+ or 24+.
 There is no frontend build step; npm installs locked development tools only.
 
@@ -513,7 +524,7 @@ npm --prefix test run browser:install
 npm --prefix test run check
 go vet ./...
 go test -race ./...             # requires a C compiler
-npm --prefix test run browser   # compiles once, runs all seven scenarios
+npm --prefix test run browser   # compiles once, runs all eight scenarios
 ```
 
 CI also runs pinned `govulncheck` and builds without cgo. Docker bases and CI

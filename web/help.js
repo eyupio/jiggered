@@ -1,8 +1,15 @@
 // Task-focused help lives in the app and remains available offline.
-import { $, html, setHTML } from "./util.js";
+import { energyCopy, themeOf } from "./energy-theme.js";
+import { $, html, raw, setHTML } from "./util.js";
 
 export function init(ctx) {
   const topics = [
+    [
+      "spoons",
+      "Personalise",
+      "Can I use spoon theory instead of points?",
+      html`<p>Yes. In Account → Profile → Energy language, choose Spoons and Save profile. One spoon represents one point: budgets, activity costs and past records keep the same numbers. Your preference follows your account across devices, and you can switch back at any time.</p><p>Christine Miserandino's spoon theory describes limited daily energy using spoons as a metaphor. You decide the estimates that fit your day. Recovery entries are your own observations, rather than a guarantee that rest restores energy.</p><p>History and printed summaries follow your choice. CSV column names stay the same so existing spreadsheets keep working; JSON backups include your preference.</p><button class="secondary" data-settings="profile-panel">Choose my energy language</button>`,
+    ],
     [
       "security",
       "Account & privacy",
@@ -78,17 +85,17 @@ export function init(ctx) {
   ];
   const list = $("help-topics"),
     search = $("help-search");
-  let role;
+  let role, theme;
   function mount() {
-    if (role === ctx.me.role) return;
+    if (role === ctx.me.role && theme === themeOf(ctx)) return;
+    const opened = [...list.querySelectorAll("details[open]")].map((el) => el.id);
     role = ctx.me.role;
+    theme = themeOf(ctx);
     setHTML(
       list,
-      html`${[...topics, ...(role === "admin" ? [adminTopic] : [])].map(
-        ([id, category, title, content]) =>
-          html`<details class="help-topic" id="help-${id}" data-topic="${id}"><summary><span class="help-category">${category}</span><span>${title}</span></summary><div class="help-answer">${content}</div></details>`,
-      )}`,
+      html`${[...topics, ...(role === "admin" ? [adminTopic] : [])].map(([id, category, title, content]) => html`<details class="help-topic" id="help-${id}" data-topic="${id}"><summary><span class="help-category">${category}</span><span>${id === "spoons" ? title : energyCopy(title, theme)}</span></summary><div class="help-answer">${id === "spoons" ? content : raw(energyCopy(content.s, theme))}</div></details>`)}`,
     );
+    for (const id of opened) $(id).open = true;
   }
   mount();
   const filter = () => {

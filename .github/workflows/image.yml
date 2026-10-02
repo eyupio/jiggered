@@ -46,7 +46,7 @@ jobs:
       - name: Frontend formatting, lint and logic tests
         run: npm --prefix test run check
 
-  # Compile once; all seven scenarios run against isolated databases in real Chromium.
+  # Compile once; eight Chromium scenarios use isolated server or in-memory API fixtures.
   browser:
     runs-on: ubuntu-latest
     timeout-minutes: 20
