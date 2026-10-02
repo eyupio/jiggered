@@ -142,7 +142,7 @@ action. These choices do not alter other users' records. Exported backups and re
 
 ## People and the admin
 
-The landing page presents the free hosted option and a planned public open-source release. Signup availability
+The landing page explains free access and a planned public source release. Signup availability
 follows the instance’s `/api/auth/options` response: open registration shows signup calls to action and email-verification
 instructions; closed registration shows sign-in links and a closed notice. An unavailable settings request shows an
 unknown status. Repository visibility and licensing remain separate from hosted registration.
@@ -160,10 +160,59 @@ service settings; do not commit them or enable registration by default for other
 
 Registration is closed by default. Create the first account, an admin, from the command line (see **Run it**).
 Signed-out visitors see the public landing page at `/`; `/welcome` is always the public page, including while signed in.
-The landing page includes search and social metadata and is indexable. Sign-in, registration, APIs and personal logs
-remain `noindex`. `/login` opens sign-in, and `/register` opens registration when available. When registration is closed,
-the page explains how to request an account and the landing page links to sign-in instead. The public pages use only
-self-hosted assets and respect reduced-motion preferences.
+The landing page and public feature/help pages include search and social metadata. Personal installations and previews
+are `noindex` by default. Sign-in, registration, APIs and personal logs remain `noindex` on every deployment.
+`/login` opens sign-in, and `/register` opens registration when available. The public HTML renders signup availability
+and links from the instance settings before JavaScript runs. The public pages use self-hosted assets and respect
+reduced-motion preferences.
+
+### Public pages and search indexing
+
+Public feature and help pages explain energy tracking, symptom episodes, Spoon Theory, getting started, CSV/PDF
+exports, offline saving, price/access and privacy. Spoon Theory is attributed to Christine Miserandino and links to
+her original essay; Jiggered points are personal estimates, not a fixed spoon scale. The pages are rendered by Go
+from embedded templates and work without JavaScript. Personal logs stay behind authentication.
+
+For the **official production host**, set these deployment variables and restart the app:
+
+```dotenv
+APP_PUBLIC_ORIGIN=https://your-official-host.example
+APP_PUBLIC_INDEXING=true
+```
+
+Replace the example with the real public HTTPS origin. Do not copy these settings to previews or personal instances.
+If an existing official deployment previously relied on automatic indexing, configure both variables before upgrading:
+otherwise its public pages will become `noindex`. These are deployment controls, not database seeds. A configured
+origin without indexing enabled can be used for preview metadata. Indexing enabled without an origin fails startup.
+The origin must have no path, query, fragment or credentials; localhost HTTP is accepted for testing. Keep this origin
+consistent with the Public application URL used for account-verification email links.
+
+On the enabled production host, `/sitemap.xml` lists the nine canonical public pages, `/robots.txt` advertises it,
+and `/llms.txt` describes the product and links to those pages. Sitemap modification dates are omitted rather than
+invented. Sitemap and llms endpoints return 404 on non-indexable deployments. Robots rules allow search and AI
+crawlers to read public pages and account `noindex` responses; APIs are disallowed and still require authentication.
+This is a deliberate shared crawler policy, not a separate model-training permission mechanism.
+
+The public home canonical is the absolute configured origin plus `/welcome`; signed-out `/` remains a readable alias
+and signed-in `/` remains the private app. Known uppercase/trailing-slash public aliases redirect permanently to
+lowercase paths without trailing slashes. Unknown URLs return real 404s. In your reverse proxy, redirect HTTP to HTTPS
+and alternate hostnames to the preferred host, preserving the path and query. For example, add an alternate-host
+block alongside the existing Caddy HTTPS host:
+
+```caddyfile
+www.your-official-host.example {
+    redir https://your-official-host.example{uri} permanent
+}
+```
+
+Use the actual hostnames, confirm the proxy's HTTPS policy, and check redirect chains before publishing. Public
+HTML uses `no-store` because access availability is instance-dependent. Keep private/authenticated responses out of
+shared CDN caches. The app retains its existing strict CSP; structured data uses microdata, without inline scripts.
+
+Verify signed-out responses with `curl`: each public route should return 200 with correct content, canonical and
+indexing policy; the XML sitemap should contain only canonical public pages. Submit it to Search Console after the
+production host is enabled. Comparison and public self-hosting launch pages are deferred until their source, pricing,
+licensing and availability claims can be verified.
 
 The signed-in views share the landing page’s typography and palette while retaining personal light/dark/device
 appearance settings. Today’s energy ring follows the day’s saved allowance; its numeric readout keeps negative

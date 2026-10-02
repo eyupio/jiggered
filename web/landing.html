@@ -1,90 +1,34 @@
 <!doctype html>
 <html lang="en" data-theme="light">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <title>Jiggered — Understand your energy. Find your rhythm.</title>
-    <meta
-      name="description"
-      content="A calmer way to track energy and symptoms at your own pace. Start a personal log with free hosted Jiggered. An open-source release is planned."
-    />
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Jiggered" />
-    <meta property="og:title" content="Understand your energy. Find your rhythm." />
-    <meta
-      property="og:description"
-      content="Daily energy check-ins, symptom tracking and a clearer picture of your days. A personal log, at your own pace."
-    />
-    <meta property="og:image" content="/icon-512.png" />
-    <meta property="og:image:alt" content="Jiggered brand mark" />
-    <link rel="canonical" href="/welcome" />
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="Jiggered — Find your rhythm" />
-    <meta
-      name="twitter:description"
-      content="A calmer, private way to understand your daily energy and symptoms."
-    />
-    <meta name="theme-color" content="#edf2e7" />
-    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-    <link
-      rel="preload"
-      href="/fonts/bricolage-latin.woff2"
-      as="font"
-      type="font/woff2"
-      crossorigin
-    />
-    <link rel="stylesheet" href="/style.css" />
-    <link rel="stylesheet" href="/presence.css" />
+    {{template "head" .}}
   </head>
   <body class="presence landing-page">
-    <a class="skip-link" href="#main">Skip to content</a>
-    <header class="site-header shell">
-      <a class="wordmark" href="/welcome" aria-label="Jiggered home"
-        ><img src="/icon.svg" width="34" height="34" alt="" />jiggered<span class="brand-dot"
-          >.</span
-        ></a
-      >
-      <nav class="site-nav" aria-label="Main navigation">
-        <a href="#features">The little things</a><a href="#how-it-works">How it works</a
-        ><a href="#privacy">Your privacy</a>
-      </nav>
-      <div class="nav-actions">
-        <a class="text-link" href="/login">Log in</a
-        ><a class="p-button small" href="/register" data-register-link
-          >Sign up
-          <span aria-hidden="true"
-            ><svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
-              <path
-                d="M6 18 18 6M6 6h12v12"
-                stroke="currentColor"
-                stroke-width="1.7"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              /></svg></span
-        ></a>
-      </div>
-    </header>
+    {{template "header" .}}
     <main id="main" itemscope itemtype="https://schema.org/SoftwareApplication">
       <meta itemprop="name" content="Jiggered" />
       <meta itemprop="applicationCategory" content="LifestyleApplication" />
       <meta itemprop="operatingSystem" content="Web" />
       <meta
         itemprop="description"
-        content="Daily energy and symptom tracker with separate personal logs and a free hosted option. An open-source release is planned."
+        content="A personal tracker for daily energy, activities and symptom episodes."
       />
+      {{if .URL}}<link itemprop="url" href="{{.URL}}" />{{end}}
       <section class="hero shell" aria-labelledby="hero-title">
         <div class="hero-copy">
           <p class="eyebrow">
             <span class="status-dot"></span> A little clarity. A little more you.
           </p>
-          <h1 id="hero-title">Your energy.<br />Your pace.<br /><span>Your rhythm.</span></h1>
+          <h1 id="hero-title">
+            Track your energy<br />and symptoms.<br /><span>At your pace.</span>
+          </h1>
           <p class="hero-description">
-            Some days you’ve got more to give. Some days, less. Get to know your energy with a
-            personal log that meets you where you are.
+            Jiggered is a personal energy and symptom tracker for people whose energy varies from
+            day to day. Log activities and rest, record symptom episodes, and review your history.
           </p>
           <div class="hero-actions">
-            <a class="p-button" href="/register" data-register-link
-              >Create your free account
+            <a class="p-button" href="{{.CTA}}" data-register-link
+              >{{.CTALabel}}
               <span aria-hidden="true"
                 ><svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
                   <path
@@ -96,7 +40,15 @@
                   /></svg></span></a
             ><a class="demo-link" href="#preview">Take a look <span aria-hidden="true">↓</span></a>
           </div>
-          <p class="quiet-note">Your own personal log. Verify your email to get started.</p>
+          <p class="quiet-note">A personal log, not a medical device.</p>
+          <p
+            class="quiet-note hero-availability"
+            data-registration-copy
+            data-open="Free accounts are available on this instance. Email verification is required."
+            data-closed="New account registration is currently closed on this instance. Existing members can sign in."
+          >
+            {{.Availability}}
+          </p>
         </div>
         <div
           class="hero-art"
@@ -191,6 +143,7 @@
               A quick energy check-in helps you set a budget for today. No perfect streaks. No
               catching up.
             </p>
+            <a class="feature-link" href="/features/energy-tracking">How energy points work</a>
           </article>
           <article class="feature-card tinted">
             <div class="mini-budget" aria-hidden="true">
@@ -219,40 +172,58 @@
               Record symptom episodes and possible triggers. Explore your history to build a picture
               of your days.
             </p>
+            <a class="feature-link" href="/features/symptom-tracking">Explore symptom tracking</a>
           </article>
         </div>
+      </section>
+      <section class="spoon-note shell" aria-labelledby="spoon-title">
+        <h2 id="spoon-title">Think about your energy in spoons?</h2>
+        <p>
+          Spoon Theory, created by Christine Miserandino, uses spoons as a metaphor for limited
+          daily energy. If that idea helps you, Jiggered can record your own budget and activities
+          using personal points.
+        </p>
+        <p>
+          Read
+          <a
+            href="https://www.butyoudontlooksick.com/articles/written-by-christine/the-spoon-theory/"
+            >Christine Miserandino's original Spoon Theory essay</a
+          >
+          and our <a href="/guides/spoon-theory">guide to Spoon Theory and energy budgets</a>.
+          Points are personal estimates, not a medical measurement or a fixed spoon scale.
+        </p>
       </section>
       <section class="choice-section shell" id="your-choice" aria-labelledby="choice-title">
         <div class="section-heading">
           <p class="eyebrow">TWO WAYS TO MAKE IT YOURS</p>
           <h2 id="choice-title">Your rhythm.<br />Your choice.</h2>
           <p>
-            Start with free hosting. An open-source release is also planned for people who want a
-            space they run themselves.
+            Jiggered is free to use. Account availability depends on this instance. A public source
+            release is planned for people who want to run their own server.
+            <a href="/pricing">Read pricing and access details.</a>
           </p>
         </div>
         <div class="choice-grid">
           <article class="choice-card">
-            <span class="choice-status" id="registration-status" role="status"
-              >CHECKING SIGNUP AVAILABILITY</span
-            >
-            <h3>A home, ready for you.</h3>
-            <p class="choice-price">Free hosted service</p>
+            <span class="choice-status" id="registration-status" role="status">{{.Status}}</span>
+            <h3>{{if .Index}}A home, ready for you.{{else}}Your personal instance.{{end}}</h3>
+            <p class="choice-price" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
+              <meta itemprop="price" content="0" /><span itemprop="description">Free to use</span>
+            </p>
             <p>
-              A place to check in without running a server. We take care of hosting so you can focus
-              on your days.
+              Your account has its own personal log. Use an instance and operator you trust; server
+              operators can access databases and backups.
             </p>
             <p
               class="choice-detail"
               data-registration-copy
-              data-open="Registration is open. Create your free account, verify your email, and make your first check-in."
+              data-open="Registration is open. {{.CTALabel}}, verify your email, and make your first check-in."
               data-closed="Registration is currently closed on this instance. Existing members can still sign in."
             >
-              Checking registration availability. You’ll verify your email before your account is
-              created.
+              {{.Availability}}
             </p>
-            <a class="p-button small" href="/register" data-register-link
-              >Create your free account <span aria-hidden="true">↗</span></a
+            <a class="p-button small" href="{{.CTA}}" data-register-link
+              >{{.CTALabel}} <span aria-hidden="true">↗</span></a
             >
           </article>
           <article class="choice-card">
@@ -317,9 +288,9 @@
           <p class="eyebrow">PERSONAL MEANS PERSONAL</p>
           <h2 id="privacy-title">Your story stays yours.</h2>
           <p>
-            Separate personal logs for each account, with a self-hosted option for people who want
-            to run their own server. No third-party trackers or external fonts. Export your records
-            whenever you need them.
+            Separate personal logs for each account, with a public source release planned for people
+            who want to run their own server. No third-party trackers or external fonts. Export your
+            records whenever you need them.
           </p>
           <p class="privacy-detail">
             Admins manage accounts without viewing logs in the app. Server operators can access the
@@ -336,9 +307,10 @@
           <details>
             <summary>Is the hosted version free?</summary>
             <p>
-              Yes. You can use hosted Jiggered for free, without setting up or maintaining a server.
-              Check the registration status above to see whether this instance is accepting new
-              accounts.
+              Jiggered is free to use. Check the account status above to see whether this instance
+              accepts new registrations. Read the
+              <a href="/pricing">pricing and access details</a> for hosted access and the planned
+              public source release.
             </p>
           </details>
           <details>
@@ -360,10 +332,10 @@
             <summary>Can I create an account here?</summary>
             <p
               data-registration-copy
-              data-open="Yes. Choose Create your free account, enter your details, and follow the verification link in your email. Your account is created after verification."
+              data-open="Yes. Choose {{.CTALabel}}, enter your details, and follow the verification link in your email. Your account is created after verification."
               data-closed="Registration is currently closed on this instance. Sign in with an existing account, or contact the administrator for access."
             >
-              Check registration availability above. New accounts require email verification.
+              {{.Availability}}
             </p>
           </details>
           <details>
@@ -386,8 +358,8 @@
         <p class="eyebrow">YOU DON’T HAVE TO FIGURE IT ALL OUT TODAY</p>
         <h2>Start with how you feel.</h2>
         <p>One small check-in. Your own pace.</p>
-        <a class="p-button" href="/register" data-register-link
-          >Create your free account
+        <a class="p-button" href="{{.CTA}}" data-register-link
+          >{{.CTALabel}}
           <span aria-hidden="true"
             ><svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
               <path
@@ -400,17 +372,7 @@
         ></a>
       </section>
     </main>
-    <footer class="site-footer shell">
-      <a class="wordmark" href="/welcome"
-        ><img src="/icon.svg" width="28" height="28" alt="" />jiggered.</a
-      >
-      <p>A little understanding goes a long way.</p>
-      <div>
-        <a href="/login">Log in</a><a href="#privacy">Privacy</a
-        ><a href="#your-choice">Hosting &amp; source</a>
-      </div>
-      <small>A personal log, not a medical device.</small>
-    </footer>
+    {{template "footer" .}}
     <script src="/login.js" defer></script>
   </body>
 </html>

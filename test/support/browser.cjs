@@ -120,6 +120,7 @@ async function runBrowser(
           APP_PASSWORD: password,
           APP_PASSWORD_HASH: "",
           APP_SECURE_COOKIE: "false",
+          APP_PUBLIC_ORIGIN: base,
         },
         stdio: ["ignore", "pipe", "pipe"],
       });

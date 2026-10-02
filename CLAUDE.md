@@ -17,6 +17,7 @@ admin to manage them; password login. It ships as one container image on GHCR.
 browser-scenario list. Use `npm ci --prefix test` for the locked development
 tools, `npm --prefix test run check` for formatting/lint/logic tests, and
 `npm --prefix test run browser` for all eight scenarios with one fixture build.
+`node test/browser-public.cjs` checks public pages with the same prebuilt fixture.
 Keep those instructions current when changing the workflow or tooling.
 
 ## How it works
@@ -37,21 +38,23 @@ Keep those instructions current when changing the workflow or tooling.
   Signed-out `/` serves the landing; signed-in `/` serves the private app. The last active
   admin can't be demoted, disabled or deleted; nobody can do that to themselves
   through the admin API.
-- **Configuration lives in the database.** The environment only says where it is
-  (`APP_DB`, `APP_ADDR`). `APP_USERNAME`, `APP_PASSWORD(_HASH)`, `APP_SECURE_COOKIE`,
-  `APP_TRUST_PROXY`, `APP_PROXY_HOPS` are one-time seeds, read only to fill in
-  what the database lacks; the database wins after that. The tables in
-  `README.md` are the reference: keep them and `.env.example` in step with
-  `loadConfig` and `settings.go`.
+- **Configuration lives in the database.** `APP_DB` and `APP_ADDR` locate it;
+  `APP_PUBLIC_ORIGIN` and `APP_PUBLIC_INDEXING` configure public-page metadata and
+  indexing (off by default). `APP_USERNAME`, `APP_PASSWORD(_HASH)`,
+  `APP_SECURE_COOKIE`, `APP_TRUST_PROXY`, `APP_PROXY_HOPS` are one-time seeds,
+  read only to fill in what the database lacks; the database wins after that.
+  The tables in `README.md` are the reference: keep them and `.env.example` in
+  step with `loadConfig` and `settings.go`.
 - **Routes use Go 1.22+ method patterns** on the stdlib `http.ServeMux`. No router
   framework.
 
 ## Conventions and gotchas
 
-- **A new public static file needs a route.** Only `publicAssets` (and the
-  `/fonts/` prefix) in `routes()` are served without login; everything else under
-  `web/` sits behind `requireAuth`. Add a login-page asset there or it redirects to
-  `/login` for a signed-out visitor.
+- **Public pages use `public.go`'s registry.** Page templates live in
+  `web/public/`; keep routes, navigation, sitemap and `llms.txt` in step. Only
+  `publicAssets` (and the `/fonts/` prefix) in `routes()` are served as static
+  files without login; everything else under `web/` sits behind `requireAuth`.
+  The canonical public origin is explicit, and indexing is opt-in.
 - **Pages name their scripts and styles by version** (`/v/<hash>/app.js`, rewritten into `index.html` and `login.html`
   by `static.versionPage`; relative `import`s stay inside it). Reason: a CDN in front (Cloudflare's default is four
   hours) kept old files and ran them against a new page. A new top-level script or stylesheet that a page loads must
@@ -84,7 +87,8 @@ Keep those instructions current when changing the workflow or tooling.
 - **Build HTML with the `html` tag in `web/util.js`**, which escapes by default.
   Never concatenate typed text into `innerHTML`.
 - **`web/sw.js` lists every file the app needs** (`SHELL`); a test fails if a module
-  ships without being listed. It must never cache `/api/`.
+  ships without being listed. It must never cache `/api/` or public server-rendered
+  pages.
 - **Dependencies are pure Go** (`modernc.org/sqlite`, `golang.org/x/crypto`). The
   image builds with `CGO_ENABLED=0`; do not add a cgo dependency.
 - **Secrets**: `.env`, `*.db` and `/backups/` are gitignored and excluded from the

@@ -46,10 +46,12 @@ const (
 	maxBodySize = 256 << 10
 )
 
-// config is what has to come from outside the database: where it is and where to listen. The rest is
-// optional and only seeds the database. Older versions needed a username and password here for the first
+// config holds deployment controls: storage, listening and public-site indexing. Account/proxy variables
+// are optional and only seed the database. Older versions needed a username and password here for the first
 // admin, and the proxy and cookie settings; they are read once to fill in what the database doesn't have yet.
 type config struct {
+	publicOrigin string // trusted canonical origin for public pages; never inferred from Host
+	publicIndex  bool   // explicit opt-in for the official production site
 	addr         string
 	dbPath       string
 	username     string            // seed: the first admin, while there are no accounts
@@ -215,6 +217,9 @@ func loadConfig() (config, error) {
 		username: envOr("APP_USERNAME", "paul"),
 		seeds:    map[string]string{},
 	}
+	if err := cfg.loadPublicConfig(); err != nil {
+		return cfg, err
+	}
 	for _, k := range settingKeys {
 		v, ok := seedFromEnv(k, os.Getenv(settingEnv[k]))
 		if !ok {
@@ -287,11 +292,12 @@ func envOr(k, def string) string {
 }
 
 // Files the sign-in page and the home-screen icon need before anyone is signed in.
-var publicAssets = []string{"/manifest.webmanifest", "/icon.svg", "/style.css", "/presence.css", "/login.js", "/robots.txt", "/favicon-32.png", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png", "/favicon.ico"}
+var publicAssets = []string{"/manifest.webmanifest", "/icon.svg", "/style.css", "/presence.css", "/public-base.css", "/public.css", "/login.js", "/robots.txt", "/favicon-32.png", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png", "/favicon.ico"}
 
 func (s *server) routes() http.Handler {
 	static, _ := fs.Sub(webFS, "web")
 	files := newStatic(static)
+	public := newPublicSite(s, files)
 	mux := http.NewServeMux()
 	auth := func(h http.HandlerFunc) http.Handler { return s.requireAuth(h) }
 	admin := func(h http.HandlerFunc) http.Handler { return s.requireAdmin(h) }
@@ -315,16 +321,7 @@ func (s *server) routes() http.Handler {
 	}
 	mux.HandleFunc("GET /login", loginPage)
 	mux.HandleFunc("GET /register", loginPage)
-	landingPage := func(w http.ResponseWriter, r *http.Request) {
-		page, err := fs.ReadFile(static, "landing.html")
-		if err != nil {
-			http.NotFound(w, r)
-			return
-		}
-		w.Header().Set("X-Robots-Tag", "index, follow")
-		serveHTML(w, r, files, files.versionPage(page))
-	}
-	mux.HandleFunc("GET /welcome", landingPage)
+	public.routes(mux)
 	mux.HandleFunc("POST /login", s.handleLogin)
 	mux.HandleFunc("GET /api/auth/options", s.publicAuthOptions)
 	mux.HandleFunc("POST /api/auth/register", s.registerAccount)
@@ -335,7 +332,11 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("POST /logout", s.handleLogout)
 
 	for _, p := range publicAssets {
-		mux.Handle("GET "+p, files)
+		if p == "/robots.txt" {
+			mux.HandleFunc("GET "+p, public.robots)
+		} else {
+			mux.Handle("GET "+p, files)
+		}
 	}
 	mux.Handle("GET /fonts/", files)
 	mux.Handle("GET /v/{ver}/{file...}", s.versionedAsset(files))
@@ -388,11 +389,18 @@ func (s *server) routes() http.Handler {
 
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
+			if public.redirectAlias(w, r) {
+				return
+			}
+			if !knownPrivateFile(static, r.URL.Path) {
+				http.NotFound(w, r)
+				return
+			}
 			s.requireAuth(files).ServeHTTP(w, r)
 			return
 		}
 		if s.lookup(r) == nil {
-			landingPage(w, r)
+			public.page(w, r, publicPages[0])
 			return
 		}
 		b, err := fs.ReadFile(static, "index.html")
@@ -470,7 +478,7 @@ func newStatic(fsys fs.FS) *static {
 // The files a page loads, and the pages that load them, are named with this build's version
 // (/v/<version>/app.js). A changed file therefore always has a new URL, so nothing between the browser and this
 // server (a CDN with a four-hour default, a browser's own rules) can run an old script against a new page.
-var versionedFiles = []string{"/style.css", "/presence.css", "/dashboard.css", "/app.js", "/login.js", "/early-nav.js"}
+var versionedFiles = []string{"/style.css", "/presence.css", "/public-base.css", "/public.css", "/dashboard.css", "/app.js", "/login.js", "/early-nav.js"}
 
 func (st *static) versionPage(page []byte) []byte {
 	for _, f := range versionedFiles {
@@ -496,6 +504,11 @@ func (s *server) versionedAsset(files *static) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		file := "/" + r.PathValue("file")
 		if path.Clean(file) != file || strings.Contains(file, "..") {
+			http.NotFound(w, r)
+			return
+		}
+		info, err := fs.Stat(files.fsys, strings.TrimPrefix(file, "/"))
+		if err != nil || info.IsDir() || file == "/landing.html" || strings.HasPrefix(file, "/public/") {
 			http.NotFound(w, r)
 			return
 		}

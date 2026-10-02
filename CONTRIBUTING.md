@@ -96,7 +96,7 @@ tests use disposable databases and local credentials; no S3 or external SMTP
 account is needed. CI runs these checks on pull requests before building the image.
 Do not commit build output, browser artifacts or database files.
 
-The browser runner compiles once, then runs all eight scenarios:
+The browser runner compiles once, then runs all eight shared scenarios:
 
 | Script                          | Coverage                                                                                      |
 | ------------------------------- | --------------------------------------------------------------------------------------------- |
@@ -108,6 +108,14 @@ The browser runner compiles once, then runs all eight scenarios:
 | `test/browser-accounts.cjs`     | Local SMTP relay, registration, recovery, 2FA and mobile layout                               |
 | `test/browser-admin.cjs`        | Admin navigation, layout and encrypted manual backups                                         |
 | `test/browser.cjs`              | Full desktop/touch walkthrough, offline sync and recovery                                     |
+
+The public pages have a separate browser check for JavaScript-disabled rendering,
+metadata, links, signup availability and mobile layouts. CI reuses the same fixture
+binary for it:
+
+```sh
+node test/browser-public.cjs
+```
 
 Run one scenario with `node test/browser-today.cjs`; it compiles its own temporary
 binary. Both entry points share readiness checks, diagnostics and cleanup. The energy-theme

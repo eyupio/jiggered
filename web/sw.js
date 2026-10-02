@@ -84,9 +84,21 @@ self.addEventListener("fetch", (e) => {
   if (req.method !== "GET" || url.origin !== location.origin) return;
   if (
     url.pathname.startsWith("/api/") ||
-    ["/healthz", "/login", "/register", "/welcome", "/logout"].includes(url.pathname)
+    ["/features/", "/guides/", "/docs/"].some((prefix) => url.pathname.startsWith(prefix)) ||
+    [
+      "/healthz",
+      "/login",
+      "/register",
+      "/welcome",
+      "/pricing",
+      "/privacy",
+      "/robots.txt",
+      "/sitemap.xml",
+      "/llms.txt",
+      "/logout",
+    ].includes(url.pathname)
   )
-    return; // data and sign-in always go to the server
+    return; // data, public pages and sign-in always go to the server
   e.respondWith(networkFirst(req, url.pathname));
 });
 

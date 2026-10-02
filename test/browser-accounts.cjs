@@ -62,14 +62,13 @@ runBrowser(
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto(base + "/");
     await page.locator("#hero-title").waitFor();
-    await page.locator("[data-register-link]").first().filter({ hasText: "Sign in" }).waitFor();
     assert.equal(await page.locator("[data-register-link]").first().getAttribute("href"), "/login");
     assert.equal(await page.locator("#registration-status").textContent(), "REGISTRATION CLOSED");
     assert.match(
       await page.locator("[data-registration-copy]").first().textContent(),
       /currently closed/,
     );
-    assert.equal(await page.locator("link[rel=canonical]").getAttribute("href"), "/welcome");
+    assert.equal(await page.locator("link[rel=canonical]").getAttribute("href"), base + "/welcome");
     await page.route("**/api/auth/options", (route) =>
       route.fulfill({ status: 503, body: "Unavailable" }),
     );
@@ -256,7 +255,7 @@ runBrowser(
       .waitFor();
     assert.match(
       await join.locator("[data-registration-copy]").first().textContent(),
-      /Registration is open/,
+      /Free accounts are available/,
     );
     assert.equal(
       await join.locator("[data-register-link]").last().getAttribute("href"),
