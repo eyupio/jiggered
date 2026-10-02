@@ -184,13 +184,14 @@ export function init(ctx) {
         <div class="metric"><span class="label">Episodes recorded</span><b>${m.episodes}</b><span class="meta">${m.episodes - p.episodes === 0 ? "Same count as" : `${Math.abs(m.episodes - p.episodes)} ${m.episodes > p.episodes ? "more" : "fewer"} than`} previous period</span></div>
         <div class="metric"><span class="label">Past the allowance</span><b>${m.overBudget}<small> / ${m.logged}</small></b><span class="meta">Days with activities logged</span></div>
       </div>
+      <p class="energy-report">${m.logged ? `${m.spent} ${words().plural} used before recovery · ${m.recovery} recovered · ${m.spent - m.recovery} net across ${plural(m.logged, "activity day")}.` : "No activities recorded in this period."} Totals cover matching records only.</p>
       <div class="checkin-summary"><h3>Morning check-ins</h3><svg class="checkin-composition" viewBox="0 0 600 18" preserveAspectRatio="none" role="img" aria-label="${m.green} green, ${m.amber} amber, ${m.red} red, ${data.span - m.checked} days without a matching check-in"><rect class="composition-empty" width="600" height="18" rx="7"></rect>${["green", "amber", "red"].map((key, i, keys) => html`<rect class="composition-${key}" x="${keys.slice(0, i).reduce((n, k) => n + m[k], 0) / data.span * 600}" width="${m[key] / data.span * 600}" height="18"></rect>`)}</svg><div class="chart-legend">${["green", "amber", "red"].map(key => html`<span><i class="legend-${key}"></i>${m[key]} ${key}</span>`)}<span>${data.span - m.checked} ${hasFilters ? "without a matching check-in" : "without a check-in"}</span></div></div>
       <p class="hint comparison-note">${comparison} Previous period: ${fmtDay(data.previousFrom, L)} – ${fmtDay(data.previousTo, L)}. Counts reflect your logging, including any filters.</p>`);
       matrix.render(data, S);
       const nextChartWindow = `${data.from}:${data.to}`;
       const remembered = chartWindow === nextChartWindow ? [...$("history-charts").querySelectorAll("[data-chart]")].map(card => [card.dataset.chart, card.querySelector("[data-inspect]").value]) : [];
       chartWindow = nextChartWindow;
-      setHTML($("history-charts"), html`${chartMarkup(data, "energy", L, themeOf(ctx))}${chartMarkup(data, "episodes", L, themeOf(ctx))}`);
+      setHTML($("history-charts"), html`${chartMarkup(data, "energy", L, themeOf(ctx))}${chartMarkup(data, "episodes", L, themeOf(ctx))}${chartMarkup(data, "combined", L, themeOf(ctx))}`);
       connectCharts($("history-charts"), data, L, bucket => {
         if (bucket.from === bucket.to) ctx.openDay(bucket.from);
         else { $("hist-from").value = bucket.from; $("hist-to").value = bucket.to; rangeMode = "custom"; shown = episodesShown = PAGE; openFilters(); render(); $("history-filters").scrollIntoView({ block: "start" }); $("hist-from").focus({ preventScroll: true }) }

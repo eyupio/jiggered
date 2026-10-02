@@ -364,7 +364,13 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
 .chart-legend .legend-green{background:var(--green)}.chart-legend .legend-amber{background:var(--amber)}.chart-legend .legend-red{background:var(--red)}
 .comparison-note{padding-top:14px;border-top:1px solid var(--line);line-height:1.6}
 .history-visuals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
-.chart-card{min-width:0}
+.chart-card{min-width:0;display:grid;grid-template-rows:subgrid;grid-row:span 6;row-gap:0}
+.chart-combined{grid-column:1/-1;display:block;grid-row:auto;border-top:1px solid var(--line);padding-top:24px}
+.chart-spent{stroke:var(--fg);stroke-width:2;stroke-dasharray:3 4;fill:none}
+.chart-spent-point{fill:var(--fg)}.chart-sleep{fill:var(--amber)}
+.chart-legend .legend-spent{background:var(--fg);border-radius:0;height:3px;width:15px}
+.chart-legend .legend-sleep{background:var(--amber);border-radius:0}
+.energy-report{line-height:1.6;font-variant-numeric:tabular-nums}
 .history-chart{display:block;width:100%;height:auto;margin-top:12px;overflow:visible}
 .chart-grid{stroke:var(--line);stroke-width:1}.chart-zero{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3}
 .chart-axis{fill:var(--muted);font:13px var(--body)}
@@ -396,6 +402,7 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
 .pattern-ranking meter::-webkit-meter-optimum-value{background:var(--accent);border-radius:4px}
 .pattern-ranking meter::-moz-meter-bar{background:var(--accent);border-radius:4px}
 .history-records{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
+.history-records>.panel{min-width:0}.history-records .ep{min-width:0;overflow-wrap:anywhere}
 .history-records .dayrow{flex-wrap:wrap;padding-block:4px}.history-records .dayrow .meta{font-size:.82rem}
 .profile-heading{display:flex;align-items:center;gap:16px}.profile-heading>div:last-child{min-width:0}
 .profile-avatar{width:68px;height:68px;flex:none;display:grid;place-items:center;border-radius:20px;background:var(--accent);color:var(--bg);font-family:var(--display);font-size:1.6rem;font-weight:700;box-shadow:0 4px 16px color-mix(in srgb,var(--accent) 16%,transparent)}
@@ -575,3 +582,5 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
 .logged-actions button{min-height:44px;min-width:76px;margin:0;padding:8px 12px;font-size:.86rem;line-height:1.2;border-radius:8px;text-decoration:none}
 .logged-actions .logged-remove{color:var(--red);border-color:color-mix(in srgb,var(--red) 45%,var(--line))}
 @media(max-width:600px){#entries>li{grid-template-columns:minmax(0,1fr);gap:12px}.logged-actions{width:100%}.logged-actions button{width:100%}}
+
+@media(max-width:700px){.history-visuals .chart-card{display:block;grid-row:auto}.chart-combined{grid-column:auto}}

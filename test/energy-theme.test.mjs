@@ -38,5 +38,5 @@ test("history uses spoon units in accessible descriptions while chart points ret
   assert.match(markup, /Net spoons/); assert.match(markup, /-1 spoon/); assert.match(markup, /One point per day/);
   assert.doesNotMatch(markup, /Net points/);
   assert.match(bucketDescription(data.buckets[0], "en-GB", "spoons"), /Net spoons -1; allowance 10/);
-  assert.match(describeCalendarDay({ date: "2026-10-01", net: 2, allowance: 10, episodes: 0 }, "en-GB", "spoons"), /2 net spoons used/);
+  assert.match(describeCalendarDay({ date: "2026-10-01", spent: 4, net: 2, allowance: 10, episodes: 0 }, "en-GB", "spoons"), /2 net spoons used/);
 });
