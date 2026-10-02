@@ -357,7 +357,7 @@ func (s *server) adminSaveServices(w http.ResponseWriter, r *http.Request) {
 	}
 	cfg.Revision++
 	raw, _ := json.Marshal(cfg)
-	res, err := s.db.ExecContext(r.Context(), `UPDATE instance_settings SET value=?,updated_at=? WHERE key='remote_services' AND json_extract(value,'$.revision')=? AND EXISTS (SELECT 1 FROM users WHERE id=? AND password_hash=? AND role='admin' AND disabled=0)`, string(raw), time.Now().Unix(), old.Revision, authOf(r).u.ID, string(authOf(r).verifiedHash))
+	res, err := s.db.ExecContext(r.Context(), `UPDATE instance_settings SET value=?,updated_at=? WHERE key='remote_services' AND json_extract(value,'$.revision')=? AND EXISTS (SELECT 1 FROM users WHERE id=? AND password_hash=? AND role='admin' AND disabled=0 AND must_change_password=0 AND EXISTS (SELECT 1 FROM sessions WHERE user_id=users.id AND token_hash=? AND sid=? AND expires_at>?))`, string(raw), time.Now().Unix(), old.Revision, authOf(r).u.ID, string(authOf(r).verified), authOf(r).hash, authOf(r).sid, time.Now().Unix())
 	if err != nil {
 		serverError(w, r, err)
 		return

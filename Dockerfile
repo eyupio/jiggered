@@ -1,7 +1,7 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e
 # The build always runs on the builder's own CPU and cross-compiles (pure Go, no cgo), so a multi-platform image
 # never has to run the compiler under emulation. That used to be most of the build time.
-FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.27.1-alpine@sha256:8a5910f31396cd4d89662f56c68b3ae31d374308270a1c3bd96672ee5ed43414 AS build
 ARG VERSION=dev
 ARG TARGETOS
 ARG TARGETARCH
@@ -16,7 +16,7 @@ COPY . .
 RUN go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /out/jiggered . \
  && mkdir -p /out/data
 
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
 COPY --from=build /out/jiggered /jiggered
 COPY --from=build --chown=nonroot:nonroot /out/data /data
 USER nonroot
@@ -25,3 +25,4 @@ VOLUME ["/data"]
 # No shell or curl in this image, so the binary checks itself.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 CMD ["/jiggered", "healthcheck"]
 ENTRYPOINT ["/jiggered"]
+

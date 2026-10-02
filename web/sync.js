@@ -28,7 +28,7 @@ export function createStore({
   onChange = () => {},
   onAuthLost = () => {},
 } = {}) {
-  let uid = null;
+  let uid = null, stopped = false;
   let snapshotTag = null; // ETag of the last full snapshot; forgotten as soon as anything else changes base, so it is only ever sent while base is exactly that snapshot
   let queuedLoad = null;  // a refresh waiting its turn: more requests for one share it
   let base = {};     // id -> doc, as the server last told us
@@ -53,6 +53,7 @@ export function createStore({
   const HEADERS = () => ({ ...BASE_HEADERS, "X-Jiggered-User": String(uid) });
 
   function persist() {
+    if (stopped) return;
     const version = ++persistenceVersion;
     if (readOnly()) return;
     durable = false;
@@ -73,6 +74,7 @@ export function createStore({
   // hydrate loads what this device remembers for the signed-in person. Anyone else's data is wiped:
   // it must not sit on the device for the next person to find.
   function hydrate(userId, name = "") {
+    if (stopped) return;
     uid = userId; who = name; snapshotTag = null; base = {}; revs = {}; pending = []; failed = []; discarded = []; seq = 0; durable = false; localError = "";
     if (storage) {
       try {
@@ -88,9 +90,10 @@ export function createStore({
   }
 
   // clear forgets everything on this device (sign out).
-  function clear() {
+  async function clear() {
+    stopped = true; clearTimer(retryTimer); retryTimer = null;
     snapshotTag = null; base = {}; revs = {}; pending = []; failed = []; discarded = []; seq = 0; ++persistenceVersion;
-    if (!readOnly() && storage && uid != null) { try { Promise.resolve(storage.removeItem(key())).catch(() => {}) } catch { /* ignore */ } }
+    if (storage && uid != null) { if (storage.purge) await storage.purge(); else await storage.removeItem(key()) }
     notify();
   }
 
@@ -111,6 +114,7 @@ export function createStore({
 
   // dispatch queues a change and starts sending it. The returned promise settles when that attempt is over.
   function dispatch(op) {
+    if (stopped) throw new Error("This device was signed out.");
     if (readOnly() || restoring) throw new Error(readOnly() ? "Use the active Jiggered tab to make changes." : "Restore is in progress. Try again when it finishes.");
     pending.push({ ...op, retryOf: op.retryOf ?? op.n, n: ++seq });
     persist(); notify();
@@ -122,7 +126,7 @@ export function createStore({
   const status = () => ({ pending: pending.length, failed: failed.length, flushing, offline, error: failed.length ? failed[0].message : error, loaded, durable, localError, localWrites, ...(readOnly() ? { readOnly: true } : {}), ...(restoring ? { restoring: true } : {}) });
   const outcome = n => failed.some(f => f.ops.some(o => o.n === n || o.retryOf === n)) ? "failed" : pending.some(o => o.n === n || o.retryOf === n) ? "pending" : discarded.includes(n) ? "discarded" : n <= seq ? "saved" : "unknown";
   const failures = () => failed.map(f => ({ ...f }));
-  function discardFailed(key) { if (readOnly() || restoring) return; const f = failed.find(f => f.key === key); if (f) discarded.push(...f.ops.flatMap(o => [o.n, o.retryOf].filter(n => n != null))); discarded = discarded.slice(-1000); failed = failed.filter(f => f.key !== key); persist(); notify() }
+  function discardFailed(key) { if (stopped || readOnly() || restoring) return; const f = failed.find(f => f.key === key); if (f) discarded.push(...f.ops.flatMap(o => [o.n, o.retryOf].filter(n => n != null))); discarded = discarded.slice(-1000); failed = failed.filter(f => f.key !== key); persist(); notify() }
   function retryFailed(key) {
     if (readOnly() || restoring) return Promise.resolve();
     const f = failed.find(f => f.key === key);
@@ -182,7 +186,7 @@ export function createStore({
   }
 
   async function drain() {
-    if (readOnly() || restoring) return;
+    if (stopped || readOnly() || restoring) return;
     if (retryTimer) { clearTimer(retryTimer); retryTimer = null }
     flushing = pending.length > 0; notify();
     try {
@@ -212,6 +216,7 @@ export function createStore({
             if (errors.length) { dropBatch(id,lastN,"Combined settings need review: " + errors.map(([,message])=>message).join(" "), { conflict: true, body: desired }); break }
           }
           const res = await send(id, body, revs[id] || 0);
+          if (stopped) throw new Stop();
           if (res.status === 200 || res.status === 204) { settle(id, body, res.rev, lastN); break }
           if (res.status === 409) {
             if (++conflicts > MAX_CONFLICTS) throw new Error("kept conflicting");
@@ -224,7 +229,7 @@ export function createStore({
             }
             continue;
           }
-          if (res.status === 401) { onAuthLost(); throw new Stop() }
+          if (res.status === 401) { onAuthLost(); await clear(); throw new Stop() }
           if ([408, 425, 429].includes(res.status)) throw new Error("HTTP " + res.status); // transient: keep the change and retry
           if (res.status >= 400 && res.status < 500) { if (failed.length >= 100) throw new Error("Recovery is full. Download or resolve older refused changes first."); dropBatch(id, lastN, res.message); break }
           throw new Error("HTTP " + res.status);
@@ -268,10 +273,12 @@ export function createStore({
       try {
         const headers = { Accept: "application/json", "X-Jiggered-User": String(uid), ...(snapshotTag && loaded ? { "If-None-Match": snapshotTag } : {}) };
         const r = await doFetch("/api/docs", { credentials: "same-origin", headers, signal: snapshotTimeout() });
-        if (r.status === 401) { onAuthLost(); return false }
+        if (r.status === 401) { onAuthLost(); await clear(); return false }
+        if (stopped) return false;
         if (r.status === 304 && snapshotTag) { offline = false; notify(); return true }
         if (!r.ok) { retryPending = true; offline = true; notify(); return false }
         const server = await r.json();
+        if (stopped) return false;
         const tag = r.headers?.get?.("ETag") || null;
         base = {}; revs = {};
         for (const [id, d] of Object.entries(server)) { base[id] = d.body; revs[id] = d.rev }
@@ -287,7 +294,7 @@ export function createStore({
     return run.then(ok => {
       if (ok && pending.length) flush();
       // A reload discards the old retry timer. Resume a hydrated outbox even when the browser misses its online event.
-      else if (retryPending && pending.length && !retryTimer && !readOnly() && !restoring) {
+      else if (!stopped && retryPending && pending.length && !retryTimer && !readOnly() && !restoring) {
         retryTimer = setTimer(() => { retryTimer = null; retryCount++; flush() }, BACKOFF[Math.min(retryCount, BACKOFF.length - 1)]);
       }
       return ok;
@@ -296,3 +303,4 @@ export function createStore({
 
   return { hydrate, clear, withRestore, refreshDevice, view, all, dispatch, flush, load, status, outcome, failures, discardFailed, retryFailed, recoveryExport };
 }
+

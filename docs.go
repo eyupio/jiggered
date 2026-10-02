@@ -19,8 +19,9 @@ import (
 
 // Per-user limits; variables so tests can shrink them.
 var (
-	maxDocsPerUser  = 10000
-	maxBytesPerUser = int64(25 << 20)
+	maxDocsPerUser          = 10000
+	maxDocIdentitiesPerUser = 100000 // includes live IDs and retained tombstones
+	maxBytesPerUser         = int64(25 << 20)
 )
 
 // importLimit is the biggest upload accepted. Whatever a person can export they can import back, so it has to
@@ -259,6 +260,13 @@ func (s *server) storeDoc(ctx context.Context, userID int64, id string, body []b
 	if err := tx.QueryRowContext(ctx, "SELECT count(*), COALESCE(sum(size), 0) FROM docs WHERE user_id = ?", userID).Scan(&count, &total); err != nil {
 		return 0, nil, err
 	}
+	var identities int
+	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM (SELECT id FROM docs WHERE user_id=? UNION SELECT id FROM doc_revs WHERE user_id=?)", userID, userID).Scan(&identities); err != nil {
+		return 0, nil, err
+	}
+	if !exists && floor == 0 && identities >= maxDocIdentitiesPerUser {
+		return 0, nil, errDocLimit
+	}
 	if !exists && int(count) >= maxDocsPerUser {
 		return 0, nil, errDocLimit
 	}
@@ -451,6 +459,13 @@ func (s *server) importTx(ctx context.Context, tx *sql.Tx, userID int64, in map[
 		return res, err
 	}
 
+	identities := map[string]bool{}
+	for id := range existing {
+		identities[id] = true
+	}
+	for id := range floors {
+		identities[id] = true
+	}
 	now := time.Now().Unix()
 	for _, id := range slices.Sorted(maps.Keys(in)) {
 		body := in[id]
@@ -462,6 +477,12 @@ func (s *server) importTx(ctx context.Context, tx *sql.Tx, userID int64, in map[
 		if exists && mode == "add" {
 			res.Skipped++
 			continue
+		}
+		if !identities[id] {
+			if len(identities) >= maxDocIdentitiesPerUser {
+				return res, errImportTooBig
+			}
+			identities[id] = true
 		}
 		total += int64(len(body)) - old.size
 		rev := max(old.rev, floors[id]) + 1
@@ -494,14 +515,14 @@ func (s *server) importDocs(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, http.StatusBadRequest, "mode must be add or overwrite.")
 		return
 	}
-	allowSlowTransfer(w)
-	raw, ok := readBody(w, r, importLimit(), "That file is too large to import.")
+	release, ok := s.admitImport(w, r)
 	if !ok {
 		return
 	}
-	var in map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &in); err != nil || in == nil {
-		jsonError(w, http.StatusBadRequest, "That isn't a Jiggered export.")
+	defer release()
+	allowSlowTransfer(w)
+	in, ok := readExport(w, r)
+	if !ok {
 		return
 	}
 
@@ -515,4 +536,71 @@ func (s *server) importDocs(w http.ResponseWriter, r *http.Request) {
 		s.audit(r.Context(), u.Username, "import", u.Username, fmt.Sprintf("%s: %d imported, %d skipped, %d invalid", mode, res.Imported, res.Skipped, res.Invalid), s.clientIP(r))
 		writeJSON(w, http.StatusOK, res)
 	}
+}
+
+// Admit at most two uploads globally and one per account; no waiting readers hold large bodies.
+func (s *server) admitImport(w http.ResponseWriter, r *http.Request) (func(), bool) {
+	uid := authOf(r).u.ID
+	s.importMu.Lock()
+	defer s.importMu.Unlock()
+	if len(s.imports) >= 2 || s.imports[uid] {
+		w.Header().Set("Retry-After", "5")
+		jsonError(w, 429, "Another import is running. Try again shortly.")
+		return nil, false
+	}
+	if s.imports == nil {
+		s.imports = map[int64]bool{}
+	}
+	s.imports[uid] = true
+	return func() { s.importMu.Lock(); delete(s.imports, uid); s.importMu.Unlock() }, true
+}
+func readExport(w http.ResponseWriter, r *http.Request) (map[string]json.RawMessage, bool) {
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, importLimit()))
+	reject := func(err error) (map[string]json.RawMessage, bool) {
+		var large *http.MaxBytesError
+		if errors.As(err, &large) {
+			jsonError(w, 413, "That export is too large.")
+		} else {
+			jsonError(w, 400, "Choose a valid Jiggered export with unique document IDs.")
+		}
+		return nil, false
+	}
+	tok, err := dec.Token()
+	if err != nil {
+		return reject(err)
+	}
+	if tok != json.Delim('{') {
+		return reject(nil)
+	}
+	in := map[string]json.RawMessage{}
+	for dec.More() {
+		if len(in) >= maxDocsPerUser {
+			jsonError(w, 413, "Too many records in that export.")
+			return nil, false
+		}
+		tok, err = dec.Token()
+		if err != nil {
+			return reject(err)
+		}
+		id, ok := tok.(string)
+		if !ok {
+			return reject(nil)
+		}
+		if _, dup := in[id]; dup {
+			return reject(nil)
+		}
+		var body json.RawMessage
+		if err = dec.Decode(&body); err != nil {
+			return reject(err)
+		}
+		in[id] = body
+	}
+	if _, err = dec.Token(); err != nil {
+		return reject(err)
+	}
+	var extra any
+	if err = dec.Decode(&extra); err != io.EOF {
+		return reject(err)
+	}
+	return in, true
 }

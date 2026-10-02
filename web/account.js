@@ -187,7 +187,7 @@ export function init(ctx) {
     if (!confirm("Delete your account and everything you've logged? This can't be undone.")) return;
     const r = await api("DELETE", "/api/me", { password: $("del-pw").value });
     if (!r.ok) return say($("del-msg"), r.error, true);
-    ctx.leave();
+    await ctx.leave();
     });
   });
 
@@ -204,3 +204,4 @@ export function init(ctx) {
     },
   };
 }
+

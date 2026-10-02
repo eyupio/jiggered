@@ -375,19 +375,12 @@ test("server trouble is retried with growing delays, then recovers", async () =>
   assert.equal(s.docs.get(DAY).body.status, "red");
 });
 
-test("being signed out keeps the queue and stops trying", async () => {
-  const s = new FakeServer(), d = device(s);
-  s.authed = false;
-  await d.store.dispatch(op(DAY, "setStatus", "red"));
-  assert.equal(d.authLost, 1);
-  assert.equal(d.store.status().pending, 1, "kept for when they sign back in");
-  assert.equal(d.timers.length, 0);
-  assert.equal(await d.store.load(), false);
-  assert.equal(d.authLost, 2);
-  assert.equal(d.timers.length, 0, "a refused snapshot does not restart signed-out retries");
-  s.authed = true; // signed back in
-  await d.store.flush();
-  assert.equal(s.docs.get(DAY).body.status, "red");
+test("being signed out purges private data and stops retrying", async () => {
+ const s = new FakeServer(), d = device(s); s.authed=false;
+ await d.store.dispatch(op(DAY,"setStatus","red"));
+ assert.equal(d.authLost,1); assert.equal(d.store.status().pending,0);
+ assert.deepEqual(d.store.all(),{}); assert.equal(d.timers.length,0);
+ s.authed=true; await d.store.flush(); assert.equal(s.docs.has(DAY),false);
 });
 
 test("bug: a slow refresh could land after a save and undo it; network work now runs one piece at a time", async () => {

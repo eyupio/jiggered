@@ -62,7 +62,7 @@ export function initServices(ctx) {
   for(const k of Object.keys(settings.email)){const el=$('svc-'+(k==='enabled'?'mail-enabled':k==='password'?'smtp_password':k));if(el)settings.email[k]=el.type==='checkbox'?el.checked:el.type==='number'?Number(el.value):k==='to'?el.value.split(/[,\n]/).map(x=>x.trim()).filter(Boolean):el.type==='password'?el.value:el.type==='password'?el.value:el.value.trim()}
   for(const k of Object.keys(settings.accounts||{})){const el=$('svc-'+k);if(el)settings.accounts[k]=el.type==='checkbox'?el.checked:el.type==='password'?el.value:el.type==='password'?el.value:el.value.trim()}
   const password=$('svc-password').value;$('svc-password').value='';
-  const r=await api('PUT','/api/admin/services',{settings,password,clear_s3:$('svc-clear-s3').checked,clear_email:$('svc-clear-email').checked});if(destroyed)return;
+  const r=await api('PUT','/api/admin/services',{settings,password,clear_s3:$('svc-clear-s3').checked,clear_email:$('svc-clear-email').checked},{'X-Jiggered-Password':password});if(destroyed)return;
   if(!r.ok)return message(r.error,true);fill(r.data);message('Configuration saved.');load(false);
  })});
  $('svc-reload').addEventListener('click',()=>{if(!dirty||confirm('Discard your unsaved configuration changes?'))load(true)});
@@ -73,11 +73,11 @@ export function initServices(ctx) {
   await withBusy(button,'Working…',async()=>{
    message(action==='backup'?'Starting backup…':'Checking saved configuration…');
    if(action==='download'){
-    let r;try{r=await fetch('/api/admin/services/action',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Requested-With':'jiggered','X-Jiggered-User':String(ctx.me.id)},body:JSON.stringify({action,key,password}),signal:AbortSignal.timeout(600000)})}catch{return message('Download interrupted. Try again.',true)}
+    let r;try{r=await fetch('/api/admin/services/action',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Requested-With':'jiggered','X-Jiggered-User':String(ctx.me.id),'X-Jiggered-Password':password},body:JSON.stringify({action,key,password}),signal:AbortSignal.timeout(600000)})}catch{return message('Download interrupted. Try again.',true)}
     if(!r.ok){const data=await r.json().catch(()=>({}));return message(data.error||'Download failed.',true)}
     const blob=await r.blob(),url=URL.createObjectURL(blob),a=Object.assign(document.createElement('a'),{href:url,download:key.split('/').pop()});a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);message('Remote backup downloaded.');return;
    }
-   const r=await api('POST','/api/admin/services/action',{action,password});if(destroyed)return;if(!r.ok)return message(r.error,true);
+   const r=await api('POST','/api/admin/services/action',{action,password},{'X-Jiggered-Password':password});if(destroyed)return;if(!r.ok)return message(r.error,true);
    if(action==='list'){$('svc-remote').hidden=false;setHTML($('svc-objects'),html`${r.data.objects.length?r.data.objects.map(o=>html`<li><span><b>${new Date(o.LastModified).toLocaleString()}</b><br><span class="meta">${fmtBytes(o.Size)} · ${o.Key.split('/').pop()}</span></span><button class="secondary small" data-remote-key="${o.Key}">Download</button></li>`):html`<li class="meta">No backups found in this installation's prefix.</li>`}`);message(r.data.truncated?'Showing the latest 200 backups.':'Remote backups loaded.')}
    else message(r.data.message||'Backup started. You can leave this page; progress is saved.');load(false);
   });

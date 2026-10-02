@@ -1,44 +1,34 @@
-const {chromium}=require('playwright');
-const assert=require('node:assert/strict');
-const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+// Local-only security regression: real IndexedDB, two tabs, copied cookie and admin step-up.
+const {chromium,request}=require('playwright');
+const {spawn,execFileSync}=require('node:child_process');
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),assert=require('node:assert/strict');
 const dir=fs.mkdtempSync(path.join(os.tmpdir(),'jiggered-security-'));
 const binary=process.env.JIGGERED_TEST_BINARY||path.join(dir,'jiggered');
-if(!process.env.JIGGERED_TEST_BINARY)require('node:child_process').execFileSync(process.env.GO_BINARY||'go',['build','-o',binary,'.']);
-const port=process.env.JIGGERED_TEST_PORT||'18793';const base='http://127.0.0.1:'+port;
-const screenshot=async(page,name)=>{if(process.env.JIGGERED_SCREENSHOT_DIR){fs.mkdirSync(process.env.JIGGERED_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:path.join(process.env.JIGGERED_SCREENSHOT_DIR,name),fullPage:true})}};
-const {spawn}=require('node:child_process');
-const server=spawn(binary,[],{env:{...process.env,APP_DB:path.join(dir,'jiggered.db'),APP_ADDR:'127.0.0.1:'+port,APP_USERNAME:'admin',APP_PASSWORD:'preview-password1',APP_SECURE_COOKIE:'false'},stdio:['ignore','ignore','pipe']});
-process.on('exit',()=>server.kill());
-const net=require('node:net');const mailMessages=[];
-const relay=net.createServer(conn=>{conn.setEncoding('utf8');conn.write('220 local SMTP\r\n');let buffer='',data=false,body='';conn.on('data',chunk=>{buffer+=chunk;let idx;while((idx=buffer.indexOf('\r\n'))>=0){const line=buffer.slice(0,idx);buffer=buffer.slice(idx+2);if(data){if(line==='.') {mailMessages.push(body);data=false;body='';conn.write('250 queued\r\n')}else body+=line+'\n';continue}if(/^(EHLO|HELO|MAIL|RCPT)/.test(line))conn.write('250 ok\r\n');else if(line==='DATA'){data=true;conn.write('354 data\r\n')}else if(line==='QUIT'){conn.end('221 bye\r\n')}else conn.write('500 no\r\n')}})});
-async function waitMail(kind){for(let i=0;i<100;i++){const index=mailMessages.findIndex(m=>m.includes('#'+kind+'='));if(index>=0)return mailMessages.splice(index,1)[0].match(new RegExp('#'+kind+'=([a-f0-9]+)'))[1];await new Promise(r=>setTimeout(r,50))}throw Error('No '+kind+' email arrived')}
-
-(async()=>{
-for(let i=0;i<100;i++){try{if((await fetch(base+'/healthz')).ok)break}catch{}await new Promise(r=>setTimeout(r,100))}
-await new Promise(resolve=>relay.listen(0,'127.0.0.1',resolve));
-const browser=await chromium.launch({headless:true,...(process.env.JIGGERED_BROWSER_PATH?{executablePath:process.env.JIGGERED_BROWSER_PATH}:{}),args:JSON.parse(process.env.JIGGERED_BROWSER_ARGS||'[]')});
-const context=await browser.newContext({viewport:{width:1440,height:1000}});const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
-await page.goto(base+'/login');await page.locator('#username').fill('admin');await page.locator('#password').fill('preview-password1');await page.locator('#signin-form [type=submit]').click();await page.locator('#t-admin').click();await page.locator('#svc-status').filter({hasText:'Paused'}).waitFor();
-assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
-await screenshot(page,'admin-desktop.png');
-// Configure the local test relay and opt in to registration and recovery.
-await page.locator('.service-details').filter({has:page.locator('#svc-mail-enabled')}).locator('summary').click();
-await page.locator('#svc-mail-enabled').check();await page.locator('#svc-host').fill('127.0.0.1');await page.locator('#svc-port').fill(String(relay.address().port));await page.locator('#svc-tls').selectOption('none');await page.locator('#svc-from').fill('server@example.com');await page.locator('#svc-to').fill('admin@example.com');
-await page.locator('.service-details').filter({has:page.locator('#svc-registration')}).locator('summary').click();await page.locator('#svc-registration').check();await page.locator('#svc-recovery').check();await page.locator('#svc-public_url').fill(base);
-await page.locator('#svc-password').fill('preview-password1');await page.locator('#services-form [type=submit]').click();await page.locator('#svc-msg').filter({hasText:'Configuration saved'}).waitFor();assert.equal(await page.locator('#svc-password').inputValue(),'');
-await page.locator('#t-account').click();await page.locator('#security-status').filter({hasText:'Password only'}).waitFor();await page.locator('#security-password').fill('preview-password1');await page.locator('#security-start').click();await page.locator('#security-setup').waitFor();const secret=await page.locator('#security-secret').textContent();
-// Produce TOTP in the harness using the RFC counter and HMAC, independently of the Go implementation.
-function totp(secret){const crypto=require('node:crypto'),alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';let bits='';for(const c of secret)bits+=alphabet.indexOf(c).toString(2).padStart(5,'0');const key=Buffer.from(bits.match(/.{8}/g).map(x=>parseInt(x,2)));const counter=Buffer.alloc(8);counter.writeBigUInt64BE(BigInt(Math.floor(Date.now()/30000)));const h=crypto.createHmac('sha1',key).update(counter).digest(),o=h[19]&15;return ((h.readUInt32BE(o)&0x7fffffff)%1000000).toString().padStart(6,'0')}
-await page.locator('#security-password').fill('preview-password1');await page.locator('#security-code').fill(totp(secret));await page.locator('#security-enable').click();await page.locator('#security-recovery').waitFor();const codes=await page.locator('#security-codes code').allTextContents();assert.equal(codes.length,10);await screenshot(page,'account-security-desktop.png');
-await context.clearCookies();await page.goto(base+'/login');await page.locator('#username').fill('admin');await page.locator('#password').fill('preview-password1');await page.locator('#signin-form [type=submit]').click();await page.locator('#two-step-form').waitFor();await page.locator('#two-step-code').fill(codes[0]);await page.locator('#two-step-form [type=submit]').click();await page.locator('#t-admin').waitFor();
-await page.setViewportSize({width:390,height:844});await page.locator('#t-admin').click();await page.locator('#svc-status').waitFor();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'mobile admin overflow');await screenshot(page,'admin-mobile.png');
-await page.locator('#t-account').click();await page.locator('#security-panel').scrollIntoViewIfNeeded();await screenshot(page,'account-security-mobile.png');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'mobile account overflow');
-// Exercise signup, verification, recovery and new-password sign-in through real forms and a local relay.
-const adminCookies=await context.cookies();await page.close();await context.clearCookies();const visitor=context,join=await visitor.newPage();await join.setViewportSize({width:320,height:780});join.on('pageerror',e=>errors.push(e.message));
-await join.goto(base+'/login');await join.locator('#open-register').click();await join.locator('#register-name').fill('newmember');await join.locator('#register-email').fill('member@example.com');await join.locator('#register-password').fill('member-password1');await join.locator('#register-confirm').fill('member-password1');await screenshot(join,'registration-mobile.png');assert.equal(await join.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
-await join.locator('#register-form [type=submit]').click();await join.locator('#register-msg').filter({hasText:'an email will arrive'}).waitFor();const verify=await waitMail('verify');
-await join.goto(base+'/login#verify='+verify);await join.locator('#verify-form').waitFor();assert.equal(await join.evaluate(()=>location.hash),'','verification token removed from address bar');await join.locator('#verify-form [type=submit]').click();await join.locator('#verify-msg').filter({hasText:'Email verified'}).waitFor();await join.locator('#verify-form [data-signin]').click();await join.locator('#username').fill('newmember');await join.locator('#password').fill('member-password1');await join.locator('#signin-form [type=submit]').click();await join.locator('#t-account').waitFor();assert.equal(await join.locator('#t-admin').count(),0);
-await visitor.clearCookies();await join.goto(base+'/login');await join.locator('#open-forgot').click();await join.locator('#forgot-email').fill('member@example.com');await join.locator('#forgot-form [type=submit]').click();const reset=await waitMail('reset');await join.goto(base+'/login#reset='+reset);await join.locator('#reset-password').fill('replacement-password1');await join.locator('#reset-confirm').fill('replacement-password1');await join.locator('#reset-form [type=submit]').click();await join.locator('#reset-msg').filter({hasText:'Password changed'}).waitFor();await join.locator('#reset-form [data-signin]').click();await join.locator('#username').fill('newmember');await join.locator('#password').fill('replacement-password1');await join.locator('#signin-form [type=submit]').click();await join.locator('#t-account').waitFor();
-const memberCookies=await context.cookies();await join.close();await context.clearCookies();await context.addCookies(adminCookies);const manage=await context.newPage();await manage.goto(base+'/');await manage.locator('#t-admin').click();await manage.locator('[data-name="newmember"] [data-act="two-factor-reset"]').click();await manage.locator('#factor-reset-dialog').waitFor();await manage.locator('#factor-reset-password').fill('preview-password1');await manage.locator('#factor-reset-code').fill(codes[1]);await manage.locator('#factor-reset-form [type=submit]').click();await manage.locator('#factor-reset-dialog').waitFor({state:'hidden'});assert.equal((await fetch(base+'/api/me',{headers:{Cookie:memberCookies.map(c=>c.name+'='+c.value).join('; ')}})).status,401,'admin reset revoked user sessions');
-assert.deepEqual(errors,[]);await browser.close();relay.close();server.kill();console.log('PASS: configuration, enrollment, 2FA sign-in, signup, email verification, password recovery, admin reset and mobile layout.');
-})().catch(e=>{console.error(e);server.kill();relay.close();process.exit(1)});
+if(!process.env.JIGGERED_TEST_BINARY)execFileSync(process.env.GO_BINARY||'go',['build','-o',binary,'.']);
+const base='http://127.0.0.1:'+(process.env.JIGGERED_SECURITY_PORT||'18755');
+const server=spawn(binary,[],{env:{...process.env,APP_ADDR:new URL(base).host,APP_DB:path.join(dir,'test.db'),APP_USERNAME:'tester',APP_PASSWORD:'local-preview-password',APP_SECURE_COOKIE:'false'},stdio:'ignore'});
+(async()=>{let browser;try {
+ for(let i=0;i<40;i++){try{if((await fetch(base+'/healthz')).ok)break}catch{}await new Promise(r=>setTimeout(r,100))}
+ browser=await chromium.launch({headless:true,...(process.env.JIGGERED_BROWSER_PATH?{executablePath:process.env.JIGGERED_BROWSER_PATH}:{}),args:JSON.parse(process.env.JIGGERED_BROWSER_ARGS||'[]')});
+ const context=await browser.newContext();const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(base+'/login');await page.locator('#username').fill('tester');await page.locator('#password').fill('local-preview-password');await page.getByRole('button',{name:'Sign in',exact:true}).click();await page.locator('#t-admin').waitFor();await page.waitForFunction(()=>document.querySelector('#sync')?.dataset.state==='saved');
+ const headers={'X-Requested-With':'jiggered'};
+ const denied=await context.request.post(base+'/api/admin/users',{headers,data:{username:'intruder',role:'admin'}});assert.equal(denied.status(),403);
+ await page.locator('#t-admin').click();await page.locator('#new-name').fill('safeuser');await page.locator('#admin-confirm-pw').fill('local-preview-password');await page.locator('#adduser [type=submit]').click();await page.locator('#adduser-msg').filter({hasText:'Created safeuser.'}).waitFor();assert.equal(await page.locator('#admin-confirm-pw').inputValue(),'');
+ const stolen=await request.newContext({storageState:await context.storageState()});
+ const changed=await context.request.post(base+'/api/me/password',{headers,data:{current:'local-preview-password',new:'changed-owner-password'}});assert.equal(changed.status(),204);
+ assert.equal((await stolen.get(base+'/api/docs')).status(),401);assert.equal((await context.request.get(base+'/api/docs')).status(),200);await stolen.dispose();
+ // Put private acknowledged and unsent copies on the writer, then sign out from its reader.
+ await page.locator('#t-today').click();await page.locator('#checkin [data-s=amber]').click();await page.waitForFunction(()=>document.querySelector('#sync')?.dataset.state==='saved');
+ await page.route('**/api/docs/*',route=>route.fulfill({status:503,body:'{}',contentType:'application/json'}));
+ await page.locator('#acts button.act').first().click();
+ const reader=await context.newPage();reader.on('pageerror',e=>errors.push(e.message));await reader.goto(base);await reader.locator('#tab-reload').waitFor();
+ reader.on('dialog',d=>d.accept());await reader.locator('#signout').evaluate(form=>form.requestSubmit());await reader.waitForURL('**/login');await page.waitForURL('**/login');
+ const state=await reader.evaluate(async()=>({me:localStorage.getItem('jiggered:me'),keys:Object.keys(localStorage).filter(k=>k.startsWith('jiggered:')&&k!=='jiggered:purge-generation'),items:await new Promise((resolve,reject)=>{const req=indexedDB.open('jiggered-device');req.onsuccess=()=>{const db=req.result,tx=db.transaction('items','readonly'),r=tx.objectStore('items').getAll();tx.oncomplete=()=>{db.close();resolve(r.result)};tx.onerror=()=>reject(tx.error)};req.onerror=()=>reject(req.error)})}));
+ assert.equal(state.me,null);assert.deepEqual(state.keys,[]);assert.deepEqual(state.items,[]);assert.deepEqual(errors,[]);
+ // A revoked session also removes identity and device copies, rather than reopening offline.
+ await reader.locator('#username').fill('tester');await reader.locator('#password').fill('changed-owner-password');await reader.getByRole('button',{name:'Sign in',exact:true}).click();await reader.locator('#t-today').waitFor();await reader.waitForFunction(()=>document.querySelector('#sync')?.dataset.state==='saved');
+ assert.equal((await context.request.post(base+'/api/me/sessions/revoke-all',{headers})).status(),200);
+ await reader.evaluate(()=>window.dispatchEvent(new Event('online')));await reader.waitForURL('**/login');assert.equal(await reader.evaluate(()=>localStorage.getItem('jiggered:me')),null);
+ console.log('PASS: admin changes require fresh password, cookie rotation kills copied token, reader logout purges IndexedDB and fences writer, revoked sessions purge identity');
+ }catch(e){console.error(e.stack);process.exitCode=1}finally{await browser?.close();server.kill();await new Promise(resolve=>server.exitCode!==null?resolve():server.once('exit',resolve));fs.rmSync(dir,{recursive:true,force:true})}})();

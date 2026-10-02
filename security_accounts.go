@@ -13,8 +13,8 @@ import (
 
 func verifiedPasswordTx(ctx context.Context, tx *sql.Tx, a *authInfo) error {
 	var hash, role string
-	err := tx.QueryRowContext(ctx, `SELECT password_hash,role FROM users WHERE id=? AND disabled=0`, a.u.ID).Scan(&hash, &role)
-	if err != nil || hash != string(a.verifiedHash) || role != a.u.Role {
+	err := tx.QueryRowContext(ctx, `SELECT u.password_hash,u.role FROM users u JOIN sessions s ON s.user_id=u.id WHERE u.id=? AND u.disabled=0 AND s.token_hash=? AND s.sid=? AND s.expires_at>?`, a.u.ID, a.hash, a.sid, time.Now().Unix()).Scan(&hash, &role)
+	if err != nil || hash != string(a.verified) || role != a.u.Role {
 		return errors.New("Your account changed while this request was being authorised. Sign in and try again.")
 	}
 	return nil
@@ -410,7 +410,7 @@ func (s *server) requestRecoveryEmail(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
-	current := a.verifiedHash
+	current := a.verified
 	tx, err := s.db.BeginTx(r.Context(), nil)
 	if err != nil {
 		serverError(w, r, err)

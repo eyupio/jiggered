@@ -73,6 +73,8 @@ type server struct {
 	serviceJobs   sync.WaitGroup
 	mailSem       chan struct{}
 	serviceCtx    context.Context
+	importMu      sync.Mutex
+	imports       map[int64]bool
 }
 
 func main() {

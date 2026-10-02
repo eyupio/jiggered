@@ -15,6 +15,8 @@ import (
 
 func (s *server) adminFail(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case errors.Is(err, errStaleAuthorization):
+		jsonError(w, http.StatusForbidden, "Authorization changed. Sign in and confirm again.")
 	case errors.Is(err, errLastAdmin):
 		jsonError(w, http.StatusConflict, "That would leave no active admin. Make someone else an admin first.")
 	case errors.Is(err, errNoUser):
@@ -185,7 +187,7 @@ func (s *server) adminRevokeSessions(w http.ResponseWriter, r *http.Request) {
 	}
 	n, err := s.revokeSessions(r.Context(), t.ID, "")
 	if err != nil {
-		serverError(w, r, err)
+		s.adminFail(w, r, err)
 		return
 	}
 	s.audit(r.Context(), me.Username, "sessions_revoked", t.Username, "", s.clientIP(r))
@@ -264,9 +266,10 @@ func (s *server) settingsOut(r *http.Request) map[string]any {
 		remote = r.RemoteAddr
 	}
 	return map[string]any{
-		"secure_cookie": st.SecureCookie, // shown, not changed here: turning it on over plain http would lock you out
-		"trust_proxy":   st.TrustProxy,
-		"proxy_hops":    st.ProxyHops,
+		"secure_cookie":       st.SecureCookie, // shown, not changed here: turning it on over plain http would lock you out
+		"trust_proxy":         st.TrustProxy,
+		"proxy_hops":          st.ProxyHops,
+		"trusted_proxy_cidrs": st.TrustedProxyCIDRs,
 		"seen": map[string]string{
 			"remote_addr":   remote,
 			"forwarded_for": cleanText(strings.Join(r.Header.Values("X-Forwarded-For"), ", "), 200),
@@ -281,8 +284,9 @@ func (s *server) adminGetSettings(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) adminPatchSettings(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		TrustProxy *bool `json:"trust_proxy"`
-		ProxyHops  *int  `json:"proxy_hops"`
+		TrustProxy        *bool   `json:"trust_proxy"`
+		ProxyHops         *int    `json:"proxy_hops"`
+		TrustedProxyCIDRs *string `json:"trusted_proxy_cidrs"`
 	}
 	if !readJSON(w, r, &in) {
 		return
@@ -297,6 +301,9 @@ func (s *server) adminPatchSettings(w http.ResponseWriter, r *http.Request) {
 	if in.ProxyHops != nil {
 		want["proxy_hops"] = strconv.Itoa(*in.ProxyHops)
 	}
+	if in.TrustedProxyCIDRs != nil {
+		want["trusted_proxy_cidrs"] = *in.TrustedProxyCIDRs
+	}
 	canon := map[string]string{}
 	for k, v := range want {
 		c, err := parseSetting(k, v)
@@ -309,10 +316,10 @@ func (s *server) adminPatchSettings(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if _, err := s.setSettings(ctx, canon); err != nil {
-		serverError(w, r, err)
+		s.adminFail(w, r, err)
 		return
 	}
-	for _, k := range []string{"trust_proxy", "proxy_hops"} { // after the commit: one connection, never audit inside a transaction
+	for _, k := range []string{"trust_proxy", "proxy_hops", "trusted_proxy_cidrs"} { // after the commit: one connection, never audit inside a transaction
 		if _, ok := canon[k]; !ok {
 			continue
 		}

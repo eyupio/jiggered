@@ -15,8 +15,25 @@ export async function claimEditingTab(locks, name) {
 
 // A synchronous in-memory view backed by acknowledged IndexedDB transactions.
 // The large cache/outbox lives here rather than competing with localStorage's small quota.
+export const PURGE_KEY = "jiggered:purge-generation";
+
 export async function openDeviceStorage({ indexedDB = globalThis.indexedDB, legacy = null, userId = null, username = "", coordination = null } = {}) {
-  const fallback = () => coordination?.writable === false ? { writable: false, reason: coordination.reason, get length() { return legacy?.length || 0 }, key: i => legacy?.key(i), getItem: key => legacy?.getItem(key) ?? null, setItem() {}, removeItem() {} } : legacy;
+  let invalidated = false;
+  const generation = legacy?.getItem(PURGE_KEY);
+  const valid = () => !invalidated && legacy?.getItem(PURGE_KEY) === generation;
+  const purgeLegacy = () => {
+    if (!legacy) return;
+    legacy.setItem(PURGE_KEY, `${Date.now()}:${Math.random()}`);
+    for (let i=legacy.length-1;i>=0;i--) { const key=legacy.key(i); if (key?.startsWith("jiggered:") && key!==PURGE_KEY) legacy.removeItem(key) }
+  };
+  const fallback = () => !coordination ? legacy : {
+    get writable() { return coordination.writable && valid() }, reason: coordination.reason,
+    get length() { return valid() ? (legacy?.length || 0) : 0 }, key: i => valid() ? legacy?.key(i) : null,
+    getItem: key => valid() ? (legacy?.getItem(key) ?? null) : null,
+    setItem(key,value) { if (coordination.writable && valid()) legacy?.setItem(key,value) },
+    removeItem(key) { if (coordination.writable && valid()) legacy?.removeItem(key) },
+    purge: async () => purgeLegacy(),
+  };
   if (!indexedDB) return fallback();
   let db;
   try {
@@ -46,10 +63,11 @@ export async function openDeviceStorage({ indexedDB = globalThis.indexedDB, lega
       });
       cache.clear(); for (const [k,v] of fresh) cache.set(k,v);
     }
-    if (channel) channel.onmessage = async () => { if (coordination.writable === false) { try { await refresh(); onChange() } catch { /* retry when visible */ } } };
+    if (channel) channel.onmessage = async event => { if (event.data === "purged") { invalidated = true; cache.clear(); onChange(); return } if (coordination.writable === false) { try { await refresh(); onChange() } catch { /* retry when visible */ } } };
     let tail = Promise.resolve();
-    const write = action => {
+    const write = (action, purge = false) => {
       const promise = tail.then(() => new Promise((resolve, reject) => {
+        if (!purge && !valid()) { reject(new Error("This device was signed out")); return }
         const tx = db.transaction("items", "readwrite");
         action(tx.objectStore("items"));
         tx.oncomplete = () => { channel?.postMessage("changed"); resolve() };
@@ -62,14 +80,15 @@ export async function openDeviceStorage({ indexedDB = globalThis.indexedDB, lega
     const expectedKey = userId == null ? null : `jiggered:v1:${userId}:${username}`;
     const storage = {
       kind: "IndexedDB",
-      writable: coordination?.writable ?? true, reason: coordination?.reason || "",
+      get writable() { return (coordination?.writable ?? true) && valid() }, reason: coordination?.reason || "",
       onChange(fn) { onChange = fn }, refresh,
       legacyCopies(id, name) { const value = retainedLegacy.get(`jiggered:v1:${id}:${name}`); return value ? [value] : [] },
       get length() { return cache.size },
       key: i => [...cache.keys()][i] ?? null,
-      getItem: key => cache.get(key) ?? null,
-      setItem(key, value) { if (coordination?.writable === false) return Promise.resolve(); cache.set(key, value); return write(store => store.put(value, key)) },
-      removeItem(key) { if (coordination?.writable === false) return Promise.resolve(); cache.delete(key); return write(store => store.delete(key)) },
+      getItem: key => valid() ? (cache.get(key) ?? null) : null,
+      setItem(key, value) { if (coordination?.writable === false || !valid()) return Promise.resolve(); cache.set(key, value); return write(store => store.put(value, key)) },
+      removeItem(key) { if (coordination?.writable === false || !valid()) return Promise.resolve(); cache.delete(key); return write(store => store.delete(key)) },
+      async purge() { purgeLegacy(); invalidated = true; channel?.postMessage("purged"); cache.clear(); retainedLegacy.clear(); await write(store => store.clear(), true) },
       close() { channel?.close(); db.close(); coordination?.close() },
     };
     // Migrate only name-bound cache keys. Unnamed keys cannot be attributed safely after an instance restore.
@@ -138,4 +157,14 @@ export function createDrafts({ storage, userId, username, onError = () => {}, no
       if (storage) for (let i = storage.length - 1; i >= 0; i--) { const key = storage.key(i); if (key?.startsWith(prefix)) remove(key) }
     },
   };
+}
+
+
+export async function purgeDeviceStorage(legacy = null) {
+ const storage = await openDeviceStorage({ legacy });
+ try {
+  if (globalThis.indexedDB && storage?.kind !== "IndexedDB") throw new Error("Could not clear IndexedDB");
+  if (storage?.purge) await storage.purge();
+  else if (legacy) { legacy.setItem(PURGE_KEY, `${Date.now()}:${Math.random()}`); for(let i=legacy.length-1;i>=0;i--) { const key=legacy.key(i); if(key?.startsWith("jiggered:") && key!==PURGE_KEY) legacy.removeItem(key) } }
+ } finally { storage?.close?.() }
 }

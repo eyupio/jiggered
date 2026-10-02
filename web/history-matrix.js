@@ -28,7 +28,7 @@ export function calendarPaint(c, mode) {
 }
 export function initMatrix(root, ctx, explore) {
   let data, S, win, mode = "checkin", end = null, chosen = null, cursor = 0, signature;
-  const compact = matchMedia("(max-width:700px)"), limit = () => compact.matches ? 91 : 366;
+  const compact = matchMedia("(max-width:700px)"), limit = () => 366;
   setHTML(root, html`<div class="label-row"><div><h2>Your days at a glance</h2><p class="hint">A calendar of what you've recorded. Choose a colour view, then select a day.</p></div><label class="field matrix-mode">Colour days by<select data-matrix-mode><option value="checkin">Morning check-in</option><option value="points">Net activity points</option><option value="sleep">Poor sleep marked</option><option value="episodes">Episodes recorded</option></select></label></div><div class="matrix-period"><span class="meta" data-matrix-period></span><div class="row"><button class="secondary small" data-matrix-earlier>Earlier days</button><button class="secondary small" data-matrix-later>Later days</button></div></div><div class="matrix-layout"><div class="matrix-calendar"><div class="matrix-months" data-matrix-months aria-hidden="true"></div><div class="matrix-weekdays" aria-hidden="true"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div><div class="matrix-grid" data-matrix-grid role="group" aria-label="Daily calendar. Arrow keys move between days; Enter selects; Escape clears selection."></div></div><aside class="matrix-reading" data-matrix-reading aria-label="Selected day"></aside></div><div class="chart-legend matrix-legend" data-matrix-legend></div><p class="hint">Arrow keys move through days; Enter selects, Escape clears. On a small screen, use the day selector for an easier target. Grey means no matching record for the chosen view.</p><label class="field matrix-day">Choose a day<select data-matrix-day></select></label>`);
   const get = selector => root.querySelector(selector), grid = get("[data-matrix-grid]");
   function detail(index, select = false) {
@@ -42,6 +42,10 @@ export function initMatrix(root, ctx, explore) {
     root.style.setProperty("--weeks", win.weeks); root.classList.toggle("matrix-dense", win.weeks > 13); root.classList.toggle("matrix-year", win.weeks > 26);
     const oldCursor = chosen ? win.cells.findIndex(c => c.date === chosen) : -1; cursor = oldCursor >= 0 ? oldCursor : Math.max(0, win.cells.findLastIndex(c => c.logged || c.episodes));
     setHTML(grid, html`${Array.from({ length: win.offset }, () => html`<span class="matrix-blank" aria-hidden="true"></span>`)}${win.cells.map((c, i) => { const [tone, mark] = calendarPaint(c, mode); return html`<button type="button" class="matrix-cell ${tone}" data-cell="${i}" data-date="${c.date}" tabindex="${i === cursor ? 0 : -1}" aria-pressed="${c.date === chosen}" aria-label="${describeCalendarDay(c, S.locale)}" data-tooltip="${describeCalendarDay(c, S.locale)}"><span aria-hidden="true">${mark}</span></button>` })}`);
+    // Complete the final week without inventing records outside the selected range.
+    for (let i = win.offset + win.cells.length; i < win.weeks * 7; i++) {
+      const blank = document.createElement("span"); blank.className = "matrix-blank"; blank.setAttribute("aria-hidden", "true"); grid.append(blank);
+    }
     const month = date => new Date(date + "T12:00:00Z").toLocaleDateString(S.locale || undefined, { month: "short", year: "numeric", timeZone: "UTC" });
     setHTML(get("[data-matrix-months]"), html`<span>${month(win.from)}</span><span>${month(win.to)}</span>`);
     get("[data-matrix-period]").textContent = `${fmtDay(win.from, S.locale)} – ${fmtDay(win.to, S.locale)} · ${win.cells.length} days${data.span > limit() ? ` shown of ${data.span}; use Earlier/Later to explore the rest` : ""}`;
@@ -70,3 +74,4 @@ export function initMatrix(root, ctx, explore) {
   compact.addEventListener("change", () => { if (data) paint() });
   return { render(next, settings) { const key = `${next.from}:${next.to}`; if (key !== signature) { end = null; chosen = null; signature = key } data = next; S = settings; paint() } };
 }
+

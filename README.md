@@ -88,8 +88,10 @@ old name-bound cache only after its IndexedDB transaction completes. Server refu
 a private device recovery file; up to 100 refusals are retained until explicitly resolved. At that limit new
 refusals stay queued, with a warning, rather than dropping content. Recovery files include unfinished drafts
 and unsent operations and are for manual recovery/support, **not** the account Restore form. Server exports
-and restores require queued/refused changes to be resolved first. A session expiry retains same-user recovery;
-deliberate sign-out warns before removing it. Browser eviction or a device failure can still remove local
+and restores require queued/refused changes to be resolved first. A confirmed session expiry or revocation clears
+this browser’s identity, logs and drafts before sign-in; download recovery before deliberately signing out.
+Offline access uses unencrypted device copies on trusted devices. A fully offline device cannot learn of remote revocation
+until it reconnects. Signing out from any tab clears the shared device copy and stops older tabs writing it back. Browser eviction or a device failure can still remove local
 copies, so acknowledged server saves and private backups remain important.
 
 
@@ -158,7 +160,14 @@ So host it somewhere you trust, give the admin role only to someone the others t
 - An admin can't disable or demote themselves, or delete themselves from the Admin tab. They can delete their own
   account from Account while another active admin remains, and the last active admin can never be removed.
 - Resetting a password, disabling an account or changing a password signs the affected devices out.
-- Each person can store up to 10,000 entries and 25 MB.
+- Each person can store up to 10,000 live entries, 100,000 distinct entry IDs over the account lifetime and
+  25 MB of live data. Deleted IDs
+  retain revision metadata to prevent stale writes. Deletion frees live entry slots and bytes; it does not free distinct-ID capacity.
+  Existing IDs can still be edited or recreated at the limit; older accounts above it can maintain existing IDs.
+- Admin changes require the admin’s current password each time. A password change replaces all old session tokens
+  and issues a fresh cookie to the caller; a copied old cookie stops working.
+- Imports and restore previews admit at most two uploads globally and one per account, reject duplicate IDs and
+  more than 10,000 records, and cap validation errors at 100. Compose limits the service to 512 MiB and two CPUs.
 - If you lose the admin's password, reset it from the command line (below). That works even when the web page
   is out of reach.
 - The Admin tab doesn't exist for anyone else: the page only loads it, and the server only answers its requests,
@@ -254,17 +263,24 @@ it while the app runs:
 
 | Setting | Default | What it does | Change it in |
 |---|---|---|---|
-| `trust_proxy` | off | Take the client's address from `X-Forwarded-For` (needed behind a reverse proxy) | Admin, Connection |
+| `trust_proxy` | off | Read forwarded headers only from configured trusted proxy addresses | Admin, Connection |
+| `trusted_proxy_cidrs` | empty | Comma-separated IP CIDRs of the immediate and intermediate proxies. Empty means no headers are trusted, even with `trust_proxy` on. | Admin, Connection |
 | `proxy_hops` | `1` | How many proxies sit in front. The address is read from the **right-hand** end of `X-Forwarded-For`: the entry your own proxy added. Anything further left was sent by the client and is ignored. | Admin, Connection |
 | `secure_cookie` | on | Sign-in cookies only travel over HTTPS. Turn off only to test over plain http. | `jiggered settings set secure_cookie false` |
 
 `secure_cookie` isn't in the web page on purpose: turning it on while you're using plain http would lock you out.
-From the command line, `jiggered settings` lists all three and `jiggered settings set KEY VALUE` changes one; a
+From the command line, `jiggered settings` lists all settings and `jiggered settings set KEY VALUE` changes one; a
 running server notices within a couple of seconds.
+
+For a loopback proxy, set `trusted_proxy_cidrs` to `127.0.0.1/32,::1/128` before enabling `trust_proxy`.
+For a container proxy, use its actual source CIDR and keep the backend private. Every configured hop must be
+trusted. The proxy must overwrite `X-Forwarded-Host` and `X-Forwarded-Proto` with one canonical host and scheme;
+comma-separated values are refused for login. Forwarded address chains must append the real client address.
+Existing installations with proxy trust enabled must set the CIDRs after upgrading.
 
 ### Environment variables from earlier versions
 
-`APP_USERNAME`, `APP_PASSWORD_HASH`, `APP_PASSWORD`, `APP_SECURE_COOKIE`, `APP_TRUST_PROXY` and `APP_PROXY_HOPS`
+`APP_USERNAME`, `APP_PASSWORD_HASH`, `APP_PASSWORD`, `APP_SECURE_COOKIE`, `APP_TRUST_PROXY` and `APP_PROXY_HOPS`, plus `APP_TRUSTED_PROXY_CIDRS`,
 are not needed any more. If they are set they are read **once**, to fill in something the database doesn't have
 yet (the first admin, while there are no accounts, and the settings above), and the log says when it does. After
 that the database wins: an environment value that disagrees is ignored, and the log says so. `docker compose run
@@ -424,18 +440,24 @@ sessions, pending sign-in challenges and emailed tokens; it never signs anyone b
 
 ## Development
 
+Use Go 1.27.1 or newer. CI runs pinned `govulncheck` before building, and Docker bases and CI actions
+are pinned by immutable digest or commit. Update these pins regularly with verified upstream releases.
+
+
 ```sh
 go vet ./... && go test -race ./...     # -race needs a C compiler; Node 22+ for the front-end tests below
 #     # server: accounts, isolation, upgrade from the old schema, CLI, backups
 node --test "test/*.test.mjs"           # front-end logic: sync, recovery/drafts, ordering, settings, trends, CSV
 ```
 
-Two real-browser scripts run in CI against a real server and database, in Chromium. `test/browser-today.cjs` covers
+Six real-browser scripts run in CI against a real server and database, in Chromium. `test/browser-today.cjs` covers
 the Today picker (groups start closed, a logged activity turns green with a count, -/+ and Undo, pinned with the groups
 closed). `test/browser-history.cjs` seeds a large account and checks History search: one update per typed word,
 the right results, and the other filters reacting at once. `test/browser-mobile.cjs` checks phone width: the Account list editors (collapsible, opened by shortcuts and by
 errors) and History navigation. `test/browser.cjs` is the long walkthrough: admin and user accounts, desktop/touch ordering, offline reload,
-refusal recovery, shared-default isolation and IndexedDB migration/large copies. To run them yourself:
+refusal recovery, shared-default isolation and IndexedDB migration/large copies. `test/browser-security.cjs` checks
+admin password confirmation, copied-token revocation, reader-tab logout and revoked-session cleanup.
+`test/browser-accounts.cjs` checks storage/email configuration, verified registration, password recovery, 2FA and mobile layout. To run them yourself:
 
 ```sh
 npm install --no-save --package-lock=false playwright@1.56.1
@@ -464,3 +486,4 @@ with weakness, face drooping, speech problems or a severe headache, call 999.
 
 Logo and icons live in `assets/brand/` (SVG plus PNG) and `web/` (app icons). The fonts in `web/fonts/` are
 Atkinson Hyperlegible and Bricolage Grotesque, under the SIL Open Font License (see `web/fonts/LICENSE.txt`).
+

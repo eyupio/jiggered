@@ -75,6 +75,7 @@ func TestBurstAtOneAccountCannotOutrunTheAccountLockout(t *testing.T) {
 	slowHashing(t)
 	e := newTestServer(t)
 	e.set("trust_proxy", "true")
+	e.set("trusted_proxy_cidrs", "127.0.0.1/32")
 	e.addUser("alice", roleUser)
 	burst(40, func(i int) string { // every guess from its own address, so only the account's budget applies
 		return postLogin(e.ts.URL, "alice", "wrong-wrong", fmt.Sprintf("198.51.100.%d", i+1))
@@ -125,6 +126,7 @@ func TestAReservedAttemptIsGivenBackWhenThePasswordWasRight(t *testing.T) {
 func TestALockedAccountLooksLikeAnUnknownOne(t *testing.T) {
 	e := newTestServer(t)
 	e.set("trust_proxy", "true")
+	e.set("trusted_proxy_cidrs", "127.0.0.1/32")
 	e.addUser("alice", roleUser)
 	for i := 0; i < 10; i++ {
 		e.newClient().login("alice", "wrong-wrong", "X-Forwarded-For", fmt.Sprintf("198.51.100.%d", i+1))
@@ -205,11 +207,12 @@ func TestLoginRefusesAnotherSitesOriginWhenThereIsNoFetchMetadata(t *testing.T) 
 
 func TestLoginBehindAProxyAcceptsTheForwardedHost(t *testing.T) {
 	e := newTestServer(t)
-	hdr := []string{"Origin", "https://log.example.org", "X-Forwarded-Host", "log.example.org"}
+	hdr := []string{"Origin", "https://log.example.org", "X-Forwarded-Host", "log.example.org", "X-Forwarded-Proto", "https", "X-Forwarded-For", "198.51.100.9"}
 	if got := e.newClient().login(adminName, adminPass, hdr...); got != "403" {
 		t.Errorf("a forwarded host nobody trusts = %q, want 403", got)
 	}
 	e.set("trust_proxy", "true")
+	e.set("trusted_proxy_cidrs", "127.0.0.1/32")
 	if got := e.newClient().login(adminName, adminPass, hdr...); got != "/" {
 		t.Errorf("a trusted proxy's forwarded host = %q, want /", got)
 	}
