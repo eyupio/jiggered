@@ -44,7 +44,7 @@ function say(el, text, bad = false) {
 
 const MARKUP = `${servicesMarkup}
 <dialog id="factor-reset-dialog" class="panel security-dialog" aria-labelledby="factor-reset-title"><form id="factor-reset-form"><h2 id="factor-reset-title">Reset two-step verification</h2><p class="meta" id="factor-reset-description"></p><label>Your admin password<input id="factor-reset-password" type="password" autocomplete="current-password" required></label><label>Your authenticator or recovery code<input id="factor-reset-code" autocomplete="one-time-code" autocapitalize="none"><span class="meta">Required if your own account has two-step verification enabled.</span></label><p class="msg" role="status" id="factor-reset-msg"></p><div class="service-actions"><button class="danger" type="submit">Reset & sign out devices</button><button class="secondary" type="button" id="factor-reset-cancel">Cancel</button></div></form></dialog>
-    <div class="panel"><label class="field">Your password, to confirm the next admin change<input type="password" id="admin-confirm-pw" autocomplete="current-password"></label><p class="hint">Enter it again for each change to accounts, connection settings or shared defaults.</p></div>
+    <div class="panel"><label class="field">Confirm an admin change<input type="password" id="admin-confirm-pw" autocomplete="current-password"></label><p class="hint">Your password confirms changes to accounts, connection settings and shared defaults.</p></div>
     <div class="panel">
       <h2>People</h2>
       <p class="meta">You can add people, reset passwords, sign devices out and remove accounts. These screens don't show anyone's check-ins or episodes, only how many they have. Remember that resetting a password lets you sign in as that person, and a backup contains everything.</p>
@@ -87,13 +87,71 @@ const MARKUP = `${servicesMarkup}
     </div>
     <div class="panel">
       <h2>Backup</h2>
-      <p class="meta">Downloads a copy of the whole database. It includes everyone's check-ins and episodes, so keep it somewhere private. To put one back, see "Backup and restore" in the README.</p>
+      <p class="meta">Downloads a compressed ZIP copy of the whole database. It includes everyone's check-ins and episodes, so keep it somewhere private. To put one back, see "Backup and restore" in the README.</p>
       <label>Your password, to confirm<input type="password" id="backup-pw" autocomplete="current-password" aria-describedby="backup-msg"></label>
-      <button class="secondary" id="backup">Download backup</button>
+      <label class="radio"><input type="checkbox" id="backup-encrypt"> Protect this download with an encryption password</label>
+      <div id="backup-encryption-fields" hidden><label>Encryption password<input type="password" id="backup-encryption-password" autocomplete="new-password" minlength="8"></label><label>Confirm encryption password<input type="password" id="backup-encryption-confirm" autocomplete="new-password"></label><p class="meta">Keep this password separately. Encrypted ZIP backups use Jiggered restore with a password file.</p></div>
+      <button class="secondary" id="backup">Download ZIP backup</button>
       <p class="msg" id="backup-msg" aria-live="polite"></p>
       <p class="meta" id="admin-version"></p>
     </div>
   `;
+
+const ADMIN_SECTIONS = [
+  {id:"people", label:"People", hint:"Accounts & access", title:"People & access", description:"A welcoming space, with the right access for everyone.", panels:["users","adduser"]},
+  {id:"email", label:"Email & signup", hint:"Delivery & registration", title:"Email & signup", description:"Help people join, verify their email and recover their accounts.", panels:[]},
+  {id:"backups", label:"Backups", hint:"Storage & recovery", title:"Backup & recovery", description:"Keep a reliable copy of your instance, ready when you need it.", panels:["backup"]},
+  {id:"defaults", label:"Shared defaults", hint:"New account starting points", title:"A thoughtful starting point", description:"Choose the activities and lists new members start with.", panels:["defaults-form"]},
+  {id:"connection", label:"Connection", hint:"Proxy & network settings", title:"Connection settings", description:"Keep sign-in and client addresses working with your hosting setup.", panels:["proxyform"]},
+  {id:"activity", label:"Activity", hint:"Recent admin events", title:"Instance activity", description:"See account and administration events in one place.", panels:["audit"]},
+];
+
+function initAdminNavigation(panel) {
+  const workspace=document.createElement("div");workspace.className="admin-workspace";
+  setHTML(workspace,html`<aside class="admin-sidebar"><p class="eyebrow">YOUR INSTANCE</p><h2>Administration</h2>
+    <div class="admin-nav" role="tablist" aria-label="Administration sections" aria-orientation="vertical">${ADMIN_SECTIONS.map((section,i)=>html`<button type="button" role="tab" id="admin-tab-${section.id}" data-admin-section="${section.id}" aria-controls="admin-section-${section.id}" aria-selected="false" tabindex="-1"><span class="admin-nav-number" aria-hidden="true">${String(i+1).padStart(2,"0")}</span><span><b>${section.label}</b><small>${section.hint}</small></span><span class="admin-nav-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="m9 5 7 7-7 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>`)}</div>
+    <p class="admin-nav-note">A little care behind the scenes.</p></aside>
+    <div class="admin-content"><div class="admin-intro"><div><p class="eyebrow">INSTANCE MANAGEMENT</p><h2 id="admin-section-title"></h2><p id="admin-section-description" class="meta"></p></div><span class="badge" id="admin-people-count">Loading people</span></div>
+    ${ADMIN_SECTIONS.map(section=>html`<section id="admin-section-${section.id}" class="admin-section" role="tabpanel" aria-labelledby="admin-tab-${section.id}" tabindex="0" hidden></section>`)}</div>`);
+  const confirmation=$("admin-confirm-pw").closest(".panel");confirmation.classList.add("admin-confirmation");
+  workspace.querySelector(".admin-intro").after(confirmation);
+  for(const section of ADMIN_SECTIONS)for(const id of section.panels)workspace.querySelector("#admin-section-"+section.id).append($(id).closest(".panel"));
+  const servicePanel=$("services-form").closest(".service-panel");
+  workspace.querySelector("#admin-section-email").append(servicePanel);
+  panel.append(workspace);
+  const tabs=[...workspace.querySelectorAll("[data-admin-section]")];
+  function select(id,focus=false) {
+    const section=ADMIN_SECTIONS.find(section=>section.id===id);if(!section)return;
+    tabs.forEach(tab=>{const active=tab.dataset.adminSection===id;tab.setAttribute("aria-selected",String(active));tab.tabIndex=active?0:-1});
+    for(const item of ADMIN_SECTIONS)$("admin-section-"+item.id).hidden=item.id!==id;
+    confirmation.hidden=!["people","defaults","connection"].includes(id);
+    $("admin-section-title").textContent=section.title;$("admin-section-description").textContent=section.description;
+    if(id==="email"||id==="backups"){
+      $("admin-section-"+id).prepend(servicePanel);
+      servicePanel.querySelectorAll("[data-service-area]").forEach(el=>el.hidden=el.dataset.serviceArea!==id);
+      servicePanel.querySelector(".service-heading .eyebrow").textContent=id==="email"?"ACCOUNT SERVICES":"DATA PROTECTION";
+      $("services-title").textContent=id==="email"?"Email delivery & registration":"Off-site backups";
+      $("svc-status").hidden=id==="email";
+      servicePanel.querySelectorAll("[data-service-action]").forEach(button=>button.hidden=id==="email"?button.dataset.serviceAction!=="test_email":button.dataset.serviceAction==="test_email");
+      $("svc-remote").hidden=true;
+    }
+    if(focus)$("admin-tab-"+id).focus();
+  }
+  tabs.forEach(tab=>tab.addEventListener("click",()=>select(tab.dataset.adminSection)));
+  workspace.querySelector(".admin-nav").addEventListener("keydown",event=>{
+    const index=tabs.indexOf(event.target);if(index<0)return;
+    let next;if(["ArrowDown","ArrowRight"].includes(event.key))next=(index+1)%tabs.length;
+    else if(["ArrowUp","ArrowLeft"].includes(event.key))next=(index+tabs.length-1)%tabs.length;
+    else if(event.key==="Home")next=0;else if(event.key==="End")next=tabs.length-1;else return;
+    event.preventDefault();select(tabs[next].dataset.adminSection,true);
+  });
+  // Native validation must be able to reveal an invalid field in the other service section.
+  $("services-form").addEventListener("invalid",event=>{
+    const first=$("services-form").querySelector("input:invalid,select:invalid,textarea:invalid")||event.target;
+    const area=first.closest("[data-service-area]");if(area){select(area.dataset.serviceArea);if(area.tagName==="DETAILS")area.open=true}
+  },true);
+  select("people");
+}
 
 // mount adds the Admin tab and its panel to the page and returns the view; destroy takes them away again.
 export function mount(ctx) {
@@ -106,6 +164,7 @@ export function mount(ctx) {
   panel.setAttribute("role", "tabpanel"); panel.setAttribute("aria-labelledby", "t-admin");
   panel.innerHTML = MARKUP;
   $("account-panel").after(panel);
+  initAdminNavigation(panel);
   const view = wire(ctx);
   return { ...view, destroy() { view.destroy(); tab.remove(); panel.remove() } };
 }
@@ -138,6 +197,8 @@ function wire(ctx) {
     if (!r.ok) { say($("users-msg"), `Couldn't load people: ${r.error}. Use Refresh people to retry.`, true); return }
     say($("users-msg"), `Updated ${new Date().toLocaleTimeString()}.`);
     users = r.data.users;
+    const admins=users.filter(user=>user.role==="admin").length;
+    $("admin-people-count").textContent=`${users.length} ${users.length===1?"person":"people"} · ${admins} ${admins===1?"admin":"admins"}`;
     $("admin-version").textContent = `Jiggered ${r.data.version}`;
     renderUsers();
   }
@@ -148,14 +209,14 @@ function wire(ctx) {
       return html`<li data-id="${u.id}" data-name="${u.username}">
         <div class="top"><b>${u.username}</b>${self ? html` <span class="badge">you</span>` : ""}${u.role === "admin" ? html` <span class="badge">admin</span>` : ""}${u.disabled ? html` <span class="badge off">disabled</span>` : ""}${u.must_change_password && !u.disabled ? html` <span class="badge wait">hasn't chosen a password yet</span>` : ""}</div>
         <div class="meta">${u.last_login_at ? "Last signed in " + ago(u.last_login_at) : "Never signed in"} · ${u.docs} ${u.docs === 1 ? "entry" : "entries"} (${fmtBytes(u.bytes)}) · signed in on ${u.sessions} ${u.sessions === 1 ? "device" : "devices"}</div>
-        ${self ? "" : html`<div class="actions">
+        ${self ? "" : html`<details class="admin-user-actions"><summary>Manage account</summary><div class="actions">
           <button class="secondary small" data-act="reset">Reset password</button>
           <button class="secondary small" data-act="signout"${u.sessions ? "" : " disabled"}>Sign out everywhere</button>
           <button class="secondary small" data-act="${u.disabled ? "enable" : "disable"}">${u.disabled ? "Enable" : "Disable"}</button>
           <button class="secondary small" data-act="${u.role === "admin" ? "demote" : "promote"}">${u.role === "admin" ? "Remove admin" : "Make admin"}</button>
           <button class="secondary small" data-act="two-factor-reset">Reset two-step verification</button>
           <button class="danger small" data-act="delete">Delete</button>
-        </div>`}
+        </div></details>`}
       </li>`;
     })}`);
   }
@@ -253,20 +314,23 @@ function wire(ctx) {
   $("audit-refresh").addEventListener("click", () => loadAudit(true));
   $("audit-more").addEventListener("click", () => loadAudit(false));
 
+  $("backup-encrypt").addEventListener("change",()=>{$("backup-encryption-fields").hidden=!$("backup-encrypt").checked;if(!$("backup-encrypt").checked){$("backup-encryption-password").value="";$("backup-encryption-confirm").value=""}});
   $("backup").addEventListener("click", async () => withBusy($("backup"), "Preparing…", async () => {
     const msg = $("backup-msg"), pw = $("backup-pw");
     if (!pw.value) { pw.focus(); return say(msg, "Enter your password to download a backup.", true) }
-    say(msg, "Preparing the backup…");
+    const encryptionPassword=$("backup-encrypt").checked?$("backup-encryption-password").value:"";
+    if($("backup-encrypt").checked && (encryptionPassword.length<8||encryptionPassword!==$("backup-encryption-confirm").value)){return say(msg,"Enter an encryption password of at least 8 characters and match it in both fields.",true)}
+    say(msg, "Preparing the ZIP backup…");
     let r;
-    try { r = await fetch("/api/admin/backup", { method: "POST", body: JSON.stringify({ password: pw.value }), signal: AbortSignal.timeout(300000), credentials: "same-origin", headers: { "Content-Type": "application/json", "X-Requested-With": "jiggered", "X-Jiggered-User": String(me.id) } }) }
+    try { r = await fetch("/api/admin/backup", { method: "POST", body: JSON.stringify({ password: pw.value,encryption_password:encryptionPassword }), signal: AbortSignal.timeout(300000), credentials: "same-origin", headers: { "Content-Type": "application/json", "X-Requested-With": "jiggered", "X-Jiggered-User": String(me.id) } }) }
     catch { return say(msg, "Couldn't reach the server. Check your connection and try again.", true) }
     if (!r.ok) {
       const why = await r.json().then(j => j.error, () => "");
       return say(msg, why || `The backup failed (${r.status}).`, true);
     }
-    pw.value = ""; // asked for again next time
+    pw.value = "";$("backup-encryption-password").value="";$("backup-encryption-confirm").value=""; // asked for again next time
     const url = URL.createObjectURL(await r.blob());
-    const name = (/filename="([^"]+)"/.exec(r.headers.get("Content-Disposition") || "") || [])[1] || "jiggered-backup.db";
+    const name = (/filename="([^"]+)"/.exec(r.headers.get("Content-Disposition") || "") || [])[1] || "jiggered-backup.zip";
     const a = Object.assign(document.createElement("a"), { href: url, download: name });
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);

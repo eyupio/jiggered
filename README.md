@@ -139,7 +139,7 @@ follows the instance’s `/api/auth/options` response: open registration shows s
 instructions; closed registration shows sign-in links and a closed notice. An unavailable settings request shows an
 unknown status. Repository visibility and licensing remain separate from hosted registration.
 
-To open registration on the hosted instance, configure and test SMTP under **Admin → Off-site backups & email**,
+To open registration on the hosted instance, configure SMTP under **Admin → Email & signup**,
 then set the trusted HTTPS **Public application URL**, enable **Registration** (and **Password recovery** if wanted), and save
 with your current admin password. Visit `/welcome` and `/register` signed out to confirm signup is offered.
 Complete an email-verification signup before announcing the launch.
@@ -161,6 +161,10 @@ The signed-in views share the landing page’s typography and palette while reta
 appearance settings. Today’s energy ring follows the day’s saved allowance; its numeric readout keeps negative
 balances and recovery above the allowance visible. The ring is a personal planning visual, not a target or a
 measurement of health. The dashboard styling is included in the versioned offline app shell.
+
+Admin is organized into keyboard-accessible sections for People, Email & signup, Backups, Shared defaults,
+Connection and Activity. Desktop uses a sidebar; smaller screens use a compact menu. Service settings and the
+30-minute password cache stay in place while switching sections. Account actions expand per person.
 
 Admins can enable verified-email registration in Admin after configuring SMTP, or add people from the **Admin**
 tab or command line: the new person gets a random temporary password,
@@ -344,12 +348,37 @@ stale or even empty. Use these instead, which take a consistent copy while the a
 
 ```sh
 docker compose exec jiggered /jiggered backup                     # saved in the volume, under /data/backups/
-docker compose exec -T jiggered /jiggered backup - > jiggered-backup.db   # or straight to a file on this machine
+docker compose exec -T jiggered /jiggered backup - > jiggered-backup.zip   # or straight to a file on this machine
 ```
 
-Admins can also use **Download backup** in the Admin tab. It asks for the admin's own password every time, so a
+Admins can also use **Download ZIP backup** in the Admin tab. It asks for the admin's own password every time, so a
 signed-in session left open can't be used to take everyone's data. A copy of your own data alone is **Download everything**
 in Account, which can be restored from the same page.
+
+Manual downloads, remote uploads and CLI backups are compressed ZIP files containing `jiggered.db` and restore
+instructions. They exclude `.jiggered-service-key`. Optional passphrase encryption wraps the ZIP in authenticated
+AES-256-GCM with Argon2id (64 MiB, three passes), following Zoomies’ compressed-archive/encryption approach.
+Plain backups end in `.zip`; encrypted backups end in `.zip.enc` and use Jiggered’s restore command rather than
+an ordinary ZIP password dialog. Keep the password separately; it cannot be recovered from the backup.
+Archives support databases up to 16 GiB. Pre-upgrade and pre-restore safety copies remain raw SQLite files.
+
+For a manual download, choose **Protect this download with an encryption password** and confirm the password.
+For scheduled and manual remote uploads, enable **ZIP & encryption** in Backups. The saved backup password is
+sealed using the instance’s credential key, never returned by the settings API, and blank input preserves it.
+Disable encryption and explicitly remove the saved password to clear it. Changing it affects future backups;
+older encrypted files still require their original password.
+
+The CLI reads encryption passwords from a file, keeping them out of command-line arguments:
+
+```sh
+jiggered backup protected.zip.enc --password-file /private/backup-password
+jiggered restore protected.zip.enc --password-file /private/backup-password --yes
+```
+
+The password file contains the password (at least eight characters); an optional final newline is removed.
+Restoring accepts plain ZIP, encrypted ZIP and older raw `.db` backups. ZIP members, sizes and checksums are
+validated before database replacement; wrong passwords, altered ciphertext and truncated files are refused.
+Encrypted restore stages files beside the destination database, so the source archive can be read-only.
 
 To restore a backup, stop the app first. The backup holds everyone's data, so keep it private. The container runs as a
 non-root user, so give it the file without making it readable by everyone: put it somewhere only you can read and mount
@@ -357,7 +386,7 @@ that folder, or `chown` it to the container's user (uid 65532 in the distroless 
 
 ```sh
 docker compose stop jiggered
-docker compose run --rm -v "$PWD:/backup:ro" jiggered restore /backup/jiggered-backup.db --yes
+docker compose run --rm -v "$PWD:/backup:ro" jiggered restore /backup/jiggered-backup.zip --yes
 docker compose start jiggered
 ```
 
@@ -366,7 +395,7 @@ It checks the file first (it must have every table its schema version needs), si
 
 ### Off-site backups, email and sign-in security
 
-In **Admin → Off-site backups & email**, configure an existing private S3-compatible bucket, endpoint,
+In **Admin → Backups**, configure an existing private S3-compatible bucket, endpoint,
 signing region, folder prefix and credentials. AWS S3, R2, B2 and MinIO-style services are supported using
 Signature Version 4. Choose path-style addressing for private/compatible services, or virtual-host addressing
 for AWS. HTTPS is the default; plain HTTP requires explicit opt-in for a trusted private network. Redirects
@@ -384,11 +413,13 @@ instance roles, STS session credentials and multipart uploads are not implemente
   time. Uploads run in the background with a 30-minute deadline; a restart marks unfinished work interrupted.
   Failed attempts observe the configured interval. Browse shows the latest 200 owned remote backups.
 - Give the bucket policy `s3:ListBucket` on the bucket and `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject` on the
-  dedicated prefix. Enable the provider's encryption at rest and keep the bucket private. Uploaded SQLite
-  snapshots contain everyone's data; credential encryption does not encrypt the health records.
+  dedicated prefix. Enable the provider's encryption at rest and keep the bucket private. Uploaded ZIP
+  archives contain everyone's data. Enable ZIP & encryption to protect them with a separate backup password.
 
 SMTP supports required STARTTLS (usually 587), implicit TLS (usually 465), or an unauthenticated private relay.
-TLS certificate verification stays enabled. Configure sender, recipients, credentials and success/failure
+All emails share Jiggered branding, an HTML version and a plain-text alternative. Verification and password-reset
+emails include a clear action button and a copyable link, without external images or trackers.
+TLS certificate verification stays enabled. In **Admin → Email & signup**, configure sender, recipients, credentials and success/failure
 preferences, then use **Send test email**. Acceptance by SMTP does not guarantee inbox delivery. Backup alerts
 contain operational status, never check-ins or episode content. The local relay option refuses authentication
 credentials over plain text.

@@ -267,7 +267,7 @@ func TestRemoteBackupRoundTripRetentionAndEmail(t *testing.T) {
 		t.Fatal(status)
 	}
 	r, b := admin.req("POST", "/api/admin/services/action", map[string]string{"action": "download", "key": key, "password": adminPass})
-	if r.StatusCode != 200 || !strings.HasPrefix(string(b), "SQLite format 3") {
+	if r.StatusCode != 200 || !strings.HasPrefix(string(b), "PK\x03\x04") {
 		t.Fatalf("download %d %s", r.StatusCode, b[:min(len(b), 100)])
 	}
 	if st := admin.do("POST", "/api/admin/services/action", map[string]string{"action": "download", "key": other, "password": adminPass}); st != 400 {

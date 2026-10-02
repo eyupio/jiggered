@@ -207,7 +207,11 @@ func (s *server) queueAccountMail(cfg serviceSettings, to, subject, body, kind, 
 		defer cancel()
 		cfg.Email.To = []string{to}
 		link := strings.TrimRight(cfg.Accounts.PublicURL, "/") + "/login#" + kind + "=" + token
-		if err := s.sendNotification(ctx, cfg.Email, subject, body+"\n\n"+link); err != nil {
+		label := "Verify email"
+		if kind == "reset" {
+			label = "Reset password"
+		}
+		if err := s.sendBrandedNotification(ctx, cfg.Email, subject, body, link, label); err != nil {
 			s.audit(ctx, "system", "account_email_failed", "", "SMTP delivery failed; check email configuration", "")
 		}
 	}()

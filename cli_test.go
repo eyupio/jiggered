@@ -66,10 +66,11 @@ func TestCLIBackupToFile(t *testing.T) {
 	if err != nil || !strings.Contains(errOut, dest) {
 		t.Fatalf("backup: %v %q", err, errOut)
 	}
-	if got := scalar(t, dest, "SELECT count(*) FROM docs"); got != 1 {
+	decoded := unpackTestBackup(t, dest, "")
+	if got := scalar(t, decoded, "SELECT count(*) FROM docs"); got != 1 {
 		t.Errorf("the copy has %d docs, want 1", got)
 	}
-	if got := scalar(t, dest, "SELECT count(*) FROM users"); got != 1 {
+	if got := scalar(t, decoded, "SELECT count(*) FROM users"); got != 1 {
 		t.Errorf("the copy has %d users, want 1", got)
 	}
 	if _, _, _, err := cli(t, "", "backup", dest); err == nil || !strings.Contains(err.Error(), "already exists") {
@@ -88,11 +89,11 @@ func TestCLIBackupWithNoArgumentGoesToTheBackupFolder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	files, _ := filepath.Glob(filepath.Join(backupDir(e.dbPath), "jiggered-*.db"))
+	files, _ := filepath.Glob(filepath.Join(backupDir(e.dbPath), "jiggered-*.zip"))
 	if len(files) != 1 || !strings.Contains(errOut, files[0]) {
 		t.Fatalf("backups = %v, message %q", files, errOut)
 	}
-	if got := scalar(t, files[0], "SELECT count(*) FROM docs"); got != 1 {
+	if got := scalar(t, unpackTestBackup(t, files[0], ""), "SELECT count(*) FROM docs"); got != 1 {
 		t.Errorf("the default backup has %d docs", got)
 	}
 }
@@ -103,14 +104,14 @@ func TestCLIBackupToStdout(t *testing.T) {
 	t.Setenv("APP_DB", e.dbPath)
 
 	out, _, _, err := cli(t, "", "backup", "-")
-	if err != nil || !strings.HasPrefix(out, "SQLite format 3\x00") {
+	if err != nil || !strings.HasPrefix(out, "PK\x03\x04") {
 		t.Fatalf("backup -: %v %q", err, out[:min(20, len(out))])
 	}
 	dest := filepath.Join(t.TempDir(), "from-stdout.db")
 	if err := os.WriteFile(dest, []byte(out), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if got := scalar(t, dest, "SELECT count(*) FROM docs"); got != 1 {
+	if got := scalar(t, unpackTestBackup(t, dest, ""), "SELECT count(*) FROM docs"); got != 1 {
 		t.Errorf("stdout copy has %d docs", got)
 	}
 	left, _ := filepath.Glob(filepath.Join(backupDir(e.dbPath), ".tmp-*"))
