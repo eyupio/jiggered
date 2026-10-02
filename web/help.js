@@ -1,5 +1,6 @@
 // Task-focused help lives in the app and remains available offline.
 import { energyCopy, themeOf } from "./energy-theme.js";
+import { applyRegion } from "./region.js";
 import { $, html, raw, setHTML } from "./util.js";
 
 export function init(ctx) {
@@ -38,13 +39,13 @@ export function init(ctx) {
       "episodes",
       "Episodes",
       "Record symptoms and finish an ongoing episode",
-      html`<p>Enter when symptoms started, what you noticed, how they came on, a duration and anything relevant from the day or two before. Notes are optional. Save episode to add it to your history.</p><p>Still going keeps an episode visible in Today and Episode. Choose Record when it ended to finish it. An exact end time is optional; it must be between the start and now.</p><p>New times use this device's time zone. Existing captures retain their recorded offset when you edit them. Older records may have no offset.</p><div class="warn"><b>Call 999</b> if symptoms come on suddenly, or with weakness, face drooping, speech problems or severe headache. Don't log first. Outside the UK, use your local emergency number.</div><button class="secondary" data-help-go="episode">Open Episode</button>`,
+      html`<p>Enter when symptoms started, what you noticed, how they came on, a duration and anything relevant from the day or two before. Notes are optional. Save episode to add it to your history.</p><p>Still going keeps an episode visible in Today and Episode. Choose Record when it ended to finish it. An exact end time is optional; it must be between the start and now.</p><p>New times use this device's time zone. Existing captures retain their recorded offset when you edit them. Older records may have no offset.</p><div class="warn"><b data-emergency-call>Call your local emergency number</b> if symptoms come on suddenly, or with weakness, face drooping, speech problems or severe headache. Don't log first.</div><button class="secondary" data-help-go="episode">Open Episode</button>`,
     ],
     [
       "history",
       "Review & share",
       "Find records and share a summary",
-      html`<p>History brings together check-ins, energy and episode graphs, patterns, days and episodes. Choose 7, 30, 90, 180 or 365 days, or all time, or enter your own dates. Date and search filters apply to graphs, insights, lists and CSVs; check-in filters apply to days, while symptom and ongoing filters apply to episodes. Clear filters to see everything again.</p><p>The calendar colours days by check-in, activity points used before recovery, net activity points, poor sleep or episodes. Select a day to pin its details and open its log or episodes. Arrow keys move by day or week; Enter selects and Escape clears. The day selector offers larger targets. Long histories page through windows of up to 366 days on every screen.</p><p>The period report totals activity points used, recovered and net. Energy graphs show activity points used before recovery alongside net points and the allowance recorded on each day. The combined graph puts those values above aligned morning check-in and poor-sleep rows. Grouped rows retain every check-in colour and sleep-flag count; unmarked sleep does not prove good sleep. Gaps mean no activities logged. Longer periods group dates and average only activity days. Hover or tap the graph, or use Inspect a day/period and View graph data for exact values. Open day or Explore this period lets you look closer.</p><p>Sleep and weekday patterns need at least 3 check-ins per displayed group. A missing poor-sleep flag does not prove good sleep. Recorded symptoms and preceding circumstances describe your log and do not establish a cause.</p><p>Days as CSV and Episodes as CSV download the records matching those filters. The printed summary uses its own period selector. Preview it before printing or saving as PDF; you can exclude private episode notes.</p><p>These are your observations, not a diagnosis. Choose what you want to share with your clinician.</p><button class="secondary" data-help-go="history">Review my history</button>`,
+      html`<p>History starts with a calendar and the day you've selected. Choose 7, 30, 90, 180 or 365 days, or all time. Filter and search lets you enter custom dates and find activities or episodes. The same period and filters apply to the calendar, records, charts, printed summary and CSVs. Check-in filters affect days; symptom and ongoing filters affect episodes. Clearing search and filters keeps your selected dates.</p><p>Colour the calendar by morning check-in, episodes, points remaining, activity points used, net activity points or poor sleep. Select a day to review its check-in, sleep, activities and episodes. Previous/Next moves a day at a time; Review day opens its log. Arrow keys move through the calendar by day or week; Enter selects and Escape clears. The day selector offers larger targets. Long histories page through windows of up to 366 days.</p><p>Browse records opens the full day and episode lists. Explore patterns opens the charts and observations when you want more detail. Graphs average only days with activities logged; gaps mean no activity log. Negative-cost entries record your recovery estimates. A missing poor-sleep flag does not prove good sleep. Comparisons need enough recorded days and do not establish a cause.</p><p>Prepare summary opens a preview for the current period and filters. Private episode notes are omitted unless you choose to include them. Print or save as PDF uses the same preview. CSV files include private notes and the matching records. Check what you're sharing before you export.</p><p>Your selected period, day, filters, open sections and position stay in place when you refresh this browser tab. These are your observations, not a diagnosis.</p><button class="secondary" data-help-go="history">Review my history</button>`,
     ],
     [
       "settings",
@@ -85,6 +86,8 @@ export function init(ctx) {
   ];
   const list = $("help-topics"),
     search = $("help-search");
+  const saved = ctx.ui?.get("help") || {};
+  search.value = typeof saved.query === "string" ? saved.query.slice(0, 2000) : "";
   let role, theme;
   function mount() {
     if (role === ctx.me.role && theme === themeOf(ctx)) return;
@@ -132,12 +135,15 @@ export function init(ctx) {
   }
   return {
     open,
+    snapshot: () => ({ query: search.value }),
     render() {
       mount();
+      applyRegion(ctx.store?.view("settings")?.profile?.region, list);
       filter();
     },
     show() {
       mount();
+      applyRegion(ctx.store?.view("settings")?.profile?.region, list);
       filter();
     },
   };

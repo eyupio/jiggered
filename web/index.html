@@ -27,7 +27,7 @@
     <link rel="stylesheet" href="/style.css" />
     <link rel="stylesheet" href="/dashboard.css" />
   </head>
-  <body class="app-shell" data-view="today">
+  <body class="app-shell app-loading" data-view="today">
     <a class="app-skip" href="#view-heading">Skip to your dashboard</a>
     <div class="wrap">
       <header>
@@ -123,8 +123,8 @@
           tabindex="-1"
           aria-selected="false"
           data-tab="history"
-          data-heading="Your days, in perspective."
-          data-description="Look back with curiosity. Patterns can be useful; they don’t define your days."
+          data-heading="History"
+          data-description="Look back, one day at a time."
         >
           History
         </button>
@@ -141,6 +141,8 @@
           Account
         </button>
       </nav>
+
+      <p class="view-loading meta" role="status">Opening your saved view…</p>
 
       <section role="tabpanel" aria-labelledby="t-today" id="today-panel">
         <div
@@ -280,7 +282,7 @@
                 aria-hidden="true"
               ></span
             ></label>
-            <details class="hint">
+            <details class="hint" id="sleep-explanation">
               <summary><span data-energy-copy="How points work">How points work</span></summary>
               <p>
                 <span
@@ -366,8 +368,8 @@
 
       <section role="tabpanel" aria-labelledby="t-episode" id="episode-panel" hidden>
         <div class="warn">
-          <b>Call 999</b> if symptoms come on suddenly, or with weakness, face drooping, speech
-          problems or severe headache. Don't log first.
+          <b data-emergency-call>Call your local emergency number</b> if symptoms come on suddenly,
+          or with weakness, face drooping, speech problems or severe headache. Don't log first.
         </div>
         <details class="panel" id="episode-drafts" hidden>
           <summary>Unfinished episode drafts on this device</summary>
@@ -465,35 +467,31 @@
 
       <section role="tabpanel" aria-labelledby="t-history" id="history-panel" hidden>
         <div class="panel history-intro">
-          <p class="help-eyebrow">Your days, with a little perspective</p>
-          <div class="label-row">
-            <h2>History &amp; insights</h2>
-            <button class="help-link x" data-help="history">How to read this</button>
+          <p class="meta" id="history-lens" hidden></p>
+          <div class="history-period-bar">
+            <label class="field"
+              >Period<select id="history-range">
+                <option value="7">7 days</option>
+                <option value="30">30 days</option>
+                <option value="90">90 days</option>
+                <option value="180">180 days</option>
+                <option value="365">365 days</option>
+                <option value="all">All time</option>
+                <option value="custom" disabled>Custom dates</option>
+              </select></label
+            >
+            <p class="meta" id="history-period" role="status"></p>
+            <button class="primary" id="history-prepare">Prepare summary</button>
           </div>
-          <p class="meta" id="history-lens">
-            Explore what you've recorded, notice patterns, and take a clearer picture to your next
-            conversation.
-          </p>
-          <div class="range-presets" id="history-presets" role="group" aria-label="History period">
-            <button type="button" data-range="7" aria-pressed="false">7 days</button
-            ><button type="button" data-range="30" aria-pressed="true">30 days</button
-            ><button type="button" data-range="90" aria-pressed="false">90 days</button
-            ><button type="button" data-range="180" aria-pressed="false">180 days</button
-            ><button type="button" data-range="365" aria-pressed="false">365 days</button
-            ><button type="button" data-range="all" aria-pressed="false">All time</button>
-          </div>
-          <p class="meta" id="history-period" role="status"></p>
         </div>
-        <div class="panel history-starter" id="history-starter" hidden></div>
         <details class="panel history-filter-panel" id="history-filter-panel">
           <summary>
             <h2>Filter and search</h2>
             <span class="meta" id="history-filter-summary"></span>
           </summary>
           <p class="hint">
-            Dates and search apply to graphs, insights, lists and CSV files. Check-in filters affect
-            days; symptom and ongoing filters affect episodes. The printed summary has its own
-            period.
+            The period and filters apply to the calendar, records, charts and everything you export.
+            Check-in filters affect days; symptom and ongoing filters affect episodes.
           </p>
           <form id="history-filters" class="filters">
             <label class="field">From<input type="date" id="hist-from" /></label>
@@ -517,109 +515,103 @@
             <label class="toggle"
               ><input type="checkbox" id="hist-ongoing" /> Ongoing episodes only</label
             >
-            <button class="secondary" type="reset">Clear filters</button>
+            <button class="secondary" type="reset">Clear search and filters</button>
           </form>
           <p id="history-count" class="meta" role="status"></p>
         </details>
-        <div
-          class="panel account-shortcuts"
-          id="history-shortcuts"
-          role="navigation"
-          aria-label="History sections"
-        >
-          <button type="button" class="secondary small" data-history-target="trends-panel">
-            Overview</button
-          ><button type="button" class="secondary small" data-history-target="history-records">
-            Records</button
-          ><button type="button" class="secondary small" data-history-target="history-share">
-            Share
-          </button>
-        </div>
-        <div class="panel" id="trends-panel">
-          <div class="label-row">
-            <h2>Your period at a glance</h2>
-            <span class="badge" id="history-granularity"></span>
-          </div>
-          <div id="trends"></div>
-        </div>
-        <div class="panel" id="history-matrix"></div>
-        <div class="panel" id="history-graphs">
-          <div class="history-visuals" id="history-charts"></div>
-        </div>
-        <div class="panel" id="history-patterns">
-          <div class="label-row">
-            <h2>Patterns worth a closer look</h2>
-            <button
-              class="help-tip"
-              aria-label="About patterns"
-              data-tooltip="These are descriptions of your recorded sample. Missing logs, changed routines and different amounts of logging can affect comparisons. Associations do not establish a cause."
+        <div class="history-overview" id="history-matrix"></div>
+        <details class="panel history-disclosure" id="history-share">
+          <summary>
+            <h2 tabindex="-1">Prepare a summary</h2>
+            <span class="meta">Preview and export</span>
+          </summary>
+          <div class="history-section-body">
+            <p class="meta" id="summary-period"></p>
+            <label class="toggle"
+              ><input type="checkbox" id="sum-notes" /> Include private episode notes</label
             >
-              ?
+            <label class="toggle" id="sum-focus-row" hidden
+              ><input type="checkbox" id="sum-focus" /> Include what you'd like to notice:
+              <span id="sum-focus-text"></span
+            ></label>
+            <button
+              class="secondary"
+              id="sum-preview"
+              aria-expanded="false"
+              aria-controls="summary-preview"
+            >
+              Preview summary
             </button>
-          </div>
-          <div id="history-insights"></div>
-        </div>
-        <div class="panel">
-          <div class="label-row">
-            <h2>Your recent check-ins</h2>
-            <span class="meta">Last 14 days</span>
-          </div>
-          <div
-            class="strip"
-            id="strip"
-            aria-label="Check-in colour for each of the last 14 days"
-          ></div>
-          <p class="meta strip-note">
-            Oldest on the left. Grey means no check-in. Tap a day to open it.
-          </p>
-        </div>
-        <div class="history-records">
-          <div class="panel" id="history-records">
-            <h2 tabindex="-1">Days</h2>
-            <ul class="list" id="days"></ul>
-            <button class="secondary" id="more-days" hidden>Show older days</button>
-            <p class="empty" id="nodays">Your days will appear here once you start checking in.</p>
-          </div>
-          <div class="panel">
-            <h2>Episodes</h2>
-            <div id="eps"></div>
-            <button class="secondary" id="more-eps" hidden>Show older episodes</button>
-            <p class="empty" id="noeps">
-              No episodes logged. Use "Episode" if one happens; show this list to your neurologist
-              or GP.
+            <div id="summary-preview" hidden></div>
+            <div class="row">
+              <button class="primary" id="sum-print">Print or save as PDF</button>
+            </div>
+            <p class="hint">
+              The summary and CSV files use the period and filters above. CSV files include private
+              notes; the summary includes them only if you choose.
             </p>
+            <div class="row">
+              <button class="secondary" id="csv-days">Days as CSV</button
+              ><button class="secondary" id="csv-eps">Episodes as CSV</button>
+            </div>
           </div>
-        </div>
-        <div class="panel" id="history-share">
-          <div class="label-row">
-            <h2 tabindex="-1">Share with your doctor</h2>
-            <button class="help-link x" data-help="history">Help</button>
+        </details>
+        <details class="panel history-disclosure" id="history-records">
+          <summary>
+            <h2>Browse records</h2>
+            <span class="meta" id="history-record-count"></span>
+          </summary>
+          <div class="history-records history-section-body">
+            <div>
+              <h3>Days</h3>
+              <ul class="list" id="days"></ul>
+              <button class="secondary" id="more-days" hidden>Show older days</button>
+              <p class="empty" id="nodays">
+                Your days will appear here once you start checking in.
+              </p>
+            </div>
+            <div>
+              <h3>Episodes</h3>
+              <div id="eps"></div>
+              <button class="secondary" id="more-eps" hidden>Show older episodes</button>
+              <p class="empty" id="noeps">
+                No episodes logged. Use "Episode" if one happens; show this list to your neurologist
+                or GP.
+              </p>
+            </div>
           </div>
-          <label class="field"
-            >Period for the printed summary<select id="sum-range"></select
-          ></label>
-          <label class="toggle"
-            ><input type="checkbox" id="sum-notes" checked /> Include private episode notes in the
-            summary</label
-          >
-          <label class="toggle" id="sum-focus-row" hidden
-            ><input type="checkbox" id="sum-focus" /> Include what you'd like to notice:
-            <span id="sum-focus-text"></span
-          ></label>
-          <button class="secondary" id="sum-preview">Preview summary</button>
-          <div id="summary-preview" hidden></div>
-          <div class="row">
-            <button class="primary" id="sum-print">Print or save as PDF</button>
+        </details>
+        <details class="panel history-disclosure" id="history-explore">
+          <summary>
+            <h2>Explore patterns</h2>
+            <span class="meta">Charts and observations</span>
+          </summary>
+          <div class="history-section-body">
+            <div id="trends-panel">
+              <div class="label-row">
+                <h2>Your period at a glance</h2>
+                <span class="badge" id="history-granularity"></span>
+              </div>
+              <div id="trends"></div>
+            </div>
+            <div id="history-graphs">
+              <div class="history-visuals" id="history-charts"></div>
+            </div>
+            <div id="history-patterns">
+              <div class="label-row">
+                <h2>Patterns worth a closer look</h2>
+                <button
+                  class="help-tip"
+                  aria-label="About patterns"
+                  data-tooltip="These are descriptions of your recorded sample. Missing logs, changed routines and different amounts of logging can affect comparisons. Associations do not establish a cause."
+                >
+                  ?
+                </button>
+              </div>
+              <div id="history-insights"></div>
+            </div>
           </div>
-          <p class="hint">
-            Spreadsheet files include the days and episodes matching the filters above. Clear
-            filters for everything.
-          </p>
-          <div class="row">
-            <button class="secondary" id="csv-days">Days as CSV</button>
-            <button class="secondary" id="csv-eps">Episodes as CSV</button>
-          </div>
-        </div>
+        </details>
       </section>
 
       <section role="tabpanel" aria-labelledby="t-account" id="account-panel" hidden>
@@ -664,6 +656,28 @@
             </button>
           </div>
           <form id="profile-form">
+            <div class="profile-photo-picker">
+              <div class="profile-avatar" id="profile-photo-preview" aria-hidden="true">J</div>
+              <div>
+                <label class="field" for="profile-photo"
+                  >Profile photo
+                  <input
+                    id="profile-photo"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    aria-describedby="profile-photo-hint profile-photo-msg"
+                  />
+                </label>
+                <button type="button" class="secondary small" id="profile-photo-remove" disabled>
+                  Remove photo
+                </button>
+              </div>
+            </div>
+            <p class="hint" id="profile-photo-hint">
+              Optional and private. JPEG, PNG or WebP, up to 8 MB. Your photo is cropped to a
+              square.
+            </p>
+            <p class="msg" id="profile-photo-msg" role="status"></p>
             <label class="field"
               >Display name<input
                 id="profile-name"
@@ -700,9 +714,22 @@
               ></label>
             </div>
             <p class="hint">
-              Appearance applies when you save. Your starting history period applies the next time
-              you open the app.
+              Appearance applies when you save. The starting period is used until you choose another
+              in History; your last view is remembered on refresh.
             </p>
+            <label class="field" for="profile-region"
+              >Current country or region
+              <select
+                id="profile-region"
+                name="region"
+                aria-describedby="profile-region-hint profile-region-preview"
+              ></select>
+            </label>
+            <p class="hint" id="profile-region-hint">
+              Used for emergency warnings when you save. Update this when travelling. For other
+              regions, we show “your local emergency number”.
+            </p>
+            <p class="meta" id="profile-region-preview"></p>
             <fieldset class="energy-theme-picker" aria-describedby="energy-theme-hint">
               <legend>Energy language</legend>
               <p class="hint" id="energy-theme-hint">
@@ -752,7 +779,7 @@
                 ><b id="energy-theme-preview">8 points left today</b
                 ><span class="meta">A 2-point activity leaves 6 points.</span>
               </div>
-              <details class="hint">
+              <details class="hint" id="energy-theme-explanation">
                 <summary>About spoon theory</summary>
                 <p>
                   Christine Miserandino's spoon theory uses spoons as a metaphor for the energy

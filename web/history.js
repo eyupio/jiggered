@@ -1,24 +1,14 @@
-// The History tab: the last two weeks at a glance, trends, every day and episode, and ways to share them.
+// History: a calendar and one selected day, with records, patterns and sharing available when wanted.
 
 import { energyWords, themeOf } from "./energy-theme.js";
 import { $, html, setHTML, fmtDay, fmtWhen, fmtLongDay } from "./util.js";
-import {
-  addDays,
-  listDays,
-  listEpisodes,
-  used,
-  capOf,
-  daysCsv,
-  episodesCsv,
-  summary,
-  RANGES,
-  selectHistory,
-} from "./model.js";
+import { listDays, listEpisodes, used, capOf, daysCsv, episodesCsv, summary } from "./model.js";
 
-import { historyRange, historyInsights } from "./history-model.js";
+import { historyRange, historyInsights, HISTORY_RANGES } from "./history-model.js";
 import { chartMarkup, connectCharts } from "./history-charts.js";
 import { normaliseProfile } from "./profile.js";
 import { initMatrix } from "./history-matrix.js";
+import { savedCount, savedText } from "./view-state.js";
 
 const PAGE = 30;
 const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
@@ -34,18 +24,29 @@ function download(name, text, type) {
 
 export function init(ctx) {
   const words = () => energyWords(themeOf(ctx));
-  let shown = PAGE,
-    episodesShown = PAGE,
+  const saved = ctx.ui?.get("history") || {};
+  let shown = savedCount(saved.shown, PAGE),
+    episodesShown = savedCount(saved.episodesShown, PAGE),
     rangeMode = "30",
     initialised = false,
     rangeToday = ctx.today(),
-    chartWindow = "";
+    chartWindow = savedText(saved.chartWindow),
+    currentData;
+  let restoredCharts = (Array.isArray(saved.charts) ? saved.charts : []).filter(
+    (row) =>
+      Array.isArray(row) &&
+      ["energy", "episodes", "combined"].includes(row[0]) &&
+      /^\d{1,2}$/.test(String(row[1])) &&
+      Number(row[1]) < 60,
+  );
+  let restoredSymptom = savedText(saved.filters?.symptom);
   const matrix = initMatrix($("history-matrix"), ctx, (date) => {
     $("hist-from").value = $("hist-to").value = date;
     rangeMode = "custom";
     shown = episodesShown = PAGE;
     openFilters();
     render();
+    $("history-records").open = true;
     $("eps").scrollIntoView({ block: "start" });
     $("hist-from").focus({ preventScroll: true });
   });
@@ -60,13 +61,10 @@ export function init(ctx) {
     $("hist-to").value = key === "all" ? "" : dates.to;
     shown = episodesShown = PAGE;
   };
-  $("history-presets").addEventListener("click", (e) => {
-    const button = e.target.closest("[data-range]");
-    if (button) {
-      initialised = true;
-      setRange(button.dataset.range);
-      render();
-    }
+  $("history-range").addEventListener("change", (e) => {
+    initialised = true;
+    setRange(e.target.value);
+    render();
   });
   $("history-insights").addEventListener("click", (e) => {
     const b = e.target.closest("[data-symptom],[data-query]");
@@ -87,11 +85,27 @@ export function init(ctx) {
     ongoing: $("hist-ongoing").checked,
     query: $("hist-query").value,
   });
+  for (const [name, id] of Object.entries({
+    from: "hist-from",
+    to: "hist-to",
+    status: "hist-status",
+    query: "hist-query",
+  }))
+    $(id).value = savedText(saved.filters?.[name]);
+  $("hist-ongoing").checked = saved.filters?.ongoing === true;
+  if (saved.rangeMode === "custom" || HISTORY_RANGES.some(([key]) => key === saved.rangeMode)) {
+    rangeMode = saved.rangeMode;
+    initialised = true;
+    if (rangeMode !== "custom") {
+      const dates = historyRange(ctx.store.all(), ctx.today(), rangeMode);
+      $("hist-from").value = rangeMode === "all" ? "" : dates.from;
+      $("hist-to").value = rangeMode === "all" ? "" : dates.to;
+    }
+  }
   const selectedDocs = () => {
-    const selected = selectHistory(ctx.store.all(), filters());
     return Object.fromEntries([
-      ...selected.days.map((d) => ["d-" + d.date, d]),
-      ...selected.episodes,
+      ...(currentData?.days || []).map((d) => ["d-" + d.date, d]),
+      ...(currentData?.episodes || []),
     ]);
   };
   $("history-filters").addEventListener("submit", (e) => e.preventDefault());
@@ -103,6 +117,9 @@ export function init(ctx) {
     clearTimeout(searchTimer);
     searchTimer = null;
     render();
+  };
+  const flushSearch = () => {
+    if (searchTimer !== null) renderNow();
   };
   $("history-filters").addEventListener("input", (e) => {
     initialised = true;
@@ -122,57 +139,47 @@ export function init(ctx) {
       renderNow();
     }
   });
-  // Jump to Overview, Records or Share. This only scrolls and moves focus: the filters stay exactly as they are.
-  $("history-shortcuts").addEventListener("click", (e) => {
-    const target = e.target.closest("[data-history-target]");
-    if (!target) return;
-    const panel = $(target.dataset.historyTarget);
-    panel.scrollIntoView({
-      block: "start",
-      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
-    });
-    (panel.querySelector("h2[tabindex]") || panel.querySelector("h2"))?.focus({
-      preventScroll: true,
-    });
+  $("history-filters").addEventListener("reset", (e) => {
+    e.preventDefault();
+    // Clearing a search does not silently change the selected period or custom dates.
+    for (const id of ["hist-query", "hist-status", "hist-symptom"]) $(id).value = "";
+    $("hist-ongoing").checked = false;
+    shown = episodesShown = PAGE;
+    renderNow();
   });
-  $("history-filters").addEventListener("reset", () =>
-    setTimeout(() => {
-      initialised = true;
-      setRange("all");
-      render();
-    }, 0),
-  );
+  $("history-prepare").addEventListener("click", () => {
+    flushSearch();
+    $("history-share").open = true;
+    $("summary-preview").hidden = false;
+    updatePreview();
+    $("history-share").scrollIntoView({ block: "start" });
+    $("history-share").querySelector("h2").focus({ preventScroll: true });
+  });
   $("more-eps").addEventListener("click", () => {
     episodesShown += PAGE;
     render();
   });
-  $("sum-preview").addEventListener("click", () => {
+  function updatePreview() {
     renderSummary();
     $("summary-preview").innerHTML = $("print-view").innerHTML;
+    $("sum-preview").textContent = $("summary-preview").hidden ? "Preview summary" : "Hide preview";
+    $("sum-preview").setAttribute("aria-expanded", !$("summary-preview").hidden);
+  }
+  $("sum-preview").addEventListener("click", () => {
+    flushSearch();
     $("summary-preview").hidden = !$("summary-preview").hidden;
+    updatePreview();
   });
-  $("sum-range").addEventListener("change", () => {
-    if (!$("summary-preview").hidden) {
-      renderSummary();
-      $("summary-preview").innerHTML = $("print-view").innerHTML;
-    }
-  });
-  $("sum-focus").addEventListener("change", () => {
-    if (!$("summary-preview").hidden) {
-      renderSummary();
-      $("summary-preview").innerHTML = $("print-view").innerHTML;
-    }
-  });
-  $("sum-notes").addEventListener("change", () => {
-    if (!$("summary-preview").hidden) {
-      renderSummary();
-      $("summary-preview").innerHTML = $("print-view").innerHTML;
-    }
-  });
-  setHTML(
-    $("sum-range"),
-    html`${RANGES.map(([v, label]) => html`<option value="${v}">${label}</option>`)}`,
-  );
+  for (const id of ["sum-focus", "sum-notes"])
+    $(id).addEventListener("change", () => {
+      if (!$("summary-preview").hidden) updatePreview();
+    });
+  for (const [name, id] of [
+    ["notes", "sum-notes"],
+    ["focus", "sum-focus"],
+  ])
+    if (typeof saved.summary?.[name] === "boolean") $(id).checked = saved.summary[name];
+  $("summary-preview").hidden = saved.summary?.preview !== true;
 
   $("more-days").addEventListener("click", () => {
     shown += PAGE;
@@ -182,11 +189,6 @@ export function init(ctx) {
     const b = e.target.closest("[data-day]");
     if (b) ctx.openDay(b.dataset.day);
   });
-  $("strip").addEventListener("click", (e) => {
-    const b = e.target.closest("[data-day]");
-    if (b) ctx.openDay(b.dataset.day);
-  });
-
   $("eps").addEventListener("click", (e) => {
     const b = e.target.closest("button");
     if (!b) return;
@@ -203,21 +205,24 @@ export function init(ctx) {
     }
   });
 
-  $("csv-days").addEventListener("click", () =>
+  $("csv-days").addEventListener("click", () => {
+    flushSearch();
     download(
       `jiggered-days-${ctx.today()}.csv`,
       daysCsv(selectedDocs(), ctx.settings()),
       "text/csv;charset=utf-8",
-    ),
-  );
-  $("csv-eps").addEventListener("click", () =>
+    );
+  });
+  $("csv-eps").addEventListener("click", () => {
+    flushSearch();
     download(
       `jiggered-episodes-${ctx.today()}.csv`,
       episodesCsv(selectedDocs()),
       "text/csv;charset=utf-8",
-    ),
-  );
+    );
+  });
   $("sum-print").addEventListener("click", () => {
+    flushSearch();
     renderSummary();
     document.body.classList.add("printing");
     window.addEventListener("afterprint", () => document.body.classList.remove("printing"), {
@@ -229,9 +234,21 @@ export function init(ctx) {
   function renderSummary() {
     const S = ctx.settings(),
       L = S.locale;
-    const range = $("sum-range").value,
-      sm = summary(ctx.store.all(), S, range, ctx.today());
-    const label = RANGES.find(([v]) => v === range)[1];
+    if (!currentData || currentData.error) {
+      setHTML(
+        $("print-view"),
+        html`<p>${currentData?.error || "Choose a period to prepare your summary."}</p>`,
+      );
+      return;
+    }
+    const sm = summary(
+      selectedDocs(),
+      S,
+      { ...filters(), from: currentData.from, to: currentData.to },
+      ctx.today(),
+    );
+    const label = HISTORY_RANGES.find(([v]) => v === rangeMode)?.[1] || "Custom dates";
+    const active = activeFilters();
     const list = (pairs) =>
       pairs.length ? pairs.map(([n, c]) => `${n} (${c})`).join(", ") : "none recorded";
     setHTML(
@@ -239,6 +256,7 @@ export function init(ctx) {
       html`
       <h1>Jiggered summary</h1>
       <p>${label}: ${fmtLongDay(sm.from, L)} to ${fmtLongDay(sm.to, L)}. Printed ${fmtLongDay(ctx.today(), L)}.</p>
+      ${active.length ? html`<p><b>Filters:</b> ${active.join(" · ")}. Check-in filters apply to days; symptom and ongoing filters apply to episodes.</p>` : ""}
       ${focus() && $("sum-focus").checked ? html`<p><b>What I'm tracking:</b> ${focus()}</p>` : ""}
       <h2>Check-ins</h2>
       <p>${plural(sm.days.filter((d) => d.status).length, "day")} with a check-in: ${sm.green} green, ${sm.amber} amber, ${sm.red} red.
@@ -258,8 +276,8 @@ export function init(ctx) {
       <h2>Days</h2>
       ${
         sm.days.length
-          ? html`<table><thead><tr><th>Day</th><th>Check-in</th><th>${words().title} spent</th><th>Poor sleep</th></tr></thead><tbody>
-        ${sm.days.map((d) => html`<tr><td>${fmtDay(d.date, L)}</td><td>${d.status ? d.status[0].toUpperCase() + d.status.slice(1) : "none"}</td><td>${used(d)} of ${capOf(d, S)}</td><td>${d.poorSleep ? "yes" : ""}</td></tr>`)}
+          ? html`<table><thead><tr><th>Day</th><th>Check-in</th><th>Net ${words().plural} used</th><th>Poor sleep</th></tr></thead><tbody>
+        ${sm.days.map((d) => html`<tr><td>${fmtDay(d.date, L)}</td><td>${d.status ? d.status[0].toUpperCase() + d.status.slice(1) : "none"}</td><td>${d.entries.length ? `${used(d)} of ${capOf(d, S)}` : "No activity log"}</td><td>${d.poorSleep ? "yes" : ""}</td></tr>`)}
         </tbody></table>`
           : html`<p>No days logged in this period.</p>`
       }
@@ -268,48 +286,25 @@ export function init(ctx) {
   }
 
   const focus = () => normaliseProfile(ctx.store.view("settings")?.profile).focus;
-  // With fewer than 3 check-ins and no episodes, the graphs and patterns would only be empty boxes: one panel says
-  // how close the person is instead, and the records and sharing stay just below it.
-  const STARTER = 3;
   let lastActive = "";
-  function renderStarter(docs) {
-    const checkins = listDays(docs).filter((d) => d.status).length,
-      thin = checkins < STARTER && !listEpisodes(docs).length;
-    for (const id of [
-      "history-filter-panel",
-      "history-shortcuts",
-      "trends-panel",
-      "history-matrix",
-      "history-graphs",
-      "history-patterns",
-    ])
-      $(id).classList.toggle("starter-hidden", thin);
-    $("history-starter").hidden = !thin;
-    if (thin)
-      setHTML(
-        $("history-starter"),
-        html`<h2>Your patterns appear after ${STARTER} check-ins</h2><p class="meta">You have ${plural(checkins, "check-in")} so far. Graphs, a calendar and patterns appear here once there's enough to show. Your days and sharing are below.</p><div class="starter-progress" role="img" aria-label="${checkins} of ${STARTER} check-ins">${Array.from({ length: STARTER }, (_, i) => html`<span class="${i < checkins ? "on" : ""}"></span>`)}</div><button class="secondary" data-go-today>Go to today's check-in</button>`,
-      );
-    return thin;
-  }
-  $("history-starter").addEventListener("click", (e) => {
-    if (e.target.closest("[data-go-today]")) ctx.go("today");
-  });
+  const activeFilters = () =>
+    [
+      filters().status && `check-in: ${filters().status}`,
+      filters().symptom && `symptom: ${filters().symptom}`,
+      filters().ongoing && "ongoing only",
+      filters().query.trim() && `“${filters().query.trim()}”`,
+    ].filter(Boolean);
 
   function render() {
     const S = ctx.settings(),
       L = S.locale,
       docs = ctx.store.all(),
       today = ctx.today();
-    renderStarter(docs);
-    if (!$("summary-preview").hidden) {
-      renderSummary();
-      $("summary-preview").innerHTML = $("print-view").innerHTML;
-    }
     const f = focus();
+    $("history-lens").hidden = !f;
     $("history-lens").textContent = f
       ? `You wanted to notice: “${f}”`
-      : "Explore what you've recorded, notice patterns, and take a clearer picture to your next conversation.";
+      : "Look back, one day at a time.";
     $("sum-focus-row").hidden = !f;
     $("sum-focus-text").textContent = f ? `“${f}”` : "";
     if (!initialised && ctx.store.status().loaded) {
@@ -318,44 +313,36 @@ export function init(ctx) {
     }
     if (rangeMode !== "custom" && rangeToday !== today) setRange(rangeMode);
     $("hist-from").max = $("hist-to").max = today;
-    for (const button of $("history-presets").querySelectorAll("[data-range]"))
-      button.setAttribute("aria-pressed", button.dataset.range === rangeMode);
-    const selected = selectHistory(docs, filters()),
-      days = selected.days,
-      byDate = Object.fromEntries(listDays(docs).map((d) => [d.date, d]));
-    const symptom = $("hist-symptom").value,
+    $("history-range").value = rangeMode;
+    const symptom = restoredSymptom || $("hist-symptom").value,
       options = [...new Set([...S.symptoms, ...listEpisodes(docs).flatMap(([, e]) => e.symptoms)])];
     setHTML(
       $("hist-symptom"),
       html`<option value="">Any</option>${options.map((name) => html`<option value="${name}">${name}</option>`)}`,
     );
     $("hist-symptom").value = symptom;
-    const active = [
-      filters().status && `check-in: ${filters().status}`,
-      filters().symptom && `symptom: ${filters().symptom}`,
-      filters().ongoing && "ongoing only",
-      filters().query.trim() && `“${filters().query.trim()}”`,
-      rangeMode === "custom" && "custom dates",
-    ].filter(Boolean);
+    if ($("hist-symptom").selectedIndex < 0) $("hist-symptom").value = "";
+    restoredSymptom = "";
+    const data = historyInsights(docs, S, today, filters());
+    currentData = data;
+    const days = data.days || [],
+      eps = data.episodes || [];
+    const active = [...activeFilters(), ...(rangeMode === "custom" ? ["custom dates"] : [])];
     $("history-filter-summary").textContent = active.length ? active.join(" · ") : "None";
     if (active.join() !== lastActive && active.length) $("history-filter-panel").open = true; // a newly applied filter is never hidden
     lastActive = active.join();
     $("history-count").textContent =
       filters().from && filters().to && filters().from > filters().to
         ? "Choose an end date on or after the start date."
-        : `${plural(days.length, "day")} and ${plural(selected.episodes.length, "episode")} match. Check-in filters apply to days; symptom/ongoing filters apply to episodes.`;
-
-    setHTML(
-      $("strip"),
-      html`${Array.from({ length: 14 }, (_, i) => {
-        const k = addDays(today, i - 13),
-          s = byDate[k] && byDate[k].status;
-        return html`<button class="${s || ""}" data-day="${k}" title="${k}" aria-label="${fmtDay(k, L)}: ${s || "no check-in"}"><span>${Number(k.slice(-2))}</span><b>${s ? s[0].toUpperCase() : "–"}</b></button>`;
-      })}`,
-    );
-
-    const eps = selected.episodes,
-      data = historyInsights(docs, S, today, filters());
+        : `${plural(days.length, "day")} and ${plural(eps.length, "episode")} match. Check-in filters apply to days; symptom/ongoing filters apply to episodes.`;
+    for (const id of ["history-prepare", "sum-preview", "sum-print", "csv-days", "csv-eps"])
+      $(id).disabled = !!data.error;
+    $("summary-period").textContent =
+      data.error ||
+      `${fmtDay(data.from, L)} – ${fmtDay(data.to, L)} · ${plural(days.length, "day")} · ${plural(eps.length, "episode")}${active.length ? " · filters active" : ""}`;
+    $("history-record-count").textContent =
+      `${plural(days.length, "day")} · ${plural(eps.length, "episode")}`;
+    $("history-explore").hidden = !!data.error;
     $("history-graphs").hidden =
       $("history-patterns").hidden =
       $("history-matrix").hidden =
@@ -400,12 +387,16 @@ export function init(ctx) {
       const nextChartWindow = `${data.from}:${data.to}`;
       const remembered =
         chartWindow === nextChartWindow
-          ? [...$("history-charts").querySelectorAll("[data-chart]")].map((card) => [
-              card.dataset.chart,
-              card.querySelector("[data-inspect]").value,
-            ])
+          ? restoredCharts.length
+            ? restoredCharts
+            : [...$("history-charts").querySelectorAll("[data-chart]")].map((card) => [
+                card.dataset.chart,
+                card.querySelector("[data-inspect]").value,
+              ])
           : [];
       chartWindow = nextChartWindow;
+      restoredCharts = [];
+      ctx.ui?.details($("history-charts"));
       setHTML(
         $("history-charts"),
         html`${chartMarkup(data, "energy", L, themeOf(ctx))}${chartMarkup(data, "episodes", L, themeOf(ctx))}${chartMarkup(data, "combined", L, themeOf(ctx))}`,
@@ -429,6 +420,7 @@ export function init(ctx) {
         },
         themeOf(ctx),
       );
+      ctx.ui?.details($("history-charts"), true);
       for (const [kind, value] of remembered) {
         const select = $("history-charts").querySelector(`[data-chart="${kind}"] [data-inspect]`);
         if (select && Number(value) < data.buckets.length) {
@@ -441,7 +433,7 @@ export function init(ctx) {
 
     setHTML(
       $("days"),
-      html`${days.slice(0, shown).map((d) => html`<li><button class="dayrow" data-day="${d.date}"><span><span class="dot ${d.status || ""}"></span>${fmtDay(d.date, L)}${d.poorSleep ? html` <span class="meta">· poor sleep</span>` : ""}<span class="meta"> · ${d.status || "no check-in"}</span></span><span class="meta">${used(d)} of ${capOf(d, S)} ${words().plural} used</span></button></li>`)}`,
+      html`${days.slice(0, shown).map((d) => html`<li><button class="dayrow" data-day="${d.date}"><span><span class="dot ${d.status || ""}"></span>${fmtDay(d.date, L)}${d.poorSleep ? html` <span class="meta">· poor sleep</span>` : ""}<span class="meta"> · ${d.status || "no check-in"}</span></span><span class="meta">${d.entries.length ? `${used(d)} of ${capOf(d, S)} ${words().plural} used` : "No activities logged"}</span></button></li>`)}`,
     );
     $("more-days").hidden = days.length <= shown;
     $("nodays").hidden = days.length > 0;
@@ -460,11 +452,12 @@ export function init(ctx) {
     $("more-eps").hidden = eps.length <= episodesShown;
     $("noeps").hidden = eps.length > 0;
     $("noeps").textContent = listEpisodes(docs).length
-      ? "No episodes match these filters. Clear filters to see everything."
+      ? "No episodes match this period and filters. Try a wider period or clear search and filters."
       : "No episodes logged. Use Episode if one happens.";
     $("nodays").textContent = listDays(docs).length
-      ? "No days match these filters. Clear filters to see everything."
+      ? "No days match this period and filters. Try a wider period or clear search and filters."
       : "Your days appear here after a check-in or activity.";
+    if (!$("summary-preview").hidden) updatePreview();
   }
 
   function renderPatterns(data, locale) {
@@ -473,7 +466,7 @@ export function init(ctx) {
     if (m.checked < 3 && m.logged < 3 && m.episodes < 3) {
       setHTML(
         $("history-insights"),
-        html`<p class="empty">Patterns need at least a few check-ins, activity days or episodes in this view. Your records and sharing are just below; use the shortcuts above to jump to them.</p>`,
+        html`<p class="empty">Patterns need at least a few check-ins, activity days or episodes in this view. Keep recording what matters to you, then return here when you want a closer look.</p>`,
       );
       return;
     }
@@ -506,6 +499,23 @@ export function init(ctx) {
 
   return {
     render,
+    snapshot: () => ({
+      rangeMode,
+      filters: filters(),
+      shown,
+      episodesShown,
+      chartWindow,
+      charts: [...$("history-charts").querySelectorAll("[data-chart]")].map((card) => [
+        card.dataset.chart,
+        card.querySelector("[data-inspect]").value,
+      ]),
+      matrix: matrix.snapshot(),
+      summary: {
+        notes: $("sum-notes").checked,
+        focus: $("sum-focus").checked,
+        preview: !$("summary-preview").hidden,
+      },
+    }),
     show() {
       render();
     },

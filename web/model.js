@@ -580,7 +580,7 @@ const top = (counts, n) =>
   [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, n);
 const tally = (lists) => {
   const m = new Map();
-  for (const l of lists) for (const x of l || []) m.set(x, (m.get(x) || 0) + 1);
+  for (const l of lists) for (const x of new Set(l || [])) if (x) m.set(x, (m.get(x) || 0) + 1);
   return m;
 };
 
@@ -686,18 +686,20 @@ export const RANGES = [
 ];
 
 export function summary(docs, S, range, today) {
-  const from = range === "all" ? "0000-00-00" : addDays(today, -(Number(range) - 1));
-  const days = listDays(docs).filter((d) => d.date >= from && d.date <= today);
-  const episodes = listEpisodes(docs)
-    .map(([, e]) => e)
-    .filter((e) => e.when >= from + "T00:00" && e.when < addDays(today, 1) + "T00:00");
+  // History supplies its exact dates and filters. Keep legacy preset callers on the same calculation.
+  const filters = range && typeof range === "object" ? range : {};
+  const all = range === "all" || (typeof range === "object" && !filters.from);
+  const from = filters.from || (all ? "0000-00-00" : addDays(today, -(Number(range) - 1)));
+  const to = filters.to || today;
+  const selected = selectHistory(docs, { ...filters, from, to });
+  const days = selected.days;
+  const episodes = selected.episodes.map(([, e]) => e);
   const count = (s) => days.filter((d) => d.status === s).length;
   return {
-    from:
-      range === "all"
-        ? [today, ...days.map((d) => d.date), ...episodes.map((e) => e.when.slice(0, 10))].sort()[0]
-        : from,
-    to: today,
+    from: all
+      ? [today, ...days.map((d) => d.date), ...episodes.map((e) => e.when.slice(0, 10))].sort()[0]
+      : from,
+    to,
     days,
     episodes,
     green: count("green"),

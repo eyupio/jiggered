@@ -92,7 +92,7 @@ runBrowser({ name: "history", portEnv: "JIGGERED_HISTORY_PORT" }, async (harness
   await page.locator("#t-history").click();
   await page.setViewportSize({ width: 390, height: 900 });
   for (const range of [7, 30, 90, 180, 365]) {
-    await page.locator(`#history-presets [data-range="${range}"]`).click();
+    await page.locator("#history-range").selectOption(String(range));
     for (const mode of ["checkin", "used", "points", "sleep", "episodes"]) {
       await page.locator("[data-matrix-mode]").selectOption(mode);
       assert.equal(
@@ -105,12 +105,13 @@ runBrowser({ name: "history", portEnv: "JIGGERED_HISTORY_PORT" }, async (harness
         parent: el.parentElement.getBoundingClientRect().width,
         slots: el.querySelector("[data-matrix-grid]").children.length,
       }));
-      assert.ok(Math.abs(sizes.width - sizes.parent) < 2, "calendar fills the row");
+      assert.ok(sizes.width <= sizes.parent + 1, "calendar stays within its panel");
       assert.equal(sizes.slots % 7, 0, "both partial weeks have complete rows");
     }
   }
   await page.setViewportSize({ width: 1100, height: 900 });
-  await page.locator('#history-presets [data-range="all"]').click();
+  await page.locator("#history-range").selectOption("all");
+  await page.locator("#history-explore > summary").click();
   await page.waitForFunction(
     ([d, e]) =>
       new RegExp(`${d} days? and ${e} episodes?`).test(

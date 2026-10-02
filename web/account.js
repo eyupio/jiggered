@@ -255,6 +255,9 @@ export function init(ctx) {
   }
 
   // ---- data ----
+  const savedUI = ctx.ui?.get("account") || {};
+  if (savedUI.importMode === "overwrite")
+    document.querySelector('input[name="import-mode"][value="overwrite"]').checked = true;
   let restorePreview = null;
   const invalidatePreview = () => {
     restorePreview = null;
@@ -370,6 +373,9 @@ export function init(ctx) {
   });
 
   return {
+    snapshot: () => ({
+      importMode: document.querySelector('input[name="import-mode"]:checked').value,
+    }),
     render() {
       renderSettings();
       profile.render();

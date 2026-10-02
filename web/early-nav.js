@@ -3,8 +3,26 @@
 // the tab named in the address to the markup that is already here; app.js does the real navigation afterwards.
 // A tab that doesn't exist yet (Admin is added later) or an unknown name leaves the page as it is.
 (function () {
-  var tab = decodeURIComponent(location.hash.slice(1)),
-    panel = document.getElementById(tab + "-panel");
+  history.scrollRestoration = "manual";
+  var tab = "",
+    saved;
+  try {
+    var me = JSON.parse(localStorage.getItem("jiggered:me") || "null");
+    if (me)
+      saved = JSON.parse(
+        sessionStorage.getItem("jiggered:view:" + me.id + ":" + me.username) || "null",
+      );
+    var appearance = saved?.v === 1 && saved.views?.appearance;
+    if (appearance && ["light", "dark"].includes(appearance.theme))
+      document.documentElement.dataset.theme = appearance.theme;
+    if (appearance && ["points", "spoons"].includes(appearance.energyTheme))
+      document.documentElement.dataset.energyTheme = appearance.energyTheme;
+  } catch {}
+  try {
+    tab = decodeURIComponent(location.hash.slice(1));
+  } catch {}
+  if (!tab && saved?.v === 1) tab = saved.views?.nav?.tab || "";
+  var panel = document.getElementById(tab + "-panel");
   if (!panel || panel.tagName !== "SECTION" || !document.getElementById("t-" + tab)) return;
   document.body.dataset.view = tab;
   var intro = document.getElementById("t-" + tab).dataset;

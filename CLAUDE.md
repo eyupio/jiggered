@@ -16,7 +16,7 @@ admin to manage them; password login. It ships as one container image on GHCR.
 [CONTRIBUTING.md](CONTRIBUTING.md) owns the local setup, code map, checks and
 browser-scenario list. Use `npm ci --prefix test` for the locked development
 tools, `npm --prefix test run check` for formatting/lint/logic tests, and
-`npm --prefix test run browser` for all eight scenarios with one fixture build.
+`npm --prefix test run browser` for all nine scenarios with one fixture build.
 `node test/browser-public.cjs` checks public pages with the same prebuilt fixture.
 Keep those instructions current when changing the workflow or tooling.
 

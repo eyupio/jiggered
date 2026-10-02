@@ -1,7 +1,7 @@
 // Real-browser checks at phone width. Account: the page is short until a list is opened, a shortcut opens exactly the
 // list it names, collapsing keeps what was typed, and a validation error opens the list it is in. History: with almost
-// no data the overview is compact, and the Records and Share shortcuts only scroll and focus (filters stay put) and
-// are not hidden under the sticky tab bar. Episodes: an offline save that is recovered across a reload still ends with
+// no data the calendar remains available, optional sections keep filters in place, and Prepare summary moves focus
+// clear of the sticky tab bar. Episodes: an offline save that is recovered across a reload still ends with
 // a truthful confirmation and reaches the server.
 // Needs Playwright (see the README); run with `node test/browser-mobile.cjs`. It builds a temporary binary and database.
 const assert = require("node:assert/strict");
@@ -115,7 +115,7 @@ runBrowser({ name: "mobile", portEnv: "JIGGERED_MOBILE_PORT" }, async (harness) 
     "no horizontal overflow at phone width",
   );
 
-  // 5. History with one day and one episode: compact overview, and shortcuts that reach the records and sharing.
+  // 5. History with one day and one episode: calendar, optional detail and a summary using the current search.
   await page.evaluate(async () => {
     const today = new Date(),
       pad = (n) => String(n).padStart(2, "0"),
@@ -165,57 +165,33 @@ runBrowser({ name: "mobile", portEnv: "JIGGERED_MOBILE_PORT" }, async (harness) 
   await page.waitForFunction(
     () => !/Updating/.test(document.getElementById("history-count").textContent),
   );
-  // The tab bar is at the top on wide screens and along the bottom on phones; either way a heading must be clear of it.
-  const nav = () =>
-    page.evaluate(() => {
-      const n = document.querySelector("nav").getBoundingClientRect();
-      return n.top > innerHeight / 2 ? 0 : n.bottom;
-    });
-  for (const [target, panel] of [
-    ["history-records", "#history-records"],
-    ["history-share", "#history-share"],
-  ]) {
-    await page.locator(`#history-shortcuts [data-history-target="${target}"]`).click();
-    // On screen and clear of the tab bar. The last panel may stay lower down: the page cannot scroll past its end.
-    await page.waitForFunction(
-      (sel) => {
-        const r = document.querySelector(sel + " h2").getBoundingClientRect();
-        const n = document.querySelector("nav").getBoundingClientRect(),
-          low = n.top > innerHeight / 2;
-        return r.top >= (low ? 0 : n.bottom) && r.top < (low ? n.top : innerHeight) - 40;
-      },
-      panel,
-      { timeout: 5000 },
-    );
-    const top = await page.evaluate(
-      (sel) => document.querySelector(sel + " h2").getBoundingClientRect().top,
-      panel,
-    );
-    assert.ok(
-      top >= (await nav()),
-      `the ${target} heading (top ${Math.round(top)}) is not hidden under the sticky tab bar`,
-    );
+  // Optional detail is reachable by a native summary or the primary action, with the search intact.
+  for (const id of ["history-records", "history-explore"]) {
+    await page.locator(`#${id} > summary`).click();
+    assert.equal(await page.locator(`#${id}`).getAttribute("open"), "");
     assert.equal(
-      await page.evaluate(
-        (sel) => document.activeElement === document.querySelector(sel + " h2"),
-        panel,
-      ),
+      await page.locator(`#${id} > summary`).evaluate((el) => el === document.activeElement),
       true,
-      "focus moves to the heading",
     );
-    assert.equal(
-      await page.locator("#hist-query").inputValue(),
-      "walk",
-      "the search is still there after jumping",
-    );
+    assert.equal(await page.locator("#hist-query").inputValue(), "walk");
+    await page.locator(`#${id} > summary`).click();
   }
-  await page.locator('#history-shortcuts [data-history-target="trends-panel"]').click();
+  await page.locator("#history-prepare").click();
   await page.waitForFunction(() => {
-    const t = document.getElementById("trends-panel").getBoundingClientRect().top;
-    const n = document.querySelector("nav").getBoundingClientRect(),
-      low = n.top > innerHeight / 2;
-    return t >= (low ? 0 : n.bottom) && t < (low ? n.top : innerHeight) - 40;
+    const heading = document.querySelector("#history-share > summary h2").getBoundingClientRect();
+    const nav = document.querySelector("nav").getBoundingClientRect();
+    return (
+      heading.top >= (nav.top > innerHeight / 2 ? 0 : nav.bottom) && heading.top < innerHeight - 100
+    );
   });
+  assert.equal(
+    await page
+      .locator("#history-share > summary h2")
+      .evaluate((el) => el === document.activeElement),
+    true,
+  );
+  assert.equal(await page.locator("#summary-preview").isVisible(), true);
+  assert.equal(await page.locator("#hist-query").inputValue(), "walk");
   assert.equal(
     await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
     false,
@@ -251,7 +227,7 @@ runBrowser({ name: "mobile", portEnv: "JIGGERED_MOBILE_PORT" }, async (harness) 
   );
   assert.deepEqual(errors, []);
   console.log(
-    `PASS: Account lists (${height}px tall when closed): counts, one list per shortcut, values survive collapsing, an error opens its list. History (${historyHeight}px with one day and one episode): compact overview, Records/Share/Overview shortcuts keep the search and clear the tab bar. Offline episode save recovered across a reload ends with Saved.`,
+    `PASS: Account lists (${height}px tall when closed): counts, one list per shortcut, values survive collapsing, an error opens its list. History (${historyHeight}px with one day and one episode): calendar, optional sections and Prepare summary keep the search and clear the tab bar. Offline episode save recovered across a reload ends with Saved.`,
   );
 }).catch((error) => {
   console.error(error);

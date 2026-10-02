@@ -8,13 +8,15 @@ people (a household, a support group), each with their own account.
   activity costs. Open any earlier day to fill it in or correct it.
 - **Episode:** when it started, symptoms, onset, duration, likely triggers and notes. Edit it later, for example
   to record an approximate duration or exact local end time. Ongoing episodes are shown on Today and Episode.
-- **History:** a calendar activity matrix, interactive energy and episode graphs, recording coverage,
-  period comparisons and patterns. Explore 7 days through all time, or choose your dates. Search and filter
-  by date, check-in, symptom or ongoing status; graphs, insights, lists and CSV use the same selection.
-  A tappable 14-day strip opens recent days. Preview a printable summary (save as PDF), optionally omitting private notes.
-- **Account:** a private display name and focus, light/dark/device appearance, starting history period and
+- **History:** an activity calendar and selected-day view, with full records, charts and patterns available
+  when you want them. Explore 7 days through all time, or choose your dates. Search and filter by date,
+  check-in, symptom or ongoing status; the calendar, records, graphs, printable summary and CSV use the
+  same selection. Private summary notes are opt-in; CSV files include notes. Your selections, open sections
+  and position stay in place when you refresh the browser tab.
+- **Account:** a private profile photo, display name and focus, region, light/dark/device appearance, starting history period and
   lifetime log totals. Jump to your profile, budget and personal lists, password, devices or data tools;
-  download or restore your data, or delete your account.
+  download or restore your data, or delete your account. Emergency messages follow your saved region;
+  an unknown region prompts you to call your local emergency number.
 - **Admin:** add people, reset passwords, disable or remove accounts, sign devices out, read the activity log,
   maintain shared starting activities, symptoms, triggers and budgets, say whether a reverse proxy sits in front, download a backup. The tab exists only for admins.
 

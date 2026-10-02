@@ -198,12 +198,18 @@ test("calendar colour modes distinguish unlogged, zero-point, recovery and episo
   assert.deepEqual(calendarPaint({ ...c, net: -3 }, "points"), ["recovery", "−"]);
   assert.deepEqual(calendarPaint({ ...c, net: 200 }, "points"), ["level-4", 200]);
   assert.deepEqual(calendarPaint(c, "sleep"), ["empty", "–"]);
+  assert.deepEqual(calendarPaint({ ...c, allowance: 7 }, "remaining"), ["empty", "–"]);
+  assert.deepEqual(calendarPaint({ ...c, net: 5, allowance: 7 }, "remaining"), ["amber", 2]);
+  assert.deepEqual(calendarPaint({ ...c, net: 8, allowance: 7 }, "remaining"), ["red", -1]);
+  assert.deepEqual(calendarPaint({ ...c, net: -2, allowance: 7 }, "remaining"), ["green", 9]);
   assert.deepEqual(calendarPaint({ ...c, poorSleep: true }, "sleep"), ["amber", "!"]);
   assert.deepEqual(calendarPaint({ ...c, episodes: 12 }, "episodes"), ["level-4", 12]);
 });
 
 test("profile preferences normalise defensively and retain Unicode names", () => {
   assert.deepEqual(normaliseProfile(), {
+    avatar: "",
+    region: "",
     displayName: "",
     focus: "",
     theme: "system",

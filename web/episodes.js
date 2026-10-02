@@ -28,6 +28,7 @@ export function defaultDuration(when, now = new Date()) {
 }
 
 export function init(ctx) {
+  const saved = ctx.ui?.get("episode") || {};
   const find = { sym: { q: "", all: false, group: "" }, trig: { q: "", all: false, group: "" } }; // search text, "show all" and chosen group per long list
   let durChosen = false; // the person picked a duration themselves, so a changed start time no longer re-defaults it
   let editing = null,
@@ -401,9 +402,27 @@ export function init(ctx) {
     );
     renderOngoing(ctx, $("episode-ongoing"));
   }
-  restore();
+  const savedEditing =
+    typeof saved.editing === "string" &&
+    /^e-\d+$/.test(saved.editing) &&
+    (ctx.store.view(saved.editing) || drafts?.get(`episode-edit:${saved.editing}`))
+      ? saved.editing
+      : null;
+  restore(savedEditing);
+  for (const name of ["sym", "trig"]) {
+    const value = saved.find?.[name];
+    if (!value) continue;
+    find[name] = {
+      q: typeof value.q === "string" ? value.q.slice(0, 2000) : "",
+      group: typeof value.group === "string" ? value.group : "",
+      all: value.all === true,
+    };
+    $(`ep-${name}-q`).value = find[name].q;
+    narrow(name);
+  }
   return {
     render,
+    snapshot: () => ({ find, editing }),
     edit,
     recover: (id, value) => edit(id, value),
     show() {

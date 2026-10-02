@@ -4,6 +4,8 @@ import { energyWords, energyAmount, energyCopy, themeOf, SPOON_PATH } from "./en
 import { $, html, setHTML, uid, fmtLongDay } from "./util.js";
 import { renderOngoing } from "./episodes.js";
 import { PICKER, usage, favourites, groupItems, matches, selection } from "./picker.js";
+import { savedText, savedCount } from "./view-state.js";
+import { validDate } from "./history-model.js";
 import {
   readableDay,
   identifyEntries,
@@ -21,16 +23,25 @@ const costLabel = (c) => (c > 0 ? "−" + c : c < 0 ? "+" + -c : "0");
 const named = (s) => s[0].toUpperCase() + s.slice(1);
 
 export function init(ctx) {
+  const saved = ctx.ui?.get("today") || {};
   const points = (n) => energyAmount(n, themeOf(ctx));
   const copy = (text) => energyCopy(text, themeOf(ctx));
-  let viewDate = null; // null follows the clock, so the screen moves on by itself at midnight
+  let viewDate = validDate(saved.day) && saved.day < ctx.today() ? saved.day : null; // null follows midnight
   let actsKey = "",
     editing = null,
     editingDate = "",
-    query = "",
-    groupFilter = ""; // groupFilter "" shows every group
-  const more = new Map(),
-    closed = new Set(); // per-group paging and the groups the person closed (all start open, so a new list shows buttons), kept while this tab is open
+    query = savedText(saved.query),
+    groupFilter = savedText(saved.groupFilter); // "" shows every group
+  const more = new Map(
+      (Array.isArray(saved.more) ? saved.more : [])
+        .filter((row) => Array.isArray(row) && typeof row[0] === "string")
+        .map(([key, count]) => [key, savedCount(count, PICKER.page)]),
+    ),
+    closed = new Set(
+      (Array.isArray(saved.closed) ? saved.closed : []).filter((s) => typeof s === "string"),
+    );
+  $("act-search").value = query;
+  if (/^\d{2}:\d{2}$/.test(saved.time || "")) $("act-time").value = saved.time;
   let changing = false,
     onboardingSeen = false; // re-choosing a check-in that is set; whether the first-run checklist showed this session
   const entryForm = $("entry-form");
@@ -555,6 +566,14 @@ export function init(ctx) {
     render,
     open,
     day: () => viewDate,
+    snapshot: () => ({
+      day: viewDate,
+      query,
+      groupFilter,
+      more: [...more],
+      closed: [...closed],
+      time: $("act-time").value,
+    }),
     show() {
       if (entryForm.hidden) restoreDraft();
       render();
