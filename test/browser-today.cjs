@@ -324,12 +324,12 @@ runBrowser({ name: "today", portEnv: "JIGGERED_TODAY_PORT" }, async (harness) =>
   await saved(page);
   assert.equal(await pills.count(), 3, "pills survive reload and sync");
   await page.locator("#t-history").click();
-  assert.equal(await page.locator("#view-heading").textContent(), "Your days, in perspective.");
+  assert.equal(await page.locator("#view-heading").textContent(), "History");
   await page.reload();
   await saved(page);
   assert.equal(
     await page.locator("#view-heading").textContent(),
-    "Your days, in perspective.",
+    "History",
     "view heading survives a direct reload",
   );
   await page.emulateMedia({ reducedMotion: "reduce" });
