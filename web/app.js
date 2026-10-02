@@ -17,7 +17,8 @@ import * as accountView from "./account.js";
 import * as helpView from "./help.js";
 import { initTooltips } from "./tooltips.js";
 import { initDefaultsNotice } from "./defaults-notice.js";
-import { profileInitials } from "./profile.js";
+import { profileInitials, normaliseProfile } from "./profile.js";
+import { createViewState, clearViewState } from "./view-state.js";
 // admin.js is only loaded, and its tab only created, for admins: see syncAdmin
 
 const ME_KEY = "jiggered:me";
@@ -67,6 +68,9 @@ async function getMe() {
   if (r && r.status === 401) {
     forget();
     try {
+      clearViewState(window.sessionStorage);
+    } catch {}
+    try {
       await purgeDeviceStorage(legacyStorage);
       location.href = "/login";
     } catch {
@@ -85,6 +89,7 @@ async function getMe() {
 }
 
 function fatal(text) {
+  document.body.classList.remove("app-loading");
   const p = Object.assign(document.createElement("p"), { className: "fatal", textContent: text });
   document.querySelector(".wrap").replaceChildren(p);
 }
@@ -99,12 +104,19 @@ function fatal(text) {
     return;
   }
   setPageUser(me.id);
+  let tabStorage;
+  try {
+    tabStorage = window.sessionStorage;
+  } catch {}
+  const ui = createViewState(me, tabStorage);
+  let ready = false;
   $("who").textContent = me.username;
   $("who-initials").textContent = profileInitials(me.username);
   $("today").textContent = fmtLongDay(dkey(new Date()), "en-GB");
 
   // A temporary password was just handed out: nothing else works until it is changed.
   if (me.must_change_password) {
+    document.body.classList.remove("app-loading");
     $("view-heading").textContent = "A space of your own.";
     $("view-description").textContent = "Choose a new password, then make yourself at home.";
     $("tabs").hidden = true;
@@ -144,6 +156,7 @@ function fatal(text) {
     try {
       await store.clear();
       drafts.clear();
+      ui.clear();
       await purgeDeviceStorage(legacyStorage);
       try {
         sessionStorage.removeItem(`jiggered:nav:${me.id}`);
@@ -179,6 +192,7 @@ function fatal(text) {
   const store = createStore({
     storage,
     onChange: () => {
+      if (!ready) return;
       renderHeader();
       renderActive();
       updateSync();
@@ -267,6 +281,7 @@ function fatal(text) {
   let settingsKey, settingsVal;
   const ctx = {
     me,
+    ui,
     store,
     drafts,
     defaults: () => sharedDefaults,
@@ -306,6 +321,11 @@ function fatal(text) {
       views.account.focus(section);
     },
   };
+  // Constructors also restore drafts and selected records, so give them the final
+  // initial snapshot instead of letting a late network response replace defaults.
+  store.hydrate(me.id, me.username);
+  await Promise.all([loadDefaults(), store.load()]);
+  if (leaving) return;
   const notice = initDefaultsNotice(ctx, {
     canWrite: () => coordination.writable && !store.status().restoring,
   });
@@ -318,13 +338,13 @@ function fatal(text) {
     help: helpView.init(ctx),
   };
 
+  const scrolls = { ...ui.get("nav").scrolls };
   let active = "today",
-    historyScroll = 0,
     beforeHelp = "today";
   function go(tab) {
     if (tab === "help" && active !== "help") beforeHelp = active;
-    if (active === "history" && tab !== active) historyScroll = window.scrollY;
-    if (!views[tab]) tab = "today"; // e.g. the Admin tab of someone who has just stopped being an admin
+    if (ready && tab !== active) saveNav();
+    if (!Object.hasOwn(views, tab)) tab = "today"; // e.g. someone who has stopped being an admin
     if (tab !== active && views[active] && views[active].hide) views[active].hide();
     tooltips.hide();
     active = tab;
@@ -348,9 +368,11 @@ function fatal(text) {
       b.tabIndex = b.dataset.tab === tab ? 0 : -1;
     }
     for (const t of Object.keys(views)) $(t + "-panel").hidden = t !== tab;
-    views[tab].show();
+    const shown = views[tab].show();
+    ui.details($(tab + "-panel"), true);
     $("t-" + tab)?.scrollIntoView({ block: "nearest", inline: "nearest" }); // Help has no tab of its own // on a narrow phone the tab bar scrolls sideways
-    scrollTo(0, tab === "history" ? historyScroll : 0);
+    scrollTo(0, Math.max(0, Number(scrolls[tab]) || 0));
+    return shown;
   }
   $("brand-home").addEventListener("click", (e) => {
     if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -629,10 +651,17 @@ function fatal(text) {
     refreshMe();
   });
 
-  // ---- a refresh puts you back where you were: the tab (in the address, so it also survives a link), the scroll
-  // position, and the past day you were looking at. The scroll and day live in this tab's session storage only.
+  // Restore presentation state before revealing the app. Keep each view's scroll position,
+  // filters, paging and selected item, without storing form secrets or replacing record drafts.
   const NAV_KEY = `jiggered:nav:${me.id}`;
   const saveNav = () => {
+    if (!ready || leaving) return;
+    scrolls[active] = Math.round(scrollY);
+    if (views[active]?.snapshot) ui.set(active, views[active].snapshot());
+    ui.details($(active + "-panel"));
+    ui.set("nav", { tab: active, scrolls, beforeHelp });
+    const profile = normaliseProfile(store.view("settings")?.profile);
+    ui.set("appearance", { theme: profile.theme, energyTheme: profile.energyTheme });
     try {
       sessionStorage.setItem(
         NAV_KEY,
@@ -647,6 +676,8 @@ function fatal(text) {
     }
   };
   const savedNav = (() => {
+    const current = ui.get("nav");
+    if (current.tab) return { ...current, y: current.scrolls?.[current.tab] };
     try {
       return JSON.parse(sessionStorage.getItem(NAV_KEY) || "null");
     } catch {
@@ -654,16 +685,41 @@ function fatal(text) {
     }
   })();
   const startTab = () => {
-    const t = decodeURIComponent(location.hash.slice(1));
-    return views[t] ? t : savedNav && views[savedNav.tab] ? savedNav.tab : "today";
+    const t = hashTab();
+    return Object.hasOwn(views, t)
+      ? t
+      : savedNav && Object.hasOwn(views, savedNav.tab)
+        ? savedNav.tab
+        : "today";
   }; // after the Admin tab is mounted
+  function hashTab() {
+    try {
+      return decodeURIComponent(location.hash.slice(1));
+    } catch {
+      return "";
+    }
+  }
   addEventListener("pagehide", saveNav);
+  for (const type of ["click", "input", "change", "toggle"])
+    document.addEventListener(type, () => queueMicrotask(saveNav), type === "toggle");
+  let scrollFrame = null;
+  addEventListener(
+    "scroll",
+    () => {
+      if (scrollFrame !== null) return;
+      scrollFrame = requestAnimationFrame(() => {
+        scrollFrame = null;
+        saveNav();
+      });
+    },
+    { passive: true },
+  );
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") saveNav();
   });
   addEventListener("hashchange", () => {
-    const t = decodeURIComponent(location.hash.slice(1));
-    if (views[t] && t !== active) go(t);
+    const t = hashTab();
+    if (Object.hasOwn(views, t) && t !== active) go(t);
   }); // the address was edited by hand
   function restorePlace() {
     if (!savedNav || savedNav.tab !== active) return;
@@ -673,7 +729,8 @@ function fatal(text) {
       savedNav.day < ctx.today()
     )
       views.today.open(savedNav.day);
-    requestAnimationFrame(() => scrollTo(0, Number(savedNav.y) || 0));
+    beforeHelp = Object.hasOwn(views, savedNav.beforeHelp) ? savedNav.beforeHelp : "today";
+    scrollTo(0, Math.max(0, Number(savedNav.y) || 0));
   }
 
   // ---- sign out: never silently throw away changes that haven't reached the server ----
@@ -720,15 +777,16 @@ function fatal(text) {
     else addEventListener("load", register);
   }
 
-  store.hydrate(me.id, me.username); // after everything its change listener touches exists
   await syncAdmin();
-  go(startTab());
-  updateSync();
-  tick();
-  await loadDefaults();
-  await store.load();
+  accountView.identity(ctx);
+  await go(startTab());
   notice.update();
+  tick();
+  document.body.classList.remove("app-loading");
   restorePlace();
+  ready = true;
+  updateSync();
+  saveNav();
   // Freeze the starting defaults into this account so future shared edits do not replace personal choices.
   if (coordination.writable && defaultsTag && store.status().loaded && !store.view("settings"))
     store.dispatch({ id: "settings", type: "replace", arg: normaliseSettings(sharedDefaults) });

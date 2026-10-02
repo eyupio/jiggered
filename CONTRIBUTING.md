@@ -96,10 +96,11 @@ tests use disposable databases and local credentials; no S3 or external SMTP
 account is needed. CI runs these checks on pull requests before building the image.
 Do not commit build output, browser artifacts or database files.
 
-The browser runner compiles once, then runs all eight shared scenarios:
+The browser runner compiles once, then runs all nine shared scenarios:
 
 | Script                          | Coverage                                                                                      |
 | ------------------------------- | --------------------------------------------------------------------------------------------- |
+| `test/browser-view-state.cjs`   | Refresh restoration, slow first paint, photos and regional warnings (in-memory API fixture)   |
 | `test/browser-energy-theme.cjs` | Energy language, previews, saving, cross-device and responsive themes (in-memory API fixture) |
 | `test/browser-today.cjs`        | Activity picker, logging, adjustments and Undo                                                |
 | `test/browser-history.cjs`      | Large-account History, search, filters and mobile calendar                                    |
@@ -119,7 +120,7 @@ node test/browser-public.cjs
 
 Run one scenario with `node test/browser-today.cjs`; it compiles its own temporary
 binary. Both entry points share readiness checks, diagnostics and cleanup. The energy-theme
-scenario uses an in-memory API fixture and shares browser cleanup without starting
+and view-state scenarios use in-memory API fixtures and share browser cleanup without starting
 a server.
 Optional environment variables:
 

@@ -2,6 +2,7 @@
 import { energyWords, themeOf } from "./energy-theme.js";
 import { html, setHTML, fmtDay } from "./util.js";
 import { addDays, used, capOf } from "./model.js";
+import { validDate } from "./history-model.js";
 
 export function calendarWindow(data, S, end = data.to, limit = 366) {
   end = end < data.from ? data.from : end > data.to ? data.to : end;
@@ -50,14 +51,18 @@ export function calendarPaint(c, mode) {
   ];
 }
 export function initMatrix(root, ctx, explore) {
+  const saved = ctx.ui?.get("history").matrix || {};
   let data,
     S,
     win,
-    mode = "checkin",
-    end = null,
-    chosen = null,
+    mode = ["checkin", "used", "points", "sleep", "episodes"].includes(saved.mode)
+      ? saved.mode
+      : "checkin",
+    end = validDate(saved.end) ? saved.end : null,
+    chosen = validDate(saved.chosen) ? saved.chosen : null,
     cursor = 0,
-    signature;
+    signature = saved.signature;
+  let cursorDate = validDate(saved.cursorDate) ? saved.cursorDate : null;
   const compact = matchMedia("(max-width:700px)"),
     limit = () => 366;
   setHTML(
@@ -66,9 +71,11 @@ export function initMatrix(root, ctx, explore) {
   );
   const get = (selector) => root.querySelector(selector),
     grid = get("[data-matrix-grid]");
+  get("[data-matrix-mode]").value = mode;
   function detail(index, select = false) {
     const c = win.cells[index];
     cursor = index;
+    cursorDate = c.date;
     if (select) chosen = c.date;
     get("[data-matrix-day]").value = String(index);
     for (const b of grid.querySelectorAll("button")) {
@@ -85,7 +92,7 @@ export function initMatrix(root, ctx, explore) {
     root.style.setProperty("--weeks", win.weeks);
     root.classList.toggle("matrix-dense", win.weeks > 13);
     root.classList.toggle("matrix-year", win.weeks > 26);
-    const oldCursor = chosen ? win.cells.findIndex((c) => c.date === chosen) : -1;
+    const oldCursor = win.cells.findIndex((c) => c.date === (cursorDate || chosen));
     cursor =
       oldCursor >= 0
         ? oldCursor
@@ -193,11 +200,13 @@ export function initMatrix(root, ctx, explore) {
       if (key !== signature) {
         end = null;
         chosen = null;
+        cursorDate = null;
         signature = key;
       }
       data = next;
       S = settings;
       paint();
     },
+    snapshot: () => ({ mode, end, chosen, cursorDate, signature }),
   };
 }

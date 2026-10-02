@@ -15,10 +15,11 @@ import {
   selectHistory,
 } from "./model.js";
 
-import { historyRange, historyInsights } from "./history-model.js";
+import { historyRange, historyInsights, HISTORY_RANGES } from "./history-model.js";
 import { chartMarkup, connectCharts } from "./history-charts.js";
 import { normaliseProfile } from "./profile.js";
 import { initMatrix } from "./history-matrix.js";
+import { savedCount, savedText } from "./view-state.js";
 
 const PAGE = 30;
 const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
@@ -34,12 +35,21 @@ function download(name, text, type) {
 
 export function init(ctx) {
   const words = () => energyWords(themeOf(ctx));
-  let shown = PAGE,
-    episodesShown = PAGE,
+  const saved = ctx.ui?.get("history") || {};
+  let shown = savedCount(saved.shown, PAGE),
+    episodesShown = savedCount(saved.episodesShown, PAGE),
     rangeMode = "30",
     initialised = false,
     rangeToday = ctx.today(),
-    chartWindow = "";
+    chartWindow = savedText(saved.chartWindow);
+  let restoredCharts = (Array.isArray(saved.charts) ? saved.charts : []).filter(
+    (row) =>
+      Array.isArray(row) &&
+      ["energy", "episodes", "combined"].includes(row[0]) &&
+      /^\d{1,2}$/.test(String(row[1])) &&
+      Number(row[1]) < 60,
+  );
+  let restoredSymptom = savedText(saved.filters?.symptom);
   const matrix = initMatrix($("history-matrix"), ctx, (date) => {
     $("hist-from").value = $("hist-to").value = date;
     rangeMode = "custom";
@@ -87,6 +97,23 @@ export function init(ctx) {
     ongoing: $("hist-ongoing").checked,
     query: $("hist-query").value,
   });
+  for (const [name, id] of Object.entries({
+    from: "hist-from",
+    to: "hist-to",
+    status: "hist-status",
+    query: "hist-query",
+  }))
+    $(id).value = savedText(saved.filters?.[name]);
+  $("hist-ongoing").checked = saved.filters?.ongoing === true;
+  if (saved.rangeMode === "custom" || HISTORY_RANGES.some(([key]) => key === saved.rangeMode)) {
+    rangeMode = saved.rangeMode;
+    initialised = true;
+    if (rangeMode !== "custom") {
+      const dates = historyRange(ctx.store.all(), ctx.today(), rangeMode);
+      $("hist-from").value = rangeMode === "all" ? "" : dates.from;
+      $("hist-to").value = rangeMode === "all" ? "" : dates.to;
+    }
+  }
   const selectedDocs = () => {
     const selected = selectHistory(ctx.store.all(), filters());
     return Object.fromEntries([
@@ -173,6 +200,14 @@ export function init(ctx) {
     $("sum-range"),
     html`${RANGES.map(([v, label]) => html`<option value="${v}">${label}</option>`)}`,
   );
+  if (RANGES.some(([key]) => key === saved.summary?.range))
+    $("sum-range").value = saved.summary.range;
+  for (const [name, id] of [
+    ["notes", "sum-notes"],
+    ["focus", "sum-focus"],
+  ])
+    if (typeof saved.summary?.[name] === "boolean") $(id).checked = saved.summary[name];
+  $("summary-preview").hidden = saved.summary?.preview !== true;
 
   $("more-days").addEventListener("click", () => {
     shown += PAGE;
@@ -320,16 +355,18 @@ export function init(ctx) {
     $("hist-from").max = $("hist-to").max = today;
     for (const button of $("history-presets").querySelectorAll("[data-range]"))
       button.setAttribute("aria-pressed", button.dataset.range === rangeMode);
-    const selected = selectHistory(docs, filters()),
-      days = selected.days,
-      byDate = Object.fromEntries(listDays(docs).map((d) => [d.date, d]));
-    const symptom = $("hist-symptom").value,
+    const symptom = restoredSymptom || $("hist-symptom").value,
       options = [...new Set([...S.symptoms, ...listEpisodes(docs).flatMap(([, e]) => e.symptoms)])];
     setHTML(
       $("hist-symptom"),
       html`<option value="">Any</option>${options.map((name) => html`<option value="${name}">${name}</option>`)}`,
     );
     $("hist-symptom").value = symptom;
+    if ($("hist-symptom").selectedIndex < 0) $("hist-symptom").value = "";
+    restoredSymptom = "";
+    const selected = selectHistory(docs, filters()),
+      days = selected.days,
+      byDate = Object.fromEntries(listDays(docs).map((d) => [d.date, d]));
     const active = [
       filters().status && `check-in: ${filters().status}`,
       filters().symptom && `symptom: ${filters().symptom}`,
@@ -400,12 +437,16 @@ export function init(ctx) {
       const nextChartWindow = `${data.from}:${data.to}`;
       const remembered =
         chartWindow === nextChartWindow
-          ? [...$("history-charts").querySelectorAll("[data-chart]")].map((card) => [
-              card.dataset.chart,
-              card.querySelector("[data-inspect]").value,
-            ])
+          ? restoredCharts.length
+            ? restoredCharts
+            : [...$("history-charts").querySelectorAll("[data-chart]")].map((card) => [
+                card.dataset.chart,
+                card.querySelector("[data-inspect]").value,
+              ])
           : [];
       chartWindow = nextChartWindow;
+      restoredCharts = [];
+      ctx.ui?.details($("history-charts"));
       setHTML(
         $("history-charts"),
         html`${chartMarkup(data, "energy", L, themeOf(ctx))}${chartMarkup(data, "episodes", L, themeOf(ctx))}${chartMarkup(data, "combined", L, themeOf(ctx))}`,
@@ -429,6 +470,7 @@ export function init(ctx) {
         },
         themeOf(ctx),
       );
+      ctx.ui?.details($("history-charts"), true);
       for (const [kind, value] of remembered) {
         const select = $("history-charts").querySelector(`[data-chart="${kind}"] [data-inspect]`);
         if (select && Number(value) < data.buckets.length) {
@@ -506,6 +548,24 @@ export function init(ctx) {
 
   return {
     render,
+    snapshot: () => ({
+      rangeMode,
+      filters: filters(),
+      shown,
+      episodesShown,
+      chartWindow,
+      charts: [...$("history-charts").querySelectorAll("[data-chart]")].map((card) => [
+        card.dataset.chart,
+        card.querySelector("[data-inspect]").value,
+      ]),
+      matrix: matrix.snapshot(),
+      summary: {
+        range: $("sum-range").value,
+        notes: $("sum-notes").checked,
+        focus: $("sum-focus").checked,
+        preview: !$("summary-preview").hidden,
+      },
+    }),
     show() {
       render();
     },

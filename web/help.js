@@ -1,5 +1,6 @@
 // Task-focused help lives in the app and remains available offline.
 import { energyCopy, themeOf } from "./energy-theme.js";
+import { applyRegion } from "./region.js";
 import { $, html, raw, setHTML } from "./util.js";
 
 export function init(ctx) {
@@ -38,7 +39,7 @@ export function init(ctx) {
       "episodes",
       "Episodes",
       "Record symptoms and finish an ongoing episode",
-      html`<p>Enter when symptoms started, what you noticed, how they came on, a duration and anything relevant from the day or two before. Notes are optional. Save episode to add it to your history.</p><p>Still going keeps an episode visible in Today and Episode. Choose Record when it ended to finish it. An exact end time is optional; it must be between the start and now.</p><p>New times use this device's time zone. Existing captures retain their recorded offset when you edit them. Older records may have no offset.</p><div class="warn"><b>Call 999</b> if symptoms come on suddenly, or with weakness, face drooping, speech problems or severe headache. Don't log first. Outside the UK, use your local emergency number.</div><button class="secondary" data-help-go="episode">Open Episode</button>`,
+      html`<p>Enter when symptoms started, what you noticed, how they came on, a duration and anything relevant from the day or two before. Notes are optional. Save episode to add it to your history.</p><p>Still going keeps an episode visible in Today and Episode. Choose Record when it ended to finish it. An exact end time is optional; it must be between the start and now.</p><p>New times use this device's time zone. Existing captures retain their recorded offset when you edit them. Older records may have no offset.</p><div class="warn"><b data-emergency-call>Call your local emergency number</b> if symptoms come on suddenly, or with weakness, face drooping, speech problems or severe headache. Don't log first.</div><button class="secondary" data-help-go="episode">Open Episode</button>`,
     ],
     [
       "history",
@@ -85,6 +86,8 @@ export function init(ctx) {
   ];
   const list = $("help-topics"),
     search = $("help-search");
+  const saved = ctx.ui?.get("help") || {};
+  search.value = typeof saved.query === "string" ? saved.query.slice(0, 2000) : "";
   let role, theme;
   function mount() {
     if (role === ctx.me.role && theme === themeOf(ctx)) return;
@@ -132,12 +135,15 @@ export function init(ctx) {
   }
   return {
     open,
+    snapshot: () => ({ query: search.value }),
     render() {
       mount();
+      applyRegion(ctx.store?.view("settings")?.profile?.region, list);
       filter();
     },
     show() {
       mount();
+      applyRegion(ctx.store?.view("settings")?.profile?.region, list);
       filter();
     },
   };

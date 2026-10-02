@@ -155,7 +155,7 @@ const ADMIN_SECTIONS = [
   },
 ];
 
-function initAdminNavigation(panel) {
+function initAdminNavigation(panel, ctx) {
   const workspace = document.createElement("div");
   workspace.className = "admin-workspace";
   setHTML(
@@ -243,7 +243,8 @@ function initAdminNavigation(panel) {
     },
     true,
   );
-  select("people");
+  const saved = ctx.ui?.get("admin").section;
+  select(ADMIN_SECTIONS.some((section) => section.id === saved) ? saved : "people");
 }
 
 // mount adds the Admin tab and its panel to the page and returns the view; destroy takes them away again.
@@ -266,10 +267,16 @@ export function mount(ctx) {
   panel.setAttribute("aria-labelledby", "t-admin");
   panel.innerHTML = MARKUP;
   $("account-panel").after(panel);
-  initAdminNavigation(panel);
+  initAdminNavigation(panel, ctx);
   const view = wire(ctx);
   return {
     ...view,
+    snapshot: () => ({
+      auditShown: Math.max(30, $("audit").children.length),
+      encryptBackup: $("backup-encrypt").checked,
+      section: panel.querySelector('[data-admin-section][aria-selected="true"]').dataset
+        .adminSection,
+    }),
     destroy() {
       view.destroy();
       tab.remove();
@@ -280,6 +287,7 @@ export function mount(ctx) {
 
 function wire(ctx) {
   const { me } = ctx;
+  const savedUI = ctx.ui?.get("admin") || {};
   const services = initServices(ctx);
   let factorResetTarget = "";
   $("factor-reset-cancel").addEventListener("click", () => {
@@ -344,6 +352,7 @@ function wire(ctx) {
   }
 
   function renderUsers() {
+    ctx.ui?.details($("users"));
     setHTML(
       $("users"),
       html`${users.map((u) => {
@@ -354,7 +363,7 @@ function wire(ctx) {
         ${
           self
             ? ""
-            : html`<details class="admin-user-actions"><summary>Manage account</summary><div class="actions">
+            : html`<details class="admin-user-actions" id="admin-user-actions-${u.id}"><summary>Manage account</summary><div class="actions">
           <button class="secondary small" data-act="reset">Reset password</button>
           <button class="secondary small" data-act="signout"${u.sessions ? "" : " disabled"}>Sign out everywhere</button>
           <button class="secondary small" data-act="${u.disabled ? "enable" : "disable"}">${u.disabled ? "Enable" : "Disable"}</button>
@@ -366,6 +375,7 @@ function wire(ctx) {
       </li>`;
       })}`,
     );
+    ctx.ui?.details($("users"), true);
   }
 
   function reveal(who, pw) {
@@ -495,10 +505,14 @@ function wire(ctx) {
     });
   });
 
-  async function loadAudit(fresh) {
+  async function loadAudit(fresh, restore = false) {
+    const target = restore
+      ? Math.max(30, $("audit").children.length, Math.min(3000, Number(savedUI.auditShown) || 30))
+      : 30;
+    const limit = fresh ? Math.min(100, target) : 30;
     const r = await api(
       "GET",
-      "/api/admin/audit?limit=30" + (fresh || !oldest ? "" : "&before=" + oldest),
+      "/api/admin/audit?limit=" + limit + (fresh || !oldest ? "" : "&before=" + oldest),
     );
     if (!$("audit-msg")) return;
     if (!r.ok) {
@@ -514,12 +528,22 @@ function wire(ctx) {
     if (fresh) setHTML($("audit"), html`${r.data.map(line)}`);
     else appendHTML($("audit"), html`${r.data.map(line)}`);
     if (r.data.length) oldest = r.data[r.data.length - 1].id;
-    $("audit-more").hidden = r.data.length < 30;
+    $("audit-more").hidden = r.data.length < limit;
+    while (restore && $("audit").children.length < target && !$("audit-more").hidden) {
+      if (!(await loadAudit(false))) break;
+    }
+    ctx.ui?.set("admin", {
+      ...ctx.ui.get("admin"),
+      auditShown: Math.max(30, $("audit").children.length),
+    });
+    return r.data.length > 0;
   }
   $("users-retry").addEventListener("click", () => loadUsers());
   $("audit-refresh").addEventListener("click", () => loadAudit(true));
   $("audit-more").addEventListener("click", () => loadAudit(false));
 
+  $("backup-encrypt").checked = savedUI.encryptBackup === true;
+  $("backup-encryption-fields").hidden = !$("backup-encrypt").checked;
   $("backup-encrypt").addEventListener("change", () => {
     $("backup-encryption-fields").hidden = !$("backup-encrypt").checked;
     if (!$("backup-encrypt").checked) {
@@ -753,11 +777,13 @@ function wire(ctx) {
         loaded = true;
         $("reveal").hidden = true;
       }
-      services.load();
-      loadUsers();
-      loadAudit(true);
-      loadConnection();
-      loadProductDefaults();
+      return Promise.all([
+        services.load(),
+        loadUsers(),
+        loadAudit(true, true),
+        loadConnection(),
+        loadProductDefaults(),
+      ]);
     },
   };
 }

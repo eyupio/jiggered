@@ -27,7 +27,7 @@
     <link rel="stylesheet" href="/style.css" />
     <link rel="stylesheet" href="/dashboard.css" />
   </head>
-  <body class="app-shell" data-view="today">
+  <body class="app-shell app-loading" data-view="today">
     <a class="app-skip" href="#view-heading">Skip to your dashboard</a>
     <div class="wrap">
       <header>
@@ -141,6 +141,8 @@
           Account
         </button>
       </nav>
+
+      <p class="view-loading meta" role="status">Opening your saved view…</p>
 
       <section role="tabpanel" aria-labelledby="t-today" id="today-panel">
         <div
@@ -280,7 +282,7 @@
                 aria-hidden="true"
               ></span
             ></label>
-            <details class="hint">
+            <details class="hint" id="sleep-explanation">
               <summary><span data-energy-copy="How points work">How points work</span></summary>
               <p>
                 <span
@@ -366,8 +368,8 @@
 
       <section role="tabpanel" aria-labelledby="t-episode" id="episode-panel" hidden>
         <div class="warn">
-          <b>Call 999</b> if symptoms come on suddenly, or with weakness, face drooping, speech
-          problems or severe headache. Don't log first.
+          <b data-emergency-call>Call your local emergency number</b> if symptoms come on suddenly,
+          or with weakness, face drooping, speech problems or severe headache. Don't log first.
         </div>
         <details class="panel" id="episode-drafts" hidden>
           <summary>Unfinished episode drafts on this device</summary>
@@ -664,6 +666,28 @@
             </button>
           </div>
           <form id="profile-form">
+            <div class="profile-photo-picker">
+              <div class="profile-avatar" id="profile-photo-preview" aria-hidden="true">J</div>
+              <div>
+                <label class="field" for="profile-photo"
+                  >Profile photo
+                  <input
+                    id="profile-photo"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    aria-describedby="profile-photo-hint profile-photo-msg"
+                  />
+                </label>
+                <button type="button" class="secondary small" id="profile-photo-remove" disabled>
+                  Remove photo
+                </button>
+              </div>
+            </div>
+            <p class="hint" id="profile-photo-hint">
+              Optional and private. JPEG, PNG or WebP, up to 8 MB. Your photo is cropped to a
+              square.
+            </p>
+            <p class="msg" id="profile-photo-msg" role="status"></p>
             <label class="field"
               >Display name<input
                 id="profile-name"
@@ -700,9 +724,22 @@
               ></label>
             </div>
             <p class="hint">
-              Appearance applies when you save. Your starting history period applies the next time
-              you open the app.
+              Appearance applies when you save. The starting period is used until you choose another
+              in History; your last view is remembered on refresh.
             </p>
+            <label class="field" for="profile-region"
+              >Current country or region
+              <select
+                id="profile-region"
+                name="region"
+                aria-describedby="profile-region-hint profile-region-preview"
+              ></select>
+            </label>
+            <p class="hint" id="profile-region-hint">
+              Used for emergency warnings when you save. Update this when travelling. For other
+              regions, we show “your local emergency number”.
+            </p>
+            <p class="meta" id="profile-region-preview"></p>
             <fieldset class="energy-theme-picker" aria-describedby="energy-theme-hint">
               <legend>Energy language</legend>
               <p class="hint" id="energy-theme-hint">
@@ -752,7 +789,7 @@
                 ><b id="energy-theme-preview">8 points left today</b
                 ><span class="meta">A 2-point activity leaves 6 points.</span>
               </div>
-              <details class="hint">
+              <details class="hint" id="energy-theme-explanation">
                 <summary>About spoon theory</summary>
                 <p>
                   Christine Miserandino's spoon theory uses spoons as a metaphor for the energy
