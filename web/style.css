@@ -547,3 +547,22 @@ input[type=search] { font:inherit; width:100%; padding:10px; border:1px solid va
   header{min-height:48px}
 }
 
+
+/* Logged activity editor: clear metadata and stable, touch-friendly actions. */
+#activity-log{margin-top:8px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+#activity-log>summary{display:flex;align-items:center;gap:10px;list-style:none;cursor:pointer;padding:14px 16px;font-weight:700;color:var(--accent);background:var(--bg)}
+#activity-log>summary::-webkit-details-marker{display:none}
+#activity-log>summary::before{content:"›";font-size:1.3em;line-height:1;transform:rotate(0deg)}
+#activity-log[open]>summary::before{transform:rotate(90deg)}
+#activity-log>summary:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+#activity-log[open]>summary{border-bottom:1px solid var(--line)}
+#entries{padding:0 16px;gap:0}
+#entries>li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:16px 0}
+.logged-activity{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;min-width:0}
+.logged-time{grid-column:1/-1;font-size:.78rem;font-variant-numeric:tabular-nums}
+.logged-name{overflow-wrap:anywhere;line-height:1.45}
+.logged-cost{white-space:nowrap;font-variant-numeric:tabular-nums;align-self:start;line-height:1.45}
+.logged-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.logged-actions button{min-height:44px;min-width:76px;margin:0;padding:8px 12px;font-size:.86rem;line-height:1.2;border-radius:8px;text-decoration:none}
+.logged-actions .logged-remove{color:var(--red);border-color:color-mix(in srgb,var(--red) 45%,var(--line))}
+@media(max-width:600px){#entries>li{grid-template-columns:minmax(0,1fr);gap:12px}.logged-actions{width:100%}.logged-actions button{width:100%}}
