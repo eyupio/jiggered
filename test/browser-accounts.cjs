@@ -21,7 +21,13 @@ const context=await browser.newContext({viewport:{width:1440,height:1000}});cons
 await page.goto(base+'/');await page.locator('#hero-title').waitFor();
 await page.locator('[data-register-link]').first().filter({hasText:'Sign in'}).waitFor();
 assert.equal(await page.locator('[data-register-link]').first().getAttribute('href'),'/login');
+assert.equal(await page.locator('#registration-status').textContent(),'REGISTRATION CLOSED');
+assert.match(await page.locator('[data-registration-copy]').first().textContent(),/currently closed/);
 assert.equal(await page.locator('link[rel=canonical]').getAttribute('href'),'/welcome');
+await page.route('**/api/auth/options',route=>route.fulfill({status:503,body:'Unavailable'}));
+await page.goto(base+'/welcome');await page.locator('#registration-status').filter({hasText:'SIGNUP AVAILABILITY UNKNOWN'}).waitFor();
+assert.match(await page.locator('[data-registration-copy]').first().textContent(),/couldn’t check/);
+await page.unroute('**/api/auth/options');
 await page.goto(base+'/register');await page.locator('#auth-options-status').filter({hasText:'Registration is closed'}).waitFor();
 assert.equal(await page.locator('#register-form').isVisible(),false);
 await page.goto(base+'/login');await page.locator('#username').fill('admin');await page.locator('#password').fill('preview-password1');await page.locator('#signin-form [type=submit]').click();await page.locator('#t-admin').click();await page.locator('#svc-status').filter({hasText:'Paused'}).waitFor();
@@ -41,7 +47,12 @@ await page.setViewportSize({width:390,height:844});await page.locator('#t-admin'
 await page.locator('#t-account').click();await page.locator('#security-panel').scrollIntoViewIfNeeded();await screenshot(page,'account-security-mobile.png');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'mobile account overflow');
 // Exercise signup, verification, recovery and new-password sign-in through real forms and a local relay.
 const adminCookies=await context.cookies();await page.close();await context.clearCookies();const visitor=context,join=await visitor.newPage();await join.setViewportSize({width:320,height:780});join.on('pageerror',e=>errors.push(e.message));
-await join.goto(base+'/');await join.locator('[data-register-link]').first().click();await join.locator('#register-form').waitFor();
+await join.goto(base+'/');await join.locator('#registration-status').filter({hasText:'OPEN FOR REGISTRATION'}).waitFor();
+assert.match(await join.locator('[data-registration-copy]').first().textContent(),/Registration is open/);
+assert.equal(await join.locator('[data-register-link]').last().getAttribute('href'),'/register');
+assert.equal(await join.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'mobile landing overflow');
+await screenshot(join,'open-registration-landing-mobile.png');
+await join.locator('[data-register-link]').first().click();await join.locator('#register-form').waitFor();
 await join.locator('#register-name').fill('newmember');await join.locator('#register-email').fill('member@example.com');await join.locator('#register-password').fill('member-password1');await join.locator('#register-confirm').fill('different-password1');
 await join.locator('#register-form [type=submit]').click();await join.locator('#register-msg').filter({hasText:'passwords do not match'}).waitFor();
 await join.locator('[aria-controls=register-password]').click();assert.equal(await join.locator('#register-password').getAttribute('type'),'text');await join.locator('[aria-controls=register-password]').click();
