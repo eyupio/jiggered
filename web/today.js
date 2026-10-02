@@ -227,7 +227,7 @@ export function init(ctx) {
     renderOnboarding(S, past);
 
     $("activity-log").hidden = !d.entries.length;
-    setHTML($("entries"), html`${d.entries.map((e, i) => html`<li><span><span class="meta">${e.t}</span> ${e.a} <b>${costLabel(e.c)}</b></span><span class="row"><button class="x" data-entry="${e.id}" data-action="edit" aria-label="Edit ${e.a}">Edit</button><button class="x" data-entry="${e.id}" data-action="remove" aria-label="Remove ${e.a}">Remove</button></span></li>`)}`);
+    setHTML($("entries"), html`${d.entries.map((e, i) => html`<li><div class="logged-activity"><span class="meta logged-time">${e.t || "Time not set"}</span><span class="logged-name">${e.a}</span><b class="logged-cost">${costLabel(e.c)}</b></div><div class="logged-actions"><button type="button" class="secondary logged-edit" data-entry="${e.id}" data-action="edit" aria-label="Edit ${e.a}">Edit</button><button type="button" class="secondary logged-remove" data-entry="${e.id}" data-action="remove" aria-label="Remove ${e.a}">Remove</button></div></li>`)}`);
   }
 
   function renderOnboarding(S, past) {
