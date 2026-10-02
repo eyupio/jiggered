@@ -1,7 +1,7 @@
 // Pure history analytics. Calendar gaps stay gaps; points use each day's recorded allowance.
 import { addDays, listDays, listEpisodes, selectHistory, used, capOf, activityDays, averageNet } from "./model.js";
 
-export const HISTORY_RANGES = [["7", "7 days"], ["30", "30 days"], ["90", "90 days"], ["365", "1 year"], ["all", "All time"]];
+export const HISTORY_RANGES = [["7", "7 days"], ["30", "30 days"], ["90", "90 days"], ["180", "180 days"], ["365", "365 days"], ["all", "All time"]];
 const DAY = 86400000;
 const ordinal = key => Date.parse(key + "T12:00:00Z") / DAY;
 const validDates = new Map(); // a few thousand distinct dates are checked again and again; each is worked out once
@@ -80,3 +80,4 @@ export function historyInsights(docs, S, today, filters = {}) {
     activities: [...activities.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)).slice(0, 6),
   };
 }
+

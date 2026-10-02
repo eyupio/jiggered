@@ -226,8 +226,8 @@ export function init(ctx) {
     renderActivities(S);
     renderOnboarding(S, past);
 
+    $("activity-log").hidden = !d.entries.length;
     setHTML($("entries"), html`${d.entries.map((e, i) => html`<li><span><span class="meta">${e.t}</span> ${e.a} <b>${costLabel(e.c)}</b></span><span class="row"><button class="x" data-entry="${e.id}" data-action="edit" aria-label="Edit ${e.a}">Edit</button><button class="x" data-entry="${e.id}" data-action="remove" aria-label="Remove ${e.a}">Remove</button></span></li>`)}`);
-    $("noentries").hidden = d.entries.length > 0;
   }
 
   function renderOnboarding(S, past) {
@@ -248,4 +248,5 @@ export function init(ctx) {
 
   return { render, open, day: () => viewDate, show() { if (entryForm.hidden) restoreDraft(); render() } };
 }
+
 
