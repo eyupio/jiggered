@@ -9,7 +9,7 @@
     <title>Jiggered — Understand your energy. Find your rhythm.</title>
     <meta
       name="description"
-      content="A calmer way to track energy and symptoms at your own pace. A free hosted service and an open-source, self-hosted option are planned for Jiggered."
+      content="A calmer way to track energy and symptoms at your own pace. Start a personal log with free hosted Jiggered. An open-source release is planned."
     />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Jiggered" />
@@ -59,7 +59,7 @@
       <div class="nav-actions">
         <a class="text-link" href="/login">Log in</a
         ><a class="p-button small" href="/register" data-register-link
-          >Get started
+          >Sign up
           <span aria-hidden="true"
             ><svg
               viewBox="0 0 24 24"
@@ -84,7 +84,7 @@
       <meta itemprop="operatingSystem" content="Web" />
       <meta
         itemprop="description"
-        content="Daily energy and symptom tracker with separate personal logs. Free hosting and an open-source release are planned."
+        content="Daily energy and symptom tracker with separate personal logs and a free hosted option. An open-source release is planned."
       />
       <section class="hero shell" aria-labelledby="hero-title">
         <div class="hero-copy">
@@ -101,7 +101,7 @@
           </p>
           <div class="hero-actions">
             <a class="p-button" href="/register" data-register-link
-              >Find your rhythm
+              >Create your free account
               <span aria-hidden="true"
                 ><svg
                   viewBox="0 0 24 24"
@@ -121,7 +121,9 @@
               >Take a look <span aria-hidden="true">↓</span></a
             >
           </div>
-          <p class="quiet-note">A private space. No pressure to do more.</p>
+          <p class="quiet-note">
+            Your own personal log. Verify your email to get started.
+          </p>
         </div>
         <div
           class="hero-art"
@@ -291,24 +293,33 @@
           <p class="eyebrow">TWO WAYS TO MAKE IT YOURS</p>
           <h2 id="choice-title">Your rhythm.<br />Your choice.</h2>
           <p>
-            We’re planning a free hosted service alongside an open-source
-            release. Choose a simple place to start, or a space you run
-            yourself.
+            Start with free hosting. An open-source release is also planned for
+            people who want a space they run themselves.
           </p>
         </div>
         <div class="choice-grid">
           <article class="choice-card">
-            <span class="choice-status">COMING SOON</span>
+            <span class="choice-status" id="registration-status" role="status"
+              >CHECKING SIGNUP AVAILABILITY</span
+            >
             <h3>A home, ready for you.</h3>
             <p class="choice-price">Free hosted service</p>
             <p>
-              A place to check in without running a server. We’ll take care of
+              A place to check in without running a server. We take care of
               hosting so you can focus on your days.
             </p>
-            <p class="choice-detail">
-              Free hosting is planned. Launch details will be shared here when
-              it’s ready.
+            <p
+              class="choice-detail"
+              data-registration-copy
+              data-open="Registration is open. Create your free account, verify your email, and make your first check-in."
+              data-closed="Registration is currently closed on this instance. Existing members can still sign in."
+            >
+              Checking registration availability. You’ll verify your email
+              before your account is created.
             </p>
+            <a class="p-button small" href="/register" data-register-link
+              >Create your free account <span aria-hidden="true">↗</span></a
+            >
           </article>
           <article class="choice-card">
             <span class="choice-status">PUBLIC RELEASE PLANNED</span>
@@ -346,8 +357,9 @@
             <div>
               <h3>Make yourself at home</h3>
               <p>
-                Create an account when registration is open, or ask your server
-                administrator for one.
+                Choose a username and password, then follow the verification
+                link in your email. Once verified, sign in and start your
+                personal log.
               </p>
             </div>
           </li>
@@ -407,11 +419,11 @@
         </div>
         <div class="faq-list">
           <details>
-            <summary>Will there be a free hosted version?</summary>
+            <summary>Is the hosted version free?</summary>
             <p>
-              Yes, a free hosted service is planned alongside the open-source
-              release. Hosting is not yet available through this page. We’ll
-              share launch and signup details when it’s ready.
+              Yes. You can use hosted Jiggered for free, without setting up or
+              maintaining a server. Check the registration status above to see
+              whether this instance is accepting new accounts.
             </p>
           </details>
           <details>
@@ -432,11 +444,13 @@
           </details>
           <details>
             <summary>Can I create an account here?</summary>
-            <p>
-              Registration is available when this server’s administrator enables
-              it and configures email. You’ll verify your email before your
-              account is created. Otherwise, ask the administrator for an
-              account.
+            <p
+              data-registration-copy
+              data-open="Yes. Choose Create your free account, enter your details, and follow the verification link in your email. Your account is created after verification."
+              data-closed="Registration is currently closed on this instance. Sign in with an existing account, or contact the administrator for access."
+            >
+              Check registration availability above. New accounts require email
+              verification.
             </p>
           </details>
           <details>
@@ -461,7 +475,7 @@
         <h2>Start with how you feel.</h2>
         <p>One small check-in. Your own pace.</p>
         <a class="p-button" href="/register" data-register-link
-          >Find your rhythm
+          >Create your free account
           <span aria-hidden="true"
             ><svg
               viewBox="0 0 24 24"

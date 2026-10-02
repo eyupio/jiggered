@@ -134,9 +134,16 @@ action. These choices do not alter other users' records. Exported backups and re
 
 ## People and the admin
 
-The project plans a public open-source release and a free hosted service. The landing page presents both as
-planned until launch details are ready. This does not change repository visibility, select a license, deploy a
-hosted instance, or enable registration. Hosting and licensing details should be finalized before announcing availability.
+The landing page presents the free hosted option and a planned public open-source release. Signup availability
+follows the instance’s `/api/auth/options` response: open registration shows signup calls to action and email-verification
+instructions; closed registration shows sign-in links and a closed notice. An unavailable settings request shows an
+unknown status. Repository visibility and licensing remain separate from hosted registration.
+
+To open registration on the hosted instance, configure and test SMTP under **Admin → Off-site backups & email**,
+then set the trusted HTTPS **Public application URL**, enable **Registration** (and **Password recovery** if wanted), and save
+with your current admin password. Visit `/welcome` and `/register` signed out to confirm signup is offered.
+Complete an email-verification signup before announcing the launch. SMTP credentials stay in the instance’s
+service settings; do not commit them or enable registration by default for other installations.
 
 Registration is closed by default. Create the first account, an admin, from the command line (see **Run it**).
 Signed-out visitors see the public landing page at `/`; `/welcome` is always the public page, including while signed in.

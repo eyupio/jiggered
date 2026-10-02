@@ -8,7 +8,16 @@ const authOptions = fetch("/api/auth/options", {
 });
 authOptions
   .then((options) => {
-    if (!options.registration)
+    const open = options.registration === true;
+    const status = document.getElementById("registration-status");
+    if (status)
+      status.textContent = open
+        ? "OPEN FOR REGISTRATION"
+        : "REGISTRATION CLOSED";
+    document.querySelectorAll("[data-registration-copy]").forEach((el) => {
+      el.textContent = open ? el.dataset.open : el.dataset.closed;
+    });
+    if (!open)
       document.querySelectorAll("[data-register-link]").forEach((link) => {
         link.href = "/login";
         link.firstChild.textContent = link.classList.contains("small")
@@ -16,7 +25,14 @@ authOptions
           : "Open your personal log ";
       });
   })
-  .catch(() => {});
+  .catch(() => {
+    const status = document.getElementById("registration-status");
+    if (status) status.textContent = "SIGNUP AVAILABILITY UNKNOWN";
+    document.querySelectorAll("[data-registration-copy]").forEach((el) => {
+      el.textContent =
+        "We couldn’t check registration availability. Open the account page to try again.";
+    });
+  });
 
 if (document.getElementById("signin-form")) initAuth();
 
