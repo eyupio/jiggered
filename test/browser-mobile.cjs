@@ -1,7 +1,7 @@
 // Real-browser checks at phone width. Account: the page is short until a list is opened, a shortcut opens exactly the
 // list it names, collapsing keeps what was typed, and a validation error opens the list it is in. History: with almost
-// no data the overview is compact, and the Records and Share shortcuts only scroll and focus (filters stay put) and
-// are not hidden under the sticky tab bar. Episodes: an offline save that is recovered across a reload still ends with
+// no data the calendar remains available, optional sections keep filters in place, and Prepare summary moves focus
+// clear of the sticky tab bar. Episodes: an offline save that is recovered across a reload still ends with
 // a truthful confirmation and reaches the server.
 // Needs Playwright (see the README); run with `node test/browser-mobile.cjs`. It builds a temporary binary and database.
 const assert = require("node:assert/strict");
@@ -115,7 +115,7 @@ runBrowser({ name: "mobile", portEnv: "JIGGERED_MOBILE_PORT" }, async (harness) 
     "no horizontal overflow at phone width",
   );
 
-  // 5. History with one day and one episode: compact overview, and shortcuts that reach the records and sharing.
+  // 5. History with one day and one episode: calendar, optional detail and a summary using the current search.
   await page.evaluate(async () => {
     const today = new Date(),
       pad = (n) => String(n).padStart(2, "0"),
@@ -178,14 +178,16 @@ runBrowser({ name: "mobile", portEnv: "JIGGERED_MOBILE_PORT" }, async (harness) 
   }
   await page.locator("#history-prepare").click();
   await page.waitForFunction(() => {
-    const heading = document.querySelector("#history-share h2").getBoundingClientRect();
+    const heading = document.querySelector("#history-share > summary h2").getBoundingClientRect();
     const nav = document.querySelector("nav").getBoundingClientRect();
     return (
       heading.top >= (nav.top > innerHeight / 2 ? 0 : nav.bottom) && heading.top < innerHeight - 100
     );
   });
   assert.equal(
-    await page.locator("#history-share h2").evaluate((el) => el === document.activeElement),
+    await page
+      .locator("#history-share > summary h2")
+      .evaluate((el) => el === document.activeElement),
     true,
   );
   assert.equal(await page.locator("#summary-preview").isVisible(), true);
@@ -225,7 +227,7 @@ runBrowser({ name: "mobile", portEnv: "JIGGERED_MOBILE_PORT" }, async (harness) 
   );
   assert.deepEqual(errors, []);
   console.log(
-    `PASS: Account lists (${height}px tall when closed): counts, one list per shortcut, values survive collapsing, an error opens its list. History (${historyHeight}px with one day and one episode): compact overview, Records/Share/Overview shortcuts keep the search and clear the tab bar. Offline episode save recovered across a reload ends with Saved.`,
+    `PASS: Account lists (${height}px tall when closed): counts, one list per shortcut, values survive collapsing, an error opens its list. History (${historyHeight}px with one day and one episode): calendar, optional sections and Prepare summary keep the search and clear the tab bar. Offline episode save recovered across a reload ends with Saved.`,
   );
 }).catch((error) => {
   console.error(error);
