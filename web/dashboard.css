@@ -1375,3 +1375,16 @@
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
   }
 }
+
+.app-shell #usage-report {
+  min-width: 0;
+  overflow-x: auto;
+}
+.app-shell #usage-report table {
+  width: 100%;
+}
+.app-shell #usage-report th,
+.app-shell #usage-report td {
+  padding: 8px;
+  text-align: left;
+}

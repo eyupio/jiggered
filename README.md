@@ -631,7 +631,7 @@ The feature review is in [FEATURES_AUDIT.md](FEATURES_AUDIT.md); the implementat
   Events are retained for up to 90 days; users can disable and erase theirs, account deletion erases them,
   and admins can clear all counts. No external analytics or new service costs; operators take on local
   storage and privacy responsibility. Counts measure acknowledged sync batches and explicit views/exports,
-  not unique user records or clinical outcomes. Print requests are separate from generated exports because browser print completion cannot be confirmed. Recovery acknowledgements are counted separately when refused operations save after retry.
+  not unique user records or clinical outcomes. Save failures count entering a page state with unresolved refused changes, including reloads; they are not a count of all failed HTTP requests. Print requests are separate from generated exports because browser print completion cannot be confirmed. Recovery acknowledgements are counted separately when refused operations save after retry.
 
 Schema upgrades take the existing automatic pre-upgrade backup. Whole-instance restore also clears queued
 account-email payloads so restoring cannot resend old authentication links. Do not run an older build on

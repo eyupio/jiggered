@@ -123,7 +123,7 @@ func TestAccountMailRetriesAreBoundedAndErasePayload(t *testing.T) {
 	c := e.newClient()
 	c.login(adminName, adminPass)
 	cfg := testServices(t, e)
-	cfg.Email = emailSettings{Enabled: true, Host: "127.0.0.1", Port: 1, TLS: "none", From: "jiggered@example.com", To: []string{}}
+	cfg.Email = emailSettings{Enabled: true, Host: "127.0.0.1", Port: 1, TLS: "none", From: "jiggered@example.com", To: []string{"operator@example.com"}}
 	cfg.Accounts = accountSettings{Recovery: true, PublicURL: "https://jiggered.example.com"}
 	saveTestServices(t, e, c, cfg)
 	token := "retry-token"

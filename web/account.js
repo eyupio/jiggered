@@ -44,7 +44,10 @@ export function init(ctx) {
   identity(ctx);
   async function loadUsage() {
     const r = await api("GET", "/api/me");
-    if (!r.ok || !r.data.usage) return;
+    if (!r.ok || !r.data.usage) {
+      $("account-usage").textContent = "Could not load storage usage. Reopen Account to retry.";
+      return;
+    }
     const u = r.data.usage;
     $("account-usage").textContent =
       `${u.docs} of ${u.max_docs} records · ${(u.bytes / 1048576).toFixed(1)} of ${(u.max_bytes / 1048576).toFixed(0)} MB used.${u.docs >= u.max_docs * 0.9 || u.bytes >= u.max_bytes * 0.9 ? " Near the limit: export a copy and contact your instance administrator. Records are never removed automatically." : ""}`;
@@ -342,11 +345,11 @@ export function init(ctx) {
           const backup = await api("GET", "/api/export");
           if (!backup.ok)
             throw new Error("Could not download the pre-restore backup. " + backup.error);
-          ctx.measure("export_created");
           downloadFile(
             `jiggered-before-restore-${new Date().toISOString().replace(/[:.]/g, "-")}.json`,
             JSON.stringify(backup.data, null, 2),
           );
+          ctx.measure("export_created");
           const r = await api("POST", "/api/restore?mode=" + preview.mode, preview.data, {
             "If-Match": preview.token,
           });
@@ -362,7 +365,10 @@ export function init(ctx) {
             `Restored ${r.data.imported} records; kept ${r.data.skipped} matching records. Your pre-restore backup was downloaded.`,
           );
         });
-        if (restored) await ctx.store.load();
+        if (restored) {
+          await ctx.store.load();
+          await loadUsage();
+        }
       } catch (error) {
         say($("import-msg"), error.message, true);
       }
@@ -394,8 +400,8 @@ export function init(ctx) {
         );
       const r = await api("GET", "/api/export");
       if (!r.ok) return say($("export-msg"), r.error, true);
-      ctx.measure("export_created");
       downloadFile(`jiggered-${ctx.today()}.json`, JSON.stringify(r.data, null, 2));
+      ctx.measure("export_created");
       say($("export-msg"), "Server data downloaded.");
     }),
   );
@@ -416,6 +422,7 @@ export function init(ctx) {
     snapshot: () => ({
       importMode: document.querySelector('input[name="import-mode"]:checked').value,
     }),
+    refreshUsage: loadUsage,
     render() {
       renderSettings();
       profile.render();

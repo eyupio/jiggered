@@ -198,7 +198,11 @@ function fatal(text) {
       updateSync();
     },
     onAuthLost: toSignIn,
-    onTask: (event) => ready && ctx.measure(event),
+    onTask: (event) => {
+      if (!ready) return;
+      ctx.measure(event);
+      if (active === "account") views.account.refreshUsage();
+    },
   });
 
   storage?.onChange?.(() => {

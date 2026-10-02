@@ -222,6 +222,8 @@ export function init(ctx) {
   function nameCount() {
     const count = [...$("entry-name").value.trim()].length;
     $("entry-name-count").textContent = `${count} / 60 characters`;
+    $("entry-name-count").classList.toggle("err", count > 60);
+    $("entry-name").setAttribute("aria-invalid", String(count > 60));
     $("entry-name").setCustomValidity(count > 60 ? "Use at most 60 characters." : "");
   }
   $("entry-name").addEventListener("input", nameCount);
