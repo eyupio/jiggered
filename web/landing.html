@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <title>Jiggered — Understand your energy. Find your rhythm.</title>
+    <meta
+      name="description"
+      content="A calmer way to track daily energy, activities and symptom episodes. Jiggered is a private, self-hosted personal log that helps you notice patterns at your own pace."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Jiggered" />
+    <meta
+      property="og:title"
+      content="Understand your energy. Find your rhythm."
+    />
+    <meta
+      property="og:description"
+      content="Daily energy check-ins, symptom tracking and a clearer picture of your days. A personal log, at your own pace."
+    />
+    <meta property="og:image" content="/icon-512.png" />
+    <meta property="og:image:alt" content="Jiggered brand mark" />
+    <link rel="canonical" href="/welcome" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Jiggered — Find your rhythm" />
+    <meta
+      name="twitter:description"
+      content="A calmer, private way to understand your daily energy and symptoms."
+    />
+    <meta name="theme-color" content="#edf2e7" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link
+      rel="preload"
+      href="/fonts/bricolage-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/presence.css" />
+  </head>
+  <body class="presence landing-page">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header shell">
+      <a class="wordmark" href="/welcome" aria-label="Jiggered home"
+        ><img src="/icon.svg" width="34" height="34" alt="" />jiggered<span
+          class="brand-dot"
+          >.</span
+        ></a
+      >
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="#features">The little things</a
+        ><a href="#how-it-works">How it works</a
+        ><a href="#privacy">Your privacy</a>
+      </nav>
+      <div class="nav-actions">
+        <a class="text-link" href="/login">Log in</a
+        ><a class="p-button small" href="/register" data-register-link
+          >Get started
+          <span aria-hidden="true"
+            ><svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M6 18 18 6M6 6h12v12"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              /></svg></span
+        ></a>
+      </div>
+    </header>
+    <main id="main" itemscope itemtype="https://schema.org/SoftwareApplication">
+      <meta itemprop="name" content="Jiggered" />
+      <meta itemprop="applicationCategory" content="LifestyleApplication" />
+      <meta itemprop="operatingSystem" content="Web" />
+      <meta
+        itemprop="description"
+        content="Self-hosted daily energy and symptom tracker with private personal logs."
+      />
+      <section class="hero shell" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">
+            <span class="status-dot"></span> A little clarity. A little more
+            you.
+          </p>
+          <h1 id="hero-title">
+            Your energy.<br />Your pace.<br /><span>Your rhythm.</span>
+          </h1>
+          <p class="hero-description">
+            Some days you’ve got more to give. Some days, less. Get to know your
+            energy with a personal log that meets you where you are.
+          </p>
+          <div class="hero-actions">
+            <a class="p-button" href="/register" data-register-link
+              >Find your rhythm
+              <span aria-hidden="true"
+                ><svg
+                  viewBox="0 0 24 24"
+                  width="20"
+                  height="20"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M6 18 18 6M6 6h12v12"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  /></svg></span></a
+            ><a class="demo-link" href="#preview"
+              >Take a look <span aria-hidden="true">↓</span></a
+            >
+          </div>
+          <p class="quiet-note">A private space. No pressure to do more.</p>
+        </div>
+        <div
+          class="hero-art"
+          id="preview"
+          aria-label="Illustrative preview of an energy check-in. This is example data."
+        >
+          <div class="orbit orbit-one"></div>
+          <div class="orbit orbit-two"></div>
+          <div class="floating-note note-top">
+            <span aria-hidden="true">✦</span> Every day is a new starting point.
+          </div>
+          <article class="preview-card">
+            <div class="preview-header">
+              <span class="preview-brand"
+                ><img src="/icon.svg" width="23" height="23" alt="" /> My
+                day</span
+              ><span class="preview-badge">Example check-in</span>
+            </div>
+            <p class="preview-date">A moment for yourself</p>
+            <h2>How are you feeling?</h2>
+            <div class="mood-options">
+              <span>Low energy</span
+              ><span class="selected">Somewhere in between</span
+              ><span>Feeling good</span>
+            </div>
+            <div class="energy-ring">
+              <div>
+                <span class="ring-caption">Energy left</span
+                ><strong>6<span>/10</span></strong
+                ><span class="ring-bottom">Room to take it gently</span>
+              </div>
+            </div>
+            <div class="preview-activity">
+              <span class="activity-icon" aria-hidden="true"
+                ><svg
+                  viewBox="0 0 24 24"
+                  width="20"
+                  height="20"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M6 18 18 6M6 6h12v12"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  /></svg
+              ></span>
+              <div>
+                <strong>A short walk</strong><small>A little fresh air</small>
+              </div>
+              <span class="activity-cost">−2</span>
+            </div>
+            <div class="preview-activity">
+              <span class="activity-icon restorative" aria-hidden="true"
+                >☕</span
+              >
+              <div>
+                <strong>Time to recharge</strong
+                ><small>A quiet cup of tea</small>
+              </div>
+              <span class="activity-cost positive">+1</span>
+            </div>
+            <div class="preview-footer">
+              <span class="status-dot"></span> Small moments. A clearer picture.
+            </div>
+          </article>
+          <div class="floating-note note-bottom">
+            <span class="note-icon" aria-hidden="true"
+              ><svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M6 18 18 6M6 6h12v12"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                /></svg
+            ></span>
+            <div>
+              <strong>Patterns, not pressure.</strong
+              ><small>See your days in a different light.</small>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div class="principles shell">
+        <span>Made for real life</span><span>✦ Quick daily check-ins</span
+        ><span>✦ Your own energy budget</span><span>✦ Private by design</span>
+      </div>
+      <section
+        class="features shell"
+        id="features"
+        aria-labelledby="features-title"
+      >
+        <div class="section-heading">
+          <p class="eyebrow">THE LITTLE THINGS ADD UP</p>
+          <h2 id="features-title">Less guesswork.<br />More understanding.</h2>
+          <p>
+            You don’t need another thing to keep up with. Just a simple way to
+            notice what gives, what takes, and how you feel.
+          </p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <div class="mini-checkin" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+            <span class="feature-number">01 / CHECK IN</span>
+            <h3>Start where you are.</h3>
+            <p>
+              A quick energy check-in helps you set a budget for today. No
+              perfect streaks. No catching up.
+            </p>
+          </article>
+          <article class="feature-card tinted">
+            <div class="mini-budget" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span
+              ><span></span><span></span><span></span>
+            </div>
+            <span class="feature-number">02 / FIND BALANCE</span>
+            <h3>Make room for rest.</h3>
+            <p>
+              Log the activities that spend your energy and the moments that
+              restore it. Make your lists your own.
+            </p>
+          </article>
+          <article class="feature-card">
+            <svg
+              class="mini-chart"
+              viewBox="0 0 240 65"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M0 55H240M0 28H240"
+                stroke="#dce3d8"
+                stroke-dasharray="4 5"
+              />
+              <path
+                d="M5 49C25 49 25 12 48 18S74 58 98 40S119 10 143 22S174 50 194 27S219 8 235 15"
+                stroke="#386450"
+                stroke-width="3"
+                stroke-linecap="round"
+              /></svg
+            ><span class="feature-number">03 / NOTICE PATTERNS</span>
+            <h3>Connect the dots.</h3>
+            <p>
+              Record symptom episodes and possible triggers. Explore your
+              history to build a picture of your days.
+            </p>
+          </article>
+        </div>
+      </section>
+      <section
+        class="how-section shell"
+        id="how-it-works"
+        aria-labelledby="how-title"
+      >
+        <div>
+          <p class="eyebrow">A SMALL RITUAL, AT YOUR PACE</p>
+          <h2 id="how-title">
+            A minute for today.<br />A little insight for tomorrow.
+          </h2>
+          <p>
+            Jiggered means “worn out” in Yorkshire. We made a space for those
+            days, and all the days in between.
+          </p>
+        </div>
+        <ol class="steps">
+          <li>
+            <span>1</span>
+            <div>
+              <h3>Make yourself at home</h3>
+              <p>
+                Create an account when registration is open, or ask your server
+                administrator for one.
+              </p>
+            </div>
+          </li>
+          <li>
+            <span>2</span>
+            <div>
+              <h3>Check in, then carry on</h3>
+              <p>
+                Note your energy, activities and symptoms whenever it works for
+                you.
+              </p>
+            </div>
+          </li>
+          <li>
+            <span>3</span>
+            <div>
+              <h3>Look back with curiosity</h3>
+              <p>
+                Explore your history. Find useful patterns without turning life
+                into a score.
+              </p>
+            </div>
+          </li>
+        </ol>
+      </section>
+      <section
+        class="privacy-section shell"
+        id="privacy"
+        aria-labelledby="privacy-title"
+      >
+        <div class="privacy-symbol" aria-hidden="true">
+          <svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
+            <g stroke="currentColor" stroke-width="7" stroke-linecap="round">
+              <path d="M50 7v86M7 50h86M20 20l60 60M20 80l60-60" />
+            </g>
+          </svg>
+        </div>
+        <div>
+          <p class="eyebrow">PERSONAL MEANS PERSONAL</p>
+          <h2 id="privacy-title">Your story stays yours.</h2>
+          <p>
+            Self-hosted, with separate personal logs for each account. No
+            third-party trackers or external fonts. Export your records whenever
+            you need them.
+          </p>
+          <p class="privacy-detail">
+            Admins manage accounts without viewing logs in the app. Server
+            operators can access the database and backups, so use an instance
+            you trust.
+          </p>
+        </div>
+      </section>
+      <section class="faq-section shell" aria-labelledby="faq-title">
+        <div>
+          <p class="eyebrow">A FEW THINGS TO KNOW</p>
+          <h2 id="faq-title">A little more clarity.</h2>
+        </div>
+        <div class="faq-list">
+          <details>
+            <summary>Is Jiggered a medical tool?</summary>
+            <p>
+              No. Jiggered is a personal log, not a medical device or a source
+              of medical advice. It helps you record your experience and notice
+              patterns.
+            </p>
+          </details>
+          <details>
+            <summary>Can I create an account here?</summary>
+            <p>
+              Registration is available when this server’s administrator enables
+              it and configures email. You’ll verify your email before your
+              account is created. Otherwise, ask the administrator for an
+              account.
+            </p>
+          </details>
+          <details>
+            <summary>Can I use it on my phone?</summary>
+            <p>
+              Yes. Jiggered works on phones, tablets and desktops. The signed-in
+              app can be installed on your home screen and supports offline use
+              after setup.
+            </p>
+          </details>
+          <details>
+            <summary>Can I take my records with me?</summary>
+            <p>
+              Yes. Your account includes export options so you can keep a copy
+              of your personal records.
+            </p>
+          </details>
+        </div>
+      </section>
+      <section class="closing shell">
+        <p class="eyebrow">YOU DON’T HAVE TO FIGURE IT ALL OUT TODAY</p>
+        <h2>Start with how you feel.</h2>
+        <p>One small check-in. Your own pace.</p>
+        <a class="p-button" href="/register" data-register-link
+          >Find your rhythm
+          <span aria-hidden="true"
+            ><svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M6 18 18 6M6 6h12v12"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              /></svg></span
+        ></a>
+      </section>
+    </main>
+    <footer class="site-footer shell">
+      <a class="wordmark" href="/welcome"
+        ><img src="/icon.svg" width="28" height="28" alt="" />jiggered.</a
+      >
+      <p>A little understanding goes a long way.</p>
+      <div>
+        <a href="/login">Log in</a><a href="#privacy">Privacy</a
+        ><a href="https://github.com/jnnngs/jiggered">Source code</a>
+      </div>
+      <small>A personal log, not a medical device.</small>
+    </footer>
+    <script src="/login.js" defer></script>
+  </body>
+</html>

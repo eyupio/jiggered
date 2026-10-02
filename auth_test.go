@@ -288,7 +288,7 @@ func TestExpiredSessionIsRejected(t *testing.T) {
 func TestSignedOutRequestsAreRedirectedOrRefused(t *testing.T) {
 	e := newTestServer(t)
 	c := e.newClient()
-	for _, p := range []string{"/", "/app.js", "/index.html"} {
+	for _, p := range []string{"/app.js", "/index.html"} {
 		resp, _ := c.req("GET", p, nil)
 		if resp.StatusCode != 303 || resp.Header.Get("Location") != "/login" {
 			t.Errorf("GET %s signed out = %d -> %q", p, resp.StatusCode, resp.Header.Get("Location"))

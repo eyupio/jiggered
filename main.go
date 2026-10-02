@@ -287,7 +287,7 @@ func envOr(k, def string) string {
 }
 
 // Files the sign-in page and the home-screen icon need before anyone is signed in.
-var publicAssets = []string{"/manifest.webmanifest", "/icon.svg", "/style.css", "/login.js", "/favicon-32.png", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png", "/favicon.ico"}
+var publicAssets = []string{"/manifest.webmanifest", "/icon.svg", "/style.css", "/presence.css", "/login.js", "/robots.txt", "/favicon-32.png", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png", "/favicon.ico"}
 
 func (s *server) routes() http.Handler {
 	static, _ := fs.Sub(webFS, "web")
@@ -297,7 +297,7 @@ func (s *server) routes() http.Handler {
 	admin := func(h http.HandlerFunc) http.Handler { return s.requireAdmin(h) }
 
 	mux.HandleFunc("GET /healthz", s.handleHealth)
-	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
+	loginPage := func(w http.ResponseWriter, r *http.Request) {
 		if s.lookup(r) != nil {
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
@@ -312,7 +312,19 @@ func (s *server) routes() http.Handler {
 			page = bytes.Replace(page, []byte(`id="setup" hidden`), []byte(`id="setup"`), 1)
 		}
 		serveHTML(w, r, files, files.versionPage(page))
-	})
+	}
+	mux.HandleFunc("GET /login", loginPage)
+	mux.HandleFunc("GET /register", loginPage)
+	landingPage := func(w http.ResponseWriter, r *http.Request) {
+		page, err := fs.ReadFile(static, "landing.html")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("X-Robots-Tag", "index, follow")
+		serveHTML(w, r, files, files.versionPage(page))
+	}
+	mux.HandleFunc("GET /welcome", landingPage)
 	mux.HandleFunc("POST /login", s.handleLogin)
 	mux.HandleFunc("GET /api/auth/options", s.publicAuthOptions)
 	mux.HandleFunc("POST /api/auth/register", s.registerAccount)
@@ -374,9 +386,13 @@ func (s *server) routes() http.Handler {
 	mux.Handle("PUT /api/admin/services", admin(s.adminSaveServices))
 	mux.Handle("POST /api/admin/services/action", admin(s.adminServiceAction))
 
-	mux.Handle("GET /", auth(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
-			files.ServeHTTP(w, r)
+			s.requireAuth(files).ServeHTTP(w, r)
+			return
+		}
+		if s.lookup(r) == nil {
+			landingPage(w, r)
 			return
 		}
 		b, err := fs.ReadFile(static, "index.html")
@@ -384,8 +400,9 @@ func (s *server) routes() http.Handler {
 			http.NotFound(w, r)
 			return
 		}
+		w.Header().Set("X-Jiggered-App", "1") // offline cache must distinguish the app from the public home page
 		serveHTML(w, r, files, files.versionPage(b))
-	}))
+	})
 
 	return securityHeaders(rejectCrossSite(mux))
 }
@@ -453,7 +470,7 @@ func newStatic(fsys fs.FS) *static {
 // The files a page loads, and the pages that load them, are named with this build's version
 // (/v/<version>/app.js). A changed file therefore always has a new URL, so nothing between the browser and this
 // server (a CDN with a four-hour default, a browser's own rules) can run an old script against a new page.
-var versionedFiles = []string{"/style.css", "/app.js", "/login.js", "/early-nav.js"}
+var versionedFiles = []string{"/style.css", "/presence.css", "/app.js", "/login.js", "/early-nav.js"}
 
 func (st *static) versionPage(page []byte) []byte {
 	for _, f := range versionedFiles {
@@ -531,7 +548,7 @@ func securityHeaders(next http.Handler) http.Handler {
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Referrer-Policy", "same-origin")
-		h.Set("X-Robots-Tag", "noindex, nofollow") // a private log: nothing here should be indexed
+		h.Set("X-Robots-Tag", "noindex, nofollow") // public landing handlers opt in; personal logs stay private
 		h.Set("Content-Security-Policy", "default-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; script-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'")
 		next.ServeHTTP(w, r)
 	})

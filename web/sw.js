@@ -12,7 +12,8 @@ const SHELL = [
 ];
 
 // Keep only a real answer for exactly this URL: not an error, and not a sign-in page that a redirect led to.
-const cacheable = res => res.ok && !res.redirected && res.type === "basic";
+const cacheable = res => res.ok && !res.redirected && res.type === "basic" &&
+  (new URL(res.url).pathname !== "/" || res.headers.get("X-Jiggered-App") === "1");
 
 self.addEventListener("install", e => {
   e.waitUntil((async () => {
@@ -34,7 +35,7 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   const req = e.request, url = new URL(req.url);
   if (req.method !== "GET" || url.origin !== location.origin) return;
-  if (url.pathname.startsWith("/api/") || ["/healthz", "/login", "/logout"].includes(url.pathname)) return; // data and sign-in always go to the server
+  if (url.pathname.startsWith("/api/") || ["/healthz", "/login", "/register", "/welcome", "/logout"].includes(url.pathname)) return; // data and sign-in always go to the server
   e.respondWith(networkFirst(req, url.pathname));
 });
 

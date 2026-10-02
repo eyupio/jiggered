@@ -135,6 +135,12 @@ action. These choices do not alter other users' records. Exported backups and re
 ## People and the admin
 
 Registration is closed by default. Create the first account, an admin, from the command line (see **Run it**).
+Signed-out visitors see the public landing page at `/`; `/welcome` is always the public page, including while signed in.
+The landing page includes search and social metadata and is indexable. Sign-in, registration, APIs and personal logs
+remain `noindex`. `/login` opens sign-in, and `/register` opens registration when available. When registration is closed,
+the page explains how to request an account and the landing page links to sign-in instead. The public pages use only
+self-hosted assets and respect reduced-motion preferences.
+
 Admins can enable verified-email registration in Admin after configuring SMTP, or add people from the **Admin**
 tab or command line: the new person gets a random temporary password,
 shown once, and must choose their own the first time they sign in. Accounts, and everything else about how
@@ -486,4 +492,3 @@ with weakness, face drooping, speech problems or a severe headache, call 999.
 
 Logo and icons live in `assets/brand/` (SVG plus PNG) and `web/` (app icons). The fonts in `web/fonts/` are
 Atkinson Hyperlegible and Bricolage Grotesque, under the SIL Open Font License (see `web/fonts/LICENSE.txt`).
-

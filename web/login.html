@@ -1,62 +1,283 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Jiggered</title>
-<link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" href="/icon.svg" type="image/svg+xml">
-<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta name="theme-color" content="#2f6f62">
-<link rel="preload" href="/fonts/atkinson-400-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/fonts/bricolage-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/style.css">
-</head>
-<body>
-<main class="login">
-  <form id="signin-form" class="panel" method="post" action="/login">
-    <div>
-      <img class="brand" src="/icon.svg" alt="" width="56" height="56">
-      <h1>Jiggered</h1>
-      <p class="tag">How much have you got left today?</p>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <title>Log in or create an account — Jiggered</title>
+    <meta
+      name="description"
+      content="Sign in to your private Jiggered energy and symptom log, or create an account on this instance."
+    />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#2f6f62" />
+    <link
+      rel="preload"
+      href="/fonts/atkinson-400-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/bricolage-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/presence.css" />
+  </head>
+  <body class="presence auth-page">
+    <a class="skip-link" href="#auth-main">Skip to account forms</a>
+    <header class="site-header shell">
+      <a class="wordmark" href="/welcome"
+        ><img src="/icon.svg" width="34" height="34" alt="" />jiggered.</a
+      ><a class="text-link" href="/welcome">Back to home</a>
+    </header>
+    <div class="auth-layout shell">
+      <aside class="auth-story">
+        <p class="eyebrow">
+          <span class="status-dot"></span> A LITTLE SPACE FOR YOU
+        </p>
+        <h1>Your day.<br />Your story.<br />Your own pace.</h1>
+        <p>
+          A quiet place to check in, notice patterns and get to know your
+          energy.
+        </p>
+        <div class="auth-art" aria-hidden="true">
+          <svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
+            <g stroke="currentColor" stroke-width="7" stroke-linecap="round">
+              <path d="M50 7v86M7 50h86M20 20l60 60M20 80l60-60" />
+            </g></svg
+          ><span>Small moments. A clearer picture.</span>
+        </div>
+        <p class="quiet-note">Self-hosted. Personal. Made for real life.</p>
+      </aside>
+      <main class="login auth-main" id="auth-main">
+        <p id="auth-options-status" class="auth-state" hidden role="status"></p>
+        <noscript
+          ><p class="auth-state">
+            You can sign in below. Registration, email recovery and two-step
+            verification need JavaScript enabled.
+          </p></noscript
+        >
+        <form id="signin-form" class="panel" method="post" action="/login">
+          <div>
+            <img class="brand" src="/icon.svg" alt="" width="56" height="56" />
+            <h1>Welcome back.</h1>
+            <p class="tag">A little check-in starts here.</p>
+          </div>
+          <p class="setup" id="setup" hidden>
+            No one has an account yet. On the server, run
+            <code
+              >docker compose exec jiggered /jiggered user add NAME
+              --admin</code
+            >, then sign in here with the password it prints.
+          </p>
+          <label for="username"
+            >Username<input
+              id="username"
+              name="username"
+              autocomplete="username"
+              autocapitalize="none"
+              required
+          /></label>
+          <label for="password"
+            >Password<input
+              id="password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              required
+          /></label>
+          <p class="err" id="err" aria-live="polite"></p>
+          <button class="primary" type="submit">
+            Sign in
+            <span aria-hidden="true"
+              ><svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M6 18 18 6M6 6h12v12"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                /></svg
+            ></span>
+          </button>
+          <div class="auth-links">
+            <button id="open-register" type="button" hidden>
+              Create an account</button
+            ><button id="open-forgot" type="button" hidden>
+              Forgot password?
+            </button>
+          </div>
+        </form>
+        <form class="panel" id="register-form" hidden>
+          <h1>Find your rhythm.</h1>
+          <p class="meta">
+            Your check-ins and episodes belong to you. Verify your email before
+            your account is created.
+          </p>
+          <label
+            >Username<input
+              id="register-name"
+              autocomplete="username"
+              autocapitalize="none"
+              maxlength="64"
+              required
+          /></label>
+          <label
+            >Email address<input
+              id="register-email"
+              type="email"
+              autocomplete="email"
+              required
+          /></label>
+          <label
+            >Password<input
+              id="register-password"
+              type="password"
+              autocomplete="new-password"
+              minlength="8"
+              required
+              aria-describedby="register-password-hint"
+          /></label>
+          <p id="register-password-hint" class="meta">
+            Use at least 8 characters. A longer, unique passphrase is better.
+          </p>
+          <label
+            >Confirm password<input
+              id="register-confirm"
+              type="password"
+              autocomplete="new-password"
+              required
+          /></label>
+          <button class="primary" type="submit">Send verification email</button>
+          <p class="msg" role="status" id="register-msg"></p>
+          <button class="secondary" type="button" data-signin>
+            Back to sign in
+          </button>
+        </form>
+        <form class="panel" id="forgot-form" hidden>
+          <h1>Reset your password</h1>
+          <p class="meta">
+            Enter the verified email linked to your account. We'll send a link
+            that expires in 30 minutes.
+          </p>
+          <label
+            >Email address<input
+              id="forgot-email"
+              type="email"
+              autocomplete="email"
+              required /></label
+          ><button class="primary" type="submit">Request reset link</button>
+          <p class="msg" role="status" id="forgot-msg"></p>
+          <button class="secondary" type="button" data-signin>
+            Back to sign in
+          </button>
+        </form>
+        <form class="panel" id="reset-form" hidden>
+          <h1>Choose a new password</h1>
+          <p class="meta">
+            Your devices will be signed out. Two-step verification stays
+            enabled.
+          </p>
+          <label
+            >New password<input
+              id="reset-password"
+              type="password"
+              autocomplete="new-password"
+              minlength="8"
+              required
+          /></label>
+          <label
+            >Confirm new password<input
+              id="reset-confirm"
+              type="password"
+              autocomplete="new-password"
+              required
+          /></label>
+          <label
+            >Authenticator or recovery code<input
+              id="reset-code"
+              autocomplete="one-time-code"
+              autocapitalize="none"
+              spellcheck="false"
+              aria-describedby="reset-code-hint"
+          /></label>
+          <p id="reset-code-hint" class="meta">
+            Required only if two-step verification is enabled on your account.
+          </p>
+          <button class="primary" type="submit">Change password</button>
+          <p class="msg" role="status" id="reset-msg"></p>
+          <button class="secondary" type="button" data-signin>
+            Back to sign in
+          </button>
+        </form>
+        <form class="panel" id="verify-form" hidden>
+          <h1>Verify your email</h1>
+          <p class="meta">
+            Confirm this address for your Jiggered account. Verification links
+            work once and expire in 30 minutes.
+          </p>
+          <button class="primary" type="submit">Verify email address</button>
+          <p class="msg" role="status" id="verify-msg"></p>
+          <button class="secondary" type="button" data-signin>
+            Back to sign in
+          </button>
+        </form>
+        <form class="panel" id="two-step-form" hidden>
+          <h1>One more step</h1>
+          <p class="meta">
+            Enter the current code from your authenticator app, or one of your
+            unused recovery codes. This sign-in expires in five minutes.
+          </p>
+          <label
+            >Authenticator or recovery code<input
+              id="two-step-code"
+              autocomplete="one-time-code"
+              autocapitalize="none"
+              spellcheck="false"
+              required /></label
+          ><button class="primary" type="submit">Verify & sign in</button>
+          <p class="msg" role="status" id="two-step-msg"></p>
+          <button class="secondary" type="button" data-signin>
+            Start sign-in again
+          </button>
+        </form>
+        <details class="panel">
+          <summary>Need help signing in?</summary>
+          <p>
+            If registration or email recovery isn't available, ask the person
+            who runs this server to create an account or reset your password. A
+            temporary password must be changed at first sign-in.
+          </p>
+          <p>
+            Lost your authenticator? Use an unused recovery code, or ask an
+            administrator to reset two-step verification. Server operators can
+            reset a password with
+            <code>jiggered user reset-password NAME</code>.
+          </p>
+        </details>
+      </main>
     </div>
-    <p class="setup" id="setup" hidden>No one has an account yet. On the server, run <code>docker compose exec jiggered /jiggered user add NAME --admin</code>, then sign in here with the password it prints.</p>
-    <label for="username">Username<input id="username" name="username" autocomplete="username" autocapitalize="none" required></label>
-    <label for="password">Password<input id="password" name="password" type="password" autocomplete="current-password" required></label>
-    <p class="err" id="err" aria-live="polite"></p>
-    <button class="primary" type="submit">Sign in</button>
- <div class="auth-links"><button id="open-register" type="button" hidden>Create an account</button><button id="open-forgot" type="button" hidden>Forgot password?</button></div>
-  </form>
-  <form class="panel" id="register-form" hidden>
-    <h1>Create your account</h1><p class="meta">Your check-ins and episodes belong to you. Verify your email before your account is created.</p>
-    <label>Username<input id="register-name" autocomplete="username" autocapitalize="none" maxlength="64" required></label>
-    <label>Email address<input id="register-email" type="email" autocomplete="email" required></label>
-    <label>Password<input id="register-password" type="password" autocomplete="new-password" minlength="8" required aria-describedby="register-password-hint"></label><p id="register-password-hint" class="meta">Use at least 8 characters. A longer, unique passphrase is better.</p>
-    <label>Confirm password<input id="register-confirm" type="password" autocomplete="new-password" required></label>
-    <button class="primary" type="submit">Send verification email</button><p class="msg" role="status" id="register-msg"></p><button class="secondary" type="button" data-signin>Back to sign in</button>
-  </form>
-  <form class="panel" id="forgot-form" hidden>
-    <h1>Reset your password</h1><p class="meta">Enter the verified email linked to your account. We'll send a link that expires in 30 minutes.</p>
-    <label>Email address<input id="forgot-email" type="email" autocomplete="email" required></label><button class="primary" type="submit">Request reset link</button><p class="msg" role="status" id="forgot-msg"></p><button class="secondary" type="button" data-signin>Back to sign in</button>
-  </form>
-  <form class="panel" id="reset-form" hidden>
-    <h1>Choose a new password</h1><p class="meta">Your devices will be signed out. Two-step verification stays enabled.</p>
-    <label>New password<input id="reset-password" type="password" autocomplete="new-password" minlength="8" required></label>
-    <label>Confirm new password<input id="reset-confirm" type="password" autocomplete="new-password" required></label>
-    <label>Authenticator or recovery code<input id="reset-code" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" aria-describedby="reset-code-hint"></label><p id="reset-code-hint" class="meta">Required only if two-step verification is enabled on your account.</p>
-    <button class="primary" type="submit">Change password</button><p class="msg" role="status" id="reset-msg"></p><button class="secondary" type="button" data-signin>Back to sign in</button>
-  </form>
-  <form class="panel" id="verify-form" hidden>
-    <h1>Verify your email</h1><p class="meta">Confirm this address for your Jiggered account. Verification links work once and expire in 30 minutes.</p>
-    <button class="primary" type="submit">Verify email address</button><p class="msg" role="status" id="verify-msg"></p><button class="secondary" type="button" data-signin>Back to sign in</button>
-  </form>
-  <form class="panel" id="two-step-form" hidden>
-    <h1>One more step</h1><p class="meta">Enter the current code from your authenticator app, or one of your unused recovery codes. This sign-in expires in five minutes.</p>
-    <label>Authenticator or recovery code<input id="two-step-code" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" required></label><button class="primary" type="submit">Verify & sign in</button><p class="msg" role="status" id="two-step-msg"></p><button class="secondary" type="button" data-signin>Start sign-in again</button>
-  </form>
-  <details class="panel"><summary>Need help signing in?</summary><p>If registration or email recovery isn't available, ask the person who runs this server to create an account or reset your password. A temporary password must be changed at first sign-in.</p><p>Lost your authenticator? Use an unused recovery code, or ask an administrator to reset two-step verification. Server operators can reset a password with <code>jiggered user reset-password NAME</code>.</p></details>
-</main>
-<script src="/login.js"></script>
-</body>
+    <footer class="site-footer shell">
+      <p>A personal log, not a medical device.</p>
+      <a href="/welcome#privacy">Your privacy</a>
+    </footer>
+    <script src="/login.js"></script>
+  </body>
 </html>
