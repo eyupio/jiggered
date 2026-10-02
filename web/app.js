@@ -1,6 +1,6 @@
 // The page: who is signed in, the tabs, and the wiring between the views and the sync store.
 
-import { $, fmtLongDay, setPageUser, html, setHTML, downloadFile, withBusy } from "./util.js";
+import { api, $, fmtLongDay, setPageUser, html, setHTML, downloadFile, withBusy } from "./util.js";
 import {
   openDeviceStorage,
   createDrafts,
@@ -198,6 +198,7 @@ function fatal(text) {
       updateSync();
     },
     onAuthLost: toSignIn,
+    onTask: (event) => ready && ctx.measure(event),
   });
 
   storage?.onChange?.(() => {
@@ -279,7 +280,17 @@ function fatal(text) {
     return { body: sharedDefaults, tag: defaultsTag, fresh, fallback };
   }
   let settingsKey, settingsVal;
+  let usageConsent = false;
+  void api("GET", "/api/me/usage-consent").then((r) => {
+    usageConsent = r.ok && r.data.enabled === true;
+  });
   const ctx = {
+    setUsageConsent(value) {
+      usageConsent = value === true;
+    },
+    measure(event) {
+      if (usageConsent) void api("POST", "/api/me/usage", { event });
+    },
     me,
     ui,
     store,
@@ -309,6 +320,14 @@ function fatal(text) {
       go(views[beforeHelp] && beforeHelp !== "help" ? beforeHelp : "today");
     },
     leave: toSignIn,
+    openHistoryPeriod(from, to) {
+      go("history");
+      views.history.openPeriod(from, to);
+    },
+    reopenSetup() {
+      go("today");
+      views.today.reopenSetup();
+    },
     openDay(date) {
       go("today");
       views.today.open(date);
@@ -530,9 +549,12 @@ function fatal(text) {
   // page down and back up on every tap. A routine "Sending…" is held back briefly, so a normal quick save shows nothing.
   let quietTimer = null,
     quietSince = 0;
+  let lastUsageFailure = false;
   function updateSync() {
     const st = store.status(),
       n = st.pending;
+    if (st.failed && !lastUsageFailure) ctx.measure("save_failed");
+    lastUsageFailure = !!st.failed;
     const routine =
       !!n &&
       !st.offline &&

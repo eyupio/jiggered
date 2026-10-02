@@ -5,7 +5,7 @@ export const servicesMarkup = `
 <section class="panel service-panel" aria-labelledby="services-title">
  <div class="service-heading"><div><p class="eyebrow">DATA PROTECTION</p><h2 id="services-title">Off-site backups & email</h2></div><span class="badge" id="svc-status">Loading</span></div>
  <p class="meta" data-service-area="backups">Keep a consistent copy of everyone's data in your own S3 bucket. Email alerts contain operational status only.</p>
- <div class="service-stats" data-service-area="backups"><div><span class="meta">Last backup</span><b id="svc-last">—</b></div><div><span class="meta">Next scheduled</span><b id="svc-next">—</b></div></div>
+ <div class="service-stats" data-service-area="backups"><div><span class="meta">Last attempt</span><b id="svc-last">—</b></div><div><span class="meta">Next scheduled</span><b id="svc-next">—</b></div><div><span class="meta">Last usable upload</span><b id="svc-good">—</b></div><div><span class="meta">Last verified upload</span><b id="svc-verified">—</b></div></div><p class="meta" data-service-area="backups">Upload verification checks transferred bytes; a restore rehearsal checks whether you can recover. Historical uploads without verification have unknown verification status.</p>
  <form id="services-form">
  <details open class="service-details" data-service-area="backups"><summary>S3 destination <span class="meta">AWS · R2 · B2 · MinIO · compatible storage</span></summary>
  <label class="radio"><input type="checkbox" id="svc-enabled"> Enable automatic remote backups</label>
@@ -26,6 +26,7 @@ export const servicesMarkup = `
  ${field("public_url", "Public application URL", 'type="url" placeholder="https://jiggered.example.com"', "Trusted base URL for email links. Never taken from a visitor’s request headers.")}
  <p class="meta">Registration creates ordinary accounts. SMTP must be enabled. Existing accounts can add a verified recovery email in Account. A password reset keeps 2FA enabled and requires a code.</p>
  </details>
+ <details class="service-details" data-service-area="backups"><summary>Restore guide & rehearsal</summary><ol><li>Download a backup to a private directory. Keep the encryption password and the server's <code>.jiggered-service-key</code> separately; the key is excluded from database backups.</li><li>First rehearse on an isolated instance using the same or newer Jiggered. Keep outgoing SMTP and automatic backups disabled there.</li><li>Stop the destination server. Preserve its database and credential key. Restore a plain ZIP with <code>jiggered restore /private/backup.zip --yes</code>, or an encrypted ZIP with <code>jiggered restore /private/backup.zip --password-file /private/backup-password --yes</code>. Set APP_DB to the intended destination. Protect the password file with mode 0600.</li><li>Restore the matching credential key, then start the server. Sign in again, check accounts, a known day and episode, settings and export. Test SMTP/S3 only when intended. If the key is unavailable, re-enter service credentials. If authenticator secrets cannot be decrypted, the operator must use the CLI two-factor reset described in the README before the affected user can set up protection again.</li><li>If checks fail, stop the server and restore the preserved pre-restore database and its key. Record the outcome below. A production restore remains a server command.</li></ol><p class="meta">For Docker: stop the service, then use <code>docker compose run --rm --no-deps jiggered restore /data/backups/backup.zip --yes</code> with a backup path in the mounted volume; add --password-file for encrypted files.</p>${field("rehearsal-date", "Last completed rehearsal (UTC)", 'type="date"')}<label class="field">Self-reported outcome<select id="svc-rehearsal-outcome"><option value="">Not recorded</option><option value="passed">Passed recovery checks</option><option value="needs_attention">Needs attention</option></select></label><p class="meta">This records your checks; Jiggered does not verify the rehearsal automatically. Save configuration to record or clear both fields.</p></details>
  ${field("password", "Your admin password", 'type="password" autocomplete="current-password" required', "Remembered in this page for 30 minutes after a successful check; cleared when you leave or reload.")}
  <p id="svc-auth-status" class="meta" role="status"></p>
  <div class="service-actions"><button class="primary" type="submit">Save configuration</button><button class="secondary" id="svc-reload" type="button">Reload settings</button></div>
@@ -34,7 +35,7 @@ export const servicesMarkup = `
  <p id="svc-msg" class="msg" role="status" aria-live="polite"></p>
  <div id="svc-remote" hidden><h3>Remote backups</h3><p class="meta">Downloads contain everyone's private data. To restore the whole database, use the server's restore command.</p><ul id="svc-objects" class="list"></ul></div>
  <details class="service-details" open data-service-area="backups"><summary>Recent backup history</summary><ul id="svc-runs" class="list service-runs"></ul><button class="secondary small" id="svc-refresh">Refresh status</button></details>
-</section>`;
+<details open class="service-details" data-service-area="email"><summary>Account email delivery</summary><p class="meta">Up to four attempts while a link is valid. SMTP acceptance does not confirm inbox delivery. Interrupted sends may be duplicated. No addresses or link tokens are shown; payloads are erased after acceptance or expiry. Request a new link from the account page after fixing delivery.</p><ul id="svc-mail" class="list"></ul><button id="svc-mail-refresh" class="secondary" type="button">Refresh delivery</button></details></section>`;
 export function initServices(ctx) {
   let saved = null,
     dirty = false,
@@ -106,6 +107,8 @@ export function initServices(ctx) {
   const date = (t) => (t ? new Date(t * 1000).toLocaleString() : "Not yet");
   function fill(data) {
     saved = data.settings;
+    $("svc-rehearsal-date").value = saved.rehearsal?.date || "";
+    $("svc-rehearsal-outcome").value = saved.rehearsal?.outcome || "";
     dirty = false;
     actionLabels();
     for (const [k, v] of Object.entries(saved.remote)) {
@@ -138,6 +141,13 @@ export function initServices(ctx) {
   }
   function status(data) {
     const last = data.runs?.[0];
+    $("svc-good").textContent = date(data.last_usable);
+    $("svc-verified").textContent = date(data.last_verified);
+    setHTML(
+      $("svc-mail"),
+      html`${data.mail?.length ? data.mail.map((m) => html`<li><div><b>${m.purpose === "reset" ? "Password reset" : "Email verification"} · ${m.status}</b><p class="meta">${date(m.created)} · ${m.attempts} attempts${m.status === "queued" ? ` · retry ${date(m.next_at)}` : ""}</p><p class="meta">${m.error_category}</p></div></li>`) : html`<li class="meta">No account email requests recorded yet.</li>`}`,
+    );
+
     $("svc-last").textContent = last
       ? `${date(last.started)} · ${last.status}`
       : "No remote backups yet";
@@ -154,7 +164,7 @@ export function initServices(ctx) {
         data.runs?.length
           ? data.runs.map(
               (run) =>
-                html`<li><div><div class="row"><b>${date(run.started)}</b><span class="badge ${run.status === "failed" ? "off" : ""}">${run.status}</span><span class="meta">${fmtBytes(run.bytes)}</span></div><p class="meta">${run.message || "Creating a snapshot and uploading…"}</p>${run.email ? html`<p class="meta">Email: ${run.email}</p>` : ""}</div></li>`,
+                html`<li><div><div class="row"><b>${date(run.started)}</b><span class="badge ${run.status === "failed" ? "off" : ""}">${run.status}</span><span class="meta">${fmtBytes(run.bytes)}</span></div><p class="meta">${run.message || "Creating a snapshot and uploading…"}</p><p class="meta">Upload: ${run.uploaded ? "completed" : "not completed"} · Verification: ${run.verified ? "passed" : run.verification_required ? "not passed" : "not required / historically unknown"} · Retention: ${run.retained ? "completed" : "not completed"}</p>${run.email ? html`<p class="meta">Email: ${run.email}</p>` : ""}</div></li>`,
             )
           : html`<li class="meta">Your first backup will appear here. Test the destination, then choose Back up now.</li>`
       }`,
@@ -180,6 +190,10 @@ export function initServices(ctx) {
     const value = adminPassword();
     if (!value) return false;
     const settings = structuredClone(saved);
+    settings.rehearsal = {
+      date: $("svc-rehearsal-date").value,
+      outcome: $("svc-rehearsal-outcome").value,
+    };
     for (const k of Object.keys(settings.remote)) {
       const el = $("svc-" + k);
       if (el)
@@ -256,6 +270,7 @@ export function initServices(ctx) {
   $("svc-reload").addEventListener("click", () => {
     if (!dirty || confirm("Discard your unsaved configuration changes?")) load(true);
   });
+  $("svc-mail-refresh").addEventListener("click", () => load(false));
   $("svc-refresh").addEventListener("click", () => load(false));
   async function action(button, action, key) {
     if (busy) return;

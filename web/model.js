@@ -642,7 +642,7 @@ export function daysCsv(docs, S) {
   return csv(rows);
 }
 
-export function episodesCsv(docs) {
+export function episodesCsv(docs, { includeNotes = true } = {}) {
   const rows = [
     [
       "started",
@@ -665,7 +665,7 @@ export function episodesCsv(docs) {
       e.onset || "",
       e.duration || "",
       (e.before || []).join("; "),
-      e.notes || "",
+      includeNotes ? e.notes || "" : "Omitted",
       e.endedAt || "",
       e.whenZone || "",
       e.whenOffset ?? "",
@@ -851,4 +851,12 @@ export function validateEpisodeTimes(value, original = {}, now = new Date()) {
       "End time must be between the start time and now, including the recorded time-zone offset.",
     ];
   return null;
+}
+
+// Separate rows preserve repeated and recovery activities for spreadsheet analysis.
+export function activitiesCsv(docs) {
+  const rows = [["date", "entry_id", "local_time", "activity", "cost_points"]];
+  for (const d of listDays(docs).reverse())
+    for (const e of d.entries) rows.push([d.date, e.id || "", e.t || "", e.a, e.c]);
+  return csv(rows);
 }

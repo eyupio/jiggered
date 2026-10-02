@@ -2,7 +2,16 @@
 
 import { energyWords, themeOf } from "./energy-theme.js";
 import { $, html, setHTML, fmtDay, fmtWhen, fmtLongDay } from "./util.js";
-import { listDays, listEpisodes, used, capOf, daysCsv, episodesCsv, summary } from "./model.js";
+import {
+  listDays,
+  listEpisodes,
+  used,
+  capOf,
+  daysCsv,
+  episodesCsv,
+  activitiesCsv,
+  summary,
+} from "./model.js";
 
 import { historyRange, historyInsights, HISTORY_RANGES } from "./history-model.js";
 import { chartMarkup, connectCharts } from "./history-charts.js";
@@ -40,7 +49,44 @@ export function init(ctx) {
       Number(row[1]) < 60,
   );
   let restoredSymptom = savedText(saved.filters?.symptom);
-  const matrix = initMatrix($("history-matrix"), ctx, (date) => {
+  let previousSelection = saved.previousSelection || null;
+  const returnButton = document.createElement("button");
+  returnButton.type = "button";
+  returnButton.className = "secondary";
+  returnButton.id = "history-return-period";
+  returnButton.textContent = "Return to previous period";
+  $("history-matrix").before(returnButton);
+  returnButton.hidden = !previousSelection;
+  returnButton.addEventListener("click", () => {
+    if (!previousSelection) return;
+    const prior = previousSelection;
+    previousSelection = null;
+    rangeMode = prior.rangeMode;
+    for (const [key, id] of Object.entries({
+      from: "hist-from",
+      to: "hist-to",
+      status: "hist-status",
+      symptom: "hist-symptom",
+      query: "hist-query",
+    }))
+      $(id).value = prior.filters[key] || "";
+    $("hist-ongoing").checked = prior.filters.ongoing === true;
+    shown = prior.shown;
+    episodesShown = prior.episodesShown;
+    matrix.restoreSelection(prior.matrix);
+    render();
+    window.scrollTo(0, prior.scroll || 0);
+  });
+  const matrix = initMatrix($("history-matrix"), ctx, (date, share = false) => {
+    if (!previousSelection)
+      previousSelection = {
+        rangeMode,
+        filters: filters(),
+        shown,
+        episodesShown,
+        matrix: matrix.snapshot(),
+        scroll: window.scrollY,
+      };
     $("hist-from").value = $("hist-to").value = date;
     rangeMode = "custom";
     shown = episodesShown = PAGE;
@@ -49,6 +95,7 @@ export function init(ctx) {
     $("history-records").open = true;
     $("eps").scrollIntoView({ block: "start" });
     $("hist-from").focus({ preventScroll: true });
+    if (share) $("history-prepare").click();
   });
   const openFilters = () => {
     $("history-filter-panel").open = true;
@@ -170,13 +217,15 @@ export function init(ctx) {
     $("summary-preview").hidden = !$("summary-preview").hidden;
     updatePreview();
   });
-  for (const id of ["sum-focus", "sum-notes"])
+  for (const id of ["sum-focus", "sum-notes", "sum-activities"])
     $(id).addEventListener("change", () => {
+      render();
       if (!$("summary-preview").hidden) updatePreview();
     });
   for (const [name, id] of [
     ["notes", "sum-notes"],
     ["focus", "sum-focus"],
+    ["activities", "sum-activities"],
   ])
     if (typeof saved.summary?.[name] === "boolean") $(id).checked = saved.summary[name];
   $("summary-preview").hidden = saved.summary?.preview !== true;
@@ -207,17 +256,28 @@ export function init(ctx) {
 
   $("csv-days").addEventListener("click", () => {
     flushSearch();
+    ctx.measure("export_created");
     download(
       `jiggered-days-${ctx.today()}.csv`,
       daysCsv(selectedDocs(), ctx.settings()),
       "text/csv;charset=utf-8",
     );
   });
+  $("csv-activities").addEventListener("click", () => {
+    flushSearch();
+    ctx.measure("export_created");
+    download(
+      `jiggered-activities-${ctx.today()}.csv`,
+      activitiesCsv(selectedDocs()),
+      "text/csv;charset=utf-8",
+    );
+  });
   $("csv-eps").addEventListener("click", () => {
     flushSearch();
+    ctx.measure("export_created");
     download(
       `jiggered-episodes-${ctx.today()}.csv`,
-      episodesCsv(selectedDocs()),
+      episodesCsv(selectedDocs(), { includeNotes: $("sum-notes").checked }),
       "text/csv;charset=utf-8",
     );
   });
@@ -228,6 +288,7 @@ export function init(ctx) {
     window.addEventListener("afterprint", () => document.body.classList.remove("printing"), {
       once: true,
     });
+    ctx.measure("export_created");
     window.print();
   });
 
@@ -281,6 +342,7 @@ export function init(ctx) {
         </tbody></table>`
           : html`<p>No days logged in this period.</p>`
       }
+      ${$("sum-activities").checked ? html`<h2>Activities</h2><table><thead><tr><th>Day</th><th>Local time</th><th>Activity</th><th>Cost</th></tr></thead><tbody>${sm.days.flatMap((d) => d.entries.map((e) => html`<tr><td>${fmtDay(d.date, L)}</td><td>${e.t || "Not recorded"}</td><td>${e.a}</td><td>${e.c > 0 ? `−${e.c}` : e.c < 0 ? `+${-e.c}` : "0"} ${words().plural}</td></tr>`))}</tbody></table>` : ""}
       <p class="small-print">Times are local as recorded; CSV includes any recorded time-zone offsets. Older records may have none. This is a personal log kept by the person it belongs to. It is not a medical record or a medical device.</p>`,
     );
   }
@@ -296,6 +358,7 @@ export function init(ctx) {
     ].filter(Boolean);
 
   function render() {
+    returnButton.hidden = !previousSelection;
     const S = ctx.settings(),
       L = S.locale,
       docs = ctx.store.all(),
@@ -335,8 +398,25 @@ export function init(ctx) {
       filters().from && filters().to && filters().from > filters().to
         ? "Choose an end date on or after the start date."
         : `${plural(days.length, "day")} and ${plural(eps.length, "episode")} match. Check-in filters apply to days; symptom/ongoing filters apply to episodes.`;
-    for (const id of ["history-prepare", "sum-preview", "sum-print", "csv-days", "csv-eps"])
-      $(id).disabled = !!data.error;
+    for (const id of [
+      "history-prepare",
+      "sum-preview",
+      "sum-print",
+      "csv-days",
+      "csv-eps",
+      "csv-activities",
+    ])
+      $(id).disabled =
+        !!data.error ||
+        (id === "csv-days"
+          ? !days.length
+          : id === "csv-eps"
+            ? !eps.length
+            : id === "csv-activities"
+              ? !days.some((d) => d.entries.length)
+              : !days.length && !eps.length);
+    $("sharing-counts").textContent =
+      `${plural(days.length, "day")} · ${plural(eps.length, "episode")} · private notes ${$("sum-notes").checked ? "included" : "omitted"}. ${!days.length && !eps.length ? "No matching records: clear search and filters or change the period above." : "Empty record types cannot be exported."}`;
     $("summary-period").textContent =
       data.error ||
       `${fmtDay(data.from, L)} – ${fmtDay(data.to, L)} · ${plural(days.length, "day")} · ${plural(eps.length, "episode")}${active.length ? " · filters active" : ""}`;
@@ -376,7 +456,7 @@ export function init(ctx) {
         html`<div class="history-metrics">
         <div class="metric"><span class="label">${hasFilters ? "Matching check-ins" : "Check-ins"}</span><b>${m.checked}<small> / ${data.span}</small></b><span class="meta">${Math.round((m.checked / data.span) * 100)}% of calendar days</span></div>
         <div class="metric"><span class="label">Average net ${words().plural}</span><b>${m.avgUsed === null ? "—" : m.avgUsed}</b><span class="meta">${plural(m.logged, "day")} with activities</span></div>
-        <div class="metric"><span class="label">Episodes recorded</span><b>${m.episodes}</b><span class="meta">${m.episodes - p.episodes === 0 ? "Same count as" : `${Math.abs(m.episodes - p.episodes)} ${m.episodes > p.episodes ? "more" : "fewer"} than`} previous period</span></div>
+        <div class="metric"><span class="label">Episodes recorded</span><b>${m.episodes}</b><span class="meta">${m.episodes} recorded versus ${p.episodes} previously. ${p.checked < 3 ? "Previous period has limited check-in records." : `${m.checked}/${data.span} check-in days now; ${p.checked}/${data.span} previously.`}</span></div>
         <div class="metric"><span class="label">Past the allowance</span><b>${m.overBudget}<small> / ${m.logged}</small></b><span class="meta">Days with activities logged</span></div>
       </div>
       <p class="energy-report">${m.logged ? `${m.spent} ${words().plural} used before recovery · ${m.recovery} recovered · ${m.spent - m.recovery} net across ${plural(m.logged, "activity day")}.` : "No activities recorded in this period."} Totals cover matching records only.</p>
@@ -509,14 +589,27 @@ export function init(ctx) {
         card.dataset.chart,
         card.querySelector("[data-inspect]").value,
       ]),
+      previousSelection,
       matrix: matrix.snapshot(),
       summary: {
+        activities: $("sum-activities").checked,
         notes: $("sum-notes").checked,
         focus: $("sum-focus").checked,
         preview: !$("summary-preview").hidden,
       },
     }),
+    openPeriod(from, to) {
+      $("hist-from").value = from;
+      $("hist-to").value = to;
+      $("hist-query").value = $("hist-status").value = $("hist-symptom").value = "";
+      $("hist-ongoing").checked = false;
+      rangeMode = "custom";
+      initialised = true;
+      shown = episodesShown = PAGE;
+      render();
+    },
     show() {
+      ctx.measure("history_viewed");
       render();
     },
   };

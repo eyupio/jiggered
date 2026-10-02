@@ -234,6 +234,11 @@ func (s *server) twoFactorAction(w http.ResponseWriter, r *http.Request) {
 		result["secret"] = secret
 		result["qr"] = "data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString([]byte(code.SVG("#142a22", "#ffffff")))
 		result["message"] = "Scan the QR code, then confirm a code from your app. Setup expires in 10 minutes."
+	case "cancel":
+		if _, err = tx.ExecContext(r.Context(), `UPDATE account_security SET pending_secret='',pending_until=0 WHERE user_id=?`, a.u.ID); err != nil {
+			serverError(w, r, err); return
+		}
+		result["message"] = "Authenticator setup cancelled. Existing protection is unchanged."
 	case "enable":
 		if enabled == 1 {
 			jsonError(w, 409, "Two-step verification is already enabled.")
@@ -294,7 +299,7 @@ func (s *server) twoFactorAction(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, 400, "Unknown security action.")
 		return
 	}
-	if in.Action != "setup" {
+	if in.Action != "setup" && in.Action != "cancel" {
 		if _, err = tx.ExecContext(r.Context(), `DELETE FROM sessions WHERE user_id=? AND sid!=?`, a.u.ID, a.sid); err != nil {
 			serverError(w, r, err)
 			return

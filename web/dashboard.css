@@ -1302,3 +1302,61 @@
     color: Highlight;
   }
 }
+
+/* Controls keep a consistent rhythm when they wrap; file inputs never crowd their actions. */
+.app-shell .profile-photo-picker > div:last-child {
+  display: grid;
+  gap: 12px;
+}
+.app-shell .profile-photo-picker .secondary {
+  justify-self: start;
+}
+.app-shell input[type="file"] {
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+}
+.app-shell input[type="file"]::file-selector-button {
+  margin-right: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--fg);
+  font: inherit;
+}
+.app-shell .row,
+.app-shell .service-actions {
+  row-gap: 12px;
+}
+@media (max-width: 959px) {
+  .app-shell .history-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .app-shell .matrix-overview > .label-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .app-shell .matrix-overview h2 {
+    flex: none;
+  }
+  .app-shell .matrix-mode,
+  .app-shell .matrix-mode select {
+    width: 100%;
+    min-width: 0;
+  }
+}
+@media (max-width: 480px) {
+  .app-shell .profile-photo-picker {
+    align-items: start;
+    flex-direction: column;
+  }
+  .app-shell .profile-photo-picker > div:last-child {
+    width: 100%;
+  }
+  .app-shell .history-disclosure > summary {
+    align-items: start;
+    flex-direction: column;
+    gap: 8px;
+  }
+}

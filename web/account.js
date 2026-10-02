@@ -42,6 +42,44 @@ export function identity(ctx) {
 export function init(ctx) {
   const { me } = ctx;
   identity(ctx);
+  async function loadUsage() {
+    const r = await api("GET", "/api/me");
+    if (!r.ok || !r.data.usage) return;
+    const u = r.data.usage;
+    $("account-usage").textContent =
+      `${u.docs} of ${u.max_docs} records · ${(u.bytes / 1048576).toFixed(1)} of ${(u.max_bytes / 1048576).toFixed(0)} MB used.${u.docs >= u.max_docs * 0.9 || u.bytes >= u.max_bytes * 0.9 ? " Near the limit: export a copy and contact your instance administrator. Records are never removed automatically." : ""}`;
+  }
+  $("account-usage").insertAdjacentHTML(
+    "afterend",
+    `<form id="usage-consent-form"><h3>Optional product usage</h3><p class="meta">Off by default. With your permission, this instance stores coarse weekly task counts and days active for capture, History, export, settings and save failures, for up to 90 days. No symptoms, notes, activity names, record dates or IP addresses are sent. Admin reports hide groups smaller than five; consent is linked to your account for deletion. Disabling deletes your stored events. No external analytics service.</p><label class="radio"><input type="checkbox" id="usage-consent"> Help improve Jiggered with local task counts</label><button type="submit" class="secondary">Save usage preference</button><p id="usage-consent-msg" class="msg" role="status"></p></form>`,
+  );
+  async function loadConsent() {
+    const r = await api("GET", "/api/me/usage-consent");
+    if (!r.ok) {
+      $("usage-consent-msg").textContent =
+        "Could not load usage preference. Try again by reopening Account.";
+      return;
+    }
+    $("usage-consent").checked = r.data.enabled;
+    $("usage-consent").disabled = !r.data.available;
+    $("usage-consent-form").querySelector("button").disabled = !r.data.available && !r.data.enabled;
+    $("usage-consent-msg").textContent = r.data.available
+      ? "Choose whether to participate."
+      : "Measurement is disabled by the instance administrator.";
+    ctx.setUsageConsent(r.data.enabled);
+  }
+  $("usage-consent-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    void withBusy(e.submitter, "Saving…", async () => {
+      const r = await api("PUT", "/api/me/usage-consent", { enabled: $("usage-consent").checked });
+      if (r.ok) {
+        ctx.setUsageConsent(r.data.enabled);
+        $("usage-consent-msg").textContent = r.data.enabled
+          ? "Optional measurement enabled."
+          : "Measurement disabled; your stored events were deleted.";
+      } else $("usage-consent-msg").textContent = r.error;
+    });
+  });
   const profile = initProfile(ctx);
   $("pwform").closest(".panel").insertAdjacentHTML("afterend", securityMarkup);
   const security = initSecurity(ctx);
@@ -304,6 +342,7 @@ export function init(ctx) {
           const backup = await api("GET", "/api/export");
           if (!backup.ok)
             throw new Error("Could not download the pre-restore backup. " + backup.error);
+          ctx.measure("export_created");
           downloadFile(
             `jiggered-before-restore-${new Date().toISOString().replace(/[:.]/g, "-")}.json`,
             JSON.stringify(backup.data, null, 2),
@@ -355,6 +394,7 @@ export function init(ctx) {
         );
       const r = await api("GET", "/api/export");
       if (!r.ok) return say($("export-msg"), r.error, true);
+      ctx.measure("export_created");
       downloadFile(`jiggered-${ctx.today()}.json`, JSON.stringify(r.data, null, 2));
       say($("export-msg"), "Server data downloaded.");
     }),
@@ -409,6 +449,8 @@ export function init(ctx) {
       profile.show();
       security.load();
       loadSessions();
+      loadUsage();
+      loadConsent();
     },
   };
 }

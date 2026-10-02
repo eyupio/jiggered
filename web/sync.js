@@ -39,6 +39,7 @@ export function createStore({
   clearTimer = (t) => clearTimeout(t),
   onChange = () => {},
   onAuthLost = () => {},
+  onTask = () => {},
 } = {}) {
   let uid = null,
     stopped = false;
@@ -454,6 +455,10 @@ export function createStore({
           if (stopped) throw new Stop();
           if (res.status === 200 || res.status === 204) {
             settle(id, body, res.rev, lastN);
+            try {
+              if (body !== undefined)
+                onTask(id === "settings" ? "settings_saved" : "capture_saved");
+            } catch {}
             break;
           }
           if (res.status === 409) {

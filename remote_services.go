@@ -59,7 +59,9 @@ type accountSettings struct {
 	Recovery     bool   `json:"recovery"`
 	PublicURL    string `json:"public_url"`
 }
+type rehearsalSettings struct { Date string `json:"date"`; Outcome string `json:"outcome"` }
 type serviceSettings struct {
+ Rehearsal rehearsalSettings `json:"rehearsal"`
 	Accounts      accountSettings `json:"accounts"`
 	Remote        remoteSettings  `json:"remote"`
 	Email         emailSettings   `json:"email"`
@@ -68,6 +70,10 @@ type serviceSettings struct {
 	ScheduledFrom int64           `json:"scheduled_from"`
 }
 type backupRun struct {
+ Uploaded bool `json:"uploaded"`
+ Verified bool `json:"verified"`
+ VerificationRequired bool `json:"verification_required"`
+ Retained bool `json:"retained"`
 	ID       int64  `json:"id"`
 	Started  int64  `json:"started"`
 	Finished int64  `json:"finished"`
@@ -197,6 +203,10 @@ func safeServices(cfg serviceSettings) map[string]any {
 var bucketPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9.-]{1,62}$`)
 
 func validateServices(cfg serviceSettings) error {
+ if cfg.Rehearsal.Date!="" {date,err:=time.Parse("2006-01-02",cfg.Rehearsal.Date);if err!=nil||date.After(time.Now().UTC()){return errors.New("Enter a completed rehearsal date, today or earlier.")}}
+ if cfg.Rehearsal.Outcome!=""&&cfg.Rehearsal.Outcome!="passed"&&cfg.Rehearsal.Outcome!="needs_attention" {return errors.New("Choose a rehearsal outcome.")}
+ if (cfg.Rehearsal.Date=="")!=(cfg.Rehearsal.Outcome==""){return errors.New("Supply both a rehearsal date and outcome, or clear both.")}
+
 	if cfg.Remote.Encrypt && cfg.Remote.EncryptionPassword == "" {
 		return errors.New("Set a backup encryption password before enabling encryption.")
 	}
@@ -276,7 +286,7 @@ func (s *server) adminGetServices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result := safeServices(cfg)
-	rows, err := s.db.QueryContext(r.Context(), `SELECT id,started,finished,status,object_key,bytes,message,email FROM remote_backup_runs ORDER BY id DESC LIMIT 25`)
+	rows, err := s.db.QueryContext(r.Context(), `SELECT id,started,finished,status,object_key,bytes,message,email,uploaded,verified,verification_required,retained FROM remote_backup_runs ORDER BY id DESC LIMIT 25`)
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -285,7 +295,7 @@ func (s *server) adminGetServices(w http.ResponseWriter, r *http.Request) {
 	runs := []backupRun{}
 	for rows.Next() {
 		var v backupRun
-		if err = rows.Scan(&v.ID, &v.Started, &v.Finished, &v.Status, &v.Key, &v.Bytes, &v.Message, &v.Email); err != nil {
+		if err = rows.Scan(&v.ID, &v.Started, &v.Finished, &v.Status, &v.Key, &v.Bytes, &v.Message, &v.Email, &v.Uploaded, &v.Verified, &v.VerificationRequired, &v.Retained); err != nil {
 			serverError(w, r, err)
 			return
 		}
@@ -295,7 +305,12 @@ func (s *server) adminGetServices(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
-	result["runs"] = runs
+	rows.Close()
+ result["runs"] = runs
+ var usable,verified int64
+ if err=s.db.QueryRowContext(r.Context(),`SELECT COALESCE(MAX(CASE WHEN uploaded=1 AND (verification_required=0 OR verified=1) THEN finished END),0),COALESCE(MAX(CASE WHEN verified=1 THEN finished END),0) FROM remote_backup_runs`).Scan(&usable,&verified);err!=nil {serverError(w,r,err);return}
+ result["last_usable"]=usable;result["last_verified"]=verified
+ mail,err:=s.mailStatus(r.Context());if err!=nil {serverError(w,r,err);return};result["mail"]=mail
 	var last int64
 	if err := s.db.QueryRowContext(r.Context(), `SELECT COALESCE(MAX(started),0) FROM remote_backup_runs`).Scan(&last); err != nil {
 		serverError(w, r, err)
@@ -553,7 +568,8 @@ func (s *server) runRemoteBackup(cfg serviceSettings, id int64, actor string) {
 	defer cancel()
 	key := ""
 	var size int64
-	err := func() error {
+ uploaded,verified,retained:=false,false,false
+ err := func() error {
 		c, err := remoteClient(cfg.Remote)
 		if err != nil {
 			return err
@@ -598,6 +614,7 @@ func (s *server) runRemoteBackup(cfg serviceSettings, id int64, actor string) {
 		if err = c.put(ctx, key, f, size, digest); err != nil {
 			return err
 		}
+		uploaded=true
 		if cfg.Remote.Verify {
 			reader, _, err := c.get(ctx, key)
 			if err != nil {
@@ -613,6 +630,7 @@ func (s *server) runRemoteBackup(cfg serviceSettings, id int64, actor string) {
 				return errors.New("Uploaded backup did not pass SHA-256 verification. Retention was skipped.")
 			}
 		}
+		verified=cfg.Remote.Verify
 		if cfg.Remote.Keep > 0 {
 			objects, err := c.list(ctx, backupPrefix(cfg), 0)
 			if err != nil {
@@ -631,6 +649,7 @@ func (s *server) runRemoteBackup(cfg serviceSettings, id int64, actor string) {
 				}
 			}
 		}
+		retained=true
 		return nil
 	}()
 	status, message := "success", "Backup uploaded."
@@ -639,12 +658,13 @@ func (s *server) runRemoteBackup(cfg serviceSettings, id int64, actor string) {
 	}
 	if err != nil {
 		status = "failed"
+ if uploaded&&(!cfg.Remote.Verify||verified){status="warning"}
 		message = err.Error()
 	}
 	// Persist independently of a cancelled upload context so interruption remains visible.
 	doneCtx, done := context.WithTimeout(context.Background(), 10*time.Second)
 	defer done()
-	s.writeBackupHistory(doneCtx, id, "record completion", `UPDATE remote_backup_runs SET finished=?,status=?,object_key=?,bytes=?,message=? WHERE id=?`, time.Now().Unix(), status, key, size, message, id)
+	s.writeBackupHistory(doneCtx, id, "record completion", `UPDATE remote_backup_runs SET finished=?,status=?,object_key=?,bytes=?,message=?,uploaded=?,verified=?,verification_required=?,retained=? WHERE id=?`, time.Now().Unix(), status, key, size, message, uploaded, verified, cfg.Remote.Verify, retained, id)
 	s.audit(doneCtx, actor, "remote_backup_"+status, "", message, "")
 	emailStatus := "not requested"
 	if cfg.Email.Enabled && ((err != nil && cfg.Email.OnFailure) || (err == nil && cfg.Email.OnSuccess)) {
@@ -670,11 +690,17 @@ func (s *server) writeBackupHistory(ctx context.Context, id int64, operation, qu
 	return err
 }
 func (s *server) serviceScheduler(ctx context.Context) {
+ s.db.ExecContext(ctx,`UPDATE account_mail_deliveries SET status='queued' WHERE status='sending' AND attempts<4`)
+ s.db.ExecContext(ctx,`UPDATE account_mail_deliveries SET status='failed',payload='',token_hash='' WHERE status='sending' AND attempts>=4`)
+
 	s.writeBackupHistory(ctx, 0, "mark interrupted runs", `UPDATE remote_backup_runs SET status='interrupted',finished=?,message='Server stopped before this backup finished. Check the destination before retrying.' WHERE status='running'`, time.Now().Unix())
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	for {
 		s.scheduleRemoteBackup(ctx, time.Now())
+  s.db.ExecContext(ctx,`DELETE FROM account_mail_deliveries WHERE created<? AND status NOT IN ('queued','sending')`,time.Now().AddDate(0,0,-7).Unix())
+  s.db.ExecContext(ctx,`DELETE FROM product_usage WHERE week<?`,time.Now().AddDate(0,0,-90).Format("2006-01-02"))
+  s.kickAccountMail()
 		select {
 		case <-ctx.Done():
 			return

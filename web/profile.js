@@ -10,6 +10,10 @@ export function normaliseProfile(value) {
   const p = value && typeof value === "object" ? value : {};
   const text = (v, n) => (typeof v === "string" ? [...v.trim()].slice(0, n).join("") : "");
   return {
+    weeklyReview: p.weeklyReview === true,
+    reviewDismissedWeek: /^\d{4}-\d{2}-\d{2}$/.test(p.reviewDismissedWeek || "")
+      ? p.reviewDismissedWeek
+      : "",
     avatar: normaliseAvatar(p.avatar),
     region: normaliseRegion(p.region),
     energyTheme: energyTheme(p),
@@ -61,11 +65,14 @@ export function initProfile(ctx) {
   const raw = () => ctx.store?.view("settings")?.profile;
   const read = () => ({
     ...Object.fromEntries(fields.map((k) => [k, form.elements[k].value.trim()])),
+    weeklyReview: $("profile-weekly-review").checked,
+    reviewDismissedWeek: normaliseProfile(raw()).reviewDismissedWeek,
     avatar,
   });
   const fill = (value) => {
     const p = normaliseProfile(value);
     for (const key of fields) form.elements[key].value = p[key];
+    $("profile-weekly-review").checked = p.weeklyReview;
     avatar = p.avatar;
     photoTask++;
     photoBusy = false;
