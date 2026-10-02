@@ -18,18 +18,10 @@ import (
 	"time"
 )
 
-// An S3 client, in four verbs.
-//
-// There is no SDK behind this for the reason there is no Docker SDK behind
-// internal/backend: putting an object, getting it, listing a prefix and
-// deleting a key is four signed requests, and the signature is forty lines of
-// HMAC. The dependency that implements the other two hundred calls brings a
-// transitive tree, a release cadence and a vulnerability surface with it, all
-// so that a controller can write one file a night.
-//
-// It speaks to anything that implements the S3 API -- AWS, MinIO, Ceph,
-// Backblaze B2, Cloudflare R2, Garage -- because signature version 4 and
-// ListObjectsV2 are what they all agree on.
+// A small S3 client for backup uploads, downloads, listing and deletion.
+// It signs requests with Signature Version 4 and lists with ListObjectsV2.
+// Keeping this protocol boundary here avoids an SDK dependency for four verbs;
+// compatibility with an endpoint still depends on its S3 implementation.
 
 // s3Client is one bucket at one endpoint, with the credentials that open it.
 type s3Client struct {

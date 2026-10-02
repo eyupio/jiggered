@@ -1,11 +1,47 @@
 <p class="eyebrow">PRICING &amp; ACCESS</p>
 <h1>Free to use. Check access before you start.</h1>
-<p class="public-lead">Jiggered is a personal energy and symptom log. There is no paid plan offered in this app. New account availability depends on the instance you are visiting.</p>
-<section class="public-example" aria-labelledby="access-title"><h2 id="access-title">Accounts on this instance</h2><p class="choice-status">{{.Status}}</p><p>{{.Availability}}</p>{{if .Registration}}<p>Choose a username and password, supply your email address, and follow the verification link. Your account is created after you verify your email.</p>{{else}}<p>If you need access to a closed instance, ask its administrator whether they can create an account. There is no automatic waiting list.</p>{{end}}<p><a href="{{.CTA}}">{{.CTALabel}}</a></p></section>
+<p class="public-lead">
+  Jiggered is a personal energy and symptom log. There is no paid plan offered in this app. New
+  account availability depends on the instance you are visiting.
+</p>
+<section class="public-example" aria-labelledby="access-title">
+  <h2 id="access-title">Accounts on this instance</h2>
+  <p class="choice-status">{{.Status}}</p>
+  <p>{{.Availability}}</p>
+  {{if .Registration}}
+  <p>
+    Choose a username and password, supply your email address, and follow the verification link.
+    Your account is created after you verify your email.
+  </p>
+  {{else}}
+  <p>
+    If you need access to a closed instance, ask its administrator whether they can create an
+    account. There is no automatic waiting list.
+  </p>
+  {{end}}
+  <p><a href="{{.CTA}}">{{.CTALabel}}</a></p>
+</section>
 <h2>What you can record</h2>
-<p>Daily check-ins and personal activity points, symptom episodes, and history views are part of the app. Your account also includes CSV exports, a printable summary, JSON data tools and account deletion. Read the <a href="/docs/getting-started">getting-started guide</a> to see the workflow.</p>
+<p>
+  Daily check-ins and personal activity points, symptom episodes, and history views are part of the
+  app. Your account also includes CSV exports, a printable summary, JSON data tools and account
+  deletion. Read the <a href="/docs/getting-started">getting-started guide</a> to see the workflow.
+</p>
 <h2>Who runs the instance matters</h2>
-<p>Each account has its own log, but server operators can access the database and backups. Use an instance and administrator you trust. This page does not promise a support response time, uptime guarantee or a particular operator's retention policy. Read <a href="/privacy">the data-access and privacy explanation</a> and ask your operator about their practices.</p>
+<p>
+  Each account has its own log, but server operators can access the database and backups. Use an
+  instance and administrator you trust. This page does not promise a support response time, uptime
+  guarantee or a particular operator's retention policy. Read
+  <a href="/privacy">the data-access and privacy explanation</a> and ask your operator about their
+  practices.
+</p>
 <h2>Public source release: planned</h2>
-<p>A public source release is planned for people who want to run their own instance. Public licensing and installation access have not been announced here. We are not presenting a private repository as an available open-source download.</p>
-<p>Existing operators may have hosting or infrastructure costs. “Free to use” does not mean that running a server is free.</p>
+<p>
+  A public source release is planned for people who want to run their own instance. Public licensing
+  and installation access have not been announced here. We are not presenting a private repository
+  as an available open-source download.
+</p>
+<p>
+  Existing operators may have hosting or infrastructure costs. “Free to use” does not mean that
+  running a server is free.
+</p>

@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/mail"
@@ -78,10 +79,8 @@ type backupRun struct {
 }
 
 func (s *server) initServices() error {
-	_, err := s.db.Exec(`CREATE TABLE IF NOT EXISTS remote_backup_runs (id INTEGER PRIMARY KEY, started INTEGER NOT NULL, finished INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL, object_key TEXT NOT NULL DEFAULT '', bytes INTEGER NOT NULL DEFAULT 0, message TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '')`)
-	if err != nil {
-		return err
-	}
+	// openDB must have applied all migrations before constructing a server.
+	var err error
 	var b [12]byte
 	if _, err = rand.Read(b[:]); err != nil {
 		return err
@@ -298,7 +297,10 @@ func (s *server) adminGetServices(w http.ResponseWriter, r *http.Request) {
 	}
 	result["runs"] = runs
 	var last int64
-	s.db.QueryRowContext(r.Context(), `SELECT COALESCE(MAX(started),0) FROM remote_backup_runs`).Scan(&last)
+	if err := s.db.QueryRowContext(r.Context(), `SELECT COALESCE(MAX(started),0) FROM remote_backup_runs`).Scan(&last); err != nil {
+		serverError(w, r, err)
+		return
+	}
 	if cfg.Remote.Enabled {
 		if last < cfg.ScheduledFrom {
 			last = cfg.ScheduledFrom
@@ -642,7 +644,7 @@ func (s *server) runRemoteBackup(cfg serviceSettings, id int64, actor string) {
 	// Persist independently of a cancelled upload context so interruption remains visible.
 	doneCtx, done := context.WithTimeout(context.Background(), 10*time.Second)
 	defer done()
-	s.db.ExecContext(doneCtx, `UPDATE remote_backup_runs SET finished=?,status=?,object_key=?,bytes=?,message=? WHERE id=?`, time.Now().Unix(), status, key, size, message, id)
+	s.writeBackupHistory(doneCtx, id, "record completion", `UPDATE remote_backup_runs SET finished=?,status=?,object_key=?,bytes=?,message=? WHERE id=?`, time.Now().Unix(), status, key, size, message, id)
 	s.audit(doneCtx, actor, "remote_backup_"+status, "", message, "")
 	emailStatus := "not requested"
 	if cfg.Email.Enabled && ((err != nil && cfg.Email.OnFailure) || (err == nil && cfg.Email.OnSuccess)) {
@@ -654,11 +656,21 @@ func (s *server) runRemoteBackup(cfg serviceSettings, id int64, actor string) {
 			emailStatus = "failed: " + mailErr.Error()
 		}
 	}
-	s.db.ExecContext(doneCtx, `UPDATE remote_backup_runs SET email=? WHERE id=?`, emailStatus, id)
-	s.db.ExecContext(doneCtx, `DELETE FROM remote_backup_runs WHERE id NOT IN (SELECT id FROM remote_backup_runs ORDER BY id DESC LIMIT 100)`)
+	s.writeBackupHistory(doneCtx, id, "record email outcome", `UPDATE remote_backup_runs SET email=? WHERE id=?`, emailStatus, id)
+	s.writeBackupHistory(doneCtx, id, "prune history", `DELETE FROM remote_backup_runs WHERE id NOT IN (SELECT id FROM remote_backup_runs ORDER BY id DESC LIMIT 100)`)
+}
+
+// writeBackupHistory reports persistence failures without retrying an already completed transfer.
+// Arguments may contain private values, so only the operation and run ID are logged.
+func (s *server) writeBackupHistory(ctx context.Context, id int64, operation, query string, args ...any) error {
+	_, err := s.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		log.Printf("backup history run %d: %s: %v", id, operation, err)
+	}
+	return err
 }
 func (s *server) serviceScheduler(ctx context.Context) {
-	s.db.ExecContext(ctx, `UPDATE remote_backup_runs SET status='interrupted',finished=?,message='Server stopped before this backup finished. Check the destination before retrying.' WHERE status='running'`, time.Now().Unix())
+	s.writeBackupHistory(ctx, 0, "mark interrupted runs", `UPDATE remote_backup_runs SET status='interrupted',finished=?,message='Server stopped before this backup finished. Check the destination before retrying.' WHERE status='running'`, time.Now().Unix())
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	for {
@@ -672,11 +684,20 @@ func (s *server) serviceScheduler(ctx context.Context) {
 }
 func (s *server) scheduleRemoteBackup(ctx context.Context, now time.Time) {
 	cfg, err := s.loadServices(ctx, false)
-	if err != nil || !cfg.Remote.Enabled {
+	if err != nil {
+		if ctx.Err() == nil {
+			log.Printf("backup scheduler: read settings: %v", err)
+		}
+		return
+	}
+	if !cfg.Remote.Enabled {
 		return
 	}
 	var last int64
 	if err = s.db.QueryRowContext(ctx, `SELECT COALESCE(MAX(started),0) FROM remote_backup_runs`).Scan(&last); err != nil {
+		if ctx.Err() == nil {
+			log.Printf("backup scheduler: read history: %v", err)
+		}
 		return
 	}
 	if last < cfg.ScheduledFrom {
@@ -688,8 +709,10 @@ func (s *server) scheduleRemoteBackup(ctx context.Context, now time.Time) {
 	// A missing key produces a recorded failure and observes the same interval, avoiding retry storms.
 	clear, err := s.loadServices(ctx, true)
 	if err != nil {
-		s.db.ExecContext(ctx, `INSERT INTO remote_backup_runs(started,finished,status,message) VALUES(?,?,'failed',?)`, now.Unix(), now.Unix(), err.Error())
+		s.writeBackupHistory(ctx, 0, "record scheduler failure", `INSERT INTO remote_backup_runs(started,finished,status,message) VALUES(?,?,'failed',?)`, now.Unix(), now.Unix(), err.Error())
 		return
 	}
-	s.startRemoteBackup(clear, "system")
+	if _, err := s.startRemoteBackup(clear, "system"); err != nil {
+		log.Printf("backup scheduler: start backup: %v", err)
+	}
 }

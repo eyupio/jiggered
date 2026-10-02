@@ -249,8 +249,7 @@
 .app-shell .x {
   text-underline-offset: 3px;
 }
-.app-shell
-  input:not([type="checkbox"]):not([type="radio"]):not(.switch):not(.day-pick),
+.app-shell input:not([type="checkbox"]):not([type="radio"]):not(.switch):not(.day-pick),
 .app-shell textarea,
 .app-shell select {
   border-radius: 8px;
@@ -1111,36 +1110,174 @@
   }
 }
 
-.app-shell #brand-home { color: inherit; text-decoration: none; border-radius: 8px; }
+.app-shell #brand-home {
+  color: inherit;
+  text-decoration: none;
+  border-radius: 8px;
+}
 
 /* Energy language is independent of light/dark appearance. Native radios keep keyboard semantics. */
-.energy-theme-picker { gap: 12px; padding-top: 8px; border-top: 1px solid var(--line); }
-.energy-theme-picker legend { padding: 12px 0 0; font-size: 1rem; }
-.energy-theme-picker > .hint { margin: 0; }
-.energy-theme-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.energy-theme-option { position: relative; min-width: 0; cursor: pointer; }
-.energy-theme-option > input { position: absolute; width: 1px; height: 1px; opacity: 0; }
-.energy-theme-card { display: flex; flex-direction: column; gap: 12px; height: 100%; padding: 18px; border: 2px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--muted); font-size: .9rem; line-height: 1.5; }
-.energy-theme-option:hover .energy-theme-card { border-color: var(--muted); }
-.energy-theme-option > input:checked + .energy-theme-card { border-color: var(--accent); background: var(--accent-soft); }
-.energy-theme-option > input:focus-visible + .energy-theme-card { outline: 3px solid var(--amber); outline-offset: 4px; }
-.energy-theme-top { display: flex; align-items: center; gap: 10px; color: var(--fg); }
-.energy-theme-top b { font-size: 1.05rem; }
-.energy-theme-symbol { display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; color: var(--accent); flex-shrink: 0; }
-.energy-theme-symbol path, .energy-spoon path, .cells .cell path { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.energy-theme-check { margin-left: auto; visibility: hidden; color: var(--accent); font-weight: 700; }
-.energy-theme-option > input:checked + .energy-theme-card .energy-theme-check { visibility: visible; }
-.energy-theme-example { margin-top: auto; font-size: .8rem; font-weight: 700; color: var(--fg); }
-.energy-theme-preview { display: grid; gap: 4px; padding: 14px 18px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; }
-.energy-theme-preview .label { font-size: .7rem; }
-.energy-spoon { width: 20px; height: 20px; color: var(--accent); flex-shrink: 0; }
-:root[data-energy-theme="spoons"] .energy-readout { gap: 4px; }
-:root[data-energy-theme="spoons"] .app-shell .cell { height: 30px; background: transparent; display: grid; place-items: center; color: var(--accent); border-radius: 0; }
-:root[data-energy-theme="spoons"] .cell svg { width: 19px; height: 28px; }
-:root[data-energy-theme="spoons"] .app-shell .cell.spent { color: var(--muted); }
-:root[data-energy-theme="spoons"] .cell.spent path { stroke-dasharray: 2 2; }
-:root[data-energy-theme="spoons"] .app-shell .cell.lost { color: var(--muted); opacity: .4; }
-:root[data-energy-theme="spoons"] .cells.low .cell:not(.spent):not(.lost) { color: var(--amber); background: transparent; }
-:root[data-energy-theme="spoons"] .cells.out .cell:not(.spent):not(.lost) { color: var(--red); background: transparent; }
-@media (max-width: 480px) { .energy-theme-options { grid-template-columns: 1fr; } .energy-theme-card { padding: 16px; gap: 8px; } }
-@media (forced-colors: active) { .energy-theme-option > input:checked + .energy-theme-card { border-color: Highlight; } .energy-theme-option > input:focus-visible + .energy-theme-card { outline-color: Highlight; } .energy-theme-check { color: Highlight; } }
+.energy-theme-picker {
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.energy-theme-picker legend {
+  padding: 12px 0 0;
+  font-size: 1rem;
+}
+.energy-theme-picker > .hint {
+  margin: 0;
+}
+.energy-theme-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.energy-theme-option {
+  position: relative;
+  min-width: 0;
+  cursor: pointer;
+}
+.energy-theme-option > input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.energy-theme-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  padding: 18px;
+  border: 2px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.energy-theme-option:hover .energy-theme-card {
+  border-color: var(--muted);
+}
+.energy-theme-option > input:checked + .energy-theme-card {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.energy-theme-option > input:focus-visible + .energy-theme-card {
+  outline: 3px solid var(--amber);
+  outline-offset: 4px;
+}
+.energy-theme-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--fg);
+}
+.energy-theme-top b {
+  font-size: 1.05rem;
+}
+.energy-theme-symbol {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.energy-theme-symbol path,
+.energy-spoon path,
+.cells .cell path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.energy-theme-check {
+  margin-left: auto;
+  visibility: hidden;
+  color: var(--accent);
+  font-weight: 700;
+}
+.energy-theme-option > input:checked + .energy-theme-card .energy-theme-check {
+  visibility: visible;
+}
+.energy-theme-example {
+  margin-top: auto;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--fg);
+}
+.energy-theme-preview {
+  display: grid;
+  gap: 4px;
+  padding: 14px 18px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.energy-theme-preview .label {
+  font-size: 0.7rem;
+}
+.energy-spoon {
+  width: 20px;
+  height: 20px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+:root[data-energy-theme="spoons"] .energy-readout {
+  gap: 4px;
+}
+:root[data-energy-theme="spoons"] .app-shell .cell {
+  height: 30px;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  border-radius: 0;
+}
+:root[data-energy-theme="spoons"] .cell svg {
+  width: 19px;
+  height: 28px;
+}
+:root[data-energy-theme="spoons"] .app-shell .cell.spent {
+  color: var(--muted);
+}
+:root[data-energy-theme="spoons"] .cell.spent path {
+  stroke-dasharray: 2 2;
+}
+:root[data-energy-theme="spoons"] .app-shell .cell.lost {
+  color: var(--muted);
+  opacity: 0.4;
+}
+:root[data-energy-theme="spoons"] .cells.low .cell:not(.spent):not(.lost) {
+  color: var(--amber);
+  background: transparent;
+}
+:root[data-energy-theme="spoons"] .cells.out .cell:not(.spent):not(.lost) {
+  color: var(--red);
+  background: transparent;
+}
+@media (max-width: 480px) {
+  .energy-theme-options {
+    grid-template-columns: 1fr;
+  }
+  .energy-theme-card {
+    padding: 16px;
+    gap: 8px;
+  }
+}
+@media (forced-colors: active) {
+  .energy-theme-option > input:checked + .energy-theme-card {
+    border-color: Highlight;
+  }
+  .energy-theme-option > input:focus-visible + .energy-theme-card {
+    outline-color: Highlight;
+  }
+  .energy-theme-check {
+    color: Highlight;
+  }
+}

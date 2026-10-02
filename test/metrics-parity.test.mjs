@@ -17,11 +17,20 @@ test("summary and history agree on the average over days with activities", () =>
 });
 
 test("check-in-only, recovery-only and empty ranges use the same rule in both views", () => {
-  const docs = { "d-2026-10-01": { status: "red", entries: [{ a: "Rest", c: -4 }], budget: 10 }, "d-2026-09-30": { status: "green", entries: [], budget: 10 } };
+  const docs = {
+    "d-2026-10-01": { status: "red", entries: [{ a: "Rest", c: -4 }], budget: 10 },
+    "d-2026-09-30": { status: "green", entries: [], budget: 10 },
+  };
   const s = summary(docs, DEFAULTS, "30", "2026-10-01");
   assert.equal(s.avgUsed, -4);
-  assert.equal(historyInsights(docs, DEFAULTS, "2026-10-01", { from: "2026-09-30" }).metrics.avgUsed, -4);
+  assert.equal(
+    historyInsights(docs, DEFAULTS, "2026-10-01", { from: "2026-09-30" }).metrics.avgUsed,
+    -4,
+  );
   const none = { "d-2026-10-01": { status: "green", entries: [], budget: 10 } };
   assert.equal(summary(none, DEFAULTS, "30", "2026-10-01").avgUsed, null);
-  assert.equal(historyInsights(none, DEFAULTS, "2026-10-01", { from: "2026-10-01" }).metrics.avgUsed, null);
+  assert.equal(
+    historyInsights(none, DEFAULTS, "2026-10-01", { from: "2026-10-01" }).metrics.avgUsed,
+    null,
+  );
 });

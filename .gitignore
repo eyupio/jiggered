@@ -7,3 +7,17 @@ node_modules/
 
 .jiggered-service-key
 .service-key-*
+
+# Local configuration and private backup archives
+.env.*
+!.env.example
+*.zip
+*.zip.enc
+.tmp-archive-*
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+/test/artifacts/
+/.local/

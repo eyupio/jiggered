@@ -1,44 +1,176 @@
 /* Public content only; the authenticated dashboard keeps its own styles. */
-.public-header { flex-wrap: wrap; }
-.public-nav { flex-wrap: wrap; justify-content: center; gap: 8px 18px; }
-.public-nav a { display: inline-flex; align-items: center; min-height: 44px; }
-.public-footer nav { display: flex; flex-wrap: wrap; gap: 6px 22px; grid-column: 1 / -1; }
-.public-footer nav a { display: inline-flex; align-items: center; min-height: 44px; }
-.public-main { max-width: 920px; padding-block: 24px 64px; }
-.breadcrumbs { display: flex; flex-wrap: wrap; gap: 10px; font-size: 14px; margin-bottom: 30px; }
-.breadcrumbs a { text-decoration: underline; text-underline-offset: 3px; }
-.public-article { max-width: 760px; }
-.public-article h1 { font-size: clamp(38px, 5vw, 64px); margin: 16px 0 24px; }
-.public-article h2 { font-size: clamp(24px, 3vw, 32px); margin: 36px 0 16px; }
-.public-article h3 { font-size: 22px; margin: 0 0 12px; }
-.public-article p, .public-article li { font-size: 18px; line-height: 1.75; }
-.public-article p { margin: 16px 0; }
-.public-article a, .spoon-note a, .feature-card .feature-link, .public-next p a { text-decoration: underline; text-underline-offset: 4px; }
-.public-lead { font-size: 21px !important; color: var(--muted); }
-.public-example { padding: 24px; border: 1px solid var(--line); border-radius: 12px; background: var(--accent-soft); margin-block: 24px; }
-.public-example h2 { margin-top: 0; }
-.public-example p:last-child { margin-bottom: 0; }
-.public-next { margin-top: 48px; padding: 28px; border-radius: 12px; background: var(--accent-soft); }
-.public-next h2 { font-size: 28px; margin: 0 0 16px; }
-.public-next p { line-height: 1.7; margin-bottom: 20px; }
-.public-next .p-button { max-width: 100%; }
-.feature-link { display: inline-block; margin-top: 12px; font-weight: 700; }
-.spoon-note { max-width: 760px; padding-block: 12px 60px; line-height: 1.75; }
-.spoon-note h2 { font-size: 32px; margin-bottom: 20px; }
-.spoon-note p + p { margin-top: 14px; }
-.landing-page .hero h1 { font-size: clamp(48px, 5.5vw, 76px); }
-.landing-page .hero-description { max-width: 490px; }
-.landing-page .hero-actions { flex-wrap: wrap; gap: 16px 24px; }
-.landing-page .hero-actions .p-button { max-width: 100%; }
-.landing-page .hero-availability { margin-top: 12px; max-width: 490px; line-height: 1.6; }
+.public-header {
+  flex-wrap: wrap;
+}
+.public-nav {
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 18px;
+}
+.public-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.public-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  grid-column: 1 / -1;
+}
+.public-footer nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.public-main {
+  max-width: 920px;
+  padding-block: 24px 64px;
+}
+.breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 14px;
+  margin-bottom: 30px;
+}
+.breadcrumbs a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.public-article {
+  max-width: 760px;
+}
+.public-article h1 {
+  font-size: clamp(38px, 5vw, 64px);
+  margin: 16px 0 24px;
+}
+.public-article h2 {
+  font-size: clamp(24px, 3vw, 32px);
+  margin: 36px 0 16px;
+}
+.public-article h3 {
+  font-size: 22px;
+  margin: 0 0 12px;
+}
+.public-article p,
+.public-article li {
+  font-size: 18px;
+  line-height: 1.75;
+}
+.public-article p {
+  margin: 16px 0;
+}
+.public-article a,
+.spoon-note a,
+.feature-card .feature-link,
+.public-next p a {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.public-lead {
+  font-size: 21px !important;
+  color: var(--muted);
+}
+.public-example {
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--accent-soft);
+  margin-block: 24px;
+}
+.public-example h2 {
+  margin-top: 0;
+}
+.public-example p:last-child {
+  margin-bottom: 0;
+}
+.public-next {
+  margin-top: 48px;
+  padding: 28px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+}
+.public-next h2 {
+  font-size: 28px;
+  margin: 0 0 16px;
+}
+.public-next p {
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+.public-next .p-button {
+  max-width: 100%;
+}
+.feature-link {
+  display: inline-block;
+  margin-top: 12px;
+  font-weight: 700;
+}
+.spoon-note {
+  max-width: 760px;
+  padding-block: 12px 60px;
+  line-height: 1.75;
+}
+.spoon-note h2 {
+  font-size: 32px;
+  margin-bottom: 20px;
+}
+.spoon-note p + p {
+  margin-top: 14px;
+}
+.landing-page .hero h1 {
+  font-size: clamp(48px, 5.5vw, 76px);
+}
+.landing-page .hero-description {
+  max-width: 490px;
+}
+.landing-page .hero-actions {
+  flex-wrap: wrap;
+  gap: 16px 24px;
+}
+.landing-page .hero-actions .p-button {
+  max-width: 100%;
+}
+.landing-page .hero-availability {
+  margin-top: 12px;
+  max-width: 490px;
+  line-height: 1.6;
+}
 @media (max-width: 760px) {
-  .public-header .public-nav { display: flex; order: 3; flex-basis: 100%; justify-content: flex-start; font-size: 13px; }
-  .public-header .nav-actions { margin-left: auto; max-width: 180px; }
-  .public-header .p-button.small { white-space: normal; text-align: center; }
-  .landing-page .hero { padding-top: 22px; }
-  .landing-page .hero h1 { font-size: clamp(44px, 10vw, 62px); }
-  .landing-page .hero-art { min-height: 465px; }
-  .public-article p, .public-article li { font-size: 17px; }
-  .public-example, .public-next { padding: 20px; }
-  .public-footer nav { gap: 6px 16px; }
+  .public-header .public-nav {
+    display: flex;
+    order: 3;
+    flex-basis: 100%;
+    justify-content: flex-start;
+    font-size: 13px;
+  }
+  .public-header .nav-actions {
+    margin-left: auto;
+    max-width: 180px;
+  }
+  .public-header .p-button.small {
+    white-space: normal;
+    text-align: center;
+  }
+  .landing-page .hero {
+    padding-top: 22px;
+  }
+  .landing-page .hero h1 {
+    font-size: clamp(44px, 10vw, 62px);
+  }
+  .landing-page .hero-art {
+    min-height: 465px;
+  }
+  .public-article p,
+  .public-article li {
+    font-size: 17px;
+  }
+  .public-example,
+  .public-next {
+    padding: 20px;
+  }
+  .public-footer nav {
+    gap: 6px 16px;
+  }
 }
