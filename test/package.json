@@ -5,7 +5,7 @@
     "node": "^22.13.0 || >=24"
   },
   "scripts": {
-    "test": "node --test --test-isolation=none \"*.test.mjs\"",
+    "test": "node --test \"*.test.mjs\"",
     "browser": "node support/run-browser.cjs",
     "browser:install": "playwright install chromium",
     "format": "prettier --write ../web . ../.github ../CONTRIBUTING.md ../CLAUDE.md ../README.md ../.prettierrc.json",
