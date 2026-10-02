@@ -180,4 +180,3 @@ func TestTheSVGIsSelfContainedAndCarriesTheQuietZone(t *testing.T) {
 		}
 	}
 }
-
