@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /$
+Allow: /welcome$
+Disallow: /login
+Disallow: /register
+Disallow: /api/

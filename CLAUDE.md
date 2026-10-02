@@ -78,7 +78,9 @@ the tabs; `admin.js` is mounted only for admins; `sw.js` is the service worker;
   page: omitted docs would look deleted) with a weak ETag over each doc's id, revision, size and save time; a client that
   holds the current snapshot sends it and gets 304. `sync.js` forgets the tag whenever anything else changes its copy.
 - **Accounts**: created by an admin (temporary password, must be changed before
-  anything else works) or by `jiggered user add`. No sign-up page. The last active
+  anything else works), by `jiggered user add`, or through verified-email registration when enabled.
+  `/register` and `/login` share the account forms; `/welcome` is the public landing page.
+  Signed-out `/` serves the landing; signed-in `/` serves the private app. The last active
   admin can't be demoted, disabled or deleted; nobody can do that to themselves
   through the admin API.
 - **Configuration lives in the database.** The environment only says where it is
@@ -154,4 +156,3 @@ index and the universal rules. A `CLAUDE.md` in a subfolder, if one is ever
 justified by that folder's own tooling, appends scoped context and must never
 contradict or overwrite this file. There is none today: the Go code is one flat
 package and `web/` has no tooling of its own.
-
