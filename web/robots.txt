@@ -1,6 +1,4 @@
+# The server generates /robots.txt and adds a sitemap only on index-enabled deployments.
+# Search and AI crawlers share this policy; authentication protects private records.
 User-agent: *
-Allow: /$
-Allow: /welcome$
-Disallow: /login
-Disallow: /register
 Disallow: /api/
