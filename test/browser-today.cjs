@@ -151,6 +151,63 @@ const groups = page => page.evaluate(() => [...document.querySelectorAll('#acts 
       assert.equal(Number((await page.locator('#energy-progress').getAttribute('stroke-dasharray')).split(' ')[0]), sample.fill, 'ring reflects the allowance');
       assert.equal(await page.locator('#energy-visual').getAttribute('data-level'), sample.level);
     }
+    // Energy pills use individual entry IDs, even when activity names repeat.
+    const logCustom = async (name, cost, time) => {
+      await page.locator('#other-activity').click();
+      await page.locator('#entry-name').fill(name);
+      await page.locator('#entry-cost').fill(String(cost));
+      await page.locator('#entry-time').fill(time);
+      await page.locator('#entry-form button[type="submit"]').click();
+      await saved(page);
+    };
+    assert.equal(await page.locator('#energy-activities').isVisible(), false, 'empty days have no pill controls');
+    await logCustom('Rest & recover <quietly>', -3, '09:00');
+    await logCustom('Rest & recover <quietly>', 0, '12:00');
+    const pills = page.locator('#energy-activity-pills li');
+    assert.equal(await pills.count(), 2);
+    assert.match(await pills.first().textContent(), /Rest & recover <quietly>.*09:00.*\+3/);
+    assert.equal(await pills.first().locator('.energy-activity-name').textContent(), 'Rest & recover <quietly>', 'names are escaped');
+    const firstId = await pills.first().locator('[data-action="edit"]').getAttribute('data-entry');
+    const secondId = await pills.nth(1).locator('[data-action="edit"]').getAttribute('data-entry');
+    assert.notEqual(firstId, secondId);
+    await pills.first().locator('[data-action="edit"]').focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('#entry-time').inputValue(), '09:00', 'keyboard edit opens the correct duplicate');
+    await page.locator('#entry-name').fill('A gentle recovery break');
+    await page.locator('#entry-cost').fill('-2');
+    await page.locator('#entry-form button[type="submit"]').click();
+    await saved(page);
+    assert.match(await pills.first().textContent(), /A gentle recovery break/);
+    assert.match(await pills.first().textContent(), /\+2/, 'corrected costs update the pill');
+    assert.match(await pills.nth(1).textContent(), /Rest & recover <quietly>/);
+    await pills.first().locator('[data-action="remove"]').click();
+    await saved(page);
+    assert.equal(await pills.count(), 1);
+    assert.equal(await pills.first().locator('[data-action="edit"]').getAttribute('data-entry'), secondId, 'removal preserves the other duplicate');
+    assert.equal(await pills.first().locator('[data-action="edit"]').evaluate(el => el === document.activeElement), true, 'focus stays on a remaining pill');
+    await page.locator('#toastbar button', { hasText: 'Undo removal' }).click();
+    await saved(page);
+    assert.equal(await pills.count(), 2);
+    assert.equal(await pills.first().locator('[data-action="edit"]').getAttribute('data-entry'), firstId, 'Undo restores entry identity and order');
+    await page.locator('#day-prev').click();
+    assert.equal(await pills.count(), 0, 'pills follow the selected day');
+    await logCustom('Yesterday’s quiet walk', 2, '15:00');
+    assert.match(await pills.first().textContent(), /Yesterday’s quiet walk/);
+    await page.locator('#day-back').click();
+    assert.equal(await pills.count(), 2, 'returning to today restores its own pills');
+    await logCustom('A long activity name that should stay within the energy card', 1, '13:45');
+    for (const width of [320, 390, 1440]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.emulateMedia({ colorScheme: width === 390 ? 'dark' : 'light' });
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false, `pills fit at ${width}px`);
+      assert.ok(await pills.last().evaluate(el => el.getBoundingClientRect().right <= el.parentElement.getBoundingClientRect().right + 1), 'long names fit their card');
+      if (process.env.JIGGERED_SCREENSHOT_DIR) {
+        fs.mkdirSync(process.env.JIGGERED_SCREENSHOT_DIR, { recursive: true });
+        await page.locator('.energy-panel').screenshot({ path: path.join(process.env.JIGGERED_SCREENSHOT_DIR, `energy-pills-${width}.png`) });
+      }
+    }
+    await page.reload(); await saved(page);
+    assert.equal(await pills.count(), 3, 'pills survive reload and sync');
     await page.locator('#t-history').click();
     assert.equal(await page.locator('#view-heading').textContent(), 'Your days, in perspective.');
     await page.reload(); await saved(page);
@@ -158,7 +215,7 @@ const groups = page => page.evaluate(() => [...document.querySelectorAll('#acts 
     await page.emulateMedia({ reducedMotion: 'reduce' });
     assert.equal(await page.locator('#energy-progress').evaluate(el => getComputedStyle(el).transitionDuration), '0s');
     assert.deepEqual(errors, []);
-    console.log('PASS: Today: checklist, check-in/Undo, groups, logged-in-place activity controls, live energy ring including negative/above-budget/zero allowance, view headings and reduced motion');
+    console.log('PASS: Today: checklist, check-in/Undo, groups, activity controls, energy ring, per-entry pills/edit/remove/Undo, duplicate names, past days, mobile/dark layouts, view headings and reduced motion');
   } catch (e) {
     console.error(e.stack);
     if (logs) console.error(logs);

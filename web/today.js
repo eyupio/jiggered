@@ -15,6 +15,7 @@ export function init(ctx) {
   const more = new Map(), closed = new Set(); // per-group paging and the groups the person closed (all start open, so a new list shows buttons), kept while this tab is open
   let changing = false, onboardingSeen = false; // re-choosing a check-in that is set; whether the first-run checklist showed this session
   const entryForm = $("entry-form");
+  let pillsKey = "";
 
   const key = () => viewDate ?? ctx.today();
   const id = () => dayId(key());
@@ -127,14 +128,20 @@ export function init(ctx) {
     ctx.toast(previous ? "Activity correction queued." : "Activity queued.", previous ? { label: "Undo correction", fn: () => ctx.store.dispatch({ id: target, type: "editEntry", arg: { id: previous.id, changes: Object.fromEntries(Object.keys(changed).map(k=>[k,previous[k]])) }, before: changes, original, stamp }) } : undefined);
     await ticket;
   });
-  $("entries").addEventListener("click", e => {
+  function entryAction(e) {
     const b = e.target.closest("[data-entry]");
     if (!b) return;
     const entries = day().entries, index = entries.findIndex(x => x.id === b.dataset.entry), entry = entries[index];
     if (!entry) return;
     if (b.dataset.action === "edit") { edit(entry); return }
     removeEntry(entry);
-  });
+    if (e.currentTarget.id === "energy-activity-pills") {
+      const buttons = $("energy-activity-pills").querySelectorAll('[data-action="edit"]');
+      (buttons[Math.min(index, buttons.length - 1)] || $("other-activity")).focus();
+    }
+  }
+  $("entries").addEventListener("click", entryAction);
+  $("energy-activity-pills").addEventListener("click", entryAction);
 
   $("day-prev").addEventListener("click", () => open(addDays(key(), -1)));
   $("day-next").addEventListener("click", () => { if (key() < ctx.today()) open(addDays(key(), 1)) });
@@ -235,6 +242,13 @@ export function init(ctx) {
     renderOnboarding(S, past);
 
     $("activity-log").hidden = !d.entries.length;
+    $("energy-activities").hidden = !d.entries.length;
+    // Keep keyboard focus on unchanged pills when background sync re-renders Today.
+    const nextPillsKey = JSON.stringify([key(), d.entries]);
+    if (pillsKey !== nextPillsKey) {
+      pillsKey = nextPillsKey;
+      setHTML($("energy-activity-pills"), html`${d.entries.map(e => html`<li class="energy-activity-pill${e.c < 0 ? " recovery" : ""}"><button type="button" class="energy-activity-edit" data-entry="${e.id}" data-action="edit" aria-label="Edit ${e.a}${e.t ? ` at ${e.t}` : ""}" title="Edit ${e.a}"><span class="energy-activity-name">${e.a}</span><span class="energy-activity-detail">${e.t ? html`<time>${e.t}</time>` : ""}<b>${costLabel(e.c)}<span class="sr-only"> points</span></b></span></button><button type="button" class="energy-activity-remove" data-entry="${e.id}" data-action="remove" aria-label="Remove ${e.a}${e.t ? ` at ${e.t}` : ""}" title="Remove ${e.a}"><span aria-hidden="true">×</span></button></li>`)}`);
+    }
     setHTML($("entries"), html`${d.entries.map((e, i) => html`<li><div class="logged-activity"><span class="meta logged-time">${e.t || "Time not set"}</span><span class="logged-name">${e.a}</span><b class="logged-cost">${costLabel(e.c)}</b></div><div class="logged-actions"><button type="button" class="secondary logged-edit" data-entry="${e.id}" data-action="edit" aria-label="Edit ${e.a}">Edit</button><button type="button" class="secondary logged-remove" data-entry="${e.id}" data-action="remove" aria-label="Remove ${e.a}">Remove</button></div></li>`)}`);
   }
 
