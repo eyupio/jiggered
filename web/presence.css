@@ -203,12 +203,7 @@
   position: absolute;
   inset: 15px -20px 5px;
   border-radius: 48% 48% 42% 50%;
-  background: radial-gradient(
-    ellipse at 60% 40%,
-    #e6edd8,
-    #edf2e5 70%,
-    #f8f9f4
-  );
+  background: radial-gradient(ellipse at 60% 40%, #e6edd8, #edf2e5 70%, #f8f9f4);
   z-index: -2;
 }
 .orbit {
@@ -288,11 +283,7 @@
   width: 188px;
   height: 188px;
   margin: 23px auto;
-  background: conic-gradient(
-    from 216deg,
-    #64825a 0deg 216deg,
-    #ebeee5 216deg 360deg
-  );
+  background: conic-gradient(from 216deg, #64825a 0deg 216deg, #ebeee5 216deg 360deg);
   border-radius: 50%;
   padding: 14px;
   transform: rotate(-1deg);

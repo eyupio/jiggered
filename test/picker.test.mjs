@@ -12,8 +12,18 @@ test("matches ignores case and accents and needs every word", () => {
 });
 
 const docs = {
-  "d-2026-09-30": { entries: [{ a: "Walk", c: -2, t: "09:00" }, { a: "Call", c: 2, t: "10:00" }] },
-  "d-2026-09-29": { entries: [{ a: "Walk", c: -2, t: "08:00" }, { a: "Nap", c: -1, t: "14:00" }] },
+  "d-2026-09-30": {
+    entries: [
+      { a: "Walk", c: -2, t: "09:00" },
+      { a: "Call", c: 2, t: "10:00" },
+    ],
+  },
+  "d-2026-09-29": {
+    entries: [
+      { a: "Walk", c: -2, t: "08:00" },
+      { a: "Nap", c: -1, t: "14:00" },
+    ],
+  },
   "d-2026-01-01": { entries: [{ a: "Old", c: 1, t: "08:00" }] },
   "e-1": { when: "2026-09-30T08:00", symptoms: ["Dizzy"], before: ["Poor sleep"] },
 };
@@ -36,23 +46,48 @@ test("favourites put often-used names first, then the latest used", () => {
 test("groupItems keeps list order, groups by first appearance and puts ungrouped last", () => {
   const items = [{ a: "1", g: "Home" }, { a: "2" }, { a: "3", g: "Work" }, { a: "4", g: "Home" }];
   const g = p.groupItems(items);
-  assert.deepEqual(g.map(x => [x.name, x.rows.map(r => r.i)]), [["Home", [0, 3]], ["Work", [2]], ["Ungrouped", [1]]]);
-  assert.deepEqual(p.groupItems([{ a: "x" }]).map(x => x.name), [""]);
+  assert.deepEqual(
+    g.map((x) => [x.name, x.rows.map((r) => r.i)]),
+    [
+      ["Home", [0, 3]],
+      ["Work", [2]],
+      ["Ungrouped", [1]],
+    ],
+  );
+  assert.deepEqual(
+    p.groupItems([{ a: "x" }]).map((x) => x.name),
+    [""],
+  );
   assert.deepEqual(p.groupNames(items), ["Home", "Work"]);
 });
 
 test("settings keep an optional activity group and allow 200 items", () => {
-  const s = m.normaliseSettings({ activities: [{ a: "A", c: 1, g: " Work " }, { a: "B", c: 1, g: "  " }] });
+  const s = m.normaliseSettings({
+    activities: [
+      { a: "A", c: 1, g: " Work " },
+      { a: "B", c: 1, g: "  " },
+    ],
+  });
   assert.equal(s.activities[0].g, "Work");
   assert.equal("g" in s.activities[1], false);
   const many = Array.from({ length: 250 }, (_, i) => ({ a: "n" + i, c: 1 }));
   assert.equal(m.normaliseSettings({ activities: many }).activities.length, 200);
-  assert.ok(m.validateSettings({ ...m.normaliseSettings({}), activities: [{ a: "A", c: 1, g: "x".repeat(31) }] }).length > 0);
+  assert.ok(
+    m.validateSettings({
+      ...m.normaliseSettings({}),
+      activities: [{ a: "A", c: 1, g: "x".repeat(31) }],
+    }).length > 0,
+  );
 });
 
 test("a group change merges onto a newer copy without touching other fields", () => {
-  const before = [{ id: "1", a: "A", c: 1 }], next = [{ id: "1", a: "A", c: 1, g: "Work" }], current = [{ id: "1", a: "A", c: 2 }];
-  const out = m.applyOp({ type: "settingsPatch", arg: { activities: next }, before: { activities: before } }, { activities: current });
+  const before = [{ id: "1", a: "A", c: 1 }],
+    next = [{ id: "1", a: "A", c: 1, g: "Work" }],
+    current = [{ id: "1", a: "A", c: 2 }];
+  const out = m.applyOp(
+    { type: "settingsPatch", arg: { activities: next }, before: { activities: before } },
+    { activities: current },
+  );
   assert.deepEqual(out.activities, [{ id: "1", a: "A", c: 2, g: "Work" }]);
 });
 
@@ -60,11 +95,22 @@ test("selection pins logged activities in list order and counts repeats", () => 
   const rows = ["Walk", "Call", "Nap", "Cook"].map((a, i) => ({ item: { a, c: 1 }, i }));
   const entries = [{ a: "Nap" }, { a: "Walk" }, { a: "Nap" }, { a: "One-off other" }];
   const s = p.selection(rows, entries);
-  assert.deepEqual(s.selected.map(r => r.item.a), ["Walk", "Nap"], "list order, not the order they were logged");
-  assert.deepEqual(s.rest.map(r => r.item.a), ["Call", "Cook"]);
+  assert.deepEqual(
+    s.selected.map((r) => r.item.a),
+    ["Walk", "Nap"],
+    "list order, not the order they were logged",
+  );
+  assert.deepEqual(
+    s.rest.map((r) => r.item.a),
+    ["Call", "Cook"],
+  );
   assert.equal(s.count.get("Nap"), 2);
   assert.equal(s.count.get("Walk"), 1);
-  assert.equal(s.selected.length + s.rest.length, rows.length, "every row is in exactly one of the two");
+  assert.equal(
+    s.selected.length + s.rest.length,
+    rows.length,
+    "every row is in exactly one of the two",
+  );
 });
 
 test("selection with nothing logged leaves the list alone", () => {

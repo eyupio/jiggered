@@ -1,6 +1,6 @@
-.env
-*.db
-*.db-*
+**/.env
+**/*.db
+**/*.db-*
 .git
 *_test.go
 test/
@@ -8,3 +8,17 @@ node_modules/
 
 **/.jiggered-service-key
 **/.service-key-*
+
+**/.env.*
+!**/.env.example
+**/*.zip
+**/*.zip.enc
+**/.tmp-archive-*
+/backups/
+/jiggered
+**/.DS_Store
+**/Thumbs.db
+**/*.swp
+**/*.swo
+**/*~
+/.local/

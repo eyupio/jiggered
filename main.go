@@ -1,7 +1,7 @@
 // Jiggered: a small self-hosted tracker for daily energy check-ins and
 // symptom episodes. Password login and SQLite storage. Several people can
-// each have an account; an admin manages the accounts but never sees what
-// anyone has logged.
+// each have a separate account. Admin APIs expose account metadata; admins
+// can reset passwords and download backups containing everyone's logs.
 package main
 
 import (

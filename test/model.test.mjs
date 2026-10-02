@@ -21,7 +21,9 @@ test("dkey and hhmm use the local calendar", () => {
   assert.equal(m.nowLocal(d), "2026-09-30T23:05");
   assert.equal(m.dayId("2026-09-30"), "d-2026-09-30");
   assert.ok(m.isDayId("d-2026-09-30") && !m.isDayId("e-1") && !m.isDayId("d-2026-9-30"));
-  assert.ok(m.isEpisodeId("e-1790000000000") && !m.isEpisodeId("e-") && !m.isEpisodeId("d-2026-09-30"));
+  assert.ok(
+    m.isEpisodeId("e-1790000000000") && !m.isEpisodeId("e-") && !m.isEpisodeId("d-2026-09-30"),
+  );
 });
 
 test("normaliseSettings: nothing stored means the defaults", () => {
@@ -36,27 +38,56 @@ test("normaliseSettings: nothing stored means the defaults", () => {
   }
   const a = m.normaliseSettings({});
   a.activities[0].c = 99;
-  assert.notEqual(m.DEFAULTS.activities[0].c, 99, "defaults must not be shared or mutable through the result");
+  assert.notEqual(
+    m.DEFAULTS.activities[0].c,
+    99,
+    "defaults must not be shared or mutable through the result",
+  );
 });
 
 test("normaliseSettings: validates and clamps", () => {
   const s = m.normaliseSettings({
-    budget: "14", sleepPenalty: 99, locale: "xx-XX",
-    activities: [{ a: "  Gym  ", c: 4.4 }, { a: "", c: 1 }, { a: "Free", c: 0 }, { a: "Too much", c: 50 }, { a: "Bad", c: "x" }, null, { a: "Rest", c: -3 }],
-    symptoms: ["Cough", "cough", " Cough ", "", 5, "Sore throat"], triggers: [],
+    budget: "14",
+    sleepPenalty: 99,
+    locale: "xx-XX",
+    activities: [
+      { a: "  Gym  ", c: 4.4 },
+      { a: "", c: 1 },
+      { a: "Free", c: 0 },
+      { a: "Too much", c: 50 },
+      { a: "Bad", c: "x" },
+      null,
+      { a: "Rest", c: -3 },
+    ],
+    symptoms: ["Cough", "cough", " Cough ", "", 5, "Sore throat"],
+    triggers: [],
   });
   assert.equal(s.budget, 14);
   assert.equal(s.sleepPenalty, 3, "an out-of-range penalty falls back to the default");
   assert.equal(s.locale, "en-GB");
-  assert.deepEqual(s.activities, [{ a: "Gym", c: 4 }, { a: "Free", c: 0 }, { a: "Rest", c: -3 }]);
-  assert.deepEqual(s.symptoms, ["Cough", "cough", "Sore throat"].filter((x, i, l) => l.indexOf(x) === i));
+  assert.deepEqual(s.activities, [
+    { a: "Gym", c: 4 },
+    { a: "Free", c: 0 },
+    { a: "Rest", c: -3 },
+  ]);
+  assert.deepEqual(
+    s.symptoms,
+    ["Cough", "cough", "Sore throat"].filter((x, i, l) => l.indexOf(x) === i),
+  );
   assert.deepEqual(s.triggers, [], "a list that is present but empty stays empty");
   assert.equal(m.normaliseSettings({ budget: 0 }).budget, 10);
   assert.equal(m.normaliseSettings({ budget: 31 }).budget, 10);
-  assert.equal(m.normaliseSettings({ budget: 2, sleepPenalty: 3 }).sleepPenalty, 2, "the penalty can't exceed the budget");
+  assert.equal(
+    m.normaliseSettings({ budget: 2, sleepPenalty: 3 }).sleepPenalty,
+    2,
+    "the penalty can't exceed the budget",
+  );
   assert.equal(m.normaliseSettings({ locale: "" }).locale, "", "browser default is a valid choice");
   assert.equal(m.normaliseSettings({ locale: "de-DE" }).locale, "de-DE");
-  const long = m.normaliseSettings({ symptoms: ["x".repeat(200)], activities: [{ a: "y".repeat(200), c: 1 }] });
+  const long = m.normaliseSettings({
+    symptoms: ["x".repeat(200)],
+    activities: [{ a: "y".repeat(200), c: 1 }],
+  });
   assert.equal(long.symptoms[0].length, 60);
   assert.equal(long.activities[0].a.length, 60);
   const many = m.normaliseSettings({ symptoms: Array.from({ length: 300 }, (_, i) => "s" + i) });
@@ -74,14 +105,29 @@ test("a day's budget: spent, cap, poor sleep, and remembered settings", () => {
   // A day made under a 12-point budget keeps it when the settings later change.
   const old = { ...d, budget: 12, sleepPenalty: 4, poorSleep: true };
   assert.equal(m.capOf(old, S), 8);
-  assert.equal(m.capOf({ ...d, poorSleep: true }, { ...S, budget: 20, sleepPenalty: 5 }), 15, "unstamped (older) days follow the current settings");
+  assert.equal(
+    m.capOf({ ...d, poorSleep: true }, { ...S, budget: 20, sleepPenalty: 5 }),
+    15,
+    "unstamped (older) days follow the current settings",
+  );
 });
 
 test("operations", () => {
   const id = "d-2026-10-01";
   const stamp = { budget: 12, sleepPenalty: 4 };
   let d = m.applyOp({ id, type: "setStatus", arg: "amber", stamp }, undefined);
-  assert.deepEqual(d, { date: "2026-10-01", status: "amber", poorSleep: false, entries: [], budget: 12, sleepPenalty: 4 }, "the first change creates the day and stamps the budget");
+  assert.deepEqual(
+    d,
+    {
+      date: "2026-10-01",
+      status: "amber",
+      poorSleep: false,
+      entries: [],
+      budget: 12,
+      sleepPenalty: 4,
+    },
+    "the first change creates the day and stamps the budget",
+  );
   d = m.applyOp({ id, type: "setStatus", arg: null, stamp: { budget: 99, sleepPenalty: 9 } }, d);
   assert.equal(d.status, null);
   assert.equal(d.budget, 12, "an existing stamp is kept");
@@ -94,53 +140,108 @@ test("operations", () => {
   d = m.applyOp({ id, type: "addEntry", arg: e1 }, d);
   assert.equal(d.entries.length, 1, "replaying an add must not add it twice");
   d = m.applyOp({ id, type: "addEntry", arg: e2 }, d);
-  assert.equal(d.entries.length, 2, "two identical-looking entries with different ids are two entries");
+  assert.equal(
+    d.entries.length,
+    2,
+    "two identical-looking entries with different ids are two entries",
+  );
   d = m.applyOp({ id, type: "removeEntry", arg: e2 }, d);
-  assert.deepEqual(d.entries.map(e => e.id), ["a1"]);
+  assert.deepEqual(
+    d.entries.map((e) => e.id),
+    ["a1"],
+  );
   d = m.applyOp({ id, type: "removeEntry", arg: e2 }, d);
   assert.equal(d.entries.length, 1, "removing something already gone changes nothing");
 
-  const legacy = { date: "2026-10-01", status: "green", poorSleep: false, entries: [{ a: "Quiet break", c: -1, t: "09:00" }, { a: "Quiet break", c: -1, t: "09:00" }] };
-  const after = m.applyOp({ id, type: "removeEntry", arg: { a: "Quiet break", c: -1, t: "09:00" } }, legacy);
-  assert.equal(after.entries.length, 1, "entries from before ids existed are matched by content, one at a time");
+  const legacy = {
+    date: "2026-10-01",
+    status: "green",
+    poorSleep: false,
+    entries: [
+      { a: "Quiet break", c: -1, t: "09:00" },
+      { a: "Quiet break", c: -1, t: "09:00" },
+    ],
+  };
+  const after = m.applyOp(
+    { id, type: "removeEntry", arg: { a: "Quiet break", c: -1, t: "09:00" } },
+    legacy,
+  );
+  assert.equal(
+    after.entries.length,
+    1,
+    "entries from before ids existed are matched by content, one at a time",
+  );
   assert.equal(legacy.entries.length, 2, "ops never mutate their input");
 
-  assert.deepEqual(m.applyOp({ id, type: "restamp", arg: { budget: 8, sleepPenalty: 2 } }, d).budget, 8);
+  assert.deepEqual(
+    m.applyOp({ id, type: "restamp", arg: { budget: 8, sleepPenalty: 2 } }, d).budget,
+    8,
+  );
   assert.equal(m.applyOp({ id, type: "remove" }, d), undefined);
   assert.deepEqual(m.applyOp({ id, type: "replace", arg: { x: 1 } }, d), { x: 1 });
-  assert.deepEqual(m.applyOp({ id, type: "addEntry", arg: e1 }, { date: "2026-10-01" }).entries, [e1], "a doc missing its entries array is repaired");
+  assert.deepEqual(
+    m.applyOp({ id, type: "addEntry", arg: e1 }, { date: "2026-10-01" }).entries,
+    [e1],
+    "a doc missing its entries array is repaired",
+  );
   assert.throws(() => m.applyOp({ id, type: "nonsense" }, d), /unknown operation/);
 });
 
 test("listing days and episodes", () => {
   const docs = {
-    "d-2026-09-29": { date: "2026-09-29" }, "d-2026-10-01": { date: "2026-10-01" }, "d-2026-09-30": { date: "2026-09-30" },
-    "e-2": { when: "2026-09-30T08:00" }, "e-1": { when: "2026-10-01T08:00" }, "e-3": {}, settings: { budget: 9 },
+    "d-2026-09-29": { date: "2026-09-29" },
+    "d-2026-10-01": { date: "2026-10-01" },
+    "d-2026-09-30": { date: "2026-09-30" },
+    "e-2": { when: "2026-09-30T08:00" },
+    "e-1": { when: "2026-10-01T08:00" },
+    "e-3": {},
+    settings: { budget: 9 },
   };
-  assert.deepEqual(m.listDays(docs).map(d => d.date), ["2026-10-01", "2026-09-30", "2026-09-29"]);
-  assert.deepEqual(m.listEpisodes(docs).map(([id]) => id), ["e-1", "e-2"], "newest first; broken ones skipped");
+  assert.deepEqual(
+    m.listDays(docs).map((d) => d.date),
+    ["2026-10-01", "2026-09-30", "2026-09-29"],
+  );
+  assert.deepEqual(
+    m.listEpisodes(docs).map(([id]) => id),
+    ["e-1", "e-2"],
+    "newest first; broken ones skipped",
+  );
 });
 
 test("trends", () => {
   const S = m.normaliseSettings({});
-  const day = (date, status, extra = {}) => ({ date, status, poorSleep: false, entries: [], ...extra });
+  const day = (date, status, extra = {}) => ({
+    date,
+    status,
+    poorSleep: false,
+    entries: [],
+    ...extra,
+  });
   const docs = {
     "d-2026-10-01": day("2026-10-01", "red", { poorSleep: true, entries: [{ c: 4 }] }),
     "d-2026-09-30": day("2026-09-30", "green", { entries: [{ c: 1 }] }),
     "d-2026-09-29": day("2026-09-29", "amber", { poorSleep: true, entries: [{ c: 3 }, { c: 2 }] }),
     "d-2026-09-28": day("2026-09-28", null),
     "d-2026-08-01": day("2026-08-01", "red"), // outside the 30-day window
-    "e-1": { when: "2026-10-01T09:00", symptoms: ["Headache", "Weakness"], before: ["Poor sleep", "High stress"] },
+    "e-1": {
+      when: "2026-10-01T09:00",
+      symptoms: ["Headache", "Weakness"],
+      before: ["Poor sleep", "High stress"],
+    },
     "e-2": { when: "2026-09-20T09:00", symptoms: ["Headache"], before: ["Poor sleep"] },
     "e-3": { when: "2026-08-15T09:00", symptoms: ["Weakness"], before: ["Alcohol"] },
     "e-4": { when: "2026-06-01T09:00", symptoms: ["Cough"], before: ["Alcohol"] }, // older than 90 days
   };
   const t = m.trends(docs, S, "2026-10-01", 30);
-  assert.equal(t.green, 1); assert.equal(t.amber, 1); assert.equal(t.red, 1);
+  assert.equal(t.green, 1);
+  assert.equal(t.amber, 1);
+  assert.equal(t.red, 1);
   assert.equal(t.unchecked, 27, "30 days minus the 3 with a check-in");
   assert.equal(t.avgUsed, 2.5, "(4 + 1 + 5 + 0) / 4 days with a doc");
-  assert.equal(t.poorSleepDays, 2); assert.equal(t.poorSleepBad, 2);
-  assert.equal(t.episodes30, 2); assert.equal(t.episodes90, 3);
+  assert.equal(t.poorSleepDays, 2);
+  assert.equal(t.poorSleepBad, 2);
+  assert.equal(t.episodes30, 2);
+  assert.equal(t.episodes90, 3);
   assert.deepEqual(t.topTriggers[0], ["Poor sleep", 2]);
   assert.deepEqual(t.topSymptoms[0], ["Headache", 2]);
   assert.ok(!t.topTriggers.some(([n]) => n === "Cough"), "episodes older than 90 days don't count");
@@ -153,16 +254,32 @@ test("csvCell quotes and defuses formulas", () => {
   assert.equal(m.csvCell("line\nbreak"), '"line\nbreak"');
   assert.equal(m.csvCell(null), "");
   assert.equal(m.csvCell(7), "7");
-  for (const bad of ["=1+1", "+1", "-1", "@SUM(A1)", "\tx"]) assert.ok(m.csvCell(bad).startsWith("'"), bad);
+  for (const bad of ["=1+1", "+1", "-1", "@SUM(A1)", "\tx"])
+    assert.ok(m.csvCell(bad).startsWith("'"), bad);
   assert.equal(m.csvCell("a=b"), "a=b");
 });
 
 test("CSV exports", () => {
   const S = m.normaliseSettings({});
   const docs = {
-    "d-2026-10-01": { date: "2026-10-01", status: "amber", poorSleep: true, entries: [{ a: "Meeting or call", c: 2, t: "10:15" }, { a: "Quiet break", c: -1, t: "" }] },
+    "d-2026-10-01": {
+      date: "2026-10-01",
+      status: "amber",
+      poorSleep: true,
+      entries: [
+        { a: "Meeting or call", c: 2, t: "10:15" },
+        { a: "Quiet break", c: -1, t: "" },
+      ],
+    },
     "d-2026-09-30": { date: "2026-09-30", status: null, poorSleep: false, entries: [] },
-    "e-1": { when: "2026-10-01T09:00", symptoms: ["Headache", "Weakness"], onset: "Sudden", duration: "Still going", before: ["Poor sleep"], notes: '=HYPERLINK("x"), café' },
+    "e-1": {
+      when: "2026-10-01T09:00",
+      symptoms: ["Headache", "Weakness"],
+      onset: "Sudden",
+      duration: "Still going",
+      before: ["Poor sleep"],
+      notes: '=HYPERLINK("x"), café',
+    },
   };
   const days = m.daysCsv(docs, S).split("\r\n");
   assert.equal(days[0], "date,check_in,poor_sleep,points_used,points_available,activities");
@@ -170,8 +287,14 @@ test("CSV exports", () => {
   assert.equal(days[2], "2026-10-01,amber,yes,1,7,10:15 Meeting or call (-2); Quiet break (+1)");
   assert.equal(days[3], "");
   const eps = m.episodesCsv(docs).split("\r\n");
-  assert.equal(eps[0], "started,symptoms,how_it_came_on,how_long,in_the_day_or_two_before,notes,ended_local,start_time_zone,start_utc_offset_minutes,end_time_zone,end_utc_offset_minutes");
-  assert.equal(eps[1], `2026-10-01T09:00,Headache; Weakness,Sudden,Still going,Poor sleep,"'=HYPERLINK(""x""), café",,,,,`);
+  assert.equal(
+    eps[0],
+    "started,symptoms,how_it_came_on,how_long,in_the_day_or_two_before,notes,ended_local,start_time_zone,start_utc_offset_minutes,end_time_zone,end_utc_offset_minutes",
+  );
+  assert.equal(
+    eps[1],
+    `2026-10-01T09:00,Headache; Weakness,Sudden,Still going,Poor sleep,"'=HYPERLINK(""x""), café",,,,,`,
+  );
 });
 
 test("clinician summary", () => {
@@ -184,13 +307,20 @@ test("clinician summary", () => {
   };
   const S = m.normaliseSettings({});
   const s30 = m.summary(docs, S, "30", "2026-10-01");
-  assert.equal(s30.from, "2026-09-02"); assert.equal(s30.to, "2026-10-01");
-  assert.equal(s30.days.length, 2); assert.equal(s30.episodes.length, 1);
-  assert.equal(s30.red, 1); assert.equal(s30.green, 1); assert.equal(s30.amber, 0);
+  assert.equal(s30.from, "2026-09-02");
+  assert.equal(s30.to, "2026-10-01");
+  assert.equal(s30.days.length, 2);
+  assert.equal(s30.episodes.length, 1);
+  assert.equal(s30.red, 1);
+  assert.equal(s30.green, 1);
+  assert.equal(s30.amber, 0);
   // The average counts only days with activities (the same rule as the History graphs): 3 net points over 1 such day.
-  assert.equal(s30.avgUsed, 3); assert.equal(s30.activityDays, 1); assert.equal(s30.poorSleepDays, 1);
+  assert.equal(s30.avgUsed, 3);
+  assert.equal(s30.activityDays, 1);
+  assert.equal(s30.poorSleepDays, 1);
   const all = m.summary(docs, S, "all", "2026-10-01");
-  assert.equal(all.days.length, 3); assert.equal(all.episodes.length, 2);
+  assert.equal(all.days.length, 3);
+  assert.equal(all.episodes.length, 2);
   assert.equal(all.from, "2026-06-01", "'everything' starts at the first day with data");
   assert.equal(m.summary({}, S, "all", "2026-10-01").from, "2026-10-01");
 });
@@ -201,113 +331,298 @@ test("csvCell leaves numbers alone: -2 is a number, not a formula", () => {
   assert.equal(m.csvCell("=SUM(A1)"), "'=SUM(A1)");
 });
 
-
 test("reports exclude future episodes and all-time dates include episode-only history", () => {
-  const docs = {"e-1":{when:"2024-01-01T10:00",symptoms:["Headache"]},"e-2":{when:"2026-10-02T00:00",symptoms:["Future"]},"e-3":{when:"2026-10-01T23:59",before:["Poor sleep"]}};
-  assert.equal(m.trends(docs,m.normaliseSettings(),"2026-10-01").episodes30,1);
-  const sm=m.summary(docs,m.normaliseSettings(),"all","2026-10-01");assert.equal(sm.from,"2024-01-01");assert.equal(sm.episodes.length,2);
+  const docs = {
+    "e-1": { when: "2024-01-01T10:00", symptoms: ["Headache"] },
+    "e-2": { when: "2026-10-02T00:00", symptoms: ["Future"] },
+    "e-3": { when: "2026-10-01T23:59", before: ["Poor sleep"] },
+  };
+  assert.equal(m.trends(docs, m.normaliseSettings(), "2026-10-01").episodes30, 1);
+  const sm = m.summary(docs, m.normaliseSettings(), "all", "2026-10-01");
+  assert.equal(sm.from, "2024-01-01");
+  assert.equal(sm.episodes.length, 2);
 });
 test("settings validation preserves zero but rejects silent truncation, duplicates and rounding", () => {
-  const good={...m.normaliseSettings(),activities:[{a:"Observe",c:0}],symptoms:[],triggers:[]};
-  assert.deepEqual(m.validateSettings(good),[]);
-  for(const patch of [{budget:"2.5"},{budget:""},{sleepPenalty:11},{activities:[{a:"Walk",c:1},{a:"walk",c:2}]},{symptoms:["x".repeat(61)]},{triggers:Array.from({length:201},(_,i)=>String(i))}])assert.ok(m.validateSettings({...good,...patch}).length);
+  const good = {
+    ...m.normaliseSettings(),
+    activities: [{ a: "Observe", c: 0 }],
+    symptoms: [],
+    triggers: [],
+  };
+  assert.deepEqual(m.validateSettings(good), []);
+  for (const patch of [
+    { budget: "2.5" },
+    { budget: "" },
+    { sleepPenalty: 11 },
+    {
+      activities: [
+        { a: "Walk", c: 1 },
+        { a: "walk", c: 2 },
+      ],
+    },
+    { symptoms: ["x".repeat(61)] },
+    { triggers: Array.from({ length: 201 }, (_, i) => String(i)) },
+  ])
+    assert.ok(m.validateSettings({ ...good, ...patch }).length);
 });
-test("history filters use the same interval and never mutate source data",()=>{
- const docs={"d-2026-10-01":{date:"2026-10-01",status:"amber",entries:[{a:"Work",c:1}]},"e-1":{when:"2026-10-01T10:00",symptoms:["Headache"],duration:"Still going",notes:"Work"},"e-2":{when:"2026-09-01T10:00",symptoms:["Headache"],duration:"Under 15 min"}};
- assert.equal(m.selectHistory(docs,{from:"2026-10-01",to:"2026-10-01",query:"work",status:"amber",ongoing:true,symptom:"Headache"}).episodes.length,1);
- assert.equal(m.selectHistory(docs,{query:"no-match"}).days.length,0);
- assert.equal(m.ongoingEpisodes(docs).length,1);assert.equal(m.ongoingEpisodes({...docs,"e-1":{...docs["e-1"],endedAt:"2026-10-01T12:00"}}).length,0);
- assert.equal(m.balanceLabel(-2,10),"2 over your planned budget");assert.equal(m.balanceLabel(30,10),"20 above the starting budget");
+test("history filters use the same interval and never mutate source data", () => {
+  const docs = {
+    "d-2026-10-01": { date: "2026-10-01", status: "amber", entries: [{ a: "Work", c: 1 }] },
+    "e-1": {
+      when: "2026-10-01T10:00",
+      symptoms: ["Headache"],
+      duration: "Still going",
+      notes: "Work",
+    },
+    "e-2": { when: "2026-09-01T10:00", symptoms: ["Headache"], duration: "Under 15 min" },
+  };
+  assert.equal(
+    m.selectHistory(docs, {
+      from: "2026-10-01",
+      to: "2026-10-01",
+      query: "work",
+      status: "amber",
+      ongoing: true,
+      symptom: "Headache",
+    }).episodes.length,
+    1,
+  );
+  assert.equal(m.selectHistory(docs, { query: "no-match" }).days.length, 0);
+  assert.equal(m.ongoingEpisodes(docs).length, 1);
+  assert.equal(
+    m.ongoingEpisodes({ ...docs, "e-1": { ...docs["e-1"], endedAt: "2026-10-01T12:00" } }).length,
+    0,
+  );
+  assert.equal(m.balanceLabel(-2, 10), "2 over your planned budget");
+  assert.equal(m.balanceLabel(30, 10), "20 above the starting budget");
 });
 
-test('episode chronology uses recorded offsets across zones and supports overnight completion',()=>{
- const original={when:'2026-10-01T09:00',whenOffset:-240};
- assert.equal(m.validateEpisodeTimes({when:original.when,endedAt:m.nowLocal(new Date('2026-10-01T12:00Z'))},original,new Date('2026-10-01T20:00Z'))?.[0],'ep-ended');
- assert.equal(m.validateEpisodeTimes({when:'2026-09-30T23:00',endedAt:'2026-10-01T01:00'},{},new Date('2026-10-01T20:00Z')),null);
+test("episode chronology uses recorded offsets across zones and supports overnight completion", () => {
+  const original = { when: "2026-10-01T09:00", whenOffset: -240 };
+  assert.equal(
+    m.validateEpisodeTimes(
+      { when: original.when, endedAt: m.nowLocal(new Date("2026-10-01T12:00Z")) },
+      original,
+      new Date("2026-10-01T20:00Z"),
+    )?.[0],
+    "ep-ended",
+  );
+  assert.equal(
+    m.validateEpisodeTimes(
+      { when: "2026-09-30T23:00", endedAt: "2026-10-01T01:00" },
+      {},
+      new Date("2026-10-01T20:00Z"),
+    ),
+    null,
+  );
 });
 
-test("legacy activity correction targets one duplicate, preserves position and replays idempotently",async()=>{
- const {identifyEntries,applyOp}=await import('../web/model.js');
- const legacy={date:'2026-10-01',entries:[{a:'Walk',c:-1,t:'10:00'},{a:'Walk',c:-1,t:'10:00'}]};const entries=identifyEntries(legacy.entries);
- const edit={id:'d-2026-10-01',type:'editEntry',arg:{id:entries[1].id,changes:{a:'Short walk',c:0,t:''}}};
- const edited=applyOp(edit,legacy);assert.equal(edited.entries[0].a,'Walk');assert.equal(edited.entries[1].a,'Short walk');assert.deepEqual(applyOp(edit,edited),edited);
- const remove={id:edit.id,type:'removeEntry',arg:entries[0]};const removed=applyOp(remove,edited);assert.equal(removed.entries.length,1);const undo={id:edit.id,type:'restoreEntry',arg:{entry:entries[0],index:0}};assert.deepEqual(applyOp(undo,removed),edited);assert.deepEqual(applyOp(undo,edited),edited);
+test("legacy activity correction targets one duplicate, preserves position and replays idempotently", async () => {
+  const { identifyEntries, applyOp } = await import("../web/model.js");
+  const legacy = {
+    date: "2026-10-01",
+    entries: [
+      { a: "Walk", c: -1, t: "10:00" },
+      { a: "Walk", c: -1, t: "10:00" },
+    ],
+  };
+  const entries = identifyEntries(legacy.entries);
+  const edit = {
+    id: "d-2026-10-01",
+    type: "editEntry",
+    arg: { id: entries[1].id, changes: { a: "Short walk", c: 0, t: "" } },
+  };
+  const edited = applyOp(edit, legacy);
+  assert.equal(edited.entries[0].a, "Walk");
+  assert.equal(edited.entries[1].a, "Short walk");
+  assert.deepEqual(applyOp(edit, edited), edited);
+  const remove = { id: edit.id, type: "removeEntry", arg: entries[0] };
+  const removed = applyOp(remove, edited);
+  assert.equal(removed.entries.length, 1);
+  const undo = { id: edit.id, type: "restoreEntry", arg: { entry: entries[0], index: 0 } };
+  assert.deepEqual(applyOp(undo, removed), edited);
+  assert.deepEqual(applyOp(undo, edited), edited);
 });
-test("settings merge disjoint fields and row fields; same-field and order conflicts are surfaced",async()=>{
- const {operationConflicts,applyOp,DEFAULTS}=await import('../web/model.js');const before={...DEFAULTS,activities:[{id:'a',a:'Walk',c:-1},{id:'b',a:'Meeting',c:2}]};
- const remote={...before,budget:12,activities:[{id:'a',a:'Long walk',c:-1},before.activities[1]]};const patch={id:'settings',type:'settingsPatch',before:{activities:before.activities},arg:{activities:[{id:'a',a:'Walk',c:-2},before.activities[1]]}};
- assert.deepEqual(operationConflicts(patch,remote),[]);const merged=applyOp(patch,remote);assert.equal(merged.budget,12);assert.deepEqual(merged.activities[0],{id:'a',a:'Long walk',c:-2});
- patch.arg.activities[0].a='Another walk';assert.ok(operationConflicts(patch,remote).some(x=>x.includes('name')));
+test("settings merge disjoint fields and row fields; same-field and order conflicts are surfaced", async () => {
+  const { operationConflicts, applyOp, DEFAULTS } = await import("../web/model.js");
+  const before = {
+    ...DEFAULTS,
+    activities: [
+      { id: "a", a: "Walk", c: -1 },
+      { id: "b", a: "Meeting", c: 2 },
+    ],
+  };
+  const remote = {
+    ...before,
+    budget: 12,
+    activities: [{ id: "a", a: "Long walk", c: -1 }, before.activities[1]],
+  };
+  const patch = {
+    id: "settings",
+    type: "settingsPatch",
+    before: { activities: before.activities },
+    arg: { activities: [{ id: "a", a: "Walk", c: -2 }, before.activities[1]] },
+  };
+  assert.deepEqual(operationConflicts(patch, remote), []);
+  const merged = applyOp(patch, remote);
+  assert.equal(merged.budget, 12);
+  assert.deepEqual(merged.activities[0], { id: "a", a: "Long walk", c: -2 });
+  patch.arg.activities[0].a = "Another walk";
+  assert.ok(operationConflicts(patch, remote).some((x) => x.includes("name")));
 });
 
 test("defaultsGap finds only what the shared defaults add, ignoring case, and mergeDefaults appends it", () => {
-  const mine = m.normaliseSettings({ activities: [{ a: "Housework", c: 5 }], symptoms: ["headache"], triggers: [] });
-  const shared = m.normaliseSettings({ activities: [{ a: "housework", c: 2, g: "Home" }, { a: "Cooking", c: 1, g: "Home" }], symptoms: ["Headache", "Tremor"], triggers: ["Cold"] });
+  const mine = m.normaliseSettings({
+    activities: [{ a: "Housework", c: 5 }],
+    symptoms: ["headache"],
+    triggers: [],
+  });
+  const shared = m.normaliseSettings({
+    activities: [
+      { a: "housework", c: 2, g: "Home" },
+      { a: "Cooking", c: 1, g: "Home" },
+    ],
+    symptoms: ["Headache", "Tremor"],
+    triggers: ["Cold"],
+  });
   const gap = m.defaultsGap(mine, shared);
-  assert.deepEqual(gap.acts.map(x => x.a), ["Cooking"]);
+  assert.deepEqual(
+    gap.acts.map((x) => x.a),
+    ["Cooking"],
+  );
   assert.deepEqual(gap.sym, ["Tremor"]);
   assert.deepEqual(gap.trig, ["Cold"]);
   assert.equal(gap.total, 3);
   const merged = m.mergeDefaults(mine, shared);
-  assert.deepEqual(merged.activities.map(x => [x.a, x.c]), [["Housework", 5], ["Cooking", 1]]); // their points are kept
-  assert.ok(merged.activities.every(x => x.id));
+  assert.deepEqual(
+    merged.activities.map((x) => [x.a, x.c]),
+    [
+      ["Housework", 5],
+      ["Cooking", 1],
+    ],
+  ); // their points are kept
+  assert.ok(merged.activities.every((x) => x.id));
   assert.equal(m.defaultsGap(merged, shared).total, 0);
   assert.equal(m.gapSignature(m.defaultsGap(merged, shared)), "");
   assert.notEqual(m.gapSignature(gap), "");
 });
 
 test("a settings change is not a conflict just because stored rows list their keys in another order", () => {
-  const row = { a: "Housework", c: 2, g: "Home" }, stored = { activities: [{ ...row, id: "x1" }] };
-  const op = { type: "settingsPatch", before: { activities: [{ id: "x1", ...row }] }, arg: { activities: [] } };
+  const row = { a: "Housework", c: 2, g: "Home" },
+    stored = { activities: [{ ...row, id: "x1" }] };
+  const op = {
+    type: "settingsPatch",
+    before: { activities: [{ id: "x1", ...row }] },
+    arg: { activities: [] },
+  };
   assert.deepEqual(m.operationConflicts(op, stored), []);
 });
 
 test("symptom and trigger groups: defaults supply them, a person's own map wins, renames and removals drop them", () => {
   const d = m.normaliseSettings();
   assert.equal(d.symptomGroups["Headache"], "Head and senses");
-  assert.equal(Object.keys(d.triggerGroups).length, d.triggers.length, "every built-in trigger is grouped");
+  assert.equal(
+    Object.keys(d.triggerGroups).length,
+    d.triggers.length,
+    "every built-in trigger is grouped",
+  );
   assert.ok(Object.keys(d.symptomGroups).length === d.symptoms.length);
-  const own = m.normaliseSettings({ symptoms: ["Headache", "Cough"], symptomGroups: { Headache: "Mine", Gone: "x", constructor: "y" } });
+  const own = m.normaliseSettings({
+    symptoms: ["Headache", "Cough"],
+    symptomGroups: { Headache: "Mine", Gone: "x", constructor: "y" },
+  });
   assert.deepEqual(own.symptomGroups, { Headache: "Mine" });
-  assert.deepEqual(m.normaliseSettings({ symptoms: ["Headache"], symptomGroups: {} }).symptomGroups, {}, "an empty map is a choice to have no groups");
-  assert.deepEqual(m.normaliseSettings({ symptoms: ["Headache"], symptomGroups: null }).symptomGroups, { Headache: "Head and senses" });
+  assert.deepEqual(
+    m.normaliseSettings({ symptoms: ["Headache"], symptomGroups: {} }).symptomGroups,
+    {},
+    "an empty map is a choice to have no groups",
+  );
+  assert.deepEqual(
+    m.normaliseSettings({ symptoms: ["Headache"], symptomGroups: null }).symptomGroups,
+    { Headache: "Head and senses" },
+  );
   assert.ok(m.validateSettings({ ...own, symptomGroups: { Headache: "x".repeat(31) } }).length);
 });
 
 test("mergeDefaults brings new symptoms and triggers in with their shared group, keeping the person's own groups", () => {
-  const mine = m.normaliseSettings({ symptoms: ["Headache"], triggers: [], symptomGroups: { Headache: "Mine" }, triggerGroups: {} });
-  const shared = m.normaliseSettings({ symptoms: ["Headache", "Tremor"], triggers: ["Cold"], symptomGroups: { Headache: "Theirs", Tremor: "Nerves" }, triggerGroups: { Cold: "Surroundings" } });
+  const mine = m.normaliseSettings({
+    symptoms: ["Headache"],
+    triggers: [],
+    symptomGroups: { Headache: "Mine" },
+    triggerGroups: {},
+  });
+  const shared = m.normaliseSettings({
+    symptoms: ["Headache", "Tremor"],
+    triggers: ["Cold"],
+    symptomGroups: { Headache: "Theirs", Tremor: "Nerves" },
+    triggerGroups: { Cold: "Surroundings" },
+  });
   const merged = m.mergeDefaults(mine, shared);
   assert.deepEqual(merged.symptomGroups, { Tremor: "Nerves", Headache: "Mine" });
   assert.deepEqual(merged.triggerGroups, { Cold: "Surroundings" });
 });
 
 test("a settings field the stored copy never had is not a conflict when it is first saved", () => {
-  const op = { type: "settingsPatch", before: { symptomGroups: { Headache: "Head" } }, arg: { symptomGroups: { Headache: "Mine" } } };
+  const op = {
+    type: "settingsPatch",
+    before: { symptomGroups: { Headache: "Head" } },
+    arg: { symptomGroups: { Headache: "Mine" } },
+  };
   assert.deepEqual(m.operationConflicts(op, { budget: 10 }), []);
-  assert.deepEqual(m.operationConflicts(op, { symptomGroups: { Headache: "Theirs" } }), ["symptomGroups"]);
+  assert.deepEqual(m.operationConflicts(op, { symptomGroups: { Headache: "Theirs" } }), [
+    "symptomGroups",
+  ]);
 });
 
 test("resolveSettings gives existing symptoms and triggers their shared group unless the person chose one", () => {
-  const shared = m.normaliseSettings({ symptoms: ["Headache", "Tremor", "Jaw pain"], triggers: ["Cold"], symptomGroups: { Headache: "Head", Tremor: "Nerves", "Jaw pain": "Head" }, triggerGroups: { Cold: "Surroundings" } });
-  const nothing = m.resolveSettings({ symptoms: ["Headache", "Tremor", "Mine"], triggers: ["Cold"], symptomGroups: {}, triggerGroups: {} }, shared);
-  assert.deepEqual(nothing.symptomGroups, { Headache: "Head", Tremor: "Nerves" }, "an empty stored map still picks up shared groups; custom items stay ungrouped");
+  const shared = m.normaliseSettings({
+    symptoms: ["Headache", "Tremor", "Jaw pain"],
+    triggers: ["Cold"],
+    symptomGroups: { Headache: "Head", Tremor: "Nerves", "Jaw pain": "Head" },
+    triggerGroups: { Cold: "Surroundings" },
+  });
+  const nothing = m.resolveSettings(
+    {
+      symptoms: ["Headache", "Tremor", "Mine"],
+      triggers: ["Cold"],
+      symptomGroups: {},
+      triggerGroups: {},
+    },
+    shared,
+  );
+  assert.deepEqual(
+    nothing.symptomGroups,
+    { Headache: "Head", Tremor: "Nerves" },
+    "an empty stored map still picks up shared groups; custom items stay ungrouped",
+  );
   assert.deepEqual(nothing.triggerGroups, { Cold: "Surroundings" });
-  const chose = m.resolveSettings({ symptoms: ["Headache", "Tremor"], symptomGroups: { Headache: "Mine" } }, shared);
+  const chose = m.resolveSettings(
+    { symptoms: ["Headache", "Tremor"], symptomGroups: { Headache: "Mine" } },
+    shared,
+  );
   assert.deepEqual(chose.symptomGroups, { Headache: "Mine", Tremor: "Nerves" });
   assert.deepEqual(m.resolveSettings(undefined, shared).symptomGroups, shared.symptomGroups);
 });
 
 test("group maps conflict only where the stored copy holds a different group for a name", () => {
-  const op = { type: "settingsPatch", before: { symptomGroups: { A: "x", B: "y" } }, arg: { symptomGroups: { A: "z", B: "y" } } };
-  assert.deepEqual(m.operationConflicts(op, { symptomGroups: {} }), [], "stored copy has no entries yet");
+  const op = {
+    type: "settingsPatch",
+    before: { symptomGroups: { A: "x", B: "y" } },
+    arg: { symptomGroups: { A: "z", B: "y" } },
+  };
+  assert.deepEqual(
+    m.operationConflicts(op, { symptomGroups: {} }),
+    [],
+    "stored copy has no entries yet",
+  );
   assert.deepEqual(m.operationConflicts(op, { symptomGroups: { A: "x" } }), []);
   assert.deepEqual(m.operationConflicts(op, { symptomGroups: { A: "other" } }), ["symptomGroups"]);
 });
 
 test("an amber or red check-in takes its cost off the day, and changing or clearing it puts it back", () => {
   const S = m.normaliseSettings({ budget: 10, sleepPenalty: 3 });
-  assert.equal(S.amberPenalty, 3); assert.equal(S.redPenalty, 6);
+  assert.equal(S.amberPenalty, 3);
+  assert.equal(S.redPenalty, 6);
   const stamp = { budget: 10, sleepPenalty: 3, amberPenalty: 3, redPenalty: 6 };
   const at = (body, arg) => m.applyOp({ id: "d-2026-10-01", type: "setStatus", arg, stamp }, body);
   const amber = at(undefined, "amber");
@@ -319,6 +634,15 @@ test("an amber or red check-in takes its cost off the day, and changing or clear
   assert.equal("statusPenalty" in at(red, "green"), false);
   assert.equal(m.capOf({ ...red, poorSleep: true }, S), 1, "poor sleep stacks with the check-in");
   assert.equal(m.capOf({ ...red, poorSleep: true, statusPenalty: 99 }, S), 0, "never below zero");
-  assert.equal(m.capOf({ budget: 10, status: "red", entries: [] }, S), 10, "days from before check-ins cost anything keep their numbers");
-  assert.deepEqual(m.validateSettings({ ...S, activities: [], symptoms: [], triggers: [], amberPenalty: "11" }).map(e => e[0]), ["set-amber"]);
+  assert.equal(
+    m.capOf({ budget: 10, status: "red", entries: [] }, S),
+    10,
+    "days from before check-ins cost anything keep their numbers",
+  );
+  assert.deepEqual(
+    m
+      .validateSettings({ ...S, activities: [], symptoms: [], triggers: [], amberPenalty: "11" })
+      .map((e) => e[0]),
+    ["set-amber"],
+  );
 });

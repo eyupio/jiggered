@@ -1,5 +1,30 @@
 # Jiggered — UI and first-run audit
 
+> **Historical audit, not the current specification.** This report describes
+> commit `f3e34cb` on 1 Oct 2026. By 2 Oct the application includes a public
+> landing page and optional verified-email registration, so its original
+> first-run assumptions no longer describe the product. See [README.md](README.md)
+> for current behavior and [CONTRIBUTING.md](CONTRIBUTING.md) for development.
+
+## Disposition as of 2 Oct 2026
+
+The original measurements below are preserved as historical evidence, not
+instructions to reproduce the proposed designs. Later UI work changed Today,
+History, account forms, navigation and styles. Re-check a finding against the
+current view before making further changes.
+
+| Original findings | Current disposition / evidence |
+| --- | --- |
+| Landing/sign-up assumptions, C3 and H10 | Superseded first-run flow: `web/landing.js`, `web/login.js`, `web/help.js`; enrollment and sign-in covered by `test/browser-accounts.cjs`. |
+| C1, C2, H5, H6 | Today has since changed; current interaction behavior is covered by `test/browser-today.cjs`. Original coordinates and proposed layouts need a fresh visual review. |
+| C4, H1, H7, H8, H9, H11 | Navigation and responsive styles have since changed. Current mobile/admin overflow checks live in `test/browser-mobile.cjs` and `test/browser-admin.cjs`; target sizes and theme contrast still need visual measurement. |
+| C5, H12 | Episode form has since changed (`web/episodes.js`, `web/index.html`). Review current duration/onset behavior before applying the historical proposal. |
+| H2, H3, H4 | History/profile behavior has since changed (`web/history.js`, `web/profile.js`). Current search/calendar checks are in `test/browser-history.cjs`; original empty-state measurements need rechecking. |
+| N1 | Styles are now split across `style.css`, `dashboard.css` and `presence.css`; further consolidation needs cascade/visual validation. |
+| N2–N5 | Needs confirmation against current login, Account, Today and date-format behavior. No open-work status is implied by the old recommendations. |
+
+---
+
 Audited at commit `f3e34cb` (1 Oct 2026). Source read: `web/*.html`, `web/*.js`, `web/style.css`. App built and run
 locally on a fresh database with an admin-created account (`jiggered user add sam`), then walked with Playwright
 Chromium at 375×812 (mobile, touch) and 1440×900 (desktop), with spot measurements at 320px.

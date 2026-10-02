@@ -10,10 +10,7 @@ authOptions
   .then((options) => {
     const open = options.registration === true;
     const status = document.getElementById("registration-status");
-    if (status)
-      status.textContent = open
-        ? "OPEN FOR REGISTRATION"
-        : "REGISTRATION CLOSED";
+    if (status) status.textContent = open ? "OPEN FOR REGISTRATION" : "REGISTRATION CLOSED";
     document.querySelectorAll("[data-registration-copy]").forEach((el) => {
       el.textContent = open ? el.dataset.open : el.dataset.closed;
     });
@@ -120,15 +117,8 @@ function initAuth() {
     token = fragment.get("reset") || fragment.get("verify") || "";
     if (location.hash) {
       history.replaceState(null, "", location.pathname + location.search);
-      show(
-        fragment.has("reset")
-          ? "reset"
-          : fragment.has("verify")
-            ? "verify"
-            : "signin",
-      );
-    } else if (new URLSearchParams(location.search).get("step") === "2")
-      show("two-step");
+      show(fragment.has("reset") ? "reset" : fragment.has("verify") ? "verify" : "signin");
+    } else if (new URLSearchParams(location.search).get("step") === "2") show("two-step");
   }
   readFragment();
   window.addEventListener("hashchange", readFragment);
@@ -153,18 +143,14 @@ function initAuth() {
         signal: AbortSignal.timeout(20000),
       });
       const value = await r.json().catch(() => ({}));
-      message.textContent =
-        value.message || value.error || "Request failed. Try again.";
+      message.textContent = value.message || value.error || "Request failed. Try again.";
       message.classList.toggle("err", !r.ok);
       if (r.ok) {
         success?.();
-        form
-          .querySelectorAll("input[type=password]")
-          .forEach((el) => (el.value = ""));
+        form.querySelectorAll("input[type=password]").forEach((el) => (el.value = ""));
       }
     } catch {
-      message.textContent =
-        "Could not connect. Check your connection and try again.";
+      message.textContent = "Could not connect. Check your connection and try again.";
       message.classList.add("err");
     } finally {
       button.disabled = false;
@@ -172,8 +158,7 @@ function initAuth() {
     }
   }
   function passwordsMatch(which) {
-    if ($(which + "-password").value === $(which + "-confirm").value)
-      return true;
+    if ($(which + "-password").value === $(which + "-confirm").value) return true;
     $(which + "-msg").textContent = "The passwords do not match.";
     $(which + "-msg").classList.add("err");
     $(which + "-confirm").focus();
@@ -212,8 +197,6 @@ function initAuth() {
   });
   $("two-step-form").addEventListener("submit", (ev) => {
     ev.preventDefault();
-    submit("two-step", "two-step", { code: $("two-step-code").value }, () =>
-      location.assign("/"),
-    );
+    submit("two-step", "two-step", { code: $("two-step-code").value }, () => location.assign("/"));
   });
 }

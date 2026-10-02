@@ -11,59 +11,13 @@ energy check-ins and symptom episodes. One Go binary (module
 JSON API backed by SQLite. Several people can each have an account, with an
 admin to manage them; password login. It ships as one container image on GHCR.
 
-## Commands
+## Contributor guide
 
-```sh
-gofmt -l .                       # should print nothing; CI fails if it does
-go vet ./...
-CGO_ENABLED=0 go build ./...     # what the image builds (pure Go, no cgo)
-go test -race ./...              # server tests, about 20s once compiled (-race needs cgo; tests only)
-node --test "test/*.test.mjs"    # frontend logic tests; Node 22, no npm install
-node test/browser-today.cjs      # real Chromium (needs Playwright, see README); CI also runs browser-history.cjs, browser-mobile.cjs and browser.cjs
-```
-
-Measured on a cold module cache: building took about 2m20s (pure-Go SQLite
-compiles slowly), so give the first run a generous timeout.
-
-Run locally without HTTPS, then open <http://localhost:8080>:
-
-```sh
-APP_DB=./jiggered.db go run .                                   # terminal 1: starts with no accounts, and says so
-APP_DB=./jiggered.db go run . user add paul --admin             # terminal 2: prints a temporary password
-APP_DB=./jiggered.db go run . settings set secure_cookie false  # plain-http testing only
-```
-
-`go run . help` lists every subcommand (`user`, `settings`, `backup`, `restore`,
-`healthcheck`, `hash`, `version`). There is no Makefile, no linter config and no
-frontend build step.
-
-## Layout
-
-| Path | What it is |
-| --- | --- |
-| `main.go` | Wiring: config, `server`, `routes()`, security headers, cross-site guard, static files |
-| `db.go` | Opening SQLite, the append-only `migrations` list, the pre-upgrade snapshot |
-| `auth.go` | Sessions, `requireAuth`/`requireAdmin` (`guard`), login, lockouts, client address |
-| `users.go` | Account store, last-admin guard, audit log, pruning |
-| `account.go`, `admin.go` | `/api/me/...` (self-service) and `/api/admin/...` (admins only) |
-| `docs.go`, `restore.go`, `validate.go` | Personal docs, quotas, legacy import and atomic preview-bound restores; `validateDoc` is the one document rule used by saves, imports and restores |
-| `defaults.go` | Validated shared product defaults, authenticated read, admin-only compare-and-swap write |
-| `settings.go` | Instance settings stored in the database, and seeding them from old env vars |
-| `backup.go`, `cli.go` | Snapshot helpers; the subcommands (`user`, `settings`, `backup`, `restore`, ...) |
-| `*_test.go`, `test/*.test.mjs` | Go tests (real server on a temp DB) and Node tests for the frontend logic |
-| `web/` | The frontend, hand-written, embedded with `//go:embed web` (below) |
-| `assets/brand/` | Logo and mark sources. Not embedded, not served |
-| `Dockerfile`, `compose.yaml` | Multi-stage build to distroless nonroot with a `HEALTHCHECK`; read-only compose service, `cap_drop: ALL` |
-| `.env.example` | Template for compose's optional `.env` |
-| `.github/workflows/image.yml` | gofmt, vet, build, `go test -race`, `node --test`, real-browser tests, then build and push the image |
-
-`web/`: `app.js` boots and owns the tabs; `sync.js` is the sync engine;
-`device.js` provides IndexedDB-backed cache/drafts; `editor.js` shares accessible list ordering. `picker.js` is the pure long-list logic (search, favourites by recent use, groups, paging) used by Today and Episodes; lists show none of it until they pass `PICKER.searchFrom` items. Activities carry an optional `g` group; symptoms and triggers stay plain strings. List limit is 200 (`LIMITS` in `model.js`, mirrored in `defaults.go`). `model.js`
-holds the data rules (settings, a day's budget, operations, trends, CSV); `util.js`
-has `html` and `api()`; `today.js`, `episodes.js`, `history.js`, `account.js` are
-the tabs; `admin.js` is mounted only for admins; `sw.js` is the service worker;
-`help.js` provides task-focused help and `tooltips.js` handles hover/focus/touch guidance; `fonts/` are self-hosted. `sync.js` and `model.js` touch no DOM, which is why
-`test/` can run them.
+[CONTRIBUTING.md](CONTRIBUTING.md) owns the local setup, code map, checks and
+browser-scenario list. Use `npm ci --prefix test` for the locked development
+tools, `npm --prefix test run check` for formatting/lint/logic tests, and
+`npm --prefix test run browser` for all seven scenarios with one fixture build.
+Keep those instructions current when changing the workflow or tooling.
 
 ## How it works
 
@@ -72,7 +26,7 @@ the tabs; `admin.js` is mounted only for admins; `sw.js` is the service worker;
   deleted doc, so recreating it never reuses a revision; a DELETE with `If-Match` of an older revision gets a 409). Docs are opaque
   JSON objects per person; the server does not interpret them, the frontend owns
   their shape. Ids are allow-listed: `d-YYYY-MM-DD`, `e-<digits>`, `settings`.
-- **Sync**: the frontend queues *operations* ("add this entry"), shows the server
+- **Sync**: the frontend queues _operations_ ("add this entry"), shows the server
   copy with them applied, and saves with `If-Match: "<rev>"`. A 409 returns the
   current doc and the operations are replayed on it, so two devices merge. `GET /api/docs` is always the whole account (never a
   page: omitted docs would look deleted) with a weak ETag over each doc's id, revision, size and save time; a client that
@@ -155,4 +109,4 @@ Keep every `CLAUDE.md` under 200 lines. This root file is the always-loaded
 index and the universal rules. A `CLAUDE.md` in a subfolder, if one is ever
 justified by that folder's own tooling, appends scoped context and must never
 contradict or overwrite this file. There is none today: the Go code is one flat
-package and `web/` has no tooling of its own.
+package; frontend and browser tooling is managed by `test/package.json`.

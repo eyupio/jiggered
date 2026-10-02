@@ -1,6 +1,5 @@
 <p align="center"><img src="assets/brand/logo.svg" alt="Jiggered" width="360"></p>
 
-
 Yorkshire for "worn out". A small self-hosted tracker for daily energy check-ins and symptom episodes.
 Go, SQLite, one container, password login. Run it for yourself, or let one admin look after a few more
 people (a household, a support group), each with their own account.
@@ -94,7 +93,6 @@ Offline access uses unencrypted device copies on trusted devices. A fully offlin
 until it reconnects. Signing out from any tab clears the shared device copy and stops older tabs writing it back. Browser eviction or a device failure can still remove local
 copies, so acknowledged server saves and private backups remain important.
 
-
 ### In-app help
 
 The **Help** tab contains searchable, offline-available answers for getting started, energy points, activities,
@@ -130,7 +128,6 @@ settings have stable row ids so editing one row preserves changes to another (an
 Same-field or incompatible reorder edits appear in Recovery with **Keep server copy** and **Use my change**.
 A deleted record wins over a queued edit; restoring the retained copy requires the explicit **Restore my record**
 action. These choices do not alter other users' records. Exported backups and recovery files are private health data.
-
 
 ## People and the admin
 
@@ -208,9 +205,9 @@ So host it somewhere you trust, give the admin role only to someone the others t
 
 GitHub Actions builds `ghcr.io/jnnngs/jiggered` for amd64 and arm64:
 
-| Trigger | Tags |
-|---|---|
-| Push to `main` | `dev`, `sha-` and the short commit |
+| Trigger                         | Tags                                                  |
+| ------------------------------- | ----------------------------------------------------- |
+| Push to `main`                  | `dev`, `sha-` and the short commit                    |
 | Tag `v1.2.3` (not `v1.2.3-rc1`) | `latest`, `1.2.3`, `1.2`, `sha-` and the short commit |
 
 Pick which one to run with `JIGGERED_TAG` in `.env` (default `latest`).
@@ -284,20 +281,20 @@ stop Jiggered, restore the
 
 The environment only has to say where things are, and both have sensible defaults:
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `APP_DB` | `/data/jiggered.db` | The SQLite file. Everything else lives in it. |
-| `APP_ADDR` | `:8080` | Listen address (in Docker leave it: the port mapping in `compose.yaml` points at 8080) |
+| Variable   | Default             | Purpose                                                                                |
+| ---------- | ------------------- | -------------------------------------------------------------------------------------- |
+| `APP_DB`   | `/data/jiggered.db` | The SQLite file. Everything else lives in it.                                          |
+| `APP_ADDR` | `:8080`             | Listen address (in Docker leave it: the port mapping in `compose.yaml` points at 8080) |
 
 Everything else is stored in the database, so it survives upgrades, travels with a backup, and an admin can change
 it while the app runs:
 
-| Setting | Default | What it does | Change it in |
-|---|---|---|---|
-| `trust_proxy` | off | Read forwarded headers only from configured trusted proxy addresses | Admin, Connection |
-| `trusted_proxy_cidrs` | empty | Comma-separated IP CIDRs of the immediate and intermediate proxies. Empty means no headers are trusted, even with `trust_proxy` on. | Admin, Connection |
-| `proxy_hops` | `1` | How many proxies sit in front. The address is read from the **right-hand** end of `X-Forwarded-For`: the entry your own proxy added. Anything further left was sent by the client and is ignored. | Admin, Connection |
-| `secure_cookie` | on | Sign-in cookies only travel over HTTPS. Turn off only to test over plain http. | `jiggered settings set secure_cookie false` |
+| Setting               | Default | What it does                                                                                                                                                                                      | Change it in                                |
+| --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `trust_proxy`         | off     | Read forwarded headers only from configured trusted proxy addresses                                                                                                                               | Admin, Connection                           |
+| `trusted_proxy_cidrs` | empty   | Comma-separated IP CIDRs of the immediate and intermediate proxies. Empty means no headers are trusted, even with `trust_proxy` on.                                                               | Admin, Connection                           |
+| `proxy_hops`          | `1`     | How many proxies sit in front. The address is read from the **right-hand** end of `X-Forwarded-For`: the entry your own proxy added. Anything further left was sent by the client and is ignored. | Admin, Connection                           |
+| `secure_cookie`       | on      | Sign-in cookies only travel over HTTPS. Turn off only to test over plain http.                                                                                                                    | `jiggered settings set secure_cookie false` |
 
 `secure_cookie` isn't in the web page on purpose: turning it on while you're using plain http would lock you out.
 From the command line, `jiggered settings` lists all settings and `jiggered settings set KEY VALUE` changes one; a
@@ -348,8 +345,15 @@ stale or even empty. Use these instead, which take a consistent copy while the a
 
 ```sh
 docker compose exec jiggered /jiggered backup                     # saved in the volume, under /data/backups/
-docker compose exec -T jiggered /jiggered backup - > jiggered-backup.zip   # or straight to a file on this machine
+# Or write to a private directory outside the checkout:
+backup_dir="$HOME/.local/share/jiggered-backups"
+mkdir -p "$backup_dir"
+chmod 700 "$backup_dir"
+(umask 077; docker compose exec -T jiggered /jiggered backup - > "$backup_dir/jiggered-backup.zip")
 ```
+
+Keep ZIP and encrypted ZIP archives outside the source checkout. Git and Docker
+ignore these archives as a second guard, not as access control.
 
 Admins can also use **Download ZIP backup** in the Admin tab. It asks for the admin's own password every time, so a
 signed-in session left open can't be used to take everyone's data. A copy of your own data alone is **Download everything**
@@ -371,8 +375,8 @@ older encrypted files still require their original password.
 The CLI reads encryption passwords from a file, keeping them out of command-line arguments:
 
 ```sh
-jiggered backup protected.zip.enc --password-file /private/backup-password
-jiggered restore protected.zip.enc --password-file /private/backup-password --yes
+jiggered backup /private/jiggered-backups/protected.zip.enc --password-file /private/backup-password
+jiggered restore /private/jiggered-backups/protected.zip.enc --password-file /private/backup-password --yes
 ```
 
 The password file contains the password (at least eight characters); an optional final newline is removed.
@@ -386,7 +390,8 @@ that folder, or `chown` it to the container's user (uid 65532 in the distroless 
 
 ```sh
 docker compose stop jiggered
-docker compose run --rm -v "$PWD:/backup:ro" jiggered restore /backup/jiggered-backup.zip --yes
+backup_dir="$HOME/.local/share/jiggered-backups"
+docker compose run --rm -v "$backup_dir:/backup:ro" jiggered restore /backup/jiggered-backup.zip --yes
 docker compose start jiggered
 ```
 
@@ -498,42 +503,22 @@ sessions, pending sign-in challenges and emailed tokens; it never signs anyone b
 
 ## Development
 
-Use Go 1.27.1 or newer. CI runs pinned `govulncheck` before building, and Docker bases and CI actions
-are pinned by immutable digest or commit. Update these pins regularly with verified upstream releases.
-
-
-```sh
-go vet ./... && go test -race ./...     # -race needs a C compiler; Node 22+ for the front-end tests below
-#     # server: accounts, isolation, upgrade from the old schema, CLI, backups
-node --test "test/*.test.mjs"           # front-end logic: sync, recovery/drafts, ordering, settings, trends, CSV
-```
-
-Six real-browser scripts run in CI against a real server and database, in Chromium. `test/browser-today.cjs` covers
-the Today picker (groups start closed, a logged activity turns green with a count, -/+ and Undo, pinned with the groups
-closed). `test/browser-history.cjs` seeds a large account and checks History search: one update per typed word,
-the right results, and the other filters reacting at once. `test/browser-mobile.cjs` checks phone width: the Account list editors (collapsible, opened by shortcuts and by
-errors) and History navigation. `test/browser.cjs` is the long walkthrough: admin and user accounts, desktop/touch ordering, offline reload,
-refusal recovery, shared-default isolation and IndexedDB migration/large copies. `test/browser-security.cjs` checks
-admin password confirmation, copied-token revocation, reader-tab logout and revoked-session cleanup.
-`test/browser-accounts.cjs` checks storage/email configuration, verified registration, password recovery, 2FA and mobile layout. To run them yourself:
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup, the code map, all seven
+browser scenarios and change guidelines. Use Go 1.27.1 and Node 22.13+ or 24+.
+There is no frontend build step; npm installs locked development tools only.
 
 ```sh
-npm install --no-save --package-lock=false playwright@1.56.1
-npx playwright install chromium
-node test/browser-today.cjs
-node test/browser-history.cjs
-node test/browser-mobile.cjs
-node test/browser.cjs
+npm ci --prefix test
+npm --prefix test run browser:install
+npm --prefix test run check
+go vet ./...
+go test -race ./...             # requires a C compiler
+npm --prefix test run browser   # compiles once, runs all seven scenarios
 ```
 
-They build a temporary binary/database and clean them up. `JIGGERED_BROWSER_PATH` selects a preinstalled browser;
-`JIGGERED_BROWSER_ARGS` is an optional JSON array of launch arguments (`browser.cjs`). `JIGGERED_SCREENSHOT_DIR` saves
-review screenshots (`browser.cjs`); `GO_BINARY` or `JIGGERED_TEST_BINARY` selects the build tool or an already-built app.
-The browser dependency is only for development and CI; it is not served or added to the container.
-
-The page is plain ES modules with no build step. `web/sync.js` is the part to read first: edits are queued as
-operations and replayed on the server's latest copy, which is why two devices can edit the same day without
-losing each other's changes.
+CI also runs pinned `govulncheck` and builds without cgo. Docker bases and CI
+actions are pinned by immutable digest or commit; update these pins with
+verified upstream releases.
 
 ## Health warning
 
