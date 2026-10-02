@@ -42,6 +42,7 @@ function say(el, text, bad = false) {
 }
 
 const MARKUP = `
+    <div class="panel"><label class="field">Your password, to confirm the next admin change<input type="password" id="admin-confirm-pw" autocomplete="current-password"></label><p class="hint">Enter it again for each change to accounts, connection settings or shared defaults.</p></div>
     <div class="panel">
       <h2>People</h2>
       <p class="meta">You can add people, reset passwords, sign devices out and remove accounts. These screens don't show anyone's check-ins or episodes, only how many they have. Remember that resetting a password lets you sign in as that person, and a backup contains everything.</p>
@@ -74,6 +75,7 @@ const MARKUP = `
       <form id="proxyform">
         <label class="radio"><input type="checkbox" id="px-on"> Jiggered runs behind a reverse proxy (Caddy, nginx, Traefik)</label>
         <label class="field">How many proxies are in front<input type="number" id="px-hops" min="1" max="10" inputmode="numeric"></label>
+        <label class="field">Trusted proxy IP ranges (comma separated CIDRs)<input type="text" id="px-cidrs" placeholder="127.0.0.1/32,::1/128"></label>
         <button class="primary" type="submit">Save</button>
         <p class="msg" id="px-msg" aria-live="polite"></p>
       </form>
@@ -110,6 +112,17 @@ function wire(ctx) {
   const { me } = ctx;
   let users = [], oldest = 0, loaded = false;
 
+  function confirmation() {
+    const field = $("admin-confirm-pw"), password = field.value;
+    field.value = "";
+    if (!password) { field.focus(); return null }
+    return { "X-Jiggered-Password": password };
+  }
+  async function adminAPI(method,path,body,headers={}) {
+    const proof = confirmation();
+    if (!proof) return { ok:false, error:"Enter your password to confirm this change." };
+    return api(method,path,body,{...headers,...proof});
+  }
   async function loadUsers() {
     const target = $("users-msg"); if (!target) return;
     say(target, "Loading people…");
@@ -165,27 +178,27 @@ function wire(ctx) {
     switch (b.dataset.act) {
       case "reset":
         if (!confirm(`Reset ${name}'s password? They'll be signed out everywhere and given a temporary one.`)) return;
-        r = await api("POST", path + "/reset-password");
+        r = await adminAPI("POST", path + "/reset-password");
         if (r.ok) reveal(name, r.data.temp_password);
         break;
       case "signout":
-        r = await api("POST", path + "/revoke-sessions");
+        r = await adminAPI("POST", path + "/revoke-sessions");
         if (r.ok) say(msg, `${name} was signed out everywhere.`);
         break;
       case "disable":
         if (!confirm(`Disable ${name}? They'll be signed out and unable to sign in until you enable them again. Their data is kept.`)) return;
-        r = await api("PATCH", path, { disabled: true });
+        r = await adminAPI("PATCH", path, { disabled: true });
         break;
-      case "enable": r = await api("PATCH", path, { disabled: false }); break;
+      case "enable": r = await adminAPI("PATCH", path, { disabled: false }); break;
       case "promote":
         if (!confirm(`Make ${name} an admin? They'll be able to add people and manage every account (including resetting passwords and downloading a backup of everyone's data).`)) return;
-        r = await api("PATCH", path, { role: "admin" });
+        r = await adminAPI("PATCH", path, { role: "admin" });
         break;
-      case "demote": r = await api("PATCH", path, { role: "user" }); break;
+      case "demote": r = await adminAPI("PATCH", path, { role: "user" }); break;
       case "delete": {
         const typed = prompt(`This permanently deletes ${name} and everything they've logged.\n\nType their username to confirm:`);
         if (typed === null) return;
-        r = await api("DELETE", path + "?confirm=" + encodeURIComponent(typed.trim()));
+        r = await adminAPI("DELETE", path + "?confirm=" + encodeURIComponent(typed.trim()));
         if (r.ok) say(msg, `${name} was deleted.`);
         break;
       }
@@ -202,7 +215,7 @@ function wire(ctx) {
     const msg = $("adduser-msg"), username = $("new-name").value.trim();
     if ($("new-admin").checked && !confirm(`Create ${username} as an admin? They can reset passwords, manage all accounts and download everyone's private data.`)) return;
     say(msg, "Creating…");
-    const r = await api("POST", "/api/admin/users", { username, role: $("new-admin").checked ? "admin" : "user" });
+    const r = await adminAPI("POST", "/api/admin/users", { username, role: $("new-admin").checked ? "admin" : "user" });
     if (!r.ok) return say(msg, r.error, true);
     say(msg, `Created ${r.data.user.username}.`);
     $("adduser").reset();
@@ -252,6 +265,7 @@ function wire(ctx) {
   function showConnection(c) {
     $("px-on").checked = c.trust_proxy;
     $("px-hops").value = c.proxy_hops;
+    $("px-cidrs").value = c.trusted_proxy_cidrs || "";
     $("px-hops").disabled = !c.trust_proxy;
     const via = c.seen.remote_addr + (c.seen.forwarded_for ? `, X-Forwarded-For: ${c.seen.forwarded_for}` : "");
     const advice = !c.trust_proxy && c.seen.forwarded_for ? "A proxy is sending X-Forwarded-For, but Jiggered isn't reading it. Turn the setting on so people can be told apart."
@@ -273,7 +287,7 @@ function wire(ctx) {
     return withBusy($("proxyform").querySelector("[type=submit]"), "Saving…", async () => {
     const msg = $("px-msg");
     say(msg, "Saving…");
-    const r = await api("PATCH", "/api/admin/settings", { trust_proxy: $("px-on").checked, proxy_hops: Number($("px-hops").value) || 1 });
+    const r = await adminAPI("PATCH", "/api/admin/settings", { trust_proxy: $("px-on").checked, proxy_hops: Number($("px-hops").value) || 1, trusted_proxy_cidrs: $("px-cidrs").value });
     if (!r.ok) return say(msg, r.error, true);
     showConnection(r.data);
     say(msg, "Saved.");
@@ -306,7 +320,8 @@ function wire(ctx) {
     if (!defaultsETag) return say($("def-msg"), "Load the shared defaults while connected before saving.", true);
     defaultSaving = true;
     await withBusy(defaultsForm.querySelector('[type=submit]'), "Saving…", async () => {
-      let r; try { r = await fetch("/api/admin/defaults", { method: "PUT", credentials: "same-origin", headers: { "X-Requested-With": "jiggered", "X-Jiggered-User": String(me.id), "Content-Type": "application/json", "If-Match": defaultsETag }, body: JSON.stringify(body), signal: AbortSignal.timeout(20000) }) }
+      const proof = confirmation(); if (!proof) { say($("def-msg"),"Enter your password to confirm this change.",true); return }
+      let r; try { r = await fetch("/api/admin/defaults", { method: "PUT", credentials: "same-origin", headers: { "X-Requested-With": "jiggered", "X-Jiggered-User": String(me.id), "Content-Type": "application/json", "If-Match": defaultsETag, ...proof }, body: JSON.stringify(body), signal: AbortSignal.timeout(20000) }) }
       catch { say($("def-msg"), "Couldn't connect. Your defaults draft is kept on this device.", true); return }
       const value = await r.json().catch(() => ({})); if (!$("def-msg")) return;
       if (!r.ok) return say($("def-msg"), value.error || `Save failed (${r.status}). Draft kept.`, true);
@@ -328,3 +343,4 @@ function wire(ctx) {
     },
   };
 }
+

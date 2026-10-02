@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -92,9 +93,10 @@ func randomHex(n int) (string, error) {
 // ---- who is calling ----
 
 type authInfo struct {
-	u    *user
-	sid  string // public id of the calling session
-	hash string // its token hash
+	u        *user
+	sid      string // public id of the calling session
+	hash     string // its token hash
+	verified []byte // password hash checked for this request
 }
 
 type authKey struct{}
@@ -180,7 +182,14 @@ func (s *server) guard(next http.Handler, adminOnly bool) http.Handler {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), authKey{}, a)))
+		r = r.WithContext(context.WithValue(r.Context(), authKey{}, a))
+		if adminOnly && r.Method != http.MethodGet && r.URL.Path != "/api/admin/backup" {
+			if !s.verifyOwnPassword(w, r, a.u, r.Header.Get("X-Jiggered-Password")) {
+				return
+			}
+			r = r.WithContext(context.WithValue(r.Context(), adminMutationKey{}, true))
+		}
+		next.ServeHTTP(w, r)
 	})
 }
 
@@ -195,7 +204,7 @@ func (s *server) clientIP(r *http.Request) string {
 	if err != nil {
 		host = r.RemoteAddr
 	}
-	if st := s.settings(); st.TrustProxy {
+	if st := s.settings(); s.trustedProxyRequest(r, st) {
 		parts := strings.Split(strings.Join(r.Header.Values("X-Forwarded-For"), ","), ",")
 		if i := len(parts) - st.ProxyHops; i >= 0 {
 			if v := forwardedAddr(parts[i]); v != "" {
@@ -226,17 +235,28 @@ func (s *server) sameSiteLogin(r *http.Request) bool {
 	if err != nil || u.Host == "" {
 		return false // "null" (a sandboxed or opaque origin) or garbage
 	}
-	if strings.EqualFold(u.Host, r.Host) {
-		return true
+	st := s.settings()
+	host := r.Host
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
 	}
-	if s.settings().TrustProxy { // behind a proxy that rewrites Host, the name the person typed is in X-Forwarded-Host
-		for _, h := range strings.Split(r.Header.Get("X-Forwarded-Host"), ",") {
-			if strings.EqualFold(u.Host, strings.TrimSpace(h)) {
-				return true
+	if s.trustedProxyRequest(r, st) {
+		// A single canonical value set by the trusted proxy, never any value in a client-supplied list.
+		if forwarded := r.Header.Get("X-Forwarded-Host"); forwarded != "" {
+			if strings.Contains(forwarded, ",") {
+				return false
 			}
+			host = strings.TrimSpace(forwarded)
+		}
+		if proto := r.Header.Get("X-Forwarded-Proto"); proto != "" {
+			if proto != "https" && proto != "http" {
+				return false
+			}
+			scheme = proto
 		}
 	}
-	return false
+	return strings.EqualFold(u.Host, host) && u.Scheme == scheme
 }
 
 // forwardedAddr reads one X-Forwarded-For entry: a bare address, or one with a port as some proxies add it
@@ -534,4 +554,41 @@ func (l *loginLimiter) sweepLocked() {
 	for key := range l.fails {
 		l.recent(key)
 	}
+}
+
+func trustedProxyAddress(addr, cidrs string) bool {
+	ip, err := netip.ParseAddr(addr)
+	if err != nil {
+		return false
+	}
+	ip = ip.Unmap()
+	for _, cidr := range strings.Split(cidrs, ",") {
+		prefix, err := netip.ParsePrefix(cidr)
+		if err == nil && prefix.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+func (s *server) trustedProxyRequest(r *http.Request, st instanceSettings) bool {
+	if !st.TrustProxy {
+		return false
+	}
+	peer, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		peer = r.RemoteAddr
+	}
+	if !trustedProxyAddress(peer, st.TrustedProxyCIDRs) {
+		return false
+	}
+	parts := strings.Split(strings.Join(r.Header.Values("X-Forwarded-For"), ","), ",")
+	if len(parts) < st.ProxyHops {
+		return false
+	}
+	for i := len(parts) - st.ProxyHops + 1; i < len(parts); i++ {
+		if !trustedProxyAddress(forwardedAddr(parts[i]), st.TrustedProxyCIDRs) {
+			return false
+		}
+	}
+	return true
 }

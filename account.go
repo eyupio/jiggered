@@ -44,6 +44,7 @@ func (s *server) verifyOwnPassword(w http.ResponseWriter, r *http.Request, u *us
 		return false
 	}
 	giveBack()
+	authOf(r).verified = append([]byte(nil), hash...)
 	return true
 }
 
@@ -72,12 +73,18 @@ func (s *server) handleChangePassword(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, http.StatusServiceUnavailable, "Busy right now. Try again in a moment.")
 		return
 	}
-	if err := s.setPassword(r.Context(), a.u.ID, hash, false, a.sid); err != nil {
+	token, exp, err := s.changePassword(r.Context(), a, hash, s.clientIP(r), r.UserAgent())
+	if errors.Is(err, errStaleAuthorization) {
+		jsonError(w, 409, "Your account or session changed. Sign in again.")
+		return
+	}
+	if err != nil {
 		serverError(w, r, err)
 		return
 	}
 	s.userLimit.reset(a.u.Username)
-	s.audit(r.Context(), a.u.Username, "password_changed", a.u.Username, "other sessions signed out", s.clientIP(r))
+	s.audit(r.Context(), a.u.Username, "password_changed", a.u.Username, "all old sessions replaced", s.clientIP(r))
+	s.setSessionCookie(w, token, exp)
 	w.WriteHeader(http.StatusNoContent)
 }
 

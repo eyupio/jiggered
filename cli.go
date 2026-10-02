@@ -25,7 +25,7 @@ const usage = `Jiggered ` + "(no arguments runs the server)" + `
   jiggered restore <file> --yes        put a backup in place of the database (stop the server first; what was there is kept)
   jiggered healthcheck                 exit 0 if the running server answers /healthz
   jiggered settings                    show the instance settings (they live in the database)
-  jiggered settings set KEY VALUE      change one: secure_cookie, trust_proxy, proxy_hops
+  jiggered settings set KEY VALUE      change one: secure_cookie, trust_proxy, proxy_hops, trusted_proxy_cidrs
   jiggered version
 
 Accounts (work on the database directly, so they still work if you are locked out of the web UI):

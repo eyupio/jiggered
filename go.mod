@@ -1,6 +1,6 @@
 module github.com/jnnngs/jiggered
 
-go 1.26.0
+go 1.27.1
 
 require (
 	golang.org/x/crypto v0.57.0
@@ -18,3 +18,4 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 )
+

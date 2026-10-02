@@ -1,7 +1,7 @@
 // The page: who is signed in, the tabs, and the wiring between the views and the sync store.
 
 import { $, fmtLongDay, setPageUser, html, setHTML, downloadFile, withBusy } from "./util.js";
-import { openDeviceStorage, createDrafts, claimEditingTab } from "./device.js";
+import { openDeviceStorage, createDrafts, claimEditingTab, purgeDeviceStorage, PURGE_KEY } from "./device.js";
 import { createStore } from "./sync.js";
 import { normaliseSettings, resolveSettings, DEFAULTS, dkey } from "./model.js";
 import * as todayView from "./today.js";
@@ -29,7 +29,7 @@ const SIGN_IN = "sign-in"; // getMe's answer when the browser is being sent to t
 async function getMe() {
   let r = null;
   try { r = await fetch("/api/me", { credentials: "same-origin", signal: AbortSignal.timeout(6000) }) } catch { /* offline, or too slow to wait for */ }
-  if (r && r.status === 401) { forget(); location.href = "/login"; return SIGN_IN }
+  if (r && r.status === 401) { forget(); try { await purgeDeviceStorage(legacyStorage); location.href = "/login" } catch { fatal("Signed out, but this browser could not remove its device copy. Clear site data before sharing this device.") } return SIGN_IN }
   if (r && r.ok) { const me = await r.json(); remember(me); return me }
   return recall();
 }
@@ -65,7 +65,13 @@ function fatal(text) {
 
   // Several things can notice at once that the session has ended; the browser should be sent to sign in only once.
   let leaving = false;
-  const toSignIn = () => { if (!leaving) { leaving = true; location.href = "/login" } };
+  const toSignIn = async () => {
+    if (leaving) return; leaving = true; forget();
+    // Remove sensitive rendered content immediately, even if device storage fails.
+    document.querySelector(".wrap").hidden = true;
+    try { await store.clear(); drafts.clear(); await purgeDeviceStorage(legacyStorage); try { sessionStorage.removeItem(`jiggered:nav:${me.id}`) } catch {} location.href = "/login" }
+    catch { fatal("Signed out, but this browser could not remove its device copy. Clear site data before sharing this device."); document.querySelector(".wrap").hidden = false }
+  };
 
   const coordination = await claimEditingTab(navigator.locks, "jiggered-editor");
   const storage = await openDeviceStorage({ coordination, legacy: legacyStorage, userId: me.id, username: me.username });
@@ -77,7 +83,8 @@ function fatal(text) {
     onAuthLost: toSignIn,
   });
 
-  storage?.onChange?.(() => store.refreshDevice());
+  storage?.onChange?.(() => { if (storage.writable === false && legacyStorage?.getItem(ME_KEY) == null) toSignIn(); else store.refreshDevice() });
+  addEventListener("storage", e => { if (e.key === PURGE_KEY) toSignIn() });
   // Read-only tabs can browse and download. They never edit drafts or send writes.
   for (const type of ["click","submit","input","change","pointerdown","keydown"]) document.addEventListener(type, e => {
     if (!store.status().readOnly && !store.status().restoring) return;
@@ -121,7 +128,7 @@ function fatal(text) {
     toast,
     go,
     back() { go(views[beforeHelp] && beforeHelp !== "help" ? beforeHelp : "today") },
-    leave() { leaving = true; store.clear(); drafts.clear(); forget(); try { sessionStorage.removeItem(`jiggered:nav:${me.id}`) } catch { /* nothing to clear */ } location.href = "/login" }, // wipe this device's copy, then go to the sign-in page
+    leave: toSignIn,
     openDay(date) { go("today"); views.today.open(date) },
     editEpisode(id) { views.episode.edit(id) },
     editSettings(section) { go("account"); views.account.focus(section) },
@@ -300,7 +307,7 @@ function fatal(text) {
       const r = await fetch("/logout", { method: "POST", credentials: "same-origin" });
       if (!r.ok) throw new Error("HTTP " + r.status); // a proxy error page is not a sign-out
     } catch { toast("Jiggered can't sign you out right now (offline, or the server isn't answering)."); return }
-    ctx.leave();
+    await ctx.leave();
     });
   });
 
@@ -326,3 +333,4 @@ function fatal(text) {
   // Freeze the starting defaults into this account so future shared edits do not replace personal choices.
   if (coordination.writable && defaultsTag && store.status().loaded && !store.view("settings")) store.dispatch({ id: "settings", type: "replace", arg: normaliseSettings(sharedDefaults) })
 })();
+

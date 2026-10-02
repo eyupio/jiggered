@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/netip"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,18 +18,19 @@ import (
 // database has no value for yet; after that the database wins.
 
 type instanceSettings struct {
-	SecureCookie bool // session cookies are HTTPS-only
-	TrustProxy   bool // take the client address from X-Forwarded-For
-	ProxyHops    int  // how many trusted proxies sit in front
+	SecureCookie      bool   // session cookies are HTTPS-only
+	TrustProxy        bool   // take the client address from X-Forwarded-For
+	ProxyHops         int    // how many trusted proxies sit in front
+	TrustedProxyCIDRs string // immediate peers and intermediate proxy addresses allowed to supply headers
 }
 
 // Safe unless told otherwise: cookies need HTTPS, and no proxy header is believed.
 var settingDefaults = instanceSettings{SecureCookie: true, TrustProxy: false, ProxyHops: 1}
 
-var settingKeys = []string{"secure_cookie", "trust_proxy", "proxy_hops"}
+var settingKeys = []string{"secure_cookie", "trust_proxy", "proxy_hops", "trusted_proxy_cidrs"}
 
 // settingEnv is the variable older versions read each setting from.
-var settingEnv = map[string]string{"secure_cookie": "APP_SECURE_COOKIE", "trust_proxy": "APP_TRUST_PROXY", "proxy_hops": "APP_PROXY_HOPS"}
+var settingEnv = map[string]string{"secure_cookie": "APP_SECURE_COOKIE", "trust_proxy": "APP_TRUST_PROXY", "proxy_hops": "APP_PROXY_HOPS", "trusted_proxy_cidrs": "APP_TRUSTED_PROXY_CIDRS"}
 
 // settingsCacheFor is how long a running server trusts what it last read, so a change made from the command
 // line (another process) reaches it within a couple of seconds without a restart.
@@ -36,9 +38,10 @@ const settingsCacheFor = 2 * time.Second
 
 func (st instanceSettings) strings() map[string]string {
 	return map[string]string{
-		"secure_cookie": strconv.FormatBool(st.SecureCookie),
-		"trust_proxy":   strconv.FormatBool(st.TrustProxy),
-		"proxy_hops":    strconv.Itoa(st.ProxyHops),
+		"secure_cookie":       strconv.FormatBool(st.SecureCookie),
+		"trust_proxy":         strconv.FormatBool(st.TrustProxy),
+		"proxy_hops":          strconv.Itoa(st.ProxyHops),
+		"trusted_proxy_cidrs": st.TrustedProxyCIDRs,
 	}
 }
 
@@ -51,6 +54,16 @@ func parseSetting(key, value string) (string, error) {
 			return "", fmt.Errorf("%s must be true or false", key)
 		}
 		return strconv.FormatBool(b), nil
+	case "trusted_proxy_cidrs":
+		prefixes := []string{}
+		for _, part := range strings.Fields(strings.ReplaceAll(value, ",", " ")) {
+			prefix, err := netip.ParsePrefix(part)
+			if err != nil {
+				return "", errors.New("trusted_proxy_cidrs must contain IP CIDRs separated by commas")
+			}
+			prefixes = append(prefixes, prefix.Masked().String())
+		}
+		return strings.Join(prefixes, ","), nil
 	case "proxy_hops":
 		n, err := strconv.Atoi(strings.TrimSpace(value))
 		if err != nil || n < 1 || n > 10 {
@@ -112,6 +125,8 @@ func (s *server) loadSettings(ctx context.Context) (instanceSettings, error) {
 			st.SecureCookie = v == "true"
 		case "trust_proxy":
 			st.TrustProxy = v == "true"
+		case "trusted_proxy_cidrs":
+			st.TrustedProxyCIDRs = v
 		case "proxy_hops":
 			if n, err := strconv.Atoi(v); err == nil && n >= 1 && n <= 10 {
 				st.ProxyHops = n
@@ -183,6 +198,9 @@ func (s *server) setSettings(ctx context.Context, in map[string]string) (map[str
 		return nil, err
 	}
 	defer tx.Rollback()
+	if err := guardMutation(ctx, tx); err != nil {
+		return nil, err
+	}
 	now := time.Now().Unix()
 	for k, c := range canon {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO instance_settings(key, value, updated_at) VALUES(?, ?, ?)
