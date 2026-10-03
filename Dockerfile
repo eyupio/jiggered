@@ -19,10 +19,11 @@ RUN go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /out/jigge
 FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
 COPY --from=build /out/jiggered /jiggered
 COPY --from=build --chown=nonroot:nonroot /out/data /data
+COPY LICENSE /LICENSE
+LABEL org.opencontainers.image.licenses="MIT"
 USER nonroot
 EXPOSE 8080
 VOLUME ["/data"]
 # No shell or curl in this image, so the binary checks itself.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 CMD ["/jiggered", "healthcheck"]
 ENTRYPOINT ["/jiggered"]
-
