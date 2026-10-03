@@ -24,7 +24,7 @@ const versionAccounts = 2
 // temp_store(2) keeps SQLite's scratch space in memory: the shipped container has a read-only root and no /tmp, so
 // a big upgrade (dropping a 20 MB table) otherwise fails with "unable to open database file". secure_delete(ON)
 // overwrites deleted rows, so a deleted account's data doesn't linger in the file.
-const dsnPragmas = "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)&_pragma=temp_store(2)&_pragma=secure_delete(ON)&_txlock=immediate"
+const dsnPragmas = "?_pragma=busy_timeout(5000)&_pragma=foreign_keys(ON)&_pragma=temp_store(2)&_pragma=secure_delete(ON)&_txlock=immediate"
 
 // sqliteURI turns a file path into the file: URI SQLite wants. A path may hold %, ? and #, which would otherwise
 // change which file is opened ("my#data.db" became "my").
@@ -44,7 +44,30 @@ func openRaw(path string) (*sql.DB, error) {
 		return nil, err
 	}
 	db.SetMaxOpenConns(1)
+	if err := enableWAL(db); err != nil {
+		db.Close()
+		return nil, err
+	}
 	return db, nil
+}
+
+func enableWAL(db *sql.DB) error {
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		var mode string
+		err := db.QueryRow("PRAGMA journal_mode=WAL").Scan(&mode)
+		if err == nil {
+			if mode != "wal" {
+				return fmt.Errorf("enabling WAL mode: SQLite selected %q", mode)
+			}
+			return nil
+		}
+		var sqliteErr interface{ Code() int }
+		if !errors.As(err, &sqliteErr) || sqliteErr.Code() != 5 || !time.Now().Before(deadline) {
+			return fmt.Errorf("enabling WAL mode: %w", err)
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
 }
 
 // openDB opens the database and brings its schema up to date.
