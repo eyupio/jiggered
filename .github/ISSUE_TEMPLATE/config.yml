@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability privately
+    url: https://github.com/jnnngs/jiggered/security/advisories/new
+    about: Use private reporting; never post real health records, credentials or exploit details in a public issue.

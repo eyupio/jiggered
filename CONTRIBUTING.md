@@ -163,9 +163,8 @@ Optional environment variables:
 Make each PR explain the concrete behavior changed and the checks run. Keep
 formatting-only changes separate from behavior changes when practical. Match
 the existing short, imperative commit messages; no special branch naming is
-required. This repository currently has no application LICENSE, CODEOWNERS,
-issue/PR templates or CHANGELOG. Licensing and ownership require a maintainer
-policy decision; this guide does not grant new permissions. Font licenses are
-in `web/fonts/LICENSE.txt`. Tagged releases and the image tag policy are
-documented in the README. Historical UI findings in `UI_AUDIT.md` are not the
-current product specification.
+required. Contributions are licensed under the project's [MIT License](LICENSE).
+Third-party font notices remain in `web/fonts/LICENSE.txt`. Report security
+issues privately using [SECURITY.md](SECURITY.md), rather than a public issue.
+Tagged releases and the image tag policy are documented in the README.
+[Historical audits](docs/audits/README.md) are not the current product specification.

@@ -1,7 +1,7 @@
 <p align="center"><img src="assets/brand/logo.svg" alt="Jiggered" width="360"></p>
 
 Yorkshire for "worn out". A small self-hosted tracker for daily energy check-ins and symptom episodes.
-Go, SQLite, one container, password login. Run it for yourself, or let one admin look after a few more
+Go, SQLite, one container, password login. [MIT licensed](LICENSE). Run it for yourself, or let one admin look after a few more
 people (a household, a support group), each with their own account.
 
 - **Today:** a live energy breakdown and labelled available/planned/used spoon or point cells,
@@ -153,7 +153,7 @@ action. These choices do not alter other users' records. Exported backups and re
 
 ## People and the admin
 
-The landing page explains free access and a planned public source release. Signup availability
+The landing page explains free access and MIT-licensed self-hosting. Signup availability
 follows the instance’s `/api/auth/options` response: open registration shows signup calls to action and email-verification
 instructions; closed registration shows sign-in links and a closed notice. An unavailable settings request shows an
 unknown status. Repository visibility and licensing remain separate from hosted registration.
@@ -288,21 +288,27 @@ To cut a release:
 git tag v1.0.0 && git push origin v1.0.0
 ```
 
-The repo is private, so the image is too. On the server, log in once with a
-personal access token that has `read:packages`:
+Pull the image without signing in when the GHCR package is public. Package visibility
+is managed separately from repository visibility. If an image pull is denied,
+[build from source](#build-from-source) or ask the package owner to publish it;
+you do not need to give Jiggered a GitHub token.
+
+### Build from source
 
 ```sh
-echo "$GHCR_TOKEN" | docker login ghcr.io -u jnnngs --password-stdin
+git clone https://github.com/jnnngs/jiggered.git
+cd jiggered
+docker build -t ghcr.io/jnnngs/jiggered:latest .
 ```
 
 ## Run it
 
 ```sh
 docker compose up -d
-docker compose exec jiggered /jiggered user add paul --admin     # prints a temporary password
+docker compose exec jiggered /jiggered user add admin --admin     # prints a temporary password
 ```
 
-That's all the setup there is: no `.env` to edit. Open the page, sign in as `paul` with the temporary password,
+That's all the setup there is: no `.env` to edit. Open the page, sign in as `admin` with the temporary password,
 and choose your own. Until someone has an account, the sign-in page says how to make one.
 
 It listens on `127.0.0.1:8080`. Put it behind your reverse proxy with HTTPS (Caddy, Traefik, nginx), then tick
@@ -323,11 +329,11 @@ jiggered.example.com {
 ### Local test without HTTPS
 
 ```sh
-APP_PASSWORD=testpass123 APP_SECURE_COOKIE=false APP_DB=./jiggered.db go run .   # the old variables still work for a first run
+APP_USERNAME=admin APP_PASSWORD=testpass123 APP_SECURE_COOKIE=false APP_DB=./jiggered.db go run .   # the old variables still work for a first run
 # or build the image yourself: docker build -t ghcr.io/jnnngs/jiggered:latest .
 ```
 
-Then open http://localhost:8080 and sign in as `paul`. (Plain-http testing is the one time to turn secure cookies
+Then open http://localhost:8080 and sign in as `admin`. (Plain-http testing is the one time to turn secure cookies
 off, with `go run . settings set secure_cookie false` after the first run, or `APP_SECURE_COOKIE=false` on the very
 first run.)
 
@@ -603,8 +609,8 @@ Atkinson Hyperlegible and Bricolage Grotesque, under the SIL Open Font License (
 
 ### Completed product audit improvements
 
-The feature review is in [FEATURES_AUDIT.md](FEATURES_AUDIT.md); the implementation map is in
-[AUDIT_IMPLEMENTATION.md](AUDIT_IMPLEMENTATION.md).
+The feature review is in [historical feature review](docs/audits/FEATURES_AUDIT.md); the implementation map is in
+[historical implementation map](docs/audits/AUDIT_IMPLEMENTATION.md).
 
 - **Today:** Other activities accept up to 60 Unicode characters, with an inline counter. Optionally add
   one to your reusable activity list with its cost and group. Capture and list updates save independently;
@@ -645,3 +651,13 @@ The feature review is in [FEATURES_AUDIT.md](FEATURES_AUDIT.md); the implementat
 Schema upgrades take the existing automatic pre-upgrade backup. Whole-instance restore also clears queued
 account-email payloads so restoring cannot resend old authentication links. Do not run an older build on
 schema v6. Usage reports and mail retries depend on the running server's maintenance scheduler.
+
+## License and security
+
+Jiggered's application source is available under the [MIT License](LICENSE).
+Bundled fonts retain their [SIL Open Font License notices](web/fonts/LICENSE.txt).
+Dependency licences remain with their respective projects.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development and
+[SECURITY.md](SECURITY.md) for private vulnerability reporting.
+Maintainers preparing a public release should follow the
+[publication checklist](docs/PUBLIC_RELEASE.md).

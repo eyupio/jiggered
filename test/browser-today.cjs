@@ -178,7 +178,10 @@ runBrowser({ name: "today", portEnv: "JIGGERED_TODAY_PORT" }, async (harness) =>
     { status: "green", penalty: 0, costs: [-3], left: 13, fill: 100, level: "ready" },
     { status: "red", penalty: 10, costs: [], left: 0, fill: 0, level: "empty" },
   ]) {
-    const status = await page.evaluate(async (sample) => {
+    // Unload the app before fixture writes: reload-time normalization may otherwise
+    // save a newer revision between GET and PUT. The server must keep refusing stale writes.
+    await page.goto(base + "/api/me");
+    const result = await page.evaluate(async (sample) => {
       const now = new Date(),
         date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
       const id = "d-" + date,
@@ -205,10 +208,10 @@ runBrowser({ name: "today", portEnv: "JIGGERED_TODAY_PORT" }, async (harness) =>
         },
         body: JSON.stringify(body),
       });
-      return response.status;
+      return { status: response.status, body: await response.text() };
     }, sample);
-    assert.equal(status, 200, "sample accepted by the real document API");
-    await page.reload();
+    assert.equal(result.status, 200, `sample accepted by the real document API: ${result.body}`);
+    await page.goto(base + "/");
     await saved(page);
     assert.equal(
       Number((await page.locator("#left").textContent()).trim().split(/\s/)[0]),
