@@ -1,10 +1,10 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/xml"
 	"net/http"
 	"net/http/httptest"
-	"crypto/tls"
 	"net/url"
 	"regexp"
 	"strings"
