@@ -319,6 +319,7 @@ runBrowser(
     await join.locator("#signin-form [type=submit]").click();
     await join.locator("#t-account").waitFor();
     // Readiness-aware support actions are enabled only for protected accounts.
+    await join.locator("#security-panel").waitFor({ state: "attached" });
     await join.locator("#t-account").click();
     await join.locator("#security-status").filter({ hasText: "Password only" }).waitFor();
     await join.locator("#security-password").fill("replacement-password1");
