@@ -54,11 +54,11 @@ func readBody(w http.ResponseWriter, r *http.Request, limit int64, tooBig string
 }
 
 var (
-	dayDocID     = regexp.MustCompile(`^d-\d{4}-\d{2}-\d{2}$`)
+	dayDocID     = regexp.MustCompile(`^[dp]-\d{4}-\d{2}-\d{2}$`)
 	episodeDocID = regexp.MustCompile(`^e-\d{1,20}$`)
 )
 
-// validDocID is everything a client may store: one check-in per day, episodes, and settings.
+// validDocID is everything a client may store: one check-in and plan per day, episodes, and settings.
 func validDocID(id string) bool {
 	switch {
 	case id == "settings":

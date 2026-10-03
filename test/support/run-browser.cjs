@@ -17,6 +17,7 @@ try {
     });
   for (const script of [
     "browser-today",
+    "browser-planner",
     "browser-energy-theme",
     "browser-product-improvements",
     "browser-view-state",

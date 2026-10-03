@@ -75,7 +75,30 @@ func validateDoc(id string, raw json.RawMessage) error {
 			}
 		}
 	}
-	if strings.HasPrefix(id, "d-") {
+	if strings.HasPrefix(id, "d-") || strings.HasPrefix(id, "p-") {
+		if strings.HasPrefix(id, "p-") {
+			n, exists := value["allowance"]
+			if exists {
+				v, ok := n.(float64)
+				if !ok || v != float64(int(v)) || v < 1 || v > 30 {
+					return fmt.Errorf("planned allowance must be a whole number from 1 to 30")
+				}
+			}
+			if rows, ok := value["entries"].([]any); ok {
+				if len(rows) > 200 {
+					return fmt.Errorf("a day can contain at most 200 planned activities")
+				}
+				for _, row := range rows {
+					e, ok := row.(map[string]any)
+					if !ok {
+						return fmt.Errorf("planned activity must be an object")
+					}
+					if id, ok := e["id"].(string); !ok || id == "" || len(id) > 200 {
+						return fmt.Errorf("planned activity needs an id of 1–200 characters")
+					}
+				}
+			}
+		}
 		if v, ok := value["date"]; ok && v != id[2:] {
 			return fmt.Errorf("date does not match record id")
 		}
