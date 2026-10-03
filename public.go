@@ -25,7 +25,7 @@ var publicPages = []publicPage{
 	{"/features/energy-tracking", "public/energy.html", "Daily Energy Tracking & Personal Budgets | Jiggered", "Log daily energy, activities and rest with a personal points budget. Learn how Jiggered's check-ins work and how they relate to Spoon Theory.", "Energy tracking"},
 	{"/features/symptom-tracking", "public/symptoms.html", "Track Symptom Episodes, Duration & Triggers | Jiggered", "Record symptom episodes, their duration and relevant circumstances. Review your personal history and export your observations with Jiggered.", "Symptom tracking"},
 	{"/guides/spoon-theory", "public/spoons.html", "Spoon Theory & Personal Energy Budgets | Jiggered", "Learn what Spoon Theory means, read Christine Miserandino's original essay, and see how to log your own energy budget and activities in Jiggered.", "Spoon Theory"},
-	{"/pricing", "public/pricing.html", "Jiggered Pricing & Account Availability", "Jiggered is free to use. Check account availability, email verification requirements, and the status of the planned public source release.", "Pricing & access"},
+	{"/pricing", "public/pricing.html", "Jiggered Pricing & Account Availability", "Jiggered is free to use. Check account availability, email verification requirements, and MIT-licensed self-hosting options.", "Pricing & access"},
 	{"/docs/getting-started", "public/start.html", "Start Your Energy & Symptom Log | Jiggered Guide", "Make your first energy check-in, log an activity, record a symptom episode and review your history. A practical guide to getting started with Jiggered.", "Getting started"},
 	{"/docs/export-and-share", "public/export.html", "Export Your Symptom Diary to CSV or PDF | Jiggered", "Export days and symptom episodes as CSV, or preview a printable summary and save it as PDF. Choose what personal information you share.", "Export & share"},
 	{"/docs/offline-use", "public/offline.html", "Use Jiggered Offline: Setup, Saving & Sync", "Set up Jiggered online, then record on a trusted device offline. Understand queued changes, server acknowledgement, storage limits and recovery.", "Offline use"},
@@ -212,7 +212,7 @@ func (p *publicSite) llms(w http.ResponseWriter, r *http.Request) {
 	d := p.data(r, publicPages[0])
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	fmt.Fprintf(w, "# Jiggered\n\nJiggered is a personal energy and symptom tracker. Record daily check-ins, activity and rest points, symptom episodes, and review or export your observations. It is not a medical device.\n\nFree to use. %s\nA public source release is planned; public licensing and installation access have not been announced here.\n\n## Public pages\n", d.Availability)
+	fmt.Fprintf(w, "# Jiggered\n\nJiggered is a personal energy and symptom tracker. Record daily check-ins, activity and rest points, symptom episodes, and review or export your observations. It is not a medical device.\n\nFree to use. %s\nApplication source is MIT licensed. Source and Docker setup: https://github.com/jnnngs/jiggered.\n\n## Public pages\n", d.Availability)
 	for _, page := range publicPages {
 		fmt.Fprintf(w, "- [%s](%s%s): %s\n", page.Label, d.Origin, page.Path, page.Description)
 	}
