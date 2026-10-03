@@ -189,9 +189,9 @@ origin without indexing enabled can be used for preview metadata. Indexing enabl
 The origin must have no path, query, fragment or credentials; localhost HTTP is accepted for testing. Keep this origin
 consistent with the Public application URL used for account-verification email links.
 
-On the enabled production host, `/sitemap.xml` lists the nine canonical public pages, `/robots.txt` advertises it,
+`/sitemap.xml` automatically lists the nine canonical public pages and `/robots.txt` advertises it,\nwithout an indexing toggle or additional setup. It uses `APP_PUBLIC_ORIGIN` when provided, otherwise\nthe existing Admin Public application URL, otherwise the request origin (forwarded headers are used only\nfrom a configured trusted proxy). Personal logs and account pages are always excluded.\nOn an index-enabled production host,
 and `/llms.txt` describes the product and links to those pages. Sitemap modification dates are omitted rather than
-invented. Sitemap and llms endpoints return 404 on non-indexable deployments. Robots rules allow search and AI
+invented. The llms endpoint returns 404 on non-indexable deployments; the sitemap remains available. Robots rules allow search and AI
 crawlers to read public pages and account `noindex` responses; APIs are disallowed and still require authentication.
 This is a deliberate shared crawler policy, not a separate model-training permission mechanism.
 

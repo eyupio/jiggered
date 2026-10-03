@@ -137,19 +137,53 @@ func (p *publicSite) page(w http.ResponseWriter, r *http.Request, page publicPag
 	serveHTML(w, r, p.files, p.files.versionPage(result.Bytes()))
 }
 
+// sitemapOrigin prefers existing deployment/account configuration and otherwise
+// derives the origin from this request. Forwarded headers require trusted proxy settings.
+func (p *publicSite) sitemapOrigin(r *http.Request) string {
+	if p.s.cfg.publicOrigin != "" {
+		return p.s.cfg.publicOrigin
+	}
+	if cfg, err := p.s.loadServices(r.Context(), false); err == nil && cfg.Accounts.PublicURL != "" {
+		if u, err := url.Parse(cfg.Accounts.PublicURL); err == nil && u.Host != "" && u.User == nil && (u.Scheme == "https" || u.Scheme == "http") {
+			return u.Scheme + "://" + u.Host
+		}
+	}
+	host, scheme := r.Host, "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	if p.s.trustedProxyRequest(r, p.s.settings()) {
+		if forwarded := r.Header.Get("X-Forwarded-Host"); forwarded != "" {
+			host = strings.TrimSpace(forwarded)
+		}
+		if proto := r.Header.Get("X-Forwarded-Proto"); proto != "" {
+			scheme = proto
+		}
+	}
+	if strings.ContainsAny(host, "/\\\\?#@, \t\r\n") || (scheme != "http" && scheme != "https") {
+		return ""
+	}
+	u, err := url.Parse(scheme + "://" + host)
+	if err != nil || u.Hostname() == "" || u.User != nil {
+		return ""
+	}
+	return u.String()
+}
+
 func (p *publicSite) robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	// Both search and answer crawlers inherit this policy. No private data is exposed by robots rules.
 	fmt.Fprint(w, "# Search and AI crawlers may read public pages; private data requires authentication.\nUser-agent: *\nDisallow: /api/\n")
-	if p.s.cfg.publicIndex && p.s.cfg.publicOrigin != "" {
-		fmt.Fprintf(w, "\nSitemap: %s/sitemap.xml\n", p.s.cfg.publicOrigin)
+	if origin := p.sitemapOrigin(r); origin != "" {
+		fmt.Fprintf(w, "\nSitemap: %s/sitemap.xml\n", origin)
 	}
 	// Account pages can be crawled to observe their noindex headers; never include them in the sitemap.
 }
 
 func (p *publicSite) sitemap(w http.ResponseWriter, r *http.Request) {
-	if !p.s.cfg.publicIndex || p.s.cfg.publicOrigin == "" {
+	origin := p.sitemapOrigin(r)
+	if origin == "" {
 		http.NotFound(w, r)
 		return
 	}
@@ -162,7 +196,7 @@ func (p *publicSite) sitemap(w http.ResponseWriter, r *http.Request) {
 		URLs    []entry  `xml:"url"`
 	}{NS: "http://www.sitemaps.org/schemas/sitemap/0.9"}
 	for _, page := range publicPages {
-		doc.URLs = append(doc.URLs, entry{p.s.cfg.publicOrigin + page.Path})
+		doc.URLs = append(doc.URLs, entry{origin + page.Path})
 	}
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
