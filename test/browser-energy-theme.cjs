@@ -106,9 +106,13 @@ runBrowser({ name: "energy-theme", startServer: false }, async (harness) => {
     true,
     "device draft survives reload",
   );
+  const spoonPreferenceSaved = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PUT" && docs.settings.body.profile.energyTheme === "spoons",
+  );
   await page.locator("#profile-save").click();
   await page.waitForFunction(() => document.documentElement.dataset.energyTheme === "spoons");
-  await page.waitForFunction(() => document.querySelector("#sync").dataset.state === "saved");
+  await spoonPreferenceSaved;
   assert.equal(docs.settings.body.profile.energyTheme, "spoons");
   assert.equal(docs.settings.body.profile.theme, "light");
   assert.equal(await page.locator("#set-budget").locator("..").innerText(), "Spoons per day");
@@ -165,7 +169,12 @@ runBrowser({ name: "energy-theme", startServer: false }, async (harness) => {
   );
   await second.page.locator("#t-account").click();
   await second.page.locator("input[name=energyTheme][value=points]").check();
+  const pointsPreferenceSaved = second.page.waitForResponse(
+    (response) =>
+      response.request().method() === "PUT" && docs.settings.body.profile.energyTheme === "points",
+  );
   await second.page.locator("#profile-save").click();
+  await pointsPreferenceSaved;
   await second.page.waitForFunction(
     () => document.documentElement.dataset.energyTheme === "points",
   );
