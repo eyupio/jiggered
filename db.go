@@ -24,7 +24,7 @@ const versionAccounts = 2
 // temp_store(2) keeps SQLite's scratch space in memory: the shipped container has a read-only root and no /tmp, so
 // a big upgrade (dropping a 20 MB table) otherwise fails with "unable to open database file". secure_delete(ON)
 // overwrites deleted rows, so a deleted account's data doesn't linger in the file.
-const dsnPragmas = "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(ON)&_pragma=temp_store(2)&_pragma=secure_delete(ON)&_txlock=immediate"
+const dsnPragmas = "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)&_pragma=temp_store(2)&_pragma=secure_delete(ON)&_txlock=immediate"
 
 // sqliteURI turns a file path into the file: URI SQLite wants. A path may hold %, ? and #, which would otherwise
 // change which file is opened ("my#data.db" became "my").
