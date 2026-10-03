@@ -22,16 +22,16 @@ Built with Go, SQLite and an embedded JavaScript frontend, Jiggered runs in a si
 
 ## Features
 
-| Area | What you can do |
-| --- | --- |
-| **Today** | Check in with green, amber or red; account for poor sleep; log activities and recovery; see available, planned and used energy. Correct earlier days when needed. |
-| **Plan** | Plan one, three or seven days ahead, repeat activities, estimate daily allowances and see projected balances before and after recovery. Confirm completed activities with their actual cost and time. |
-| **Episodes** | Record symptoms, onset, duration, possible triggers and notes. Track ongoing episodes and update them later. |
-| **History** | Explore an activity calendar, charts and records over preset or custom periods. Filter your history, compare planned and actual activity costs, and prepare CSV exports or printable summaries. |
-| **Personalisation** | Choose points or spoons, arrange personal activities and lists, set budgets, and select light, dark or device appearance. |
-| **Offline access** | Add Jiggered to your home screen. Record changes offline and sync when connectivity returns, with visible save status and tools for resolving conflicts. |
-| **Account security** | Manage signed-in devices, verified recovery email and optional authenticator-based two-step verification with recovery codes. |
-| **Administration** | Manage accounts and shared defaults, configure email and registration, review operational activity, and schedule encrypted backups to S3-compatible storage. |
+| Area                 | What you can do                                                                                                                                                                                       |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Today**            | Check in with green, amber or red; account for poor sleep; log activities and recovery; see available, planned and used energy. Correct earlier days when needed.                                     |
+| **Plan**             | Plan one, three or seven days ahead, repeat activities, estimate daily allowances and see projected balances before and after recovery. Confirm completed activities with their actual cost and time. |
+| **Episodes**         | Record symptoms, onset, duration, possible triggers and notes. Track ongoing episodes and update them later.                                                                                          |
+| **History**          | Explore an activity calendar, charts and records over preset or custom periods. Filter your history, compare planned and actual activity costs, and prepare CSV exports or printable summaries.       |
+| **Personalisation**  | Choose points or spoons, arrange personal activities and lists, set budgets, and select light, dark or device appearance.                                                                             |
+| **Offline access**   | Add Jiggered to your home screen. Record changes offline and sync when connectivity returns, with visible save status and tools for resolving conflicts.                                              |
+| **Account security** | Manage signed-in devices, verified recovery email and optional authenticator-based two-step verification with recovery codes.                                                                         |
+| **Administration**   | Manage accounts and shared defaults, configure email and registration, review operational activity, and schedule encrypted backups to S3-compatible storage.                                          |
 
 ### Planning that stays separate from your records
 
@@ -95,13 +95,13 @@ For local HTTP development, follow [CONTRIBUTING.md](CONTRIBUTING.md#run-locally
 
 The default image is `ghcr.io/jnnngs/jiggered:latest`, built for **amd64** and **arm64**. Package visibility is separate from repository visibility.
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `APP_DB` | `/data/jiggered.db` | SQLite database path. |
-| `APP_ADDR` | `:8080` | Server listen address. |
-| `JIGGERED_TAG` | `latest` | Compose image tag. Use a release version to pin deployment, or `dev` to follow main. |
-| `APP_PUBLIC_ORIGIN` | Unset | Canonical origin for public-page metadata. |
-| `APP_PUBLIC_INDEXING` | Disabled | Opt public pages into search indexing; requires a configured public origin. |
+| Variable              | Default             | Purpose                                                                              |
+| --------------------- | ------------------- | ------------------------------------------------------------------------------------ |
+| `APP_DB`              | `/data/jiggered.db` | SQLite database path.                                                                |
+| `APP_ADDR`            | `:8080`             | Server listen address.                                                               |
+| `JIGGERED_TAG`        | `latest`            | Compose image tag. Use a release version to pin deployment, or `dev` to follow main. |
+| `APP_PUBLIC_ORIGIN`   | Unset               | Canonical origin for public-page metadata.                                           |
+| `APP_PUBLIC_INDEXING` | Disabled            | Opt public pages into search indexing; requires a configured public origin.          |
 
 Account, proxy, email and backup settings are stored in the database. Legacy environment settings seed missing values once; they do not override saved settings.
 

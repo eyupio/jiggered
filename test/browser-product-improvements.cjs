@@ -185,8 +185,13 @@ runBrowser({ name: "product-improvements", startServer: false }, async (harness)
     await page.locator("#entry-cost").fill("2");
     await page.locator("#entry-save-choice").check();
     await page.locator("#entry-group").fill("Everyday");
+    const reusableActivitySaved = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PUT" &&
+        docs.settings.body.activities.some((x) => x.a === "Reusable activity " + width),
+    );
     await page.locator("#entry-form [type=submit]").click();
-    await page.waitForFunction(() => document.querySelector("#sync").dataset.state === "saved");
+    await reusableActivitySaved;
     assert.ok(docs.settings.body.activities.some((x) => x.a === "Reusable activity " + width));
     const controlsContained = await page.locator(".act.on").evaluateAll((cards) =>
       cards.every((card) => {

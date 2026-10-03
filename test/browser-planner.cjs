@@ -72,8 +72,13 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     await page.locator("#plan-add").click();
     await page.locator("#plan-presets").selectOption("0");
     await page.locator("#plan-repeat").fill("3");
+    const repeatedPlansSaved = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PUT" &&
+        Object.keys(docs).filter((k) => k.startsWith("p-")).length === 3,
+    );
     await page.locator("#plan-submit").click();
-    await page.waitForFunction(() => document.querySelector("#sync").dataset.state === "saved");
+    await repeatedPlansSaved;
     assert.equal(Object.keys(docs).filter((k) => k.startsWith("p-")).length, 3);
     assert.equal(Object.keys(docs).filter((k) => k.startsWith("d-")).length, 0);
     assert.match(await page.locator("#plan-forecast").textContent(), /Uncommitted\s*3/);
@@ -86,8 +91,12 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     assert.equal(await page.locator("#cells .reserved").count(), 7);
     await page.locator("#today-plan [data-plan-action=complete]").first().click();
     await page.locator("#plan-cost").fill("3");
+    const loggedEntrySaved = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PUT" && docs["d-" + date]?.body.entries.length === 1,
+    );
     await page.locator("#plan-submit").click();
-    await page.waitForFunction(() => document.querySelector("#sync").dataset.state === "saved");
+    await loggedEntrySaved;
     assert.equal(docs["d-" + date].body.entries.length, 1);
     assert.equal(docs["d-" + date].body.entries[0].c, 3);
     assert.match(await page.locator("#plan-forecast").textContent(), /Available now\s*7/);
