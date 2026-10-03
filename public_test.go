@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/xml"
 	"net/http"
+	"net/http/httptest"
+	"crypto/tls"
 	"net/url"
 	"regexp"
 	"strings"
@@ -37,14 +39,14 @@ func TestPublicIndexingIsExplicitAndOriginIsValidated(t *testing.T) {
 			t.Fatalf("default deployment %s must be readable but not indexable", route)
 		}
 	}
-	for _, route := range []string{"/sitemap.xml", "/llms.txt"} {
+	for _, route := range []string{"/llms.txt"} {
 		if anon.do("GET", route, nil) != http.StatusNotFound {
 			t.Fatalf("default deployment exposes %s", route)
 		}
 	}
 	_, robots := anon.req("GET", "/robots.txt", nil)
-	if strings.Contains(string(robots), "Sitemap:") || strings.Contains(string(robots), "Disallow: /\n") {
-		t.Fatal("non-indexable pages must remain crawlable to observe noindex, without sitemap advertising")
+	if !strings.Contains(string(robots), "Sitemap:") || strings.Contains(string(robots), "Disallow: /\n") {
+		t.Fatal("default deployment must advertise its automatic sitemap and preserve noindex crawling")
 	}
 }
 
@@ -166,5 +168,46 @@ func TestPublicAliasesAndUnknownPaths(t *testing.T) {
 	}
 	if anon.do("GET", "/app.js", nil) != 303 {
 		t.Fatal("known private module must remain protected")
+	}
+}
+
+func TestSitemapIsAutomaticWithoutIndexingConfiguration(t *testing.T) {
+	e := newTestServer(t)
+	anon := e.newClient()
+	resp, body := anon.req("GET", "/sitemap.xml", nil)
+	if resp.StatusCode != 200 || !strings.Contains(string(body), "/welcome</loc>") || strings.Contains(string(body), "/api/") {
+		t.Fatalf("automatic public sitemap: %d %s", resp.StatusCode, body)
+	}
+	if _, err := e.s.db.Exec(`UPDATE instance_settings SET value=json_set(value,'$.accounts.public_url','https://public.example') WHERE key='remote_services'`); err != nil {
+		t.Fatal(err)
+	}
+	_, body = anon.req("GET", "/sitemap.xml", nil)
+	if !strings.Contains(string(body), "<loc>https://public.example/welcome</loc>") {
+		t.Fatalf("sitemap must reuse the account public URL: %s", body)
+	}
+	_, robots := anon.req("GET", "/robots.txt", nil)
+	if !strings.Contains(string(robots), "Sitemap: https://public.example/sitemap.xml") {
+		t.Fatalf("robots must use the same origin: %s", robots)
+	}
+}
+
+func TestSitemapOriginUsesConfiguredOriginAndRejectsUntrustedForwarding(t *testing.T) {
+	e := newTestServer(t)
+	p := &publicSite{s: e.s}
+	r := httptest.NewRequest("GET", "https://logs.example/sitemap.xml", nil)
+	r.TLS = &tls.ConnectionState{}
+	r.Header.Set("X-Forwarded-Host", "attacker.example")
+	r.Header.Set("X-Forwarded-Proto", "http")
+	if got := p.sitemapOrigin(r); got != "https://logs.example" {
+		t.Fatalf("untrusted headers changed sitemap origin: %s", got)
+	}
+	e.s.cfg.publicOrigin = "https://canonical.example"
+	if got := p.sitemapOrigin(r); got != "https://canonical.example" {
+		t.Fatalf("configured origin must win: %s", got)
+	}
+	e.s.cfg.publicOrigin = ""
+	r.Host = "bad.example/path"
+	if got := p.sitemapOrigin(r); got != "" {
+		t.Fatalf("invalid host accepted: %s", got)
 	}
 }
