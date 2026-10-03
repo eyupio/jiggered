@@ -108,8 +108,7 @@ runBrowser({ name: "energy-theme", startServer: false }, async (harness) => {
   );
   const spoonPreferenceSaved = page.waitForResponse(
     (response) =>
-      response.request().method() === "PUT" &&
-      docs.settings.body.profile.energyTheme === "spoons",
+      response.request().method() === "PUT" && docs.settings.body.profile.energyTheme === "spoons",
   );
   await page.locator("#profile-save").click();
   await page.waitForFunction(() => document.documentElement.dataset.energyTheme === "spoons");
@@ -172,8 +171,7 @@ runBrowser({ name: "energy-theme", startServer: false }, async (harness) => {
   await second.page.locator("input[name=energyTheme][value=points]").check();
   const pointsPreferenceSaved = second.page.waitForResponse(
     (response) =>
-      response.request().method() === "PUT" &&
-      docs.settings.body.profile.energyTheme === "points",
+      response.request().method() === "PUT" && docs.settings.body.profile.energyTheme === "points",
   );
   await second.page.locator("#profile-save").click();
   await pointsPreferenceSaved;
