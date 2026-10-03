@@ -292,13 +292,17 @@ func ipKey(ip string) string {
 
 var errBusy = errors.New("too many sign-ins at once")
 
+// hashWait is how long a sign-in waits for a free hashing slot before saying the server is busy. A variable so
+// tests can shrink it.
+var hashWait = 5 * time.Second
+
 // checkHash compares a password with a bcrypt hash, with at most maxHashing
 // of these in flight so a flood of logins can't pin every CPU.
 func (s *server) checkHash(hash []byte, pw string) (bool, error) {
 	select {
 	case s.hashSem <- struct{}{}:
 		defer func() { <-s.hashSem }()
-	case <-time.After(5 * time.Second):
+	case <-time.After(hashWait):
 		return false, errBusy
 	}
 	return bcrypt.CompareHashAndPassword(hash, []byte(pw)) == nil, nil
@@ -308,7 +312,7 @@ func (s *server) hashPassword(pw string) (string, error) {
 	select {
 	case s.hashSem <- struct{}{}:
 		defer func() { <-s.hashSem }()
-	case <-time.After(5 * time.Second):
+	case <-time.After(hashWait):
 		return "", errBusy
 	}
 	h, err := bcrypt.GenerateFromPassword([]byte(pw), bcryptCost)

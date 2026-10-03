@@ -37,8 +37,15 @@ func testServices(t *testing.T, e *testEnv) serviceSettings {
 	return cfg
 }
 
-// This endpoint verifies every SigV4 signature and the uploaded payload digest.
+// fakeS3 is a well-behaved stand-in. This endpoint verifies every SigV4 signature and the uploaded payload digest.
 func fakeS3(t *testing.T) (*httptest.Server, *sync.Mutex, map[string][]byte) {
+	t.Helper()
+	return fakeS3With(t, "")
+}
+
+// fakeS3With is fakeS3 with one bad behaviour: "tamper" (a probe or backup comes back changed), "nodelete"
+// (deletes are refused) or "nolist" (listings fail).
+func fakeS3With(t *testing.T, behaviour string) (*httptest.Server, *sync.Mutex, map[string][]byte) {
 	t.Helper()
 	objects := map[string][]byte{}
 	mu := &sync.Mutex{}
@@ -64,6 +71,10 @@ func fakeS3(t *testing.T) (*httptest.Server, *sync.Mutex, map[string][]byte) {
 		mu.Lock()
 		defer mu.Unlock()
 		if r.URL.Query().Get("list-type") == "2" {
+			if behaviour == "nolist" {
+				http.Error(w, "listing broken", 500)
+				return
+			}
 			result := listResult{}
 			for k, v := range objects {
 				if strings.HasPrefix(k, r.URL.Query().Get("prefix")) {
@@ -95,9 +106,16 @@ func fakeS3(t *testing.T) (*httptest.Server, *sync.Mutex, map[string][]byte) {
 				w.WriteHeader(404)
 				return
 			}
+			if behaviour == "tamper" {
+				b = []byte("changed in transit")
+			}
 			w.Header().Set("Content-Length", strconv.Itoa(len(b)))
 			w.Write(b)
 		case "DELETE":
+			if behaviour == "nodelete" {
+				http.Error(w, "denied", 403)
+				return
+			}
 			delete(objects, key)
 			w.WriteHeader(204)
 		default:
@@ -451,5 +469,131 @@ func TestS3CanonicalEncoding(t *testing.T) {
 	u, _ := url.Parse("https://bucket.example/a%20b/x+y?z=a+b&a=x%2Fy")
 	if canonicalPath(u) != "/a%20b/x%2By" || canonicalQuery(u) != "a=x%2Fy&z=a%20b" {
 		t.Fatal(canonicalPath(u), canonicalQuery(u))
+	}
+}
+
+// The connection test is what an admin trusts to say the bucket works, so each way it can lie must be seen.
+func TestS3ConnectionTestDetectsProblems(t *testing.T) {
+	for _, tc := range []struct{ behaviour, want string }{
+		{"tamper", "The test object was changed in transit"},
+		{"nodelete", "The probe could not be deleted; check DeleteObject permission"},
+		{"nolist", "S3 test failed"},
+	} {
+		t.Run(tc.behaviour, func(t *testing.T) {
+			e := newTestServer(t)
+			admin := e.signedInAdmin()
+			ts, _, _ := fakeS3With(t, tc.behaviour)
+			cfg := testServices(t, e)
+			cfg.Remote.Enabled = true
+			cfg.Remote.Endpoint = ts.URL
+			cfg.Remote.AllowHTTP = true
+			cfg.Remote.Bucket = "backups"
+			cfg.Remote.AccessKey = "test-access"
+			cfg.Remote.SecretKey = "test-secret"
+			saveTestServices(t, e, admin, cfg)
+			r, b := admin.req("POST", "/api/admin/services/action", map[string]string{"action": "test_s3", "password": adminPass})
+			if r.StatusCode != 400 || !strings.Contains(string(b), tc.want) {
+				t.Fatalf("test_s3 against a %s bucket = %d %s", tc.behaviour, r.StatusCode, b)
+			}
+		})
+	}
+}
+
+// A backup that uploaded but could not be verified or retained is a warning, never a silent success, and the
+// object that made it to the bucket is recorded so the person can see it happened.
+func TestRemoteBackupSurvivesVerificationAndRetentionFailures(t *testing.T) {
+	for _, tc := range []struct {
+		behaviour     string
+		verify        bool
+		keep          int
+		seedOldObject bool
+		wantStatus    string
+		wantMessage   string
+	}{
+		{"tamper", true, 30, false, "failed", "did not pass SHA-256 verification"},
+		{"nolist", false, 1, false, "warning", "retention listing failed"},
+		{"nodelete", true, 1, true, "warning", "retention deletion failed"},
+	} {
+		t.Run(tc.behaviour, func(t *testing.T) {
+			e := newTestServer(t)
+			admin := e.signedInAdmin()
+			ts, mu, objects := fakeS3With(t, tc.behaviour)
+			cfg := testServices(t, e)
+			cfg.Remote.Enabled = true
+			cfg.Remote.Endpoint = ts.URL
+			cfg.Remote.AllowHTTP = true
+			cfg.Remote.Bucket = "backups"
+			cfg.Remote.AccessKey = "test-access"
+			cfg.Remote.SecretKey = "test-secret"
+			cfg.Remote.Verify = tc.verify
+			cfg.Remote.Keep = tc.keep
+			saveTestServices(t, e, admin, cfg)
+			cfg, _ = e.s.loadServices(context.Background(), true)
+			mu.Lock()
+			if tc.seedOldObject {
+				objects[backupPrefix(cfg)+"20200101T000000Z-0000000000000000.db"] = []byte("old backup")
+			}
+			mu.Unlock()
+			r, b := admin.req("POST", "/api/admin/services/action", map[string]string{"action": "backup", "password": adminPass})
+			if r.StatusCode != 202 {
+				t.Fatalf("backup = %d %s", r.StatusCode, b)
+			}
+			e.s.serviceJobs.Wait()
+			var status, message, key string
+			var uploaded bool
+			e.s.db.QueryRow(`SELECT status,message,object_key,uploaded FROM remote_backup_runs ORDER BY id DESC LIMIT 1`).Scan(&status, &message, &key, &uploaded)
+			if status != tc.wantStatus || !strings.Contains(message, tc.wantMessage) {
+				t.Fatalf("run = %q %q, want %q containing %q", status, message, tc.wantStatus, tc.wantMessage)
+			}
+			if !uploaded || key == "" {
+				t.Fatalf("the upload was not recorded: uploaded=%v key=%q", uploaded, key)
+			}
+			mu.Lock()
+			_, stillThere := objects[key]
+			mu.Unlock()
+			if !stillThere {
+				t.Fatal("the uploaded backup was not kept in the bucket")
+			}
+		})
+	}
+}
+
+func TestBackupListingIsTruncatedAtTwoHundred(t *testing.T) {
+	e := newTestServer(t)
+	admin := e.signedInAdmin()
+	ts, mu, objects := fakeS3(t)
+	cfg := testServices(t, e)
+	cfg.Remote.Enabled = true
+	cfg.Remote.Endpoint = ts.URL
+	cfg.Remote.AllowHTTP = true
+	cfg.Remote.Bucket = "backups"
+	cfg.Remote.AccessKey = "test-access"
+	cfg.Remote.SecretKey = "test-secret"
+	saveTestServices(t, e, admin, cfg)
+	cfg, _ = e.s.loadServices(context.Background(), true)
+	mu.Lock()
+	for i := 0; i < 250; i++ {
+		objects[fmt.Sprintf("%s%08dT000000Z-%016x.db", backupPrefix(cfg), i, i)] = []byte("backup")
+	}
+	objects[backupPrefix(cfg)+"not-a-backup.txt"] = []byte("skip me")
+	mu.Unlock()
+	r, b := admin.req("POST", "/api/admin/services/action", map[string]string{"action": "list", "password": adminPass})
+	if r.StatusCode != 200 {
+		t.Fatalf("list = %d %s", r.StatusCode, b)
+	}
+	var listed struct {
+		Objects   []s3Object `json:"objects"`
+		Truncated bool       `json:"truncated"`
+	}
+	if err := json.Unmarshal(b, &listed); err != nil {
+		t.Fatal(err)
+	}
+	if len(listed.Objects) != 200 || !listed.Truncated {
+		t.Fatalf("listing = %d objects, truncated=%v", len(listed.Objects), listed.Truncated)
+	}
+	for _, o := range listed.Objects {
+		if !ownedBackup(cfg, o.Key) {
+			t.Fatalf("a foreign object was listed: %s", o.Key)
+		}
 	}
 }

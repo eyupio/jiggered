@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // postLogin signs in with no cookie jar and without following the redirect, and says where it was sent.
@@ -215,5 +216,25 @@ func TestLoginBehindAProxyAcceptsTheForwardedHost(t *testing.T) {
 	e.set("trusted_proxy_cidrs", "127.0.0.1/32")
 	if got := e.newClient().login(adminName, adminPass, hdr...); got != "/" {
 		t.Errorf("a trusted proxy's forwarded host = %q, want /", got)
+	}
+}
+
+// A flood of sign-ins that exhausts the bcrypt slots must be told to wait, not served errors: the hashing
+// semaphore is the server's CPU guard, and its overflow is a redirect like every other refusal.
+func TestAFloodOfSignInsIsToldToWaitNotFailed(t *testing.T) {
+	old := hashWait
+	hashWait = 20 * time.Millisecond
+	t.Cleanup(func() { hashWait = old })
+	e := newTestServer(t)
+	c := e.newClient()
+	e.s.hashSem = make(chan struct{}, 1)
+	e.s.hashSem <- struct{}{} // every slot is taken and none is coming back
+	if where := c.login(adminName, adminPass); where != "/login?e=busy" {
+		t.Fatalf("busy sign-in was sent to %q", where)
+	}
+	// The waiting guess was not counted as a failure of the address or the account.
+	<-e.s.hashSem
+	if where := c.login(adminName, adminPass); where != "/" {
+		t.Fatalf("sign-in after the flood was sent to %q", where)
 	}
 }

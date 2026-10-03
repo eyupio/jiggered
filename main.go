@@ -87,25 +87,36 @@ func main() {
 		}
 		return
 	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := run(ctx); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// run opens the database, starts serving and returns once ctx is cancelled (a Ctrl-C or SIGTERM) or the
+// listener fails. It only returns after in-flight requests, the scheduler and queued account mail have
+// finished, so nothing is left behind — which is also what lets a test drive a whole start/stop cycle.
+func run(ctx context.Context) error {
 	cfg, err := loadConfig()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	db, err := openDB(cfg.dbPath, cfg.seedForOpen())
 	if err != nil {
-		log.Fatalf("open database %s: %v", cfg.dbPath, cfg.explainOpen(err))
+		return fmt.Errorf("open database %s: %w", cfg.dbPath, cfg.explainOpen(err))
 	}
 	defer db.Close()
 
 	s, err := newServer(cfg, db)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if err := s.seedSettings(context.Background()); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if err := s.ensureFirstAdmin(context.Background()); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	srv := &http.Server{
 		Addr:              cfg.addr,
@@ -118,31 +129,36 @@ func main() {
 	}
 
 	sweepTempBackups(s.cfg.dbPath)
-	go s.maintain()
+	go s.maintain(ctx)
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 	s.serviceCtx = ctx
 	schedulerDone := make(chan struct{})
 	go func() { defer close(schedulerDone); s.serviceScheduler(ctx) }()
 	ln, err := net.Listen("tcp", cfg.addr) // bind first, so "listening" is only ever said when it's true
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
+	serveErr := make(chan error, 1)
 	go func() {
-		log.Printf("jiggered %s listening on %s", version, cfg.addr)
-		if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatal(err)
-		}
+		log.Printf("jiggered %s listening on %s", version, ln.Addr()) // the bound address, which is not cfg.addr when it asked for any free port
+		serveErr <- srv.Serve(ln)
 	}()
-	<-ctx.Done()
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("shutdown did not finish cleanly: %v", err) // requests still running after 10s are cut off
+	select {
+	case err := <-serveErr:
+		if !errors.Is(err, http.ErrServerClosed) {
+			return err
+		}
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Printf("shutdown did not finish cleanly: %v", err) // requests still running after 10s are cut off
+		}
+		<-schedulerDone
+		s.serviceJobs.Wait()
+		<-serveErr
 	}
-	<-schedulerDone
-	s.serviceJobs.Wait()
+	return nil
 }
 
 func newServer(cfg config, db *sql.DB) (*server, error) {
@@ -196,8 +212,9 @@ func (s *server) ensureFirstAdmin(ctx context.Context) error {
 	return nil
 }
 
-// maintain tidies up in the background: expired sessions, old audit entries, stale limiter keys.
-func (s *server) maintain() {
+// maintain tidies up in the background: expired sessions, old audit entries, stale limiter keys. It stops
+// with ctx, so a graceful shutdown does not leave it holding the database.
+func (s *server) maintain(ctx context.Context) {
 	t := time.NewTicker(10 * time.Minute)
 	defer t.Stop()
 	for {
@@ -206,7 +223,11 @@ func (s *server) maintain() {
 		s.userLimit.sweep()
 		s.publicLimit.sweep()
 		s.recoveryLimit.sweep()
-		<-t.C
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
 	}
 }
 

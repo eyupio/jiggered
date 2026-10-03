@@ -194,14 +194,18 @@ runBrowser(
     await page.locator("#security-setup").waitFor();
     const secret = await page.locator("#security-secret").textContent();
     // Produce TOTP in the harness using the RFC counter and HMAC, independently of the Go implementation.
-    function totp(secret) {
+    // RFC 4226 dynamic truncation with RFC 6238's SHA-1/6-digit/30-second defaults, matching the vectors
+    // TestTOTPStandardVector pins on the Go side ("287082" at step 1). The optional `ahead` asks for a later
+    // step, which the server accepts with its one-step skew so a test can use the authenticator path twice
+    // inside one thirty-second window.
+    function totp(secret, ahead = 0) {
       const crypto = require("node:crypto"),
         alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
       let bits = "";
       for (const c of secret) bits += alphabet.indexOf(c).toString(2).padStart(5, "0");
       const key = Buffer.from(bits.match(/.{8}/g).map((x) => parseInt(x, 2)));
       const counter = Buffer.alloc(8);
-      counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000)));
+      counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000)) + BigInt(ahead));
       const h = crypto.createHmac("sha1", key).update(counter).digest(),
         o = h[19] & 15;
       return ((h.readUInt32BE(o) & 0x7fffffff) % 1000000).toString().padStart(6, "0");
@@ -353,9 +357,75 @@ runBrowser(
       401,
       "admin reset revoked user sessions",
     );
+    // Two-step teardown and a recovery-email change, through the real Account panel: regenerating replaces the
+    // codes, a wrong code is refused without changing anything, disabling with a code wipes the factor, and a
+    // new recovery address only takes effect once its link is verified.
+    await manage.locator("#t-account").click();
+    await manage.locator("#security-status").filter({ hasText: "Two-step enabled" }).waitFor();
+    await manage.locator("#security-password").fill("preview-password1");
+    await manage.locator("#security-code").fill(totp(secret, 1));
+    manage.once("dialog", (d) => d.accept());
+    await manage.locator("#security-regenerate").click();
+    await manage
+      .locator("#security-msg")
+      .filter({ hasText: "New recovery codes created" })
+      .waitFor();
+    const freshCodes = await manage.locator("#security-codes code").allTextContents();
+    assert.equal(freshCodes.length, 10);
+    assert.ok(
+      freshCodes.every((c) => !codes.includes(c)),
+      "a regenerated set repeated an old code",
+    );
+    await manage.locator("#security-hide").click();
+    await manage.locator("#security-password").fill("preview-password1");
+    await manage.locator("#security-code").fill("bad");
+    manage.once("dialog", (d) => d.accept());
+    await manage.locator("#security-disable").click();
+    await manage
+      .locator("#security-msg")
+      .filter({ hasText: "Enter your current authenticator code or an unused recovery code." })
+      .waitFor();
+    await manage.locator("#security-status").filter({ hasText: "Two-step enabled" }).waitFor();
+    await manage.locator("#security-password").fill("preview-password1");
+    await manage.locator("#security-code").fill(freshCodes[0]);
+    manage.once("dialog", (d) => d.accept());
+    await manage.locator("#security-disable").click();
+    await manage.locator("#security-status").filter({ hasText: "Password only" }).waitFor();
+    assert.equal(await manage.locator("#security-disable").isVisible(), false);
+    await manage.locator("#security-email").fill("admin2@example.com");
+    await manage.locator("#security-email-password").fill("preview-password1");
+    await manage.locator("#security-email-form [type=submit]").click();
+    await manage
+      .locator("#security-email-msg")
+      .filter({ hasText: "Verification email requested" })
+      .waitFor();
+    await manage
+      .locator("#security-email-current")
+      .filter({ hasText: "No verified recovery email yet." })
+      .waitFor();
+    const emailToken = await waitMail("verify");
+    const verifyContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    const verifyPage = await verifyContext.newPage();
+    verifyPage.on("pageerror", (e) => errors.push(e.message));
+    await verifyPage.goto(base + "/login#verify=" + emailToken);
+    await verifyPage.locator("#verify-form").waitFor();
+    await verifyPage.locator("#verify-form [type=submit]").click();
+    await verifyPage.locator("#verify-msg").filter({ hasText: "Email verified" }).waitFor();
+    await verifyContext.close();
+    await manage.locator("#security-refresh").click();
+    await manage
+      .locator("#security-email-current")
+      .filter({ hasText: "Verified address: admin2@example.com" })
+      .waitFor();
+    await screenshot(manage, "account-security-teardown.png");
+    assert.equal(
+      await manage.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+      false,
+      "security panel overflow",
+    );
     assert.deepEqual(errors, []);
     console.log(
-      "PASS: configuration, enrollment, 2FA sign-in, signup, email verification, password recovery, admin reset and mobile layout.",
+      "PASS: configuration, enrollment, 2FA sign-in, signup, email verification, password recovery, admin reset, two-step disable/regenerate, recovery-email change and mobile layout.",
     );
   },
 ).catch((error) => {
