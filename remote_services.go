@@ -712,11 +712,18 @@ func (s *server) writeBackupHistory(ctx context.Context, id int64, operation, qu
 	}
 	return err
 }
-func (s *server) serviceScheduler(ctx context.Context) {
+
+// recoverInterruptedWork is what a starting server owes the tables a crash left half-done: account mail stuck
+// 'sending' goes back to the queue (or fails, with its payload erased, once its retries are spent), and backup runs
+// that never finished are marked interrupted rather than left looking live. The scheduler calls it once, first.
+func (s *server) recoverInterruptedWork(ctx context.Context) {
 	s.db.ExecContext(ctx, `UPDATE account_mail_deliveries SET status='queued' WHERE status='sending' AND attempts<4`)
 	s.db.ExecContext(ctx, `UPDATE account_mail_deliveries SET status='failed',payload='',token_hash='' WHERE status='sending' AND attempts>=4`)
 
 	s.writeBackupHistory(ctx, 0, "mark interrupted runs", `UPDATE remote_backup_runs SET status='interrupted',finished=?,message='Server stopped before this backup finished. Check the destination before retrying.' WHERE status='running'`, time.Now().Unix())
+}
+func (s *server) serviceScheduler(ctx context.Context) {
+	s.recoverInterruptedWork(ctx)
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	for {

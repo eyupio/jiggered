@@ -1,10 +1,12 @@
 package main
 
 import (
+	"database/sql"
 	"errors"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -250,5 +252,86 @@ func TestSnapshotIncludesRecentWritesAndKeepsSchemaVersion(t *testing.T) {
 	}
 	if err := snapshot(e.s.db, dest); err == nil {
 		t.Error("snapshot must not overwrite an existing file")
+	}
+}
+
+// A migration that fails partway must leave the database exactly where it was: the version does not move and
+// nothing the failed step created survives, so the next start can try again from a known place.
+func TestAFailedMigrationChangesNothing(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "jiggered.db")
+	db, err := openDB(path, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	before := len(migrations)
+	migrations = append(migrations, func(tx *sql.Tx, first *seedAdmin) error {
+		if _, err := tx.Exec("CREATE TABLE half_applied(x)"); err != nil {
+			return err
+		}
+		return errors.New("simulated failure")
+	})
+	t.Cleanup(func() { migrations = migrations[:before] })
+	db, err = openRaw(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	err = migrate(db, path, nil)
+	if err == nil || !strings.Contains(err.Error(), "simulated failure") {
+		t.Fatalf("migrate: %v", err)
+	}
+	if got := scalar(t, path, "PRAGMA user_version"); got != before {
+		t.Fatalf("user_version = %d after a failed migration, want %d", got, before)
+	}
+	if got := scalar(t, path, "SELECT count(*) FROM sqlite_master WHERE name='half_applied'"); got != 0 {
+		t.Fatal("a failed migration left a table behind")
+	}
+	// The next start, with the real migrations, completes the upgrade.
+	migrations = migrations[:before]
+	if err := migrate(db, path, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := scalar(t, path, "PRAGMA user_version"); got != len(migrations) {
+		t.Fatalf("user_version = %d after retry, want %d", got, len(migrations))
+	}
+}
+
+// The CLI and the server can both open the same database; whoever gets there second must see the first one's
+// work and not try to apply it again.
+func TestTwoProcessesMigrateTheSameDatabaseOnce(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "jiggered.db")
+	errs := make([]error, 2)
+	var wg sync.WaitGroup
+	for i := range errs {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			db, err := openDB(path, nil)
+			if err != nil {
+				errs[i] = err
+				return
+			}
+			errs[i] = db.Close()
+		}(i)
+	}
+	wg.Wait()
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("opener %d: %v", i, err)
+		}
+	}
+	if got := scalar(t, path, "PRAGMA user_version"); got != len(migrations) {
+		t.Fatalf("user_version = %d, want %d", got, len(migrations))
+	}
+}
+
+// snapshot writes a real file or refuses; a name SQLite would silently accept without writing anything is an error.
+func TestSnapshotRefusesDestinationsThatAreNotFiles(t *testing.T) {
+	e := newTestServer(t)
+	for _, dest := range []string{"", ":memory:", "file:copy.db"} {
+		if err := snapshot(e.s.db, dest); err == nil {
+			t.Errorf("snapshot(%q) succeeded", dest)
+		}
 	}
 }

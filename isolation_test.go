@@ -138,8 +138,17 @@ func TestEveryAdminRouteIsAdminOnly(t *testing.T) {
 		{"DELETE", "/api/admin/users/1?confirm=admin"},
 		{"POST", "/api/admin/users/1/reset-password"},
 		{"POST", "/api/admin/users/1/revoke-sessions"},
+		{"POST", "/api/admin/users/alice/two-factor-reset"},
 		{"GET", "/api/admin/audit"},
 		{"POST", "/api/admin/backup"},
+		{"GET", "/api/admin/settings"},
+		{"PATCH", "/api/admin/settings"},
+		{"GET", "/api/admin/usage"},
+		{"PUT", "/api/admin/usage"},
+		{"GET", "/api/admin/services"},
+		{"PUT", "/api/admin/services"},
+		{"POST", "/api/admin/services/action"},
+		{"PUT", "/api/admin/defaults"},
 	}
 	for _, r := range routes {
 		body := any(nil)

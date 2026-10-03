@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -555,4 +556,26 @@ func createViaAPI(t *testing.T, admin *client, name, role string) string {
 		t.Fatalf("create %s: %s", name, b)
 	}
 	return out.TempPassword
+}
+
+// A limiter that is full of live keys lets a new key through untracked rather than grow without bound: refusing
+// it would hand an attacker a way to lock everyone out by spraying names.
+func TestALimiterFullOfLiveKeysLetsNewOnesThrough(t *testing.T) {
+	l := newLoginLimiter(1, time.Hour)
+	for i := 0; i < limiterMaxKeys; i++ {
+		if _, ok := l.take(strconv.Itoa(i)); !ok {
+			t.Fatalf("key %d was refused before the map was full", i)
+		}
+	}
+	give, ok := l.take("one-more")
+	if !ok {
+		t.Fatal("a new key was refused while the limiter was full of live entries")
+	}
+	give()
+	l.mu.Lock()
+	_, recorded := l.fails["one-more"]
+	l.mu.Unlock()
+	if recorded {
+		t.Fatal("an untracked attempt was recorded")
+	}
 }
