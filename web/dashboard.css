@@ -1400,3 +1400,315 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Energy movement and proactive planning use the same quiet, legible visual language. */
+.energy-breakdown,
+.plan-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+.energy-breakdown div,
+.plan-metrics > div {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  min-width: 0;
+  background: var(--surface);
+}
+.energy-breakdown dt,
+.plan-metrics span {
+  font-size: 0.85rem;
+  color: var(--muted);
+  display: block;
+}
+.energy-breakdown dd,
+.plan-metrics b {
+  margin: 6px 0 0;
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.is-recovery,
+.is-recovery .plan-cost {
+  color: var(--accent);
+}
+.energy-cell-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 12px 0 20px;
+}
+.energy-cell-legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.energy-cell-legend i {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  background: var(--accent);
+}
+.energy-cell-legend i.spent {
+  background: var(--spent);
+  border: 1px solid var(--muted);
+}
+.energy-cell-legend i.reserved {
+  background: var(--amber);
+}
+.energy-cell-legend i.lost {
+  background: transparent;
+  border: 1px dashed var(--muted);
+}
+.app-shell .cell.reserved {
+  background: var(--amber);
+}
+:root[data-energy-theme="spoons"] .app-shell .cell.reserved {
+  background: transparent;
+  color: var(--amber);
+}
+:root[data-energy-theme="spoons"] .cell:not(.spent):not(.lost) path {
+  fill: currentColor;
+  fill-opacity: 0.18;
+}
+:root[data-energy-theme="spoons"] .app-shell .cell.spent {
+  opacity: 0.45;
+}
+.energy-flow {
+  border-top: 1px solid var(--line);
+  padding: 16px 0;
+}
+.energy-flow summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.energy-flow-list {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+}
+.energy-flow-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.energy-flow-list small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-top: 3px;
+}
+.energy-flow-list b {
+  text-align: right;
+  font-size: 1.3rem;
+  font-variant-numeric: tabular-nums;
+}
+.today-plan {
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+}
+.plan-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.plan-heading h2,
+.plan-heading h3,
+.plan-heading p {
+  margin: 0;
+}
+.plan-heading p {
+  margin-top: 6px;
+}
+.plan-heading label {
+  max-width: 180px;
+}
+.plan-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+.plan-days:has(> :only-child) {
+  grid-template-columns: minmax(0, 180px);
+}
+.plan-days:has(> :nth-child(3):last-child) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.app-shell .plan-day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 6px;
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  min-width: 0;
+}
+.app-shell .plan-day[aria-pressed="true"] {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.plan-day b {
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+}
+.plan-day small {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.plan-metrics {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.plan-outlook {
+  padding: 14px 16px;
+  background: var(--accent-soft);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  line-height: 1.55;
+}
+.plan-warning {
+  border-left: 4px solid var(--amber);
+}
+.plan-activities {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+.plan-activity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.plan-activity-info {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.plan-activity-info .meta {
+  display: block;
+  margin-top: 5px;
+}
+.plan-cost {
+  flex-shrink: 0;
+  font-size: 1.2rem;
+  font-variant-numeric: tabular-nums;
+}
+.plan-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.plan-done {
+  color: var(--accent);
+  white-space: nowrap;
+}
+.plan-allowance-label {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.plan-allowance-label input {
+  width: 90px;
+  margin: 0;
+}
+.plan-empty {
+  padding: 28px 16px;
+  text-align: center;
+  background: var(--accent-soft);
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+}
+.plan-form {
+  padding: 22px;
+  margin-top: 20px;
+  border: 1px solid var(--accent);
+  border-radius: 16px;
+  background: var(--accent-soft);
+}
+.plan-form-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.plan-history {
+  margin: 18px 0;
+  padding: 16px;
+  background: var(--accent-soft);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+@media (max-width: 700px) {
+  .energy-breakdown,
+  .plan-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .energy-breakdown div,
+  .plan-metrics > div {
+    padding: 12px;
+  }
+  .plan-metrics > div:last-child {
+    grid-column: 1/-1;
+  }
+  .plan-days {
+    display: flex;
+    overflow-x: auto;
+    padding: 4px;
+    scroll-snap-type: x proximity;
+  }
+  .app-shell .plan-day {
+    position: relative;
+    flex: 0 0 88px;
+    scroll-snap-align: start;
+  }
+  .plan-activity {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .plan-activity-info {
+    flex-basis: calc(100% - 65px);
+  }
+  .plan-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .plan-actions button {
+    min-height: 40px;
+  }
+  .plan-form-fields {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .plan-form {
+    padding: 16px;
+  }
+  .plan-heading > button {
+    width: 100%;
+  }
+}
+
+.plan-recovery-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}

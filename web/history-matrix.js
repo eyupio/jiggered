@@ -1,4 +1,5 @@
 // A bounded calendar, inspired by the activity view: one tab stop, energy and symptom colour modes, pinned day details.
+import { planComparison } from "./planner-model.js";
 import { energyWords, themeOf } from "./energy-theme.js";
 import { html, setHTML, fmtDay, fmtWhen } from "./util.js";
 import { addDays, used, capOf } from "./model.js";
@@ -104,6 +105,7 @@ export function initMatrix(root, ctx, explore) {
       day = c.day,
       entries = day?.entries || [],
       remaining = c.net === null || c.allowance === null ? null : c.allowance - c.net;
+    const comparison = planComparison(ctx.store.all(), c.date);
     setHTML(
       get("[data-matrix-reading]"),
       html`<div class="matrix-day-heading"><span class="label">${chosen === c.date ? "Selected day" : "Day detail"}</span><div class="row"><button class="secondary small" data-matrix-prev aria-label="Previous day" ${index === 0 ? html`disabled` : ""}>←</button><button class="secondary small" data-matrix-next aria-label="Next day" ${index === win.cells.length - 1 ? html`disabled` : ""}>→</button></div></div>
@@ -112,6 +114,7 @@ export function initMatrix(root, ctx, explore) {
       ${day ? html`<div class="matrix-balance"><span class="label">${words.title} remaining</span><b>${remaining === null ? "—" : remaining}</b><span class="meta">${entries.length ? `${c.net} net used of ${c.allowance} available` : `${c.allowance} available · no activities logged`}</span></div>` : html`<p class="empty">No matching day log. Review this day to see or add records.</p>`}
       ${entries.length ? html`<div><h4>Activities</h4><ul class="matrix-activities">${entries.slice(0, expanded ? entries.length : 5).map((e) => html`<li><span>${e.a}${e.t ? html`<time class="meta">${e.t}</time>` : ""}</span><b class="${e.c < 0 ? "recovery" : ""}">${e.c > 0 ? "−" + e.c : e.c < 0 ? "+" + Math.abs(e.c) : "0"}<span class="sr-only"> ${words.plural} ${e.c < 0 ? "recovered" : "used"}</span></b></li>`)}</ul>${!expanded && entries.length > 5 ? html`<p class="hint">Showing 5 of ${entries.length} activities. Choose Show all records below for the full log.</p>` : ""}</div>` : ""}
       ${c.episodes ? html`<div><h4>Episodes</h4><ul class="matrix-episodes">${c.episodeRecords.slice(0, expanded ? c.episodes : 3).map(([id, e]) => html`<li><button class="x" data-matrix-edit="${id}"><span>${e.symptoms.join(", ") || "No symptoms ticked"}<span class="meta">${fmtWhen(e.when, S.locale)}${e.duration === "Still going" && !e.endedAt ? " · ongoing" : ""}</span></span><span aria-hidden="true">→</span></button></li>`)}</ul>${!expanded && c.episodes > 3 ? html`<button class="x" data-matrix-episodes>View all ${c.episodes} episodes</button>` : ""}</div>` : ""}
+      ${comparison ? html`<div class="plan-history"><h4>Plan and actual</h4><p>${comparison.completed} of ${comparison.total} planned activities logged · ${comparison.estimated} net ${words.plural} estimated for completed activities · ${comparison.actual} actually used.</p><p class="hint">Unfinished plans are excluded from reported usage.</p><button type="button" class="secondary" data-open-plan="${c.date}">Review this plan</button></div>` : ""}
       <div class="row"><button class="secondary" data-matrix-open>Edit day</button><button class="secondary" data-matrix-all>${expanded ? "Show fewer records" : "Show all records for this day"}</button><button class="primary" data-matrix-share>Share this day</button></div>`,
     );
   }

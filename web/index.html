@@ -106,6 +106,18 @@
         </button>
         <button
           role="tab"
+          id="t-plan"
+          data-tab="plan"
+          aria-selected="false"
+          aria-controls="plan-panel"
+          tabindex="-1"
+          data-heading="Make room for the days ahead."
+          data-description="Balance your commitments and recovery, one day at a time."
+        >
+          Plan
+        </button>
+        <button
+          role="tab"
           id="t-episode"
           aria-controls="episode-panel"
           tabindex="-1"
@@ -266,6 +278,7 @@
                 <p class="energy-caption" id="energy-caption">Your own planning aid</p>
               </div>
             </div>
+            <div id="energy-breakdown"></div>
             <div class="energy-summary">
               <span class="meta" id="spentline">—</span
               ><span id="energy-entry-count" class="meta">No activities logged</span>
@@ -280,6 +293,13 @@
               ></ul>
             </div>
             <div class="cells" id="cells" aria-hidden="true"></div>
+            <p class="energy-cell-legend">
+              <span><i class="available"></i>Available</span
+              ><span><i class="reserved"></i>Planned</span><span><i class="spent"></i>Used</span
+              ><span><i class="lost"></i>Allowance reduced</span>
+            </p>
+            <div id="energy-flow" class="energy-flow"></div>
+            <div id="today-plan" class="today-plan"></div>
             <label class="switch-row" for="sleep"
               ><span class="switch-text"
                 ><b id="sleep-title">Slept badly last night</b
@@ -484,6 +504,98 @@
         </div>
       </section>
 
+      <section role="tabpanel" aria-labelledby="t-plan" id="plan-panel" hidden>
+        <div class="panel">
+          <div class="plan-heading">
+            <div>
+              <h2>Your days, with breathing room.</h2>
+              <p class="meta">Plan demanding activities and recovery together.</p>
+            </div>
+            <label
+              >Look ahead<select id="plan-span">
+                <option value="1">Today</option>
+                <option value="3">3 days</option>
+                <option value="7" selected>7 days</option>
+              </select></label
+            >
+          </div>
+          <div
+            id="plan-days"
+            class="plan-days"
+            role="group"
+            aria-label="Choose a planning day"
+          ></div>
+          <p class="hint">
+            Numbers are projected balances after planned recovery. A dash means no plan yet.
+            Recovery is your own estimate; it becomes actual only when logged. Budgets reset daily
+            and do not carry over.
+          </p>
+        </div>
+        <div class="panel">
+          <div class="plan-heading">
+            <h2 id="plan-date-label"></h2>
+            <button type="button" class="primary" id="plan-add">Add activity or recovery</button>
+          </div>
+          <label class="plan-allowance-label"
+            ><span data-energy-copy="Starting points for this day"
+              >Starting points for this day</span
+            ><input
+              type="number"
+              id="plan-allowance"
+              min="1"
+              max="30"
+              step="1"
+              aria-describedby="plan-allowance-hint"
+          /></label>
+          <p class="hint" id="plan-allowance-hint"></p>
+          <div id="plan-forecast" aria-live="polite" aria-atomic="true"></div>
+          <div id="plan-list"></div>
+          <div id="plan-recovery-options"></div>
+          <form id="plan-form" class="plan-form" hidden>
+            <h3 id="plan-form-title">Add to your plan</h3>
+            <label id="plan-presets-row"
+              >Use a saved activity<select id="plan-presets"></select
+            ></label>
+            <label>Activity name<input id="plan-name" maxlength="120" required /></label>
+            <div class="plan-form-fields">
+              <label
+                ><span data-energy-copy="Points it costs">Points it costs</span
+                ><input
+                  type="number"
+                  id="plan-cost"
+                  min="-10"
+                  max="10"
+                  step="1"
+                  required
+                  aria-describedby="plan-cost-hint" /></label
+              ><label>Time (optional)<input type="time" id="plan-time" /></label
+              ><label id="plan-repeat-row"
+                >Add on consecutive days<input
+                  type="number"
+                  id="plan-repeat"
+                  min="1"
+                  max="7"
+                  step="1"
+                  value="1"
+                  required
+              /></label>
+            </div>
+            <p
+              class="hint"
+              id="plan-cost-hint"
+              data-energy-copy="Positive points spend energy. Negative points estimate recovery. Zero records the activity without changing your balance."
+            >
+              Positive points spend energy. Negative points estimate recovery. Zero records the
+              activity without changing your balance.
+            </p>
+            <p id="plan-form-error" class="error" role="alert"></p>
+            <div class="row">
+              <button type="submit" class="primary" id="plan-submit">Save plan</button
+              ><button type="button" class="secondary" id="plan-cancel">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </section>
       <section role="tabpanel" aria-labelledby="t-history" id="history-panel" hidden>
         <div class="panel history-intro">
           <p class="meta" id="history-lens" hidden></p>

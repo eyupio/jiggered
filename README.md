@@ -4,8 +4,17 @@ Yorkshire for "worn out". A small self-hosted tracker for daily energy check-ins
 Go, SQLite, one container, password login. Run it for yourself, or let one admin look after a few more
 people (a household, a support group), each with their own account.
 
-- **Today:** green, amber or red check-in, a points budget (10 by default), a poor-sleep penalty, and one-tap
+- **Today:** a live energy breakdown and labelled available/planned/used spoon or point cells,
+  plus a running balance showing how logged activities changed your energy. Green, amber or red check-in, a points budget (10 by default), a poor-sleep penalty, and one-tap
   activity costs. Open any earlier day to fill it in or correct it.
+- **Plan:** look ahead one, three or seven days. Add workload and recovery with your own costs, repeat
+  activities on consecutive days, and estimate a separate starting allowance for each unlogged day.
+  See energy available now, remaining commitments, the balance before recovery and the projected balance
+  after estimated recovery. Recovery choices use your saved activities. Mark an activity Done to confirm
+  its actual name, cost and time; it logs once and stops reserving energy. Unfinished plans never count
+  as actual usage. Today shows upcoming commitments, while History compares planned and actual costs
+  for completed activities. Daily allowances reset rather than carry over. Plans use the same private
+  offline queue, cross-device sync, full JSON export and restore as your other records.
 - **Episode:** when it started, symptoms, onset, duration, likely triggers and notes. Edit it later, for example
   to record an approximate duration or exact local end time. Ongoing episodes are shown on Today and Episode.
 - **History:** an activity calendar and selected-day view, with full records, charts and patterns available

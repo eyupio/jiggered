@@ -11,6 +11,7 @@ import {
 import { createStore } from "./sync.js";
 import { normaliseSettings, resolveSettings, DEFAULTS, dkey } from "./model.js";
 import * as todayView from "./today.js";
+import * as planView from "./planner.js";
 import * as episodesView from "./episodes.js";
 import * as historyView from "./history.js";
 import * as accountView from "./account.js";
@@ -220,7 +221,7 @@ function fatal(text) {
         if (!store.status().readOnly && !store.status().restoring) return;
         const target = e.target;
         const safe = target.closest?.(
-          "#tabs,#signout,#account-menu,#help-panel,[data-help],.help-tip,.daynav,#history-panel,#account-shortcuts,#export-device,#export-all,#day-back,[data-settings],#entry-cancel,#tab-reload",
+          "#tabs,[data-plan-day],#plan-span,[data-open-plan],#signout,#account-menu,#help-panel,[data-help],.help-tip,.daynav,#history-panel,#account-shortcuts,#export-device,#export-all,#day-back,[data-settings],#entry-cancel,#tab-reload",
         );
         if (safe) return;
         if (target.closest?.("button,input,textarea,select,form,.drag-handle")) {
@@ -355,6 +356,7 @@ function fatal(text) {
   const tooltips = initTooltips(ctx);
   const views = {
     today: todayView.init(ctx),
+    plan: planView.init(ctx),
     episode: episodesView.init(ctx),
     history: historyView.init(ctx),
     account: accountView.init(ctx),

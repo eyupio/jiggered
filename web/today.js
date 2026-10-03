@@ -1,5 +1,8 @@
 // The Today tab: morning check-in, the points gauge, tapping activities. It can also show and edit a past day.
 
+import { renderEnergyFlow } from "./energy-flow.js";
+import { renderTodayPlan } from "./planner.js";
+import { forecast } from "./planner-model.js";
 import { energyWords, energyAmount, energyCopy, themeOf, SPOON_PATH } from "./energy-theme.js";
 import { $, html, setHTML, uid, fmtLongDay } from "./util.js";
 import { normaliseProfile } from "./profile.js";
@@ -550,7 +553,7 @@ export function init(ctx) {
     $("balance-label").textContent = copy(balanceLabel(left, cap));
     document.querySelector(".energy-spoon").toggleAttribute("hidden", themeOf(ctx) !== "spoons");
     renderOngoing(ctx, $("today-ongoing"));
-    $("spentline").textContent = spent >= 0 ? `${spent} spent` : `${-spent} recovered`;
+    $("spentline").textContent = spent >= 0 ? `${spent} net used` : `${-spent} net recovered`;
 
     // The ring is a view of the saved allowance, not a target. Keep the actual
     // number unbounded when recovery takes it above the allowance or spending below zero.
@@ -569,6 +572,9 @@ export function init(ctx) {
     $("energy-entry-count").textContent =
       `${d.entries.length} ${d.entries.length === 1 ? "activity" : "activities"} logged`;
 
+    renderEnergyFlow(ctx, d, S);
+    renderTodayPlan(ctx, k);
+    const reserved = forecast(ctx.store.all(), k, S).committed;
     const cells = $("cells");
     // Updated in place so the bar eases between states instead of being rebuilt (which looked like a flash).
     cells.style.gridTemplateColumns = `repeat(${Math.min(budget, 15)},1fr)`;
@@ -579,7 +585,14 @@ export function init(ctx) {
       if (themeOf(ctx) === "spoons" && !c.firstChild)
         setHTML(c, html`<svg viewBox="0 0 24 24"><path d="${SPOON_PATH}"/></svg>`);
       else if (themeOf(ctx) !== "spoons") c.replaceChildren();
-      c.className = i >= cap ? "cell lost" : i >= Math.max(0, left) ? "cell spent" : "cell";
+      c.className =
+        i >= cap
+          ? "cell lost"
+          : i >= Math.max(0, left)
+            ? "cell spent"
+            : i >= Math.max(0, left - reserved)
+              ? "cell reserved"
+              : "cell";
     });
     cells.className = "cells" + (left <= 0 ? " out" : left <= 3 ? " low" : "");
 
