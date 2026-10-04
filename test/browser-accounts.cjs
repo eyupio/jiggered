@@ -257,9 +257,9 @@ runBrowser(
       .locator("#registration-status")
       .filter({ hasText: "OPEN FOR REGISTRATION" })
       .waitFor();
-    assert.match(
-      await join.locator("[data-registration-copy]").first().textContent(),
-      /Free accounts are available/,
+    assert.equal(
+      (await join.locator("[data-registration-copy]").first().textContent()).trim(),
+      "Email verification is required.",
     );
     assert.equal(
       await join.locator("[data-register-link]").last().getAttribute("href"),
