@@ -5,6 +5,7 @@ Repomix-generated context: [`.zoomies/ai-context/`](https://github.com/eyupio/ji
 <!-- zoomies-ai-context:end -->
 
 
+
 <p align="center">
   <img src="assets/brand/logo.svg" alt="Jiggered" width="360">
 </p>
