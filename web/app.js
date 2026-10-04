@@ -381,7 +381,7 @@ function fatal(text) {
     $("view-description").textContent =
       intro?.description ||
       (tab === "admin"
-        ? "Manage accounts, shared defaults and the services that keep this instance running."
+        ? "Manage accounts, shared defaults and the services that keep Jiggered running."
         : "Find your way around, one small step at a time.");
     try {
       history.replaceState(null, "", "#" + tab);

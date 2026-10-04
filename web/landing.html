@@ -51,8 +51,8 @@
           <p
             class="quiet-note hero-availability"
             data-registration-copy
-            data-open="Free accounts are available on this instance. Email verification is required."
-            data-closed="New account registration is currently closed on this instance. Existing members can sign in."
+            data-open="Email verification is required."
+            data-closed="Registration is currently closed. Existing members can sign in."
           >
             {{.Availability}}
           </p>
@@ -205,27 +205,26 @@
           <p class="eyebrow">TWO WAYS TO MAKE IT YOURS</p>
           <h2 id="choice-title">Your rhythm.<br />Your choice.</h2>
           <p>
-            Jiggered is free to use. Account availability depends on this instance. Its MIT-licensed
-            source lets you run your own server.
+            Jiggered is free to use. Its MIT-licensed source lets you run your own server.
             <a href="/pricing">Read pricing and access details.</a>
           </p>
         </div>
         <div class="choice-grid">
           <article class="choice-card">
             <span class="choice-status" id="registration-status" role="status">{{.Status}}</span>
-            <h3>{{if .Index}}A home, ready for you.{{else}}Your personal instance.{{end}}</h3>
+            <h3>A home, ready for you.</h3>
             <p class="choice-price" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
               <meta itemprop="price" content="0" /><span itemprop="description">Free to use</span>
             </p>
             <p>
-              Your account has its own personal log. Use an instance and operator you trust; server
+              Your account has its own personal log. Choose a service and operator you trust; server
               operators can access databases and backups.
             </p>
             <p
               class="choice-detail"
               data-registration-copy
               data-open="Registration is open. {{.CTALabel}}, verify your email, and make your first check-in."
-              data-closed="Registration is currently closed on this instance. Existing members can still sign in."
+              data-closed="Registration is currently closed. Existing members can still sign in."
             >
               {{.Availability}}
             </p>
@@ -316,8 +315,7 @@
           <details>
             <summary>Is the hosted version free?</summary>
             <p>
-              Jiggered is free to use. Check the account status above to see whether this instance
-              accepts new registrations. Read the
+              Jiggered is free to use. Read the
               <a href="/pricing">pricing and access details</a> for hosted access and self-hosting.
             </p>
           </details>
@@ -326,7 +324,7 @@
             <p>
               Yes. Jiggered is MIT licensed. Read the
               <a href="https://github.com/eyupio/jiggered">source and Docker setup instructions</a>
-              to run your own instance.
+              to run it on your own server.
             </p>
           </details>
           <details>
@@ -341,7 +339,7 @@
             <p
               data-registration-copy
               data-open="Yes. Choose {{.CTALabel}}, enter your details, and follow the verification link in your email. Your account is created after verification."
-              data-closed="Registration is currently closed on this instance. Sign in with an existing account, or contact the administrator for access."
+              data-closed="Registration is currently closed. Sign in with an existing account, or contact the administrator for access."
             >
               {{.Availability}}
             </p>

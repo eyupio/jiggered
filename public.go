@@ -21,7 +21,7 @@ type publicPage struct {
 }
 
 var publicPages = []publicPage{
-	{"/welcome", "landing.html", "Jiggered — Free Energy & Symptom Tracker", "Track daily energy, activities and symptom episodes with Jiggered. Review patterns in your personal log. Free to use; signup depends on instance availability.", "Home"},
+	{"/welcome", "landing.html", "Jiggered — Free Energy & Symptom Tracker", "Track daily energy, activities and symptom episodes with Jiggered. Review patterns in your personal log. Free to use, with email verification for new accounts.", "Home"},
 	{"/features/energy-tracking", "public/energy.html", "Daily Energy Tracking & Personal Budgets | Jiggered", "Log daily energy, activities and rest with a personal points budget. Learn how Jiggered's check-ins work and how they relate to Spoon Theory.", "Energy tracking"},
 	{"/features/symptom-tracking", "public/symptoms.html", "Track Symptom Episodes, Duration & Triggers | Jiggered", "Record symptom episodes, their duration and relevant circumstances. Review your personal history and export your observations with Jiggered.", "Symptom tracking"},
 	{"/guides/spoon-theory", "public/spoons.html", "Spoon Theory & Personal Energy Budgets | Jiggered", "Learn what Spoon Theory means, read Christine Miserandino's original essay, and see how to log your own energy budget and activities in Jiggered.", "Spoon Theory"},
@@ -107,10 +107,10 @@ func (p *publicSite) data(r *http.Request, page publicPage) publicData {
 		d.Registration = settings.Accounts.Registration && settings.Email.Enabled
 		if d.Registration {
 			d.Status, d.CTA, d.CTALabel = "OPEN FOR REGISTRATION", "/register", "Create your free account"
-			d.Availability = "Free accounts are available on this instance. Email verification is required."
+			d.Availability = "Email verification is required."
 		} else {
 			d.Status = "REGISTRATION CLOSED"
-			d.Availability = "New account registration is currently closed on this instance. Existing members can sign in."
+			d.Availability = "Registration is currently closed. Existing members can sign in."
 		}
 	}
 	return d

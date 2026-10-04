@@ -13,7 +13,7 @@ const HINTS = {
   '[data-service-action="backup"]':
     "Creates a consistent SQLite snapshot and uploads it in the background. Your tab can be closed safely.",
   '[data-service-action="list"]':
-    "Lists the latest remote snapshots belonging to this instance. Downloading requires your admin password.",
+    "Lists the latest remote snapshots for this Jiggered installation. Downloading requires your admin password.",
   "#security-regenerate":
     "Replaces all previous recovery codes. Save the new codes immediately; they are displayed once.",
   "#security-disable":

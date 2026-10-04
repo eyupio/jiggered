@@ -20,7 +20,7 @@ export const servicesMarkup = `
  <label class="field">Notification recipients<textarea id="svc-to" rows="2" placeholder="admin@example.com, another@example.com"></textarea><span class="meta">Separate up to 20 addresses with commas or new lines. Account verification and recovery go to the account's own email address.</span></label>
  <div class="row"><label class="radio"><input type="checkbox" id="svc-on_failure"> Alert when backups fail</label><label class="radio"><input type="checkbox" id="svc-on_success"> Confirm successful backups</label></div><label class="radio"><input type="checkbox" id="svc-clear-email"> Remove saved SMTP password when saving</label>
  </details>
- <details open class="service-details" data-service-area="email"><summary>Registration & recovery <span class="meta">Who can join this instance</span></summary>
+ <details open class="service-details" data-service-area="email"><summary>Registration & recovery <span class="meta">Who can create an account</span></summary>
  <label class="radio"><input id="svc-registration" type="checkbox"> Allow people to register with a verified email address</label>
  <label class="radio"><input id="svc-recovery" type="checkbox"> Allow forgotten-password recovery by email</label>
  ${field("public_url", "Public application URL", 'type="url" placeholder="https://jiggered.example.com"', "Trusted base URL for email links. Never taken from a visitor’s request headers.")}

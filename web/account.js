@@ -54,7 +54,7 @@ export function init(ctx) {
   }
   $("account-usage").insertAdjacentHTML(
     "afterend",
-    `<form id="usage-consent-form"><h3>Optional product usage</h3><p class="meta">Off by default. With your permission, this instance stores coarse weekly task counts and days active for capture, History, generated exports, print requests, settings, save failures and recovered saves, for up to 90 days. No symptoms, notes, activity names, record dates or IP addresses are sent. Admin reports hide groups smaller than five; consent is linked to your account for deletion. Disabling deletes your stored events. No external analytics service.</p><label class="radio"><input type="checkbox" id="usage-consent"> Help improve Jiggered with local task counts</label><button type="submit" class="secondary">Save usage preference</button><p id="usage-consent-msg" class="msg" role="status"></p></form>`,
+    `<form id="usage-consent-form"><h3>Optional product usage</h3><p class="meta">Off by default. With your permission, Jiggered stores coarse weekly task counts and days active for capture, History, generated exports, print requests, settings, save failures and recovered saves, for up to 90 days. No symptoms, notes, activity names, record dates or IP addresses are sent. Admin reports hide groups smaller than five; consent is linked to your account for deletion. Disabling deletes your stored events. No external analytics service.</p><label class="radio"><input type="checkbox" id="usage-consent"> Help improve Jiggered with local task counts</label><button type="submit" class="secondary">Save usage preference</button><p id="usage-consent-msg" class="msg" role="status"></p></form>`,
   );
   async function loadConsent() {
     const r = await api("GET", "/api/me/usage-consent");
