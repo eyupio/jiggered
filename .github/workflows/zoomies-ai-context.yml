@@ -26,7 +26,7 @@ jobs:
           lfs: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: '24'
+          node-version: "24"
           package-manager-cache: false
       - name: Install pinned generator without repository scripts
         shell: bash
@@ -42,8 +42,8 @@ jobs:
           OUTPUT_DIR: ${{ runner.temp }}/zoomies-context
           REPOMIX_CLI: ${{ runner.temp }}/zoomies-tools/node_modules/.bin/repomix
           SOURCE_COMMIT: ${{ github.sha }}
-          EXPECTED_CONFIG: "{\"manager\":\"zoomies-ai-context\",\"template_version\":1,\"source_branch\":\"main\",\"destination\":\"both\",\"exclude\":[\"**/.env*\",\"**/node_modules/**\",\"**/.git/**\",\"**/dist/**\",\"**/vendor/**\",\"**/*.pem\",\"**/*.key\",\"**/*.db\",\".zoomies/**\"],\"keep_snapshots\":3}"
-          REPOSITORY_IDENTITY: "{\"github_host\":\"github.com\",\"installation_id\":\"ins_7xad5wpfjwbo6\",\"repository_id\":1399477167}"
+          EXPECTED_CONFIG: '{"manager":"zoomies-ai-context","template_version":1,"source_branch":"main","destination":"both","exclude":["**/.env*","**/node_modules/**","**/.git/**","**/dist/**","**/vendor/**","**/*.pem","**/*.key","**/*.db",".zoomies/**"],"keep_snapshots":3}'
+          REPOSITORY_IDENTITY: '{"github_host":"github.com","installation_id":"ins_7xad5wpfjwbo6","repository_id":1399477167}'
           CONFIG_HASH: "7330915e7ed54f78124dca1e723d245e92a616ea9f1d3c6f65e8c137b8e10f17"
         shell: python
         run: |
@@ -233,7 +233,7 @@ jobs:
           ARTIFACT_DIR: ${{ runner.temp }}/zoomies-context
           SOURCE_COMMIT: ${{ github.sha }}
           SOURCE_BRANCH: "main"
-          REPOSITORY_IDENTITY: "{\"github_host\":\"github.com\",\"installation_id\":\"ins_7xad5wpfjwbo6\",\"repository_id\":1399477167}"
+          REPOSITORY_IDENTITY: '{"github_host":"github.com","installation_id":"ins_7xad5wpfjwbo6","repository_id":1399477167}'
           CONFIG_HASH: "7330915e7ed54f78124dca1e723d245e92a616ea9f1d3c6f65e8c137b8e10f17"
         shell: python
         run: |

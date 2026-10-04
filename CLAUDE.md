@@ -115,8 +115,8 @@ justified by that folder's own tooling, appends scoped context and must never
 contradict or overwrite this file. There is none today: the Go code is one flat
 package; frontend and browser tooling is managed by `test/package.json`.
 
-
 <!-- zoomies-ai-context:start -->
+
 ## Zoomies AI Context
 
 Repository: `eyupio/jiggered` on `github.com`. Source branch: `main`. Destination: `both`.
