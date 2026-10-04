@@ -1,7 +1,1 @@
-{
-  "name": "zoomies-ai-context",
-  "private": true,
-  "dependencies": {
-    "repomix": "1.18.1"
-  }
-}
+{"name":"zoomies-ai-context","private":true,"dependencies":{"repomix":"1.18.1"}}
