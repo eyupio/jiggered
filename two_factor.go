@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/jnnngs/jiggered/internal/qr"
+	"github.com/eyupio/jiggered/internal/qr"
 )
 
 // A code advances the stored step atomically. Recovery codes are single-use hashes.

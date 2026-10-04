@@ -4,6 +4,7 @@
 
 <p align="center"><strong>Understand your energy. Plan your day. Keep your own record.</strong></p>
 <p align="center">Daily energy planning and symptom tracking, on infrastructure you control.</p>
+<p align="center">Developed by <a href="https://eyup.io">EyUp.io</a> · <a href="https://github.com/eyupio/jiggered">Open source under the MIT licence</a></p>
 
 <p align="center">
   <a href="#features">Features</a> ·
@@ -50,7 +51,7 @@ Each day has its own allowance; balances do not carry forward. Recovery values a
 ### 1. Get the project
 
 ```sh
-git clone https://github.com/jnnngs/jiggered.git
+git clone https://github.com/eyupio/jiggered.git
 cd jiggered
 ```
 
@@ -68,7 +69,7 @@ Compose binds the service to **127.0.0.1:8080** and stores data in the persisten
 If the image is unavailable or its package is private, build it locally before starting:
 
 ```sh
-docker build -t ghcr.io/jnnngs/jiggered:latest .
+docker build -t ghcr.io/eyupio/jiggered:latest .
 ```
 
 ### 3. Configure HTTPS
@@ -93,7 +94,9 @@ For local HTTP development, follow [CONTRIBUTING.md](CONTRIBUTING.md#run-locally
 
 ## Deployment and configuration
 
-The default image is `ghcr.io/jnnngs/jiggered:latest`, built for **amd64** and **arm64**. Package visibility is separate from repository visibility.
+The default image is `ghcr.io/eyupio/jiggered:latest`, built for **amd64** and **arm64**. Package visibility is separate from repository visibility.
+
+If upgrading from the former `jnnngs` image, keep the same Compose project and `jiggered-data` volume, then pull and recreate the service. The new image namespace needs a successful tagged release for `latest`; maintainers must also enable public package access for anonymous pulls.
 
 | Variable              | Default             | Purpose                                                                              |
 | --------------------- | ------------------- | ------------------------------------------------------------------------------------ |

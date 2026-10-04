@@ -212,7 +212,7 @@ func (p *publicSite) llms(w http.ResponseWriter, r *http.Request) {
 	d := p.data(r, publicPages[0])
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	fmt.Fprintf(w, "# Jiggered\n\nJiggered is a personal energy and symptom tracker. Record daily check-ins, activity and rest points, symptom episodes, and review or export your observations. It is not a medical device.\n\nFree to use. %s\nApplication source is MIT licensed. Source and Docker setup: https://github.com/jnnngs/jiggered.\n\n## Public pages\n", d.Availability)
+	fmt.Fprintf(w, "# Jiggered\n\nJiggered is a personal energy and symptom tracker. Record daily check-ins, activity and rest points, symptom episodes, and review or export your observations. It is not a medical device.\n\nFree to use. %s\nDeveloped by EyUp.io (https://eyup.io). Application source is MIT licensed. Source and Docker setup: https://github.com/eyupio/jiggered.\n\n## Public pages\n", d.Availability)
 	for _, page := range publicPages {
 		fmt.Fprintf(w, "- [%s](%s%s): %s\n", page.Label, d.Origin, page.Path, page.Description)
 	}

@@ -97,6 +97,11 @@ process.on("exit", () => server.kill());
                 "unknown internal link: " + href,
               );
           }
+          assert.ok(await page.locator('.nav-actions .secondary[href="/login"]').isVisible());
+          assert.equal(
+            await page.locator('.public-footer a[href="https://eyup.io"]').innerText(),
+            "EyUp.io",
+          );
           if (route === "/welcome") {
             assert.match(await page.locator(".hero-availability").innerText(), /currently closed/);
             assert.equal(
@@ -148,6 +153,8 @@ process.on("exit", () => server.kill());
       "/register",
     );
     assert.match(await page.locator(".hero-availability").innerText(), /Email verification/);
+    assert.ok(await page.locator('.nav-actions .secondary[href="/login"]').isVisible());
+    assert.ok(await page.locator('.nav-actions a[href="/register"]').isVisible());
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
       false,

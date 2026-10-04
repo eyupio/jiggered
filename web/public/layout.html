@@ -44,7 +44,16 @@
     ><a href="/guides/spoon-theory">Spoon Theory</a><a href="/pricing">Pricing &amp; access</a>
   </nav>
   <div class="nav-actions">
-    <a class="p-button small" href="{{.CTA}}" data-register-link>{{.CTALabel}}</a>
+    <a class="p-button small secondary" href="/login">Log in</a>
+    <a
+      class="p-button small"
+      href="{{.CTA}}"
+      data-register-link
+      {{if
+      not
+      .Registration}}hidden{{end}}
+      >{{.CTALabel}}</a
+    >
   </div>
 </header>
 {{end}} {{define "footer"}}
@@ -59,7 +68,10 @@
       >Log in</a
     >
   </nav>
-  <small>A personal log, not a medical device.</small>
+  <small
+    >A personal log, not a medical device. Developed by <a href="https://eyup.io">EyUp.io</a> ·
+    <a href="https://github.com/eyupio/jiggered">Source on GitHub</a></small
+  >
 </footer>
 {{end}} {{define "page"}}<!doctype html>
 <html lang="en" data-theme="light">

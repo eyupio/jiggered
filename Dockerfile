@@ -20,7 +20,11 @@ FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c
 COPY --from=build /out/jiggered /jiggered
 COPY --from=build --chown=nonroot:nonroot /out/data /data
 COPY LICENSE /LICENSE
-LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.title="Jiggered" \
+      org.opencontainers.image.vendor="EyUp.io" \
+      org.opencontainers.image.url="https://eyup.io" \
+      org.opencontainers.image.source="https://github.com/eyupio/jiggered"
 USER nonroot
 EXPOSE 8080
 VOLUME ["/data"]

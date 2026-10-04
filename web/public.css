@@ -2,6 +2,27 @@
 .public-header {
   flex-wrap: wrap;
 }
+.public-header .nav-actions {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.public-header [hidden] {
+  display: none;
+}
+.public-header .p-button.secondary {
+  background: transparent;
+  color: var(--fg) !important;
+  border-color: var(--line);
+  box-shadow: none;
+}
+.public-header .p-button.secondary:hover {
+  background: var(--accent-soft);
+}
+.public-footer small a,
+.hero-copy .quiet-note a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .public-nav {
   flex-wrap: wrap;
   justify-content: center;
@@ -146,8 +167,8 @@
     font-size: 13px;
   }
   .public-header .nav-actions {
-    margin-left: auto;
-    max-width: 180px;
+    flex-basis: 100%;
+    justify-content: flex-start;
   }
   .public-header .p-button.small {
     white-space: normal;

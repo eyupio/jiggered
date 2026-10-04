@@ -1,4 +1,4 @@
-module github.com/jnnngs/jiggered
+module github.com/eyupio/jiggered
 
 go 1.27.1
 
