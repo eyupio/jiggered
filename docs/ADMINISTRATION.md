@@ -275,7 +275,7 @@ So host it somewhere you trust, give the admin role only to someone the others t
 
 ## Image
 
-GitHub Actions builds `ghcr.io/jnnngs/jiggered` for amd64 and arm64:
+GitHub Actions builds `ghcr.io/eyupio/jiggered` for amd64 and arm64:
 
 | Trigger                         | Tags                                                  |
 | ------------------------------- | ----------------------------------------------------- |
@@ -297,9 +297,9 @@ you do not need to give Jiggered a GitHub token.
 ### Build from source
 
 ```sh
-git clone https://github.com/jnnngs/jiggered.git
+git clone https://github.com/eyupio/jiggered.git
 cd jiggered
-docker build -t ghcr.io/jnnngs/jiggered:latest .
+docker build -t ghcr.io/eyupio/jiggered:latest .
 ```
 
 ## Run it
@@ -331,7 +331,7 @@ jiggered.example.com {
 
 ```sh
 APP_USERNAME=admin APP_PASSWORD=testpass123 APP_SECURE_COOKIE=false APP_DB=./jiggered.db go run .   # the old variables still work for a first run
-# or build the image yourself: docker build -t ghcr.io/jnnngs/jiggered:latest .
+# or build the image yourself: docker build -t ghcr.io/eyupio/jiggered:latest .
 ```
 
 Then open http://localhost:8080 and sign in as `admin`. (Plain-http testing is the one time to turn secure cookies

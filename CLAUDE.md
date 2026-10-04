@@ -7,7 +7,7 @@ setup guide; this file is the index and the rules.
 
 Jiggered ("worn out", Yorkshire) is a small self-hosted tracker for daily
 energy check-ins and symptom episodes. One Go binary (module
-`github.com/jnnngs/jiggered`, Go 1.27.1) serves a static ES-module frontend and a
+`github.com/eyupio/jiggered`, Go 1.27.1) serves a static ES-module frontend and a
 JSON API backed by SQLite. Several people can each have an account, with an
 admin to manage them; password login. It ships as one container image on GHCR.
 

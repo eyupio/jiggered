@@ -12,7 +12,7 @@ not need a C compiler. Docker is optional; Compose must support the optional
 `env_file` syntax (2.24+).
 
 ```sh
-git clone https://github.com/jnnngs/jiggered.git
+git clone https://github.com/eyupio/jiggered.git
 cd jiggered
 npm ci --prefix test
 npm --prefix test run browser:install

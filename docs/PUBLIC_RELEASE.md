@@ -21,7 +21,7 @@ before making the repository public, and verify them again after the switch.
    Any history rewrite requires a separate coordinated operation.
 6. Make the GHCR package public separately if anonymous image pulls are intended.
    From a clean Docker configuration (without cached registry credentials), run
-   `docker pull ghcr.io/jnnngs/jiggered:latest`. Confirm both amd64 and arm64
+   `docker pull ghcr.io/eyupio/jiggered:latest`. Confirm both amd64 and arm64
    manifests exist. If no stable image exists yet, tag a release and wait for
    successful image publication. Source builds are documented as the fallback.
 7. Confirm tagged release notes, the public README and the landing/pricing copy

@@ -15,6 +15,7 @@ authOptions
       el.textContent = open ? el.dataset.open : el.dataset.closed;
     });
     document.querySelectorAll("[data-register-link]").forEach((link) => {
+      if (link.closest(".nav-actions")) link.hidden = !open;
       link.href = open ? "/register" : "/login";
       link.firstChild.textContent = open ? "Create your free account " : "Log in ";
     });
