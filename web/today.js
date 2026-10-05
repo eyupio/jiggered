@@ -393,7 +393,7 @@ export function init(ctx) {
     setStable(
       palette,
       S.activities.length
-        ? html`<h3 class="label">Your activities</h3>${S.activities.map((a, i) => html`<button type="button" class="cal-chip cal-preset${a.c < 0 ? " is-recovery" : ""}" data-preset="${i}" aria-pressed="${placing === i}">${a.a}<span>${signed(a.c)}</span></button>`)}`
+        ? html`<h3 class="label">Your activities</h3>${S.activities.map((a, i) => html`<button type="button" class="cal-chip cal-preset${a.c < 0 ? " is-recovery" : ""}" data-preset="${i}" aria-pressed="${placing === i ? "true" : "false"}">${a.a}<span>${signed(a.c)}</span></button>`)}`
         : html``,
     );
     $("today-timeline-summary").textContent = pending.length

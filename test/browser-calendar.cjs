@@ -347,7 +347,13 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
       1,
       "a phone shows one day",
     );
-    assert.equal(await page.locator("#plan-palette").isHidden(), true);
+    // The activities are listed on a phone too, since tapping one is how it is placed.
+    assert.equal(await page.locator("#plan-palette").isVisible(), true);
+    assert.ok((await page.locator("#plan-palette .cal-preset").count()) > 5);
+    assert.match(
+      await page.locator("#plan-board-help").textContent(),
+      /Tap an activity, then a time/,
+    );
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       true,
@@ -387,6 +393,34 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
     await page.locator('.cal-block[data-id="p1"]').tap();
     assert.equal(await page.locator("#plan-form").isVisible(), true);
     assert.equal(await page.locator("#plan-time").inputValue(), "16:00");
+    await page.locator("#plan-cancel").tap();
+    // Tap an activity, then tap a time: it is added there with the length its name gives, with no form in between.
+    const deep = () => docs["p-" + today].body.entries.find((e) => e.a === "Deep focus (2 hours)");
+    const chip = page.locator("#plan-palette .cal-preset", { hasText: "Deep focus (2 hours)" });
+    await chip.tap();
+    assert.equal(await page.locator("#plan-placing").isVisible(), true);
+    assert.equal(await chip.getAttribute("aria-pressed"), "true");
+    assert.equal(
+      await page.locator("#plan-form").isHidden(),
+      true,
+      "tapping an activity opens no form",
+    );
+    await page.evaluate(() => {
+      document.querySelector("#plan-board").scrollIntoView({ block: "center" });
+      document.querySelector("#plan-board .cal-scroll").scrollTop = 56;
+    });
+    const spot = await slot(page, today, 9 * 60 + 20);
+    await page.touchscreen.tap(spot.x, spot.y);
+    await until(() => deep(), "tap an activity, then a time");
+    assert.deepEqual([deep().t, deep().dur, deep().c], ["09:15", 120, 1]);
+    assert.equal(await page.locator("#plan-placing").isVisible(), false, "one placement at a time");
+    assert.equal(await page.locator("#plan-form").isHidden(), true);
+    // Letting go of it is one tap on Cancel, and nothing is added.
+    await chip.tap();
+    assert.equal(await page.locator("#plan-placing").isVisible(), true);
+    await page.locator("#plan-placing-cancel").tap();
+    assert.equal(await page.locator("#plan-placing").isVisible(), false);
+    assert.equal(await chip.getAttribute("aria-pressed"), "false");
     await harness.screenshot(page, "calendar-375.png");
     assert.deepEqual(errors, []);
     await context.close();
@@ -664,6 +698,7 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
     assert.equal(await chip("Quiet break").getAttribute("aria-pressed"), "true");
     await page.keyboard.press("Escape");
     assert.equal(await page.locator("#today-placing").isVisible(), false, "Escape lets go of it");
+    assert.equal(await chip("Quiet break").getAttribute("aria-pressed"), "false");
     await chip("Quiet break").click();
     const free = await slot(page, today, 14 * 60 + 20, T);
     await page.mouse.click(free.x, free.y);

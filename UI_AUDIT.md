@@ -191,7 +191,7 @@ problems. I substituted the nearest honest equivalents:
     Undo. A run of arrow-key presses is scaled from where it began so rounding does not add up. In
     the Duration field of the Add and Edit forms the points follow too, until they are typed over.
     An entry with no recorded length is scaled from the half hour it is drawn at. Plan's blocks
-    behave the same way; Plan still hides its list of activities on a phone.
+    behave the same way, and on a phone Plan has the same tap-an-activity-then-a-time placement.
   - **Not done:** carrying the planned time onto the log for plan-vs-actual (H7).
   - Test: `test/browser-planner.cjs` (stays on Today, Undo, correcting from the logged
     activity, Plan's form path, and a past day keeping `21:30`). It fails with the old flow at

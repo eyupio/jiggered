@@ -408,7 +408,7 @@ export function init(ctx) {
   });
   // ---- the timeline: what each gesture on the calendar means for the plan ----
   const narrow = matchMedia("(max-width: 700px)"); // a phone shows one day at a time
-  narrow.addEventListener("change", () => render());
+  narrow.addEventListener("change", () => (placing === null ? render() : setPlacing(null)));
   const dayLabel = (d) =>
     d === ctx.today()
       ? "Today"
@@ -430,6 +430,7 @@ export function init(ctx) {
       openForm(row);
     },
     onCreate({ date: d, start }) {
+      if (placing !== null) return place(placing, d, start);
       date = d;
       closeForm();
       render();
@@ -515,10 +516,37 @@ export function init(ctx) {
       fn: () => dispatch(ctx, at.date, "removeEntry", entry),
     });
   }
-  // Saved activities can be dragged onto the timeline with a mouse or pen; a click or tap fills the form instead.
+  // Saved activities can be dragged onto the timeline with a mouse or pen. A click fills the form; on a phone, where a
+  // finger scrolls rather than drags, a tap picks the activity and the next tap on the timeline places it.
+  let placing = null; // the index of the picked activity in the person's list
   const palette = $("plan-palette");
-  const presetOf = (e) =>
-    ctx.settings().activities[Number(e.target.closest("[data-preset]")?.dataset.preset)];
+  const indexOf = (target) => {
+    const i = target.closest("[data-preset]")?.dataset.preset;
+    return i === undefined ? null : Number(i);
+  };
+  const presetOf = (e) => ctx.settings().activities[indexOf(e.target)];
+  function setPlacing(i) {
+    placing = i;
+    $("plan-placing").hidden = i === null;
+    $("plan-board").toggleAttribute("data-placing", i !== null);
+    $("plan-placing-text").textContent =
+      i === null ? "" : `Choose a time on the timeline for ${ctx.settings().activities[i]?.a}.`;
+    render();
+  }
+  function place(i, day, start) {
+    const preset = ctx.settings().activities[i];
+    setPlacing(null);
+    if (preset)
+      addPreset(preset, {
+        date: day,
+        start,
+        dur: Math.min(suggestDuration(preset.a) ?? NEW_DUR, DAY - start),
+      });
+  }
+  $("plan-placing-cancel").addEventListener("click", () => setPlacing(null));
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && placing !== null && !root.hidden) setPlacing(null);
+  });
   palette.addEventListener("pointerdown", (e) => {
     const preset = e.pointerType === "touch" || e.button > 0 ? null : presetOf(e);
     if (preset) grid.beginExternalDrag(e, { preset, dur: suggestDuration(preset.a) ?? NEW_DUR });
@@ -526,6 +554,13 @@ export function init(ctx) {
   palette.addEventListener("click", (e) => {
     const preset = presetOf(e);
     if (!preset || grid.justDropped() || !writable(ctx)) return;
+    if (narrow.matches) {
+      const i = indexOf(e.target);
+      closeForm();
+      setPlacing(placing === i ? null : i);
+      if (placing !== null) $("plan-board").scrollIntoView({ block: "nearest" });
+      return;
+    }
     closeForm();
     openForm();
     $("plan-name").value = preset.a;
@@ -612,10 +647,13 @@ export function init(ctx) {
       }),
     });
     const acts = ctx.settings().activities;
+    $("plan-board-help").textContent = narrow.matches
+      ? "Tap an activity, then a time to add it. Use the handle on a block to move it, and drag its bottom edge to change how long it takes: the points follow."
+      : "Drag an activity to move it, or drag its edge to change how long it takes: the points follow. Click an empty space to add one.";
     setStable(
       $("plan-palette"),
       acts.length
-        ? html`<h3 class="label">Drag onto the timeline</h3>${acts.map((e, i) => html`<button type="button" class="cal-chip cal-preset${e.c < 0 ? " is-recovery" : ""}" data-preset="${i}">${e.a}<span>${signed(e.c)}</span></button>`)}`
+        ? html`<h3 class="label">${narrow.matches ? "Tap one, then a time" : "Drag onto the timeline"}</h3>${acts.map((e, i) => html`<button type="button" class="cal-chip cal-preset${e.c < 0 ? " is-recovery" : ""}" data-preset="${i}"${narrow.matches ? html` aria-pressed="${placing === i ? "true" : "false"}"` : ""}>${e.a}<span>${signed(e.c)}</span></button>`)}`
         : html``,
     );
     root

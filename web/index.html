@@ -572,12 +572,13 @@
           <div class="plan-heading">
             <div>
               <h2>Your days on a timeline</h2>
-              <p class="meta">
-                Drag an activity to move it, or drag its edge to change how long it takes. Click an
-                empty space to add one.
-              </p>
+              <p class="meta" id="plan-board-help"></p>
             </div>
           </div>
+          <p class="placing" id="plan-placing" role="status" hidden>
+            <span id="plan-placing-text"></span>
+            <button type="button" class="x" id="plan-placing-cancel">Cancel</button>
+          </p>
           <div class="plan-board-layout">
             <div id="plan-palette" class="cal-palette" aria-label="Your saved activities"></div>
             <div id="plan-board" class="cal"></div>
