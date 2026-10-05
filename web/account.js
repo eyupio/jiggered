@@ -27,6 +27,14 @@ import { initProfile, profileIdentity } from "./profile.js";
 function say(el, text, bad = false) {
   el.textContent = text;
   el.classList.toggle("err", bad);
+  if (!text || !el.isConnected || !matchMedia("(max-width: 700px)").matches) return;
+  // On a phone the message can sit below the screen or under the fixed tab bar: bring it into view.
+  const r = el.getBoundingClientRect();
+  if (r.bottom > innerHeight - 90 || r.top < 0)
+    el.scrollIntoView({
+      block: "center",
+      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
 }
 
 // identity says who you are and, for an admin, what that allows. It is re-run when the role changes.

@@ -641,6 +641,7 @@
   padding-top: 0;
 }
 .faq-list summary {
+  min-height: 44px;
   cursor: pointer;
   font-weight: 700;
   list-style: none;
@@ -715,7 +716,7 @@
   grid-column: 1/-1;
   padding-top: 20px;
   border-top: 1px solid var(--line);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .auth-page .site-header {
@@ -734,11 +735,15 @@
   top: 50px;
   padding-top: 25px;
 }
-.auth-story h1 {
+.auth-story .auth-story-title {
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 1.06;
   font-size: clamp(44px, 5vw, 65px);
   margin: 23px 0;
 }
-.auth-story > p:not(.eyebrow) {
+.auth-story > p:not(.eyebrow):not(.auth-story-title) {
   font-size: 18px;
   line-height: 1.7;
   max-width: 370px;
@@ -1203,17 +1208,9 @@
     gap: 30px;
     padding-block: 28px;
   }
+  /* The form is why someone is here: on a phone it comes first, without a second pitch above it. */
   .auth-story {
-    position: static;
-    padding: 0;
-  }
-  .auth-story h1 {
-    font-size: 39px;
-    margin: 15px 0;
-  }
-  .auth-story > p:not(.eyebrow) {
-    font-size: 16px;
-    max-width: none;
+    display: none;
   }
   .auth-art {
     display: none;

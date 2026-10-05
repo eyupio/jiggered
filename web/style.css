@@ -529,6 +529,13 @@ legend {
   font-size: 0.9rem;
   cursor: pointer;
 }
+@media (max-width: 700px) {
+  .chip span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px; /* a touch-sized target on a phone */
+  }
+}
 .chip input:checked + span {
   background: var(--accent-soft);
   border-color: var(--accent);

@@ -75,20 +75,20 @@ export function mount(ctx, root) {
       </div>
       <div class="fb-stage">
         <div class="fb-board">
-          <div class="fb-axis fb-axis-x" aria-hidden="true">
-            <span class="fb-arrow">◀</span>
+          <div class="fb-axis fb-axis-x">
+            <span class="fb-arrow" aria-hidden="true">◀</span>
             <button type="button" class="fb-axis-label" data-axis="left"></button>
-            <span class="fb-axis-rule"></span>
+            <span class="fb-axis-rule" aria-hidden="true"></span>
             <button type="button" class="fb-axis-label" data-axis="right"></button>
-            <span class="fb-arrow">▶</span>
+            <span class="fb-arrow" aria-hidden="true">▶</span>
           </div>
           <div class="fb-row">
-            <div class="fb-axis fb-axis-y" aria-hidden="true">
-              <span class="fb-arrow">▲</span>
+            <div class="fb-axis fb-axis-y">
+              <span class="fb-arrow" aria-hidden="true">▲</span>
               <button type="button" class="fb-axis-label" data-axis="top"></button>
-              <span class="fb-axis-rule"></span>
+              <span class="fb-axis-rule" aria-hidden="true"></span>
               <button type="button" class="fb-axis-label" data-axis="bottom"></button>
-              <span class="fb-arrow">▼</span>
+              <span class="fb-arrow" aria-hidden="true">▼</span>
             </div>
             <div
               class="fb-canvas"
@@ -493,6 +493,7 @@ export function mount(ctx, root) {
       if (b.querySelector("input")) continue;
       b.textContent = board.axes[side];
       b.title = "Click to rename";
+      b.setAttribute("aria-label", `Rename the ${side} label: ${board.axes[side]}`);
     }
   }
   function renderLegend() {

@@ -315,8 +315,7 @@ export function init(ctx) {
     restore(null);
   });
   $("ep-discard").addEventListener("click", () => {
-    if (dirty && !confirm("Discard this unfinished draft? Queued changes are kept in recovery."))
-      return;
+    if (dirty && !confirm("Delete this draft? It has not been saved to your account yet.")) return;
     drafts?.remove(slot());
     restore(null);
   });

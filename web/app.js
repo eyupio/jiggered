@@ -135,7 +135,7 @@ function fatal(text) {
     $("banner").hidden = false;
     $("banner").classList.add("welcome");
     $("banner").textContent =
-      "Welcome to Jiggered. Choose a new password to continue (the one you were given was only temporary), then you'll do a ten-second morning check-in.";
+      "Welcome to Jiggered. Choose a new password to continue (the one you were given was temporary). Then one tap checks you in.";
     $("account-panel").hidden = false;
     accountView.init({
       me,
@@ -143,6 +143,12 @@ function fatal(text) {
       store: null,
       today: () => dkey(new Date()),
     });
+    // The account view adds its own panels (such as Sign-in security) while starting; none of them can work yet.
+    document.querySelectorAll("#account-panel > .panel:not(#pw-panel)").forEach((p) => {
+      p.hidden = true;
+    });
+    $("pw-cur-label").textContent = "Temporary password (the one you were given)";
+    $("pw-hint").textContent = "At least 8 characters.";
     $("pw-cur").focus();
     return;
   }

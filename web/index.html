@@ -448,6 +448,11 @@
         <div class="warn">
           <b data-emergency-call>Call your local emergency number</b> if symptoms come on suddenly,
           or with weakness, face drooping, speech problems or severe headache. Don't log first.
+          <span data-region-hint hidden
+            >Set your country in
+            <button type="button" class="help-link x" data-settings="profile-panel">Account</button>
+            so this shows your number.</span
+          >
         </div>
         <details class="panel" id="episode-drafts" hidden>
           <summary>Unfinished episode drafts on this device</summary>
@@ -1052,11 +1057,8 @@
           <h2>Change password</h2>
           <form id="pwform">
             <label class="field"
-              >Current password<input
-                type="password"
-                id="pw-cur"
-                autocomplete="current-password"
-                required
+              ><span id="pw-cur-label">Current password</span
+              ><input type="password" id="pw-cur" autocomplete="current-password" required
             /></label>
             <label class="field"
               >New password<input
@@ -1076,7 +1078,9 @@
                 maxlength="72"
                 required
             /></label>
-            <p class="hint">At least 8 characters. Changing it signs out your other devices.</p>
+            <p class="hint" id="pw-hint">
+              At least 8 characters. Changing it signs out your other devices.
+            </p>
             <button class="primary" type="submit">Change password</button>
             <p class="msg" id="pw-msg" aria-live="polite"></p>
           </form>
