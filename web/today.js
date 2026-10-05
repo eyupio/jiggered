@@ -477,9 +477,9 @@ export function init(ctx) {
     const preset = activity(placing);
     setPlacing(null);
     if (!preset) return;
-    const nowAt = new Date();
-    const start = Math.min(nowAt.getHours() * 60 + nowAt.getMinutes(), DAY - NEW_DUR);
-    logAt(preset, start, lengthOf(preset, start));
+    // "Log it now" means "I just did this": the same record a tap on the activity makes, not a block that runs on
+    // into the future.
+    logOne(preset);
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && placing !== null && !$("today-panel").hidden) setPlacing(null);

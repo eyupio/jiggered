@@ -376,7 +376,10 @@ export function init(ctx) {
     $("plan-repeat").value = Math.min(Number(draft.repeat) || 1, Number($("plan-repeat").max));
     $("plan-form-error").textContent = "Unfinished planning draft restored.";
   }
-  form.addEventListener("input", rememberDraft);
+  form.addEventListener("input", () => {
+    rememberDraft();
+    $("plan-form-error").textContent = ""; // a message about what was wrong should not outlive the fix
+  });
   form.addEventListener("change", rememberDraft);
   $("plan-presets").addEventListener("change", (e) => {
     if (e.target.value === "") return;

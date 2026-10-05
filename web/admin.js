@@ -445,6 +445,9 @@ function wire(ctx) {
       `Sign in at ${location.origin}/login\nUsername: ${who}\nTemporary password: ${pw}\nChoose your own password at first sign-in.`;
     $("reveal").hidden = false;
     $("reveal-copy").textContent = "Copy sign-in instructions";
+    // The password is shown once: make sure it is on screen, with the Copy button ready.
+    $("reveal").scrollIntoView({ block: "center" });
+    $("reveal-copy").focus({ preventScroll: true });
   }
   $("reveal-hide").addEventListener("click", () => {
     $("reveal").hidden = true;
@@ -542,8 +545,21 @@ function wire(ctx) {
         }
       }
       const failed = r && !r.ok ? r.error : "";
-      await loadUsers(); // the refresh writes its own status line, so say the error after it
+      const outcomes = {
+        disable: "was disabled.",
+        enable: "was enabled.",
+        promote: "is now an admin.",
+        demote: "is now an ordinary user.",
+      };
+      const done =
+        r?.ok && outcomes[b.dataset.act]
+          ? `${name} ${outcomes[b.dataset.act]}`
+          : !failed && msg.textContent && !msg.classList.contains("err")
+            ? msg.textContent
+            : "";
+      await loadUsers(); // the refresh writes its own status line, so say what happened after it
       if (failed) say(msg, failed, true);
+      else if (done) say(msg, done);
       loadAudit(true);
     });
   });

@@ -55,6 +55,9 @@ export function init(ctx) {
     launcher.hidden = true;
     stage.hidden = false;
     mounted[id].view.show();
+    // A screen reader should land on the tool, not stay on the menu that opened it.
+    $("tool-title").tabIndex = -1;
+    $("tool-title").focus({ preventScroll: true });
     ctx.measure("tool_opened");
   }
   function close() {

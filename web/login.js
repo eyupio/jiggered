@@ -225,6 +225,11 @@ function initAuth() {
         if (which === "verify" || which === "reset") {
           button.hidden = true;
           form.querySelectorAll("label,.password-toggle").forEach((el) => (el.hidden = true));
+          // The instructions that led here are done: say what happened, and offer the one next step.
+          const heading = form.querySelector("h1");
+          if (heading)
+            heading.textContent = which === "verify" ? "Email verified" : "Password changed";
+          form.querySelectorAll(".meta, [data-signin]").forEach((el) => (el.hidden = true));
           const next = document.createElement("button");
           next.type = "button";
           next.className = "primary";

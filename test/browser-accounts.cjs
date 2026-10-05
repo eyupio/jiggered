@@ -308,7 +308,11 @@ runBrowser(
     );
     await join.locator("#verify-form [type=submit]").click();
     await join.locator("#verify-msg").filter({ hasText: "Email verified" }).waitFor();
-    await join.locator("#verify-form [data-signin]").click();
+    assert.equal(await join.locator("#verify-form h1").textContent(), "Email verified");
+    await join.locator("#verify-form").getByRole("button", { name: "Sign in" }).click();
+    // The new member's username is already filled in and the cursor is in the password box.
+    await join.waitForFunction(() => document.querySelector("#username")?.value === "newmember");
+    assert.equal(await join.evaluate(() => document.activeElement?.id), "password");
     await join.locator("#username").fill("newmember");
     await join.locator("#password").fill("member-password1");
     await join.locator("#signin-form [type=submit]").click();
@@ -325,7 +329,8 @@ runBrowser(
     await join.locator("#reset-confirm").fill("replacement-password1");
     await join.locator("#reset-form [type=submit]").click();
     await join.locator("#reset-msg").filter({ hasText: "Password changed" }).waitFor();
-    await join.locator("#reset-form [data-signin]").click();
+    assert.equal(await join.locator("#reset-form h1").textContent(), "Password changed");
+    await join.locator("#reset-form").getByRole("button", { name: "Sign in" }).click();
     await join.locator("#username").fill("newmember");
     await join.locator("#password").fill("replacement-password1");
     await join.locator("#signin-form [type=submit]").click();

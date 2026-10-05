@@ -508,18 +508,24 @@ export function mount(ctx, root) {
         ? `From ${fmtDay(board.threeDate, ctx.settings().locale)}`
         : "Today"
       : "";
+    // The list is rebuilt on every change: keep keyboard focus on the box that was just used.
+    const focusedId = document.activeElement?.dataset?.threeDone;
     setHTML(
       $("fb-three"),
       html`${board.three.map((t, i) => {
         const linked = t.card && item(t.card);
         return html`<li class="fb-three-item ${t.done ? "is-done" : ""} ${i >= 3 ? "is-extra" : ""}">
-          <label class="fb-three-check"><input type="checkbox" data-three-done="${t.id}" ${t.done ? "checked" : ""} /><span class="sr-only">Done: ${t.t}</span></label>
+          <label class="fb-three-check"><input type="checkbox" data-three-done="${t.id}" ${t.done ? "checked" : ""} /><span class="sr-only">${t.done ? "Done" : "Mark done"}: ${t.t}</span></label>
           <button type="button" class="fb-three-text" data-three-edit="${t.id}" title="Click to edit">${t.t || "…"}</button>
           ${linked ? html`<button type="button" class="fb-chip" data-three-card="${t.card}" title="Show on the board">on board</button>` : ""}
           <button type="button" class="fb-three-remove" data-three-remove="${t.id}" aria-label="Remove ${t.t}">×</button>
         </li>`;
       })}`,
     );
+    if (focusedId)
+      $("fb-three")
+        .querySelector(`[data-three-done="${CSS.escape(focusedId)}"]`)
+        ?.focus();
     const note = $("fb-three-note");
     const left = board.three.filter((t) => !t.done).length;
     note.hidden = true;

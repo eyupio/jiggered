@@ -2388,3 +2388,12 @@
   justify-content: flex-end;
   gap: 10px;
 }
+
+/* An admin has six tabs: on the narrowest phones the labels get a little less room around them and a smaller size. */
+@media (max-width: 340px) {
+  .app-shell #tabs button {
+    padding-inline: 0;
+    font-size: 10.5px;
+    letter-spacing: 0;
+  }
+}

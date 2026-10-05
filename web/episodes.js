@@ -294,6 +294,7 @@ export function init(ctx) {
     if (result !== "saved") return;
     drafts?.remove(slot());
     dirty = false;
+    const record = submitted ? ctx.store.view(submitted.id) : null;
     submitted = ticket = null;
     if (editing) {
       $("ep-save").disabled = false;
@@ -303,6 +304,11 @@ export function init(ctx) {
       chipsKey = "";
       fill({});
       $("ep-save").disabled = false;
+      // Say what was recorded, and bring the person back to where the message and the new "Still going" panel are.
+      if (record)
+        $("eptoast").textContent =
+          `Saved. ${fmtWhen(record.when, ctx.settings().locale)} · ${(record.symptoms || []).join(", ") || "no symptoms ticked"}.`;
+      window.scrollTo({ top: 0 });
     }
   }
   for (const name of ["sym", "trig"]) {

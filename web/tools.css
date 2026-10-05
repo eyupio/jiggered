@@ -94,7 +94,7 @@
 .fb {
   display: grid;
   gap: 12px;
-  --fb-todo: var(--red);
+  --fb-todo: color-mix(in srgb, var(--fg) 50%, var(--surface)); /* a new card is not an alarm */
   --fb-doing: var(--amber);
   --fb-done: var(--green);
   --fb-external: var(--muted);
@@ -444,14 +444,14 @@
   text-decoration-color: color-mix(in srgb, var(--fb-done) 60%, transparent);
 }
 .fb-card.fb-s-external {
-  --fb-tone: var(--red);
+  --fb-tone: var(--fb-external);
   background: var(--surface);
-  border: 2px dashed var(--red);
+  border: 2px dashed var(--fb-external);
   border-left-width: 2px;
 }
 .fb-card.fb-s-external .fb-dot {
   background: transparent;
-  border: 2px solid var(--red);
+  border: 2px solid var(--fb-external);
   width: 8px;
   height: 8px;
 }
@@ -764,5 +764,13 @@
   .fb-three-form,
   .fb-menu {
     display: none;
+  }
+}
+
+/* In forced-colours mode the status dot must keep its own colour so cards stay distinguishable. */
+@media (forced-colors: active) {
+  .fb-dot,
+  .fb-swatch {
+    forced-color-adjust: none;
   }
 }
