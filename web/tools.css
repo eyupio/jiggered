@@ -298,22 +298,20 @@
 }
 .fb-line {
   position: absolute;
-  background: color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--line) 75%, transparent);
   pointer-events: none;
 }
 .fb-line-v {
   left: 50%;
   top: 0;
   bottom: 0;
-  width: 2px;
-  transform: translateX(-1px);
+  width: 1px;
 }
 .fb-line-h {
   top: 50%;
   left: 0;
   right: 0;
-  height: 2px;
-  transform: translateY(-1px);
+  height: 1px;
 }
 .fb-quad {
   position: absolute;
