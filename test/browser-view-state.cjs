@@ -246,7 +246,11 @@ runBrowser({ name: "view-state", startServer: false }, async (harness) => {
     }
     for (const range of ["7", "30", "90", "180", "365"]) {
       await page.locator("#history-range").selectOption(range);
-      assert.equal(await page.locator("[data-matrix-grid] button").count(), Number(range));
+      assert.equal(
+        await page.locator("[data-matrix-grid] button").count(),
+        Math.min(Number(range), 35),
+        "a phone shows five weeks of the chosen range at a time",
+      );
       assert.equal(
         await page.locator("[data-matrix-grid]").evaluate((el) => el.children.length % 7),
         0,

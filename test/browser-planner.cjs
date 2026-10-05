@@ -237,6 +237,13 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     // A known heavy day exposes a shortfall and offers personal recovery choices.
     await page.locator("#t-plan").click();
     await page.locator("[data-plan-day]").nth(1).click();
+    // The kind of day takes the same amounts off the budget as a check-in: amber 3 off ten, then poor sleep 3 more.
+    await page.locator('#plan-daytype [data-daytype="amber"]').click();
+    await page.waitForFunction(() => document.querySelector("#plan-allowance").value === "7");
+    await page.locator("#plan-poorsleep").check();
+    await page.waitForFunction(() => document.querySelector("#plan-allowance").value === "4");
+    await page.locator('#plan-daytype [data-daytype="green"]').click();
+    await page.waitForFunction(() => document.querySelector("#plan-allowance").value === "7");
     await page.locator("#plan-allowance").fill("4");
     await page.locator("#plan-allowance").dispatchEvent("change");
     await page.locator("[data-plan-recovery]").first().waitFor();

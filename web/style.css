@@ -3050,6 +3050,32 @@ input[type="search"] {
   color: var(--muted);
   text-decoration: line-through;
 }
+#step-wording .tick {
+  visibility: hidden; /* a choice, not a step to finish */
+}
+.step-wording-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+.step-wording {
+  display: inline-flex;
+  gap: 8px;
+}
+.app-shell .step-wording button[aria-pressed="true"],
+.app-shell .plan-daytype button[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+.plan-daytype {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 12px;
+}
 .step-budget {
   display: flex;
   flex-wrap: wrap;

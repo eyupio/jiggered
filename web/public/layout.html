@@ -101,7 +101,10 @@
       </nav>
       <article class="public-article">{{.Content}}</article>
       <aside class="public-next" aria-label="Account availability">
-        <h2>Make a little space for today.</h2>
+        <h2>
+          {{if .Registration}}Make a little space for today.{{else}}This Jiggered is
+          invite-only.{{end}}
+        </h2>
         <p>{{.Availability}}</p>
         <a class="p-button" href="{{.CTA}}">{{.CTALabel}}</a>
       </aside>

@@ -51,6 +51,7 @@
               ><span class="who" id="who"></span>
             </summary>
             <div class="menu-pop">
+              <button class="menu-item" type="button" data-menu-go="tools">Fretboard</button>
               <button class="menu-item" type="button" data-menu-go="account">
                 Account and settings
               </button>
@@ -144,6 +145,7 @@
         <button
           role="tab"
           id="t-tools"
+          hidden
           aria-controls="tools-panel"
           tabindex="-1"
           aria-selected="false"
@@ -204,6 +206,19 @@
               ><button type="button" class="secondary small" id="onboarding-keep">
                 Use this allowance
               </button>
+            </li>
+            <li id="step-wording">
+              <span class="tick" aria-hidden="true"></span
+              ><span class="step-wording-line"
+                ><span>Optional: count your energy in</span>
+                <span class="step-wording" role="group" aria-label="Count your energy in"
+                  ><button type="button" class="secondary small" data-wording="points">
+                    Points</button
+                  ><button type="button" class="secondary small" data-wording="spoons">
+                    Spoons
+                  </button></span
+                ></span
+              >
             </li>
           </ol>
         </div>
@@ -615,6 +630,20 @@
               aria-describedby="plan-allowance-hint"
           /></label>
           <p class="hint" id="plan-allowance-hint"></p>
+          <div class="plan-daytype" id="plan-daytype" role="group" aria-label="Kind of day">
+            <button type="button" class="secondary small" data-daytype="green">Green</button>
+            <button type="button" class="secondary small" data-daytype="amber" id="plan-day-amber">
+              Amber
+            </button>
+            <button type="button" class="secondary small" data-daytype="red" id="plan-day-red">
+              Red
+            </button>
+            <label class="toggle"
+              ><input type="checkbox" id="plan-poorsleep" /><span id="plan-poorsleep-text"
+                >Poor sleep</span
+              ></label
+            >
+          </div>
           <div id="plan-forecast" aria-live="polite" aria-atomic="true"></div>
           <div id="plan-list"></div>
           <div id="plan-recovery-options"></div>

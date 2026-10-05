@@ -391,6 +391,15 @@ export function init(ctx) {
     closeForm();
     render();
   });
+  const planFields = (plan) =>
+    plan.date
+      ? {
+          date: plan.date,
+          allowance: plan.allowance,
+          status: plan.status,
+          poorSleep: plan.poorSleep,
+        }
+      : undefined;
   $("plan-allowance").addEventListener("change", (e) => {
     const n = Number(e.target.value),
       f = model();
@@ -398,14 +407,29 @@ export function init(ctx) {
       render();
       return;
     }
-    dispatch(
-      ctx,
-      date,
-      "patch",
-      { date, allowance: n },
-      f.plan.date ? { date: f.plan.date, allowance: f.plan.allowance } : undefined,
-    );
+    // A number typed by hand replaces the kind-of-day choice that produced the old one.
+    const typed = f.plan.status || f.plan.poorSleep ? { status: null, poorSleep: false } : {};
+    dispatch(ctx, date, "patch", { date, allowance: n, ...typed }, planFields(f.plan));
   });
+  // Green, amber, red and poor sleep take the same amounts off the budget as a check-in does, so a planned
+  // day starts from what that kind of day will really have.
+  function setDayType(status, poorSleep) {
+    const f = model();
+    if (f.logged || !writable(ctx)) return;
+    const S = ctx.settings(),
+      took =
+        (status === "amber" ? S.amberPenalty : status === "red" ? S.redPenalty : 0) +
+        (poorSleep ? S.sleepPenalty : 0),
+      allowance = Math.min(30, Math.max(1, S.budget - took));
+    dispatch(ctx, date, "patch", { date, allowance, status, poorSleep }, planFields(f.plan));
+  }
+  $("plan-daytype").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-daytype]");
+    if (b) setDayType(b.dataset.daytype, model().plan.poorSleep === true);
+  });
+  $("plan-poorsleep").addEventListener("change", (e) =>
+    setDayType(model().plan.status || "green", e.target.checked),
+  );
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     const a = $("plan-name").value.trim(),
@@ -757,7 +781,21 @@ export function init(ctx) {
     $("plan-allowance").disabled = f.logged || !writable(ctx);
     $("plan-allowance-hint").textContent = f.logged
       ? "Uses this day’s logged allowance. Adjust check-in and sleep in Today."
-      : "Your estimate for this day, including expected sleep or check-in effects. Each day starts fresh.";
+      : `Starts at your full ${ctx.settings().budget}. Pick the kind of day you expect to take off your Amber, Red or poor-sleep amount, or type your own number.`;
+    {
+      const S = ctx.settings(),
+        shown = f.plan.status || (Number.isInteger(f.plan.allowance) ? "" : "green");
+      $("plan-daytype").hidden = f.logged;
+      for (const b of $("plan-daytype").querySelectorAll("[data-daytype]")) {
+        b.setAttribute("aria-pressed", String(b.dataset.daytype === shown));
+        b.disabled = !writable(ctx);
+      }
+      $("plan-day-amber").textContent = `Amber −${S.amberPenalty}`;
+      $("plan-day-red").textContent = `Red −${S.redPenalty}`;
+      $("plan-poorsleep").checked = f.plan.poorSleep === true;
+      $("plan-poorsleep").disabled = !writable(ctx);
+      $("plan-poorsleep-text").textContent = `Poor sleep −${S.sleepPenalty}`;
+    }
     // Totals only mean something once there is a plan or a log; an empty day would show a wall of zeros.
     setStable(
       $("plan-forecast"),

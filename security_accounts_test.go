@@ -80,7 +80,8 @@ func TestAuthOptionsReportAvailability(t *testing.T) {
 }
 
 // A duplicate of a *pending* registration is re-queued by design (the newer link replaces the older one), but a
-// duplicate of an existing account or verified address must answer exactly like an unknown one and send no mail.
+// duplicate of a verified address must answer exactly like an unknown one and send no mail. A taken username is
+// reported (409), since the person chose it and mail for it could never come.
 func TestDuplicateRegistrationsSendNoMailAndLookTheSame(t *testing.T) {
 	e := newTestServer(t)
 	admin := e.signedInAdmin()
@@ -109,16 +110,14 @@ func TestDuplicateRegistrationsSendNoMailAndLookTheSame(t *testing.T) {
 		t.Fatal(st)
 	}
 	e.s.serviceJobs.Wait()
+	// A taken username is reported, so nobody waits for mail that cannot come; a taken address still looks like an unknown one.
 	r2, b2 := c.req("POST", "/api/auth/register", map[string]string{"username": "newperson", "email": "other@example.com", "password": "newpassword1"})
+	if r2.StatusCode != 409 || !strings.Contains(string(b2), "username is taken") {
+		t.Fatalf("taken username: %d %s", r2.StatusCode, b2)
+	}
 	r3, b3 := c.req("POST", "/api/auth/register", map[string]string{"username": "someoneelse", "email": "person@example.com", "password": "newpassword1"})
-	for _, got := range []struct {
-		r  int
-		b  []byte
-		id string
-	}{{r2.StatusCode, b2, "username"}, {r3.StatusCode, b3, "address"}} {
-		if got.r != 200 || string(got.b) != string(b1) {
-			t.Fatalf("duplicate %s: %d %s (first answer was %s)", got.id, got.r, got.b, b1)
-		}
+	if r3.StatusCode != 200 || string(b3) != string(b1) {
+		t.Fatalf("duplicate address: %d %s (first answer was %s)", r3.StatusCode, b3, b1)
 	}
 	e.s.serviceJobs.Wait()
 	select {

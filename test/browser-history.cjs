@@ -97,8 +97,8 @@ runBrowser({ name: "history", portEnv: "JIGGERED_HISTORY_PORT" }, async (harness
       await page.locator("[data-matrix-mode]").selectOption(mode);
       assert.equal(
         await page.locator("[data-matrix-grid] button").count(),
-        range,
-        "the whole chosen range is visible on mobile",
+        Math.min(range, 35),
+        "a phone shows five weeks of the chosen range at a time, so every day stays tappable",
       );
       const sizes = await page.locator(".matrix-calendar").evaluate((el) => ({
         width: el.getBoundingClientRect().width,

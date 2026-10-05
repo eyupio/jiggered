@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // Secrets use a separate volume key: a database snapshot never contains the key that opens them.
@@ -58,6 +59,9 @@ type accountSettings struct {
 	Registration bool   `json:"registration"`
 	Recovery     bool   `json:"recovery"`
 	PublicURL    string `json:"public_url"`
+	// Who runs this server, shown on the public pages so a visitor knows whose server holds their log. Both are optional.
+	OperatorName    string `json:"operator_name"`
+	OperatorContact string `json:"operator_contact"`
 }
 type rehearsalSettings struct {
 	Date    string `json:"date"`
@@ -231,6 +235,14 @@ func validateServices(cfg serviceSettings) error {
 		u, err := url.Parse(cfg.Accounts.PublicURL)
 		if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") || (u.Scheme != "https" && !(u.Scheme == "http" && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1"))) {
 			return errors.New("Public URL must be an HTTPS origin, such as https://jiggered.example.com. Localhost HTTP is allowed for testing.")
+		}
+	}
+	for _, f := range []struct {
+		label, value string
+		max          int
+	}{{"Operator name", cfg.Accounts.OperatorName, 80}, {"Operator contact", cfg.Accounts.OperatorContact, 160}} {
+		if len([]rune(f.value)) > f.max || strings.ContainsFunc(f.value, unicode.IsControl) {
+			return fmt.Errorf("%s must be plain text of up to %d characters.", f.label, f.max)
 		}
 	}
 	if (cfg.Accounts.Registration || cfg.Accounts.Recovery) && (!e.Enabled || cfg.Accounts.PublicURL == "") {

@@ -438,7 +438,7 @@ function fatal(text) {
   });
 
   $("tabs").addEventListener("keydown", (e) => {
-    const buttons = [...$("tabs").querySelectorAll("button")],
+    const buttons = [...$("tabs").querySelectorAll("button:not([hidden])")],
       i = buttons.indexOf(e.target);
     if (i < 0 || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
     e.preventDefault();

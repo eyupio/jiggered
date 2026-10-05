@@ -66,6 +66,7 @@ type publicData struct {
 	URL, Origin, Image, Robots          string
 	Index, Registration                 bool
 	CTA, CTALabel, Availability, Status string
+	OperatorName, OperatorContact       string
 	Pages                               []publicPage
 	Content                             template.HTML // exclusively rendered from trusted embedded templates below
 }
@@ -104,13 +105,21 @@ func (p *publicSite) data(r *http.Request, page publicPage) publicData {
 	}
 	settings, err := p.s.loadServices(r.Context(), false)
 	if err == nil {
+		d.OperatorName = strings.TrimSpace(settings.Accounts.OperatorName)
+		d.OperatorContact = strings.TrimSpace(settings.Accounts.OperatorContact)
 		d.Registration = settings.Accounts.Registration && settings.Email.Enabled
 		if d.Registration {
 			d.Status, d.CTA, d.CTALabel = "OPEN FOR REGISTRATION", "/register", "Create your free account"
 			d.Availability = "Email verification is required."
+			if page.Path == "/guides/spoon-theory" {
+				d.CTA = "/register?w=spoons" // someone who read about spoons should start counting in them
+			}
 		} else {
 			d.Status = "REGISTRATION CLOSED"
 			d.Availability = "Registration is currently closed. Existing members can sign in."
+			if d.OperatorContact != "" {
+				d.Availability += " Ask " + d.OperatorContact + " for an account, or run your own copy."
+			}
 		}
 	}
 	return d

@@ -13,8 +13,10 @@
     and sign in with the temporary one, and download a full backup.
   </li>
   <li>
-    <strong>Whoever runs the server:</strong> the database and backups, in plain text. This is not
-    end-to-end encryption.
+    <strong>Whoever runs the server:</strong>
+    {{if .OperatorName}}{{.OperatorName}}{{if .OperatorContact}} ({{.OperatorContact}}){{end}}, who
+    can read{{else}}this server does not say who runs it, so ask before you rely on it. They can
+    read{{end}} the database and backups in plain text. This is not end-to-end encryption.
   </li>
   <li>
     <strong>The audit trail:</strong> usernames, sign-in times and IP addresses are kept for 180

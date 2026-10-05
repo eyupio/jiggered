@@ -102,7 +102,8 @@ export function initMatrix(root, ctx, explore) {
   let expanded = saved.expanded === true;
   let cursorDate = validDate(saved.cursorDate) ? saved.cursorDate : null;
   const compact = matchMedia("(max-width:700px)"),
-    limit = () => 366;
+    // On a phone five weeks at a time keep every day a touch-sized square; Earlier and Later page through the rest.
+    limit = () => (compact.matches ? 35 : 366);
   setHTML(
     root,
     html`<section class="panel matrix-overview" aria-labelledby="matrix-title">

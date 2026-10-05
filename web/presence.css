@@ -1236,3 +1236,37 @@
     scroll-behavior: auto !important;
   }
 }
+
+.trust-box {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 14px 18px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fffefb;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* The hero shows the real Today screen (example data), not an illustration. */
+.hero-shot {
+  margin: 0;
+  gap: 10px;
+  align-content: center;
+}
+.hero-shot img {
+  display: block;
+  width: min(100%, 340px);
+  height: auto;
+  border: 1px solid #dfe5d8;
+  border-radius: 22px;
+  background: #fffefb;
+  box-shadow: 0 18px 40px #203c3118;
+}
+.hero-shot figcaption {
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}

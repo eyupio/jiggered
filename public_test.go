@@ -216,3 +216,53 @@ func TestSitemapOriginUsesConfiguredOriginAndRejectsUntrustedForwarding(t *testi
 		t.Fatalf("invalid host accepted: %s", got)
 	}
 }
+
+// A visitor should be able to see whose server this is, and while registration is closed whom to ask.
+func TestOperatorDetailsAreShownOnPublicPages(t *testing.T) {
+	e := newTestServer(t)
+	admin := e.signedInAdmin()
+	cfg := testServices(t, e)
+	cfg.Accounts.OperatorName = "Riverside Practice"
+	cfg.Accounts.OperatorContact = "records@riverside.example"
+	saveTestServices(t, e, admin, cfg)
+	anon := e.newClient()
+	for _, path := range []string{"/welcome", "/privacy", "/pricing"} {
+		_, body := anon.req("GET", path, nil)
+		if !strings.Contains(string(body), "Riverside Practice") {
+			t.Errorf("%s does not name the operator", path)
+		}
+	}
+	_, pricing := anon.req("GET", "/pricing", nil)
+	if !strings.Contains(string(pricing), "invite-only") || !strings.Contains(string(pricing), "records@riverside.example") {
+		t.Error("the closed pricing page does not say whom to ask")
+	}
+	// Plain text only, and bounded.
+	for _, bad := range []string{strings.Repeat("x", 81), "line\nbreak"} {
+		cfg = testServices(t, e) // the saved revision moves on with every save
+		cfg.Accounts.OperatorName = bad
+		if r, _ := admin.req("PUT", "/api/admin/services", map[string]any{"password": adminPass, "settings": cfg}); r.StatusCode != 400 {
+			t.Errorf("operator name %q was accepted: %d", bad, r.StatusCode)
+		}
+	}
+}
+
+// The landing page shows a real screenshot, which a signed-out visitor must be able to fetch; nothing else
+// under web/ becomes public through that route.
+func TestScreenshotsArePublicAndOnlyScreenshots(t *testing.T) {
+	e := newTestServer(t)
+	anon := e.newClient()
+	resp, body := anon.req("GET", "/shots/today.webp", nil)
+	if resp.StatusCode != 200 || resp.Header.Get("Content-Type") != "image/webp" || len(body) < 1000 {
+		t.Fatalf("screenshot: %d %q (%d bytes)", resp.StatusCode, resp.Header.Get("Content-Type"), len(body))
+	}
+	for _, p := range []string{"/shots/%2e%2e/admin.js", "/shots/..%2fapp.js", "/shots/"} {
+		r, b := anon.req("GET", p, nil)
+		if r.StatusCode == 200 && strings.Contains(string(b), "export") {
+			t.Errorf("signed-out GET %s served private front-end code", p)
+		}
+	}
+	_, landing := anon.req("GET", "/welcome", nil)
+	if !strings.Contains(string(landing), `src="/shots/today.webp"`) {
+		t.Error("the landing page does not show the screenshot")
+	}
+}

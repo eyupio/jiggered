@@ -140,6 +140,30 @@ export function init(ctx) {
       original: raw,
     });
   }
+  // Points or spoons: the same numbers, in the words the person thinks in. Chosen here or in Account.
+  $("onboarding").addEventListener("click", (e) => {
+    const pick = e.target.closest("[data-wording]");
+    if (!pick || !writable()) return;
+    const raw = ctx.store.view("settings");
+    if (!raw) return;
+    patchSettings({
+      profile: { ...normaliseProfile(raw.profile), energyTheme: pick.dataset.wording },
+    });
+    render();
+  });
+  // Someone who came from the Spoon Theory guide starts in spoons, once, if they have not chosen yet.
+  function applyWelcomeWording() {
+    try {
+      if (localStorage.getItem("jiggered:w") !== "spoons" || !writable()) return;
+      const raw = ctx.store.view("settings");
+      if (!raw) return;
+      localStorage.removeItem("jiggered:w");
+      if (!raw.profile?.energyTheme)
+        patchSettings({ profile: { ...normaliseProfile(raw.profile), energyTheme: "spoons" } });
+    } catch {
+      /* storage can be blocked; the checklist step still works */
+    }
+  }
   $("onboarding-keep").addEventListener("click", () => {
     patchSettings({
       onboarding: { ...(ctx.store.view("settings")?.onboarding || {}), budget: true },
@@ -837,6 +861,7 @@ export function init(ctx) {
   }
 
   function render() {
+    applyWelcomeWording();
     if (!entryForm.hidden && editingDate !== key()) {
       editing = null;
       entryForm.hidden = true;
@@ -1031,6 +1056,13 @@ export function init(ctx) {
     $("step-checkin").classList.toggle("done", checked);
     $("step-activity").classList.toggle("done", logged);
     $("step-budget").classList.toggle("done", !!ob.budget);
+    for (const b of $("step-wording").querySelectorAll("[data-wording]"))
+      b.setAttribute(
+        "aria-pressed",
+        String(
+          b.dataset.wording === (raw?.profile?.energyTheme === "spoons" ? "spoons" : "points"),
+        ),
+      );
     if (document.activeElement !== $("onboarding-budget")) $("onboarding-budget").value = S.budget;
   }
 

@@ -57,74 +57,15 @@
             {{.Availability}}
           </p>
         </div>
-        <div
-          class="hero-art"
-          id="preview"
-          aria-label="Illustrative preview of an energy check-in. This is example data."
-        >
-          <div class="orbit orbit-one"></div>
-          <div class="orbit orbit-two"></div>
-          <div class="floating-note note-top">
-            <span aria-hidden="true">✦</span> Every day is a new starting point.
-          </div>
-          <article class="preview-card">
-            <div class="preview-header">
-              <span class="preview-brand"
-                ><img src="/icon.svg" width="23" height="23" alt="" /> My day</span
-              ><span class="preview-badge">Example check-in</span>
-            </div>
-            <p class="preview-date">A moment for yourself</p>
-            <h2>How are you feeling?</h2>
-            <div class="mood-options">
-              <span>Low energy</span><span class="selected">Somewhere in between</span
-              ><span>Feeling good</span>
-            </div>
-            <div class="energy-ring">
-              <div>
-                <span class="ring-caption">Energy left</span><strong>6<span>/10</span></strong
-                ><span class="ring-bottom">Room to take it gently</span>
-              </div>
-            </div>
-            <div class="preview-activity">
-              <span class="activity-icon" aria-hidden="true"
-                ><svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
-                  <path
-                    d="M6 18 18 6M6 6h12v12"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  /></svg
-              ></span>
-              <div><strong>A short walk</strong><small>A little fresh air</small></div>
-              <span class="activity-cost">−2</span>
-            </div>
-            <div class="preview-activity">
-              <span class="activity-icon restorative" aria-hidden="true">☕</span>
-              <div><strong>Time to recharge</strong><small>A quiet cup of tea</small></div>
-              <span class="activity-cost positive">+1</span>
-            </div>
-            <div class="preview-footer">
-              <span class="status-dot"></span> Small moments. A clearer picture.
-            </div>
-          </article>
-          <div class="floating-note note-bottom">
-            <span class="note-icon" aria-hidden="true"
-              ><svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
-                <path
-                  d="M6 18 18 6M6 6h12v12"
-                  stroke="currentColor"
-                  stroke-width="1.7"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                /></svg
-            ></span>
-            <div>
-              <strong>Patterns, not pressure.</strong
-              ><small>See your days in a different light.</small>
-            </div>
-          </div>
-        </div>
+        <figure class="hero-art hero-shot" id="preview">
+          <img
+            src="/shots/today.webp"
+            width="390"
+            height="850"
+            alt="The Today screen on a phone: an Amber morning check-in, and 6 of 7 points left after two activities."
+          />
+          <figcaption>Today, after a morning check-in and two activities. Example data.</figcaption>
+        </figure>
       </section>
       <div class="principles shell">
         <span>Made for real life</span><span>✦ Quick daily check-ins</span
@@ -304,6 +245,21 @@
             Admins manage accounts without viewing logs in the app. Server operators can access the
             database and backups, so use an instance you trust.
           </p>
+          <ul class="trust-box" aria-label="Who can see your log">
+            <li>
+              <strong>Who runs this server:</strong>
+              {{if .OperatorName}}{{.OperatorName}}{{if .OperatorContact}} ·
+              {{.OperatorContact}}{{end}}{{else}}not stated here. Ask before you rely on it.{{end}}
+            </li>
+            <li>
+              <strong>Who can read your log:</strong> you, and whoever has access to the server's
+              database and backups.
+            </li>
+            <li>
+              <strong>Leave any time:</strong> export your records, or delete your account, in
+              Account.
+            </li>
+          </ul>
         </div>
       </section>
       <section class="faq-section shell" aria-labelledby="faq-title">

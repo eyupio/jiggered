@@ -95,6 +95,19 @@ func (s *server) registerAccount(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, 400, err.Error())
 		return
 	}
+	// A taken username is said out loud: people choose it themselves, and a silent "check your email" for a name that
+	// can never be created sends them to an inbox for nothing. The address stays generic (below), because that is the
+	// private fact. There is deliberately no distinct "too many requests" answer, which would tell a prober that an
+	// address is new.
+	var taken int
+	if err = s.db.QueryRowContext(r.Context(), `SELECT count(*) FROM users WHERE username=?`, name).Scan(&taken); err != nil {
+		serverError(w, r, err)
+		return
+	}
+	if taken > 0 {
+		jsonError(w, 409, "That username is taken. Try another.")
+		return
+	}
 	hash, err := s.hashPassword(in.Password)
 	if err != nil {
 		jsonError(w, 503, "Busy right now. Try again shortly.")

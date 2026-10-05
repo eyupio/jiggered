@@ -42,6 +42,12 @@ function initAuth() {
   };
   const msg = msgs[Object.hasOwn(msgs, e) ? e : ""];
   if (msg) document.getElementById("err").textContent = msg;
+  // A visitor who came from the Spoon Theory guide starts in spoons. This is best effort: it survives the email
+  // round trip only when the link is opened in the same browser; the first-run checklist asks everyone else.
+  try {
+    if (new URLSearchParams(location.search).get("w") === "spoons")
+      localStorage.setItem("jiggered:w", "spoons");
+  } catch {}
   // A failed sign-in reloads the page; keep the typed username (never the password) for this tab only.
   const signin = document.getElementById("signin-form");
   signin.addEventListener("submit", () => {
@@ -160,6 +166,7 @@ function initAuth() {
       const value = await r.json().catch(() => ({}));
       message.textContent = value.message || value.error || "Request failed. Try again.";
       message.classList.toggle("err", !r.ok);
+      if (!r.ok && which === "register" && r.status === 409) $("register-name")?.focus();
       if (
         !r.ok &&
         (which === "verify" || which === "reset") &&

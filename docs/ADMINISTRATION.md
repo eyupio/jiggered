@@ -514,6 +514,10 @@ only after email verification. Existing users add a recovery address in **Accoun
 it before it becomes active. Links expire after 30 minutes, work once, and are removed by password changes,
 account disablement and restores. Reset requests give the same public response for known and unknown addresses.
 
+**Who runs this server** and **How to reach them** (Admin → Email & signup, both optional) are shown on the landing,
+pricing and privacy pages so a visitor knows whose server will hold their log. While registration is closed the
+contact is also named as who to ask for an account. They are plain text of up to 80 and 160 characters.
+
 Users can optionally enable **two-step verification** in Account: scan the locally generated QR code, confirm
 an authenticator code, and save the ten recovery codes shown once. It uses standard 30-second, six-digit TOTP;
 replayed codes are refused and each recovery code works once. No session is created until both steps succeed.

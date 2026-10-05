@@ -35,6 +35,17 @@ runBrowser({ name: "today", portEnv: "JIGGERED_TODAY_PORT" }, async (harness) =>
     "nothing is ticked before anything is logged",
   );
 
+  // The optional wording step switches the whole app between points and spoons, and back.
+  await page.locator('#onboarding [data-wording="spoons"]').click();
+  await page.waitForFunction(() => document.documentElement.dataset.energyTheme === "spoons");
+  assert.equal(
+    await page.locator('#onboarding [data-wording="spoons"]').getAttribute("aria-pressed"),
+    "true",
+  );
+  await page.locator('#onboarding [data-wording="points"]').click();
+  await page.waitForFunction(() => document.documentElement.dataset.energyTheme === "points");
+  await saved(page);
+
   // The check-in collapses to one line once chosen; changing or clearing it offers Undo.
   await page.locator('#checkin [data-s="amber"]').click();
   await saved(page);
