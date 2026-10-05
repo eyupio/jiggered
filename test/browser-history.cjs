@@ -102,7 +102,7 @@ runBrowser({ name: "history", portEnv: "JIGGERED_HISTORY_PORT" }, async (harness
       );
       const sizes = await page.locator(".matrix-calendar").evaluate((el) => ({
         width: el.getBoundingClientRect().width,
-        parent: el.parentElement.getBoundingClientRect().width,
+        parent: el.closest(".matrix-overview").getBoundingClientRect().width,
         slots: el.querySelector("[data-matrix-grid]").children.length,
       }));
       assert.ok(sizes.width <= sizes.parent + 1, "calendar stays within its panel");
@@ -110,6 +110,58 @@ runBrowser({ name: "history", portEnv: "JIGGERED_HISTORY_PORT" }, async (harness
     }
   }
   await page.setViewportSize({ width: 1100, height: 900 });
+  // On a desktop the days fill their card, whatever the period, rather than a small grid in a wide panel; the card
+  // sits level with the selected day beside it; and a closed section is only its heading.
+  for (const [range, layout] of [
+    [7, "list"],
+    [30, "calendar"],
+    [90, "heatmap"],
+    [180, "heatmap"],
+    [365, "heatmap"],
+  ]) {
+    await page.locator("#history-range").selectOption(String(range));
+    const fit = await page.evaluate(() => {
+      const card = document.querySelector(".matrix-overview").getBoundingClientRect(),
+        reading = document.querySelector(".matrix-reading").getBoundingClientRect(),
+        grid = document.querySelector("[data-matrix-grid]").getBoundingClientRect();
+      return {
+        layout: document.querySelector("[data-matrix-calendar]").dataset.layout,
+        share: grid.width / card.width,
+        height: Math.abs(card.height - reading.height),
+        top: Math.abs(card.top - reading.top),
+        overflow: document.documentElement.scrollWidth - innerWidth,
+      };
+    });
+    assert.equal(fit.layout, layout, `${range} days are laid out as a ${layout}`);
+    assert.ok(fit.share > 0.8, `${range} days fill their card (${Math.round(fit.share * 100)}%)`);
+    assert.ok(
+      fit.height <= 1 && fit.top <= 1,
+      `the calendar and the day are level at ${range} days`,
+    );
+    assert.ok(fit.overflow <= 0, `no sideways scrolling at ${range} days`);
+  }
+  assert.ok(
+    (await page.locator("#history-share").boundingBox()).height < 70,
+    "a closed section is only its heading",
+  );
+  // Arrow keys follow what is on screen: down a list, along a calendar's row, down a heatmap's column.
+  for (const [range, keys] of [
+    [7, { ArrowDown: 1, ArrowUp: -1 }],
+    [30, { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 7, ArrowUp: -7 }],
+    [90, { ArrowDown: 1, ArrowUp: -1, ArrowRight: 7, ArrowLeft: -7 }],
+  ]) {
+    await page.locator("#history-range").selectOption(String(range));
+    const middle = page.locator(`[data-matrix-grid] [data-cell="${Math.floor(range / 2)}"]`);
+    for (const [key, step] of Object.entries(keys)) {
+      await middle.click();
+      await middle.press(key);
+      assert.equal(
+        await page.evaluate(() => Number(document.activeElement.dataset.cell)),
+        Math.floor(range / 2) + step,
+        `${key} moves ${step} in the ${range}-day view`,
+      );
+    }
+  }
   await page.locator("#history-range").selectOption("all");
   await page.locator("#history-explore > summary").click();
   await page.waitForFunction(
