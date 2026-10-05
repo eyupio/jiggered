@@ -2160,3 +2160,47 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+/* Today: activities to place on the timeline sit above it, as a wrapped row, so a drag has somewhere to start. */
+#today-palette {
+  display: flex;
+  flex-flow: row wrap;
+  gap: 6px;
+  max-height: 124px;
+  overflow-y: auto;
+}
+#today-palette h3 {
+  flex-basis: 100%;
+}
+.cal-preset[aria-pressed="true"] {
+  border-style: solid;
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+}
+.placing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+.placing[hidden] {
+  display: none;
+}
+.cal[data-placing] .cal-col {
+  cursor: copy;
+}
+@media (max-width: 700px) {
+  /* On a phone the timeline shares the screen with the page: a shorter window onto the day, and room for several
+     activities at once, since tapping one is how it gets placed. */
+  #today-board .cal-scroll {
+    max-height: min(52vh, 420px);
+  }
+  #today-palette {
+    max-height: 176px;
+  }
+}

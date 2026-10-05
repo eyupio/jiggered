@@ -341,10 +341,12 @@
             <span class="meta" id="today-timeline-summary"></span>
           </summary>
           <div class="history-section-body">
-            <p class="meta">
-              What you have logged is solid; what is still planned is dashed. Drag a block to change
-              its time, click an empty space to log something at that time, or drag an activity here
-              from the list below.
+            <p class="meta" id="today-timeline-help"></p>
+            <div id="today-palette" class="cal-palette" aria-label="Your saved activities"></div>
+            <p class="placing" id="today-placing" role="status" hidden>
+              <span id="today-placing-text"></span>
+              <button type="button" class="x" id="today-placing-now">Log it now</button>
+              <button type="button" class="x" id="today-placing-cancel">Cancel</button>
             </p>
             <div id="today-board" class="cal"></div>
           </div>
@@ -416,6 +418,7 @@
                 step="5"
                 inputmode="numeric"
             /></label>
+            <p class="hint" id="entry-length-hint" role="status"></p>
             <p class="hint">
               <span
                 data-energy-copy="Negative points record recovery. Zero only records the activity."
@@ -625,8 +628,10 @@
                   min="5"
                   max="1440"
                   step="5"
-                  inputmode="numeric" /></label
-              ><label id="plan-repeat-row"
+                  inputmode="numeric"
+              /></label>
+              <p class="hint" id="plan-length-hint" role="status"></p>
+              <label id="plan-repeat-row"
                 >Add on consecutive days<input
                   type="number"
                   id="plan-repeat"

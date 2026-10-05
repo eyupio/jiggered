@@ -5,7 +5,8 @@ export const DAY = 1440; // minutes in a day; a block may not run past midnight
 export const STEP = 15; // dragging snaps to a quarter of an hour
 export const MIN_DUR = 5; // the shortest length stored; the server enforces the same range
 export const DEFAULT_DUR = 30; // how long a timed activity with no recorded length is drawn
-export const NEW_DUR = 60; // the length given to an activity dropped onto the calendar
+export const NEW_DUR = 60;
+export const MAX_COST = 10; // a cost is -10..10 points, as everywhere else; the same bound as LIMITS.cost // the length given to an activity dropped onto the calendar
 
 const pad = (n) => String(n).padStart(2, "0");
 
@@ -117,4 +118,13 @@ export function suggestDuration(name) {
   if (minutes === null) return null;
   const rounded = Math.round(minutes / MIN_DUR) * MIN_DUR;
   return validDur(rounded) ? rounded : null;
+}
+
+// An activity's points follow how long it takes: a cost of 2 at 30 minutes is 4 at an hour and 1 at 15 minutes. Whole
+// points only, never less than one for an activity that cost something (or gave something back), and never beyond the
+// largest cost there is. `from` is the length the cost was for, `to` the new one; anything else leaves the cost alone.
+export function scaleCost(cost, from, to) {
+  if (!Number.isInteger(cost) || cost === 0 || !validDur(from) || !validDur(to)) return cost;
+  const scaled = Math.max(1, Math.round((Math.abs(cost) * to) / from));
+  return Math.sign(cost) * Math.min(MAX_COST, scaled);
 }

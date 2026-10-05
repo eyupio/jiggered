@@ -221,6 +221,7 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
       { x: b.x + b.width / 2, y: b.y + b.height - 2 + 56 },
     );
     await until(() => entry(docs, d1, "p4")?.dur === 120, "bottom edge lengthens it");
+    assert.equal(entry(docs, d1, "p4").c, 4, "twice as long, twice the points (2 to 4)");
     assert.equal(entry(docs, d1, "p4").t, "10:00");
     b = await box(block(page, "p7"));
     await drag(
@@ -230,9 +231,10 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
     );
     await until(() => entry(docs, d2, "p7")?.t === "09:30", "top edge moves the start");
     assert.equal(entry(docs, d2, "p7").dur, 60);
+    assert.equal(entry(docs, d2, "p7").c, 4, "from the top edge too (2 to 4)");
 
     // Drag a saved activity from the palette: the length in its name is suggested. Undo removes it.
-    const chip = await box(page.locator('.cal-preset[data-preset="3"]'));
+    const chip = await box(page.locator('#plan-palette .cal-preset[data-preset="3"]'));
     const drop = await slot(page, d2, 12 * 60);
     await drag(page, { x: chip.x + 20, y: chip.y + 10 }, { x: drop.x, y: drop.y + 4 });
     await until(() => docs["p-" + d2].body.entries.length === 2, "palette drop added an entry");
@@ -249,7 +251,7 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
         .filter(([id]) => id.startsWith("p-"))
         .reduce((n, [, doc]) => n + doc.body.entries.length, 0);
     const count = planned();
-    const spare = await box(page.locator('.cal-preset[data-preset="3"]'));
+    const spare = await box(page.locator('#plan-palette .cal-preset[data-preset="3"]'));
     await drag(page, { x: spare.x + 20, y: spare.y + 10 }, { x: spare.x + 60, y: spare.y + 90 });
     await page.waitForTimeout(250);
     assert.equal(planned(), count, "a palette item put back adds nothing, on any day");
@@ -259,7 +261,7 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
     assert.equal(entry(docs, d1, "p5").t, "14:00", "a block dropped off the board stays put");
     assert.equal(await page.locator("#plan-form").isHidden(), true, "and that is not a click");
     // A plain click on a palette item fills the form instead of placing it.
-    await page.locator('.cal-preset[data-preset="3"]').click();
+    await page.locator('#plan-palette .cal-preset[data-preset="3"]').click();
     assert.equal(await page.locator("#plan-form").isVisible(), true);
     assert.equal(await page.locator("#plan-name").inputValue(), "Deep focus (2 hours)");
     assert.equal(await page.locator("#plan-dur").inputValue(), "120");
@@ -511,6 +513,227 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
     await context.close();
   }
 
+  // ---------------- Today: placing activities, and points that follow the time they take ----------------
+  {
+    const T = "#today-board";
+    const { page, context, docs, errors } = await openApp(
+      { viewport: { width: 1440, height: 1000 } },
+      "today",
+      loggedDay(),
+    );
+    const logged = () => docs["d-" + today].body.entries,
+      find = (id) => logged().find((e) => e.id === id),
+      chip = (name) => page.locator("#today-palette .cal-preset", { hasText: name }),
+      meta = (id) => block(page, id, T).locator(".cal-meta");
+    const reveal = () =>
+      page.evaluate(() => {
+        document.querySelector("#today-timeline-panel").scrollIntoView({ block: "start" });
+        document.querySelector("#today-board .cal-scroll").scrollTop = 56;
+      });
+    await reveal();
+
+    // The activities and the timeline are on screen together, so there is something to drag from and to.
+    assert.equal(
+      await page.evaluate(() => {
+        const from = document.querySelector("#today-palette .cal-preset").getBoundingClientRect(),
+          to = document.querySelector("#today-board .cal-scroll").getBoundingClientRect();
+        return (
+          from.top >= 0 && from.bottom <= innerHeight && to.top >= 0 && to.top + 400 <= innerHeight
+        );
+      }),
+      true,
+    );
+    assert.match(
+      await page.locator("#today-timeline-help").textContent(),
+      /Drag an activity onto the timeline/,
+    );
+
+    // Drag an activity onto a time: logged there, with the length in its name, and Undo takes it back.
+    let from = await box(chip("Deep focus (2 hours)"));
+    const drop = await slot(page, today, 10 * 60 + 45, T);
+    await page.mouse.move(from.x + 20, from.y + 10);
+    await page.mouse.down();
+    await page.mouse.move(drop.x, drop.y + 4, { steps: 12 });
+    assert.match(
+      await page.locator(`${T} .cal-drop`).textContent(),
+      /10:45–12:45 · Deep focus/,
+      "the preview names what is held",
+    );
+    await page.mouse.up();
+    await until(
+      () => logged().some((e) => e.a === "Deep focus (2 hours)"),
+      "dropped from the list above",
+    );
+    const dropped = logged().find((e) => e.a === "Deep focus (2 hours)");
+    assert.deepEqual([dropped.t, dropped.dur], ["10:45", 120]);
+    await undo(page);
+    await until(() => !logged().some((e) => e.a === "Deep focus (2 hours)"), "undo removes it");
+
+    // Stretching a block gives the points that go with the longer time, shown as it is dragged. 60 to 120 minutes: 2 to 4.
+    await reveal();
+    let b = await box(block(page, "log:l1", T));
+    const edge = { x: b.x + b.width / 2, y: b.y + b.height - 2 };
+    await page.mouse.move(edge.x, edge.y);
+    await page.mouse.down();
+    await page.mouse.move(edge.x, edge.y + 56, { steps: 10 });
+    assert.match(
+      await meta("log:l1").textContent(),
+      /09:30–11:30 · −4/,
+      "the points change as the block does",
+    );
+    await page.mouse.up();
+    await until(() => find("l1").dur === 120, "stretched");
+    assert.equal(find("l1").c, 4);
+    assert.match(
+      await page.locator("#toastbar").textContent(),
+      /Meeting or call now 09:30–11:30, −2 to −4 points/,
+    );
+    await undo(page);
+    await until(() => find("l1").dur === 60, "undo gives the length back");
+    assert.equal(find("l1").c, 2, "and the points");
+    // Shortening from the top edge halves them.
+    await reveal();
+    b = await box(block(page, "log:l1", T));
+    await drag(
+      page,
+      { x: b.x + b.width / 2, y: b.y + 2 },
+      { x: b.x + b.width / 2, y: b.y + 2 + 28 },
+    );
+    await until(() => find("l1").dur === 30, "shortened");
+    assert.deepEqual([find("l1").t, find("l1").c], ["10:00", 1]);
+    await undo(page);
+    await until(() => find("l1").dur === 60 && find("l1").c === 2, "back to an hour");
+    // An activity logged with no length is drawn as half an hour; stretching it to an hour and a half triples its points.
+    await reveal();
+    b = await box(block(page, "log:l2", T));
+    await drag(
+      page,
+      { x: b.x + b.width / 2, y: b.y + b.height - 2 },
+      { x: b.x + b.width / 2, y: b.y + b.height - 2 + 56 },
+    );
+    await until(() => find("l2").dur === 90, "given a length");
+    assert.equal(find("l2").c, 3);
+    await undo(page);
+    await until(
+      () => [undefined, null].includes(find("l2").dur) && find("l2").c === 1,
+      "and undone",
+    );
+
+    // The keyboard does the same, and a run of presses is worked out from where it began (2 points at 60 minutes).
+    await block(page, "log:l1", T).focus();
+    await page.keyboard.press("Shift+ArrowDown");
+    await until(() => find("l1").dur === 75, "Shift+Down adds a quarter of an hour");
+    assert.equal(find("l1").c, 3);
+    assert.match(
+      await page.locator("#today-board [role=status]").textContent(),
+      /Meeting or call.*09:30 to 10:45, −3 points/,
+      "said aloud as well",
+    );
+    await page.keyboard.press("Shift+ArrowDown");
+    await until(() => find("l1").dur === 90, "and again");
+    assert.equal(find("l1").c, 3, "not 4: each step is not rounded on its own");
+    await undo(page);
+    await until(() => find("l1").dur === 60 && find("l1").c === 2, "one Undo for the run");
+
+    // In the form, the points follow the Duration field until they are typed over.
+    await reveal();
+    await block(page, "log:l1", T).click();
+    assert.equal(await page.locator("#entry-cost").inputValue(), "2");
+    await page.locator("#entry-dur").fill("120");
+    await page.locator("#entry-dur").press("Tab");
+    assert.equal(await page.locator("#entry-cost").inputValue(), "4");
+    assert.match(
+      await page.locator("#entry-length-hint").textContent(),
+      /−2 for 1 h, so −4 for 2 h/,
+    );
+    await page.locator("#entry-cost").fill("5");
+    await page.locator("#entry-dur").fill("90");
+    await page.locator("#entry-dur").press("Tab");
+    assert.equal(
+      await page.locator("#entry-cost").inputValue(),
+      "5",
+      "typed points are left alone",
+    );
+    await page.locator("#entry-cancel").click();
+    assert.equal(find("l1").c, 2, "cancelling saves nothing");
+
+    // Pick an activity, then a time: the other way to place one, which needs no dragging.
+    await reveal();
+    await chip("Quiet break").click();
+    assert.equal(await page.locator("#today-placing").isVisible(), true);
+    assert.equal(await chip("Quiet break").getAttribute("aria-pressed"), "true");
+    await page.keyboard.press("Escape");
+    assert.equal(await page.locator("#today-placing").isVisible(), false, "Escape lets go of it");
+    await chip("Quiet break").click();
+    const free = await slot(page, today, 14 * 60 + 20, T);
+    await page.mouse.click(free.x, free.y);
+    await until(
+      () => logged().some((e) => e.a === "Quiet break" && e.t === "14:15"),
+      "placed at the time chosen",
+    );
+    assert.equal(await page.locator("#today-placing").isVisible(), false);
+    await undo(page);
+    await until(() => !logged().some((e) => e.a === "Quiet break"), "undone");
+    // Or log it now instead.
+    await chip("Quiet break").click();
+    await page.locator("#today-placing-now").click();
+    await until(() => logged().some((e) => e.a === "Quiet break"), "logged now");
+    assert.match(logged().find((e) => e.a === "Quiet break").t, /^\d\d:\d\d$/);
+    await undo(page);
+
+    // Logging something at a time through the form returns you to the timeline when you are done.
+    await reveal();
+    const y0 = await page.evaluate(() => scrollY);
+    const gap = await slot(page, today, 14 * 60 + 20, T);
+    await page.mouse.click(gap.x, gap.y);
+    assert.equal(await page.locator("#entry-form").isVisible(), true);
+    assert.ok(
+      Math.abs((await page.evaluate(() => scrollY)) - y0) > 50,
+      "the form is lower down the page",
+    );
+    await page.locator("#entry-cancel").click();
+    assert.ok(
+      Math.abs((await page.evaluate(() => scrollY)) - y0) <= 3,
+      "and cancelling comes back",
+    );
+
+    // Carrying an activity up from the list further down the page scrolls the page towards the timeline.
+    await page.setViewportSize({ width: 1440, height: 700 });
+    await page
+      .locator("#acts button.act")
+      .first()
+      .evaluate((e) => e.scrollIntoView({ block: "center" }));
+    const startY = await page.evaluate(() => scrollY);
+    // Count the grid's own scrolling of the page, apart from anything the browser does by itself during a drag.
+    await page.evaluate(() => {
+      const scrollBy = window.scrollBy.bind(window);
+      window.__pageScrolls = 0;
+      window.scrollBy = (...args) => {
+        window.__pageScrolls++;
+        return scrollBy(...args);
+      };
+    });
+    const tile = await box(page.locator("#acts button.act").first());
+    const count = logged().length;
+    await page.mouse.move(tile.x + 30, tile.y + 10);
+    await page.mouse.down();
+    await page.mouse.move(tile.x + 30, 8, { steps: 10 });
+    await page.waitForTimeout(700);
+    assert.ok(
+      startY - (await page.evaluate(() => scrollY)) > 150,
+      "the page scrolled while it was carried",
+    );
+    assert.ok(
+      (await page.evaluate(() => window.__pageScrolls)) > 5,
+      "the grid scrolled it, not only the browser",
+    );
+    await page.mouse.up();
+    await page.waitForTimeout(250);
+    assert.equal(logged().length, count, "letting go off the timeline logs nothing");
+    assert.deepEqual(errors, []);
+    await context.close();
+  }
+
   // ---------------- Today on a phone ----------------
   {
     const T = "#today-board";
@@ -519,14 +742,20 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
       "today",
       loggedDay(),
     );
-    // Closed to begin with, so the activity tiles are not pushed a screen further down.
-    assert.equal(await page.locator("#today-timeline-panel").evaluate((d) => d.open), false);
-    const tilesAt = () =>
-      page.locator("#acts").evaluate((e) => Math.round(e.getBoundingClientRect().top + scrollY));
-    const closedAt = await tilesAt();
-    await page.locator("#today-timeline-panel > summary").click();
-    await page.locator(`${T} .cal-block`).first().waitFor();
-    assert.ok((await tilesAt()) - closedAt > 300, "opening it makes room");
+    // Open to begin with, with what it needs to place something: the activities, and a short window onto the day.
+    assert.equal(await page.locator("#today-timeline-panel").evaluate((d) => d.open), true);
+    assert.match(
+      await page.locator("#today-timeline-help").textContent(),
+      /Tap an activity, then a time/,
+    );
+    assert.ok(
+      (await page.locator("#today-palette .cal-preset").count()) > 5,
+      "the activities are listed",
+    );
+    assert.ok(
+      (await box(page.locator(`${T} .cal-scroll`))).height <= 430,
+      "a window, not the whole day",
+    );
     assert.equal(await page.locator(`${T} [data-cal-col]`).count(), 1);
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
@@ -540,10 +769,10 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
       });
     await place();
     // Tapping an empty space opens the form for that time.
-    const empty = await slot(page, today, 11 * 60 + 20, T);
+    const empty = await slot(page, today, 9 * 60 + 20, T);
     await page.touchscreen.tap(empty.x, empty.y);
     assert.equal(await page.locator("#entry-form").isVisible(), true);
-    assert.equal(await page.locator("#entry-time").inputValue(), "11:15");
+    assert.equal(await page.locator("#entry-time").inputValue(), "09:15");
     await page.locator("#entry-cancel").click();
     // The grip moves a logged block: 72px is an hour at the touch scale.
     await place();
@@ -562,6 +791,41 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
       () => docs["d-" + today].body.entries.find((e) => e.id === "l1").t === "10:30",
       "the grip moves it an hour",
     );
+    // Tap an activity, then tap a time: it is logged there with the length its name gives.
+    await page.locator("#today-palette .cal-preset", { hasText: "Deep focus (2 hours)" }).tap();
+    assert.equal(await page.locator("#today-placing").isVisible(), true);
+    await place();
+    const spot = await slot(page, today, 9 * 60 + 20, T);
+    await page.touchscreen.tap(spot.x, spot.y);
+    await until(
+      () => docs["d-" + today].body.entries.some((e) => e.a === "Deep focus (2 hours)"),
+      "tap an activity, then a time",
+    );
+    const placed = docs["d-" + today].body.entries.find((e) => e.a === "Deep focus (2 hours)");
+    assert.deepEqual([placed.t, placed.dur], ["09:15", 120]);
+    assert.equal(
+      await page.locator("#today-placing").isVisible(),
+      false,
+      "one placement at a time",
+    );
+    // Dragging the bottom handle changes how long it took, and the points follow: an hour more is twice the points.
+    await place();
+    const handle = await box(
+      page.locator(`${T} .cal-block[data-id="log:l1"] .cal-resize[data-edge="bottom"]`),
+    );
+    await touch("touchStart", handle.x + handle.width / 2, handle.y + handle.height / 2);
+    for (let i = 1; i <= 10; i++)
+      await touch(
+        "touchMove",
+        handle.x + handle.width / 2,
+        handle.y + handle.height / 2 + (72 * i) / 10,
+      );
+    await touch("touchEnd");
+    await until(
+      () => docs["d-" + today].body.entries.find((e) => e.id === "l1").dur === 120,
+      "the handle lengthens it",
+    );
+    assert.equal(docs["d-" + today].body.entries.find((e) => e.id === "l1").c, 4);
     assert.deepEqual(errors, []);
     await context.close();
   }
