@@ -1,6 +1,8 @@
 // The data model and the rules around it: settings, a day's energy budget, the operations that edit
 // a doc, trends, and CSV. No DOM and no network, so it is tested with `node --test`.
 
+import { applyBoardPatch } from "./fretboard-model.js";
+
 // groupMap turns { "Group": [names] } into { name: "Group" }, the shape settings store.
 const groupMap = (groups) =>
   Object.fromEntries(Object.entries(groups).flatMap(([g, names]) => names.map((n) => [n, g])));
@@ -212,6 +214,7 @@ export const nowLocal = (d = new Date()) => `${dkey(d)}T${hhmm(d)}`;
 export const dayId = (key) => "d-" + key;
 export const isDayId = (id) => /^d-\d{4}-\d{2}-\d{2}$/.test(id);
 export const isEpisodeId = (id) => /^e-\d+$/.test(id);
+export const isToolId = (id) => /^t-[a-z][a-z0-9-]{0,30}$/.test(id);
 
 export function addDays(key, n) {
   const [y, m, d] = key.split("-").map(Number);
@@ -517,6 +520,7 @@ export function applyOp(op, body) {
     };
   }
   if (op.type === "patch") return { ...(body || {}), ...op.arg };
+  if (op.type === "boardPatch") return applyBoardPatch(op.arg, body);
   const fn = DAY_OPS[op.type];
   if (!fn) throw new Error("unknown operation " + op.type);
   let d = body ?? emptyDay(op.id.slice(2));

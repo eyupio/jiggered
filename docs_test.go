@@ -14,6 +14,7 @@ func TestDocIDAllowList(t *testing.T) {
 		"d-2026-10-01": true, "d-2024-02-29": true, "e-1790000000000": true, "e-1": true, "settings": true,
 		"d-2026-13-01": false, "d-2025-02-29": false, "d-2026-1-1": false, "d-2026-10-01x": false,
 		"e-": false, "e-abc": false, "e-" + strings.Repeat("9", 21): false,
+		"t-fretboard": true, "t-a": true, "t-1": false, "t-": false, "t-Fretboard": false, "t-fret_board": false, "t-" + strings.Repeat("a", 32): false,
 		"x-1": false, "": false, "../etc": false, "settings2": false, "D-2026-10-01": false,
 		strings.Repeat("a", 65): false, "a b": false,
 	} {
@@ -347,5 +348,24 @@ func TestDeletedRevisionsAreScopedToThePerson(t *testing.T) {
 	}
 	if n := countRows(t, e, "SELECT count(*) FROM doc_revs"); n != 1 {
 		t.Errorf("doc_revs has %d rows, want 1", n)
+	}
+}
+
+func TestToolDocsAreBounded(t *testing.T) {
+	for body, ok := range map[string]bool{
+		`{"v":1,"tool":"fretboard","items":{"a1":{"k":"card","t":"Sleep","x":0.5,"y":0.1,"s":"todo"}},"three":[{"id":"x","t":"Walk","done":false}]}`: true,
+		`{"items":{}}`: true,
+		`{"items":{"a1":{"k":"card","t":"Sleep","x":1.5,"y":0.1}}}`: false,
+		`{"items":{"a1":"Sleep"}}`:                                  false,
+		`{"items":[]}`:                                              false,
+		`{"items":{"bad id":{"t":"Sleep"}}}`:                        false,
+		`{"items":{"a1":{"t":"` + strings.Repeat("x", 241) + `"}}}`: false,
+		`{"three":{}}`:                                              false,
+		`{"three":[{"t":1}]}`:                                       false,
+		`{"future":"field"}`:                                        true,
+	} {
+		if err := validateDoc("t-fretboard", []byte(body)); (err == nil) != ok {
+			t.Errorf("validateDoc(t-fretboard, %s) = %v, want ok=%v", body, err, ok)
+		}
 	}
 }

@@ -16,6 +16,7 @@ import * as episodesView from "./episodes.js";
 import * as historyView from "./history.js";
 import * as accountView from "./account.js";
 import * as helpView from "./help.js";
+import * as toolsView from "./tools.js";
 import { initTooltips } from "./tooltips.js";
 import { initDefaultsNotice } from "./defaults-notice.js";
 import { profileInitials, normaliseProfile } from "./profile.js";
@@ -221,7 +222,7 @@ function fatal(text) {
         if (!store.status().readOnly && !store.status().restoring) return;
         const target = e.target;
         const safe = target.closest?.(
-          "#tabs,[data-plan-day],#plan-span,[data-open-plan],#signout,#account-menu,#help-panel,[data-help],.help-tip,.daynav,#history-panel,#account-shortcuts,#export-device,#export-all,#day-back,[data-settings],#entry-cancel,#tab-reload",
+          "#tabs,[data-plan-day],#plan-span,[data-open-plan],#signout,#account-menu,#help-panel,[data-help],.help-tip,.daynav,#history-panel,#tool-launcher,#tool-back,#account-shortcuts,#export-device,#export-all,#day-back,[data-settings],#entry-cancel,#tab-reload",
         );
         if (safe) return;
         if (target.closest?.("button,input,textarea,select,form,.drag-handle")) {
@@ -347,6 +348,10 @@ function fatal(text) {
       go("account");
       views.account.focus(section);
     },
+    openTool(id) {
+      go("tools");
+      views.tools.open(id);
+    },
   };
   // Constructors also restore drafts and selected records, so give them the final
   // initial snapshot instead of letting a late network response replace defaults.
@@ -363,6 +368,7 @@ function fatal(text) {
     episode: episodesView.init(ctx),
     history: historyView.init(ctx),
     account: accountView.init(ctx),
+    tools: toolsView.init(ctx),
     help: helpView.init(ctx),
   };
 

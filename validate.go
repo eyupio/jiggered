@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -43,6 +44,9 @@ func validateDoc(id string, raw json.RawMessage) error {
 		d.SymptomGroups = pruneGroups(d.SymptomGroups, d.Symptoms)
 		d.TriggerGroups = pruneGroups(d.TriggerGroups, d.Triggers)
 		return d.validate()
+	}
+	if strings.HasPrefix(id, "t-") {
+		return validateToolDoc(fields)
 	}
 	var value map[string]any
 	json.Unmarshal(raw, &value)
@@ -190,3 +194,59 @@ func validDuration(e map[string]any) error {
 	}
 	return nil
 }
+
+// validateToolDoc bounds a Tools document. The frontend owns its shape (see web/fretboard-model.js); the server only
+// refuses what could never be drawn: items that are not objects, text beyond the card limit, positions off the canvas,
+// and more items than a board holds. Fields it does not know are kept as sent, so a newer client's board survives.
+func validateToolDoc(fields map[string]json.RawMessage) error {
+	if raw, ok := fields["items"]; ok {
+		var items map[string]json.RawMessage
+		if json.Unmarshal(raw, &items) != nil {
+			return fmt.Errorf("items must be an object keyed by id")
+		}
+		if len(items) > 400 {
+			return fmt.Errorf("a board can hold at most 400 items")
+		}
+		for id, raw := range items {
+			if !toolItemID.MatchString(id) {
+				return fmt.Errorf("item ids are 1–40 letters, digits, dashes or underscores")
+			}
+			var item struct {
+				T *string  `json:"t"`
+				X *float64 `json:"x"`
+				Y *float64 `json:"y"`
+			}
+			if json.Unmarshal(raw, &item) != nil {
+				return fmt.Errorf("item %s must be an object with text and a position", id)
+			}
+			if item.T != nil && utf8.RuneCountInString(*item.T) > 240 {
+				return fmt.Errorf("item text is limited to 240 characters")
+			}
+			for _, n := range []*float64{item.X, item.Y} {
+				if n != nil && (*n < 0 || *n > 1) {
+					return fmt.Errorf("item positions are fractions of the canvas, from 0 to 1")
+				}
+			}
+		}
+	}
+	if raw, ok := fields["three"]; ok {
+		var three []map[string]any
+		if json.Unmarshal(raw, &three) != nil {
+			return fmt.Errorf("three must be a list")
+		}
+		if len(three) > 10 {
+			return fmt.Errorf("the three-things list holds at most 10 entries")
+		}
+		for _, row := range three {
+			if t, ok := row["t"]; ok {
+				s, ok := t.(string)
+				if !ok || utf8.RuneCountInString(s) > 240 {
+					return fmt.Errorf("a three-things entry needs text of at most 240 characters")
+				}
+			}
+		}
+	}
+	return nil
+}
+
+var toolItemID = regexp.MustCompile(`^[A-Za-z0-9_-]{1,40}$`)

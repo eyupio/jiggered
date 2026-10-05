@@ -26,6 +26,7 @@
     />
     <link rel="stylesheet" href="/style.css" />
     <link rel="stylesheet" href="/dashboard.css" />
+    <link rel="stylesheet" href="/tools.css" />
   </head>
   <body class="app-shell app-loading" data-view="today">
     <a class="app-skip" href="#view-heading">Skip to your dashboard</a>
@@ -139,6 +140,18 @@
           data-description="Look back, one day at a time."
         >
           History
+        </button>
+        <button
+          role="tab"
+          id="t-tools"
+          aria-controls="tools-panel"
+          tabindex="-1"
+          aria-selected="false"
+          data-tab="tools"
+          data-heading="Small tools for heavy days."
+          data-description="Lay out what is on your mind, see what is yours, and choose today's three."
+        >
+          Tools
         </button>
         <button
           role="tab"
@@ -818,6 +831,29 @@
             </div>
           </div>
         </details>
+      </section>
+
+      <section role="tabpanel" aria-labelledby="t-tools" id="tools-panel" hidden>
+        <div class="panel tools-intro" id="tool-launcher">
+          <p class="help-eyebrow">Toolkit</p>
+          <h2>Small tools for heavy days.</h2>
+          <p class="meta">
+            Each tool is its own quiet space. What you put in one is saved to your account and
+            follows you between devices, like the rest of Jiggered.
+          </p>
+          <div class="tool-grid" id="tool-grid"></div>
+        </div>
+        <div id="tool-stage" hidden>
+          <div class="panel tool-head">
+            <button class="ghost" type="button" id="tool-back">‹ All tools</button>
+            <div>
+              <p class="help-eyebrow" id="tool-eyebrow"></p>
+              <h2 id="tool-title"></h2>
+              <p class="meta" id="tool-tagline"></p>
+            </div>
+          </div>
+          <div class="panel tool-body" id="tool-body"></div>
+        </div>
       </section>
 
       <section role="tabpanel" aria-labelledby="t-account" id="account-panel" hidden>

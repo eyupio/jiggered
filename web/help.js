@@ -36,6 +36,12 @@ export function init(ctx) {
       html`<p>Tap a preset to log it at the current time. Activities you have logged turn green and move to a Logged today block at the top of the list, with how many times you logged each. Use + to log another and − to take the latest one off (Undo is offered). Other activity records a one-off item without adding a preset. Choose a past day with the arrows or date picker; its time field is optional.</p><p>Use Edit beside a logged item to change its name, points or time. Its position stays the same. Corrections and removals offer Undo briefly after the action.</p><p>In Account, drag a list handle to move an item. With a keyboard, focus the handle and use Up, Down, Home or End. Move buttons are also available. Press Escape to cancel a drag. Save settings to keep the new order.</p><button class="secondary" data-settings="set-acts">Personalise my activities</button>`,
     ],
     [
+      "fretboard",
+      "Tools",
+      "Fretboard: see what is fretting you",
+      html`<p>Fretboard, in Tools, is a board for the things on your mind. Each card sits where it belongs: further right means it is more in your hands, higher up means it matters more right now. Colour a card by where it stands: not started, in progress, done, or not my problem (dashed, for things that weigh on you but are not yours to fix).</p><p>Double-click an empty spot to add a card and start typing. Drag cards to move them, drag on empty space to select several, and right-click (or press and hold on a phone) for the menu: status, duplicate, bring to front, add to today's three, delete. Arrow keys nudge a selected card, 1 to 4 set its status, Delete removes it and Ctrl+Z undoes.</p><p>Today's three, beside the board, is the immediate plan: small, concrete and yours. Add a card from its menu, type one in, or let Jiggered suggest from the top-right of the board. Tick them off as the day goes, and start fresh tomorrow. Click an axis label to rename it.</p><button class="secondary" data-help-tool="fretboard">Open Fretboard</button>`,
+    ],
+    [
       "episodes",
       "Episodes",
       "Record symptoms and finish an ongoing episode",
@@ -122,6 +128,8 @@ export function init(ctx) {
   $("help-panel").addEventListener("click", (e) => {
     const b = e.target.closest("[data-help-go]");
     if (b) ctx.go(b.dataset.helpGo);
+    const tool = e.target.closest("[data-help-tool]");
+    if (tool) ctx.openTool(tool.dataset.helpTool);
     if (e.target.closest("[data-help-setup]")) ctx.reopenSetup();
   });
   function open(topic) {
