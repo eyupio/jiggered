@@ -2,7 +2,7 @@
 
 > **This file holds two audits.** **Part 1** (this audit, finding IDs `A-C1`, `A-H1`, `A-N1`…) covers the whole product from a stranger's first visit to the last admin screen, including the Tools tab and the timeline tooling. **Part 2** (from "UI audit: Today, Plan, History and the visual planning calendar" onward) is the earlier, narrower audit with its own IDs (`C1`–`C5`, `H1`–`H9`, `N1`–`N6`), kept exactly as it was. Where Part 1 found statements in Part 2 that no longer match the code, they are listed in [Appendix B](#appendix-b-statements-in-part-2-that-no-longer-match-the-code) and not edited in place.
 >
-> Source revision `6ee614a`. Nothing here has been implemented. Part 1 has **96 findings: 4 Critical, 49 High impact, 43 Nice to have**, each with Pass, Where, Problem and Fix (Critical and High add an Evidence line; Nice-to-have items fold their measurements into Problem). All 96 are listed in one table in [Appendix E](#appendix-e-every-finding-at-a-glance).
+> Source revision `6ee614a`. The findings describe that revision; [Appendix F](#appendix-f-what-the-fix-batches-on-this-branch-changed) lists what the later commits on this branch fixed. Part 1 has **96 findings: 4 Critical, 49 High impact, 43 Nice to have**, each with Pass, Where, Problem and Fix (Critical and High add an Evidence line; Nice-to-have items fold their measurements into Problem). All 96 are listed in one table in [Appendix E](#appendix-e-every-finding-at-a-glance).
 
 ## How this was done, and what to discount
 
@@ -904,6 +904,38 @@ Page height in px, then interactive elements under 44px, then text nodes under 1
 ## Appendix D: How to reproduce
 
 Nothing here needs a special build. Start the server on a disposable database (`APP_DB=./.local/jiggered.db APP_SECURE_COOKIE=false go run .`), create accounts with `go run . user add NAME` (and `--admin`), and enable registration by pointing Admin → Email & signup at any local SMTP listener that writes mail to a file. Drive it with Playwright at 1440×900 and 375×812 (`isMobile` and `hasTouch` below 500px) and real mouse, keyboard and CDP touch events. For a populated account, `PUT /api/docs/<id>` day documents (`d-YYYY-MM-DD` with `status`, `statusPenalty`, `poorSleep` and `entries`), plan documents (`p-…`) and episodes (`e-<ms>`) with the headers `X-Requested-With: jiggered` and `If-None-Match: *`; a seeded day without `statusPenalty` reads as "full points". Use `page.route` to stall or fail `/api/**` and `context.setOffline` to separate a hung connection from airplane mode. Do not make more than a couple of wrong-password attempts: failed sign-ins and public auth calls are rate-limited per client IP, and shared test environments lock everyone out together.
+
+## Appendix F: What the fix batches on this branch changed
+
+The findings above describe revision `6ee614a`. The later commits on this branch fixed the items below, and each batch passed the full local browser suite before it was pushed. IDs not listed here are still open.
+
+**Fixed:** A-C3, A-C4, A-H1 (the fill now follows the chosen colour, with a swatch that previews it; the Sand and Sage hue swap and the "done" opacity are still open), A-H5, A-H7, A-H12, A-H14, A-H15, A-H19, A-H20 (minimum change: the column scrolls inside itself), A-H24 (stale text corrected and a Plan topic added; the Help search ranking and `#help/<topic>` links are open), A-H30, A-H32 (an episode dot on every calendar cell), A-H35, A-H36, A-H39, A-H44, A-H45, A-H47, A-N1, A-N8, A-N20, A-N24.
+
+**Partly fixed (what remains is in the finding):**
+
+- A-C1: the brand copy above the check-in is hidden on a phone, the timeline starts closed, and logging an activity toasts with Undo. The sticky balance pill and the shorter palette are open.
+- A-C2: the register and reset forms keep what was typed after a link is sent, and the duplicated sentence is gone. The server still answers identically for a taken username or address, because `TestDuplicateRegistrationsSendNoMailAndLookTheSame` makes that a deliberate rule; reversing it is a product decision.
+- A-H2: the pitch is hidden on a phone and is no longer a second page heading. The confirm-password field stays.
+- A-H3: the username is filled in and the cursor is in the password box after verification. Same-device auto sign-in is open.
+- A-H8, A-H9: the "Example" badge is no longer covered, the small charts are blocks and the CTA label stays on one line. The product screenshots and the three-row phone header are open.
+- A-H10: the main public pages offer sign-up under the opening line. The closing aside copy is open.
+- A-H16: the dead Sign-in security panel is hidden, the temporary-password label and the welcome banner are corrected. The no-op account menu is open.
+- A-H17: dropping an activity on a later time today plans it. The "Log it now" button path still records a block that ends in the future.
+- A-H18: the menu says "Costs 1 more (-1 left)" and screen readers hear "uses 2" or "recovers 1". The Edit form still takes the opposite sign.
+- A-H21: toasts with Undo last 12 seconds and wait while the pointer or focus is on them. Focus restoration after re-renders is open.
+- A-H26, A-N13, A-N16: chips wrap long names, the untimed tray is capped, palette chips are solid, and chips are 44px on touch screens. The column count and the lane layout are open.
+- A-H29: the error uses the error colour, clears when the form changes, and phone pages keep focused fields clear of the fixed bars. The start-time and future-time copy is open.
+- A-H37: the board fits its card on a phone, long text is clamped and a swipe on empty board scrolls the page. Editing by double-tap is open.
+- A-H42: the axis labels can be reached and are named. The other four holes are open.
+- A-H43: success text meets contrast and Account messages are scrolled into view on a phone. Sticky save bars are open.
+- A-H46: "Add someone" comes before the people list. The reveal dialog is open.
+- A-N4, A-N5, A-N6, A-N18, A-N21, A-N22, A-N33: print styles, code-box attributes, the heading focus box, the name limit, 44px episode chips, the draft dialog text and a stray full stop.
+
+**Not done:**
+
+- Needs a product decision: A-H11 (operator name and contact settings), A-H13 (a spoons-or-points question at sign-up), A-H28 (planning with Amber, Red and poor sleep), A-H40 (where Tools lives in the navigation), A-H34 (the History calendar on a phone: the whole chosen range is a tested, deliberate choice, and the audit proposes paging it).
+- Needs new assets: A-H8's product screenshots.
+- Larger work that deserves its own change: A-H4, A-H6, A-H22, A-H23, A-H25, A-H27, A-H31, A-H33, A-H38, A-H41, A-H48, A-H49, and the remaining Nice-to-have items.
 
 ## Appendix E: Every finding at a glance
 
