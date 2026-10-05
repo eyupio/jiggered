@@ -23,12 +23,12 @@ landing page says "Free to use", `public/pricing.html` says "Free to use.", the
 structured data says `price: 0`, and the source is MIT. So I did not invent conversion
 problems. I substituted the nearest honest equivalents:
 
-| Brief says                  | Audited as                                                                         |
-| --------------------------- | ---------------------------------------------------------------------------------- |
-| Start a free trial          | **Activation**: first check-in → first logged activity → first plan → coming back  |
-| Paywall before value        | N/A. Checked instead: does the first screen show value before it asks for effort?  |
-| Stacked upsells / nagware   | Competing prompts on one screen (checklist, banners, repeated instructions)        |
-| Onboarding answers unused   | Settings the user gave the app that planning ignores (see H5)                      |
+| Brief says                | Audited as                                                                        |
+| ------------------------- | --------------------------------------------------------------------------------- |
+| Start a free trial        | **Activation**: first check-in → first logged activity → first plan → coming back |
+| Paywall before value      | N/A. Checked instead: does the first screen show value before it asks for effort? |
+| Stacked upsells / nagware | Competing prompts on one screen (checklist, banners, repeated instructions)       |
+| Onboarding answers unused | Settings the user gave the app that planning ignores (see H5)                     |
 
 ### What is already good (keep it)
 
@@ -83,8 +83,9 @@ problems. I substituted the nearest honest equivalents:
   The regression test fails without the fix (`scrollLeft` is 4, not 0) and passes with it.
   Optional, not done: an end-edge fade (`mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent)`)
   so the cut-off fourth chip reads as "more this way".
-- **Tested and rejected:** turning the strip into a 7-column grid *inside the current
-  card padding*. The container is 293 px, so chips are 37 px: "Today" overflows its chip
+
+- **Tested and rejected:** turning the strip into a 7-column grid _inside the current
+  card padding_. The container is 293 px, so chips are 37 px: "Today" overflows its chip
   and touches its neighbour, and 37 px is under a 44 px touch target. Do not ship that.
 - **Longer term:** replace the strip with the calendar's week header (Appendix A). If a
   7-up strip is kept, let it bleed to the card edge (335 px ÷ 7 ≈ 47.8 px, which clears
@@ -149,25 +150,33 @@ problems. I substituted the nearest honest equivalents:
   legend and a disclosure. Then the interaction that matters most is the worst one.
   **Verified in the browser:** pressing **Done** on a planned item on Today switches the
   tab to Plan, opens a form (name, points, time) titled "Log what actually happened",
-  and pre-fills the time with *now* (06:38) instead of the planned 15:00. You wanted one
+  and pre-fills the time with _now_ (06:38) instead of the planned 15:00. You wanted one
   tap; you got a context switch and a form. On a day you are tired, that is where the
   habit dies. The plan's start time is also overwritten, so plan-vs-actual drift is
   thrown away (see H7).
   Backfilling is no better: the time field exists only on past days
-  (`today.js:517`), and a tile tap today always stamps *now* (`today.js:200`), so you
+  (`today.js:517`), and a tile tap today always stamps _now_ (`today.js:200`), so you
   cannot say "the call was at 09:30" without the "Other activity" form.
-- **Status: the Done half is fixed; the timeline and backfilling are not.**
+- **Status: fixed (Done in place, Day timeline, backfilling). Plan-vs-actual drift (H7) is not.**
   - **Shipped:** Done on Today now logs the planned activity in place (its planned name and
-    cost), with no tab change and no form. Today's time is *now*, as with an activity tile; on
+    cost), with no tab change and no form. Today's time is _now_, as with an activity tile; on
     a past day it keeps the planned time, or none, since "now" would be wrong. The toast offers
     Undo, keyboard focus moves to the next planned item, and the logged activity can be
     corrected by tapping it among the day's logged activities. Plan's own Done is unchanged and
     still opens the form, so the actual cost or time can be set there.
   - **Differs from the proposal below:** the toast supports one action, so it is Undo, not
     "Undo / Adjust"; Adjust is tapping the logged activity.
-  - **Not done:** the Day timeline, tapping an empty slot to add (backfilling), and carrying the
-    planned time onto the log for plan-vs-actual (H7). Those need the `dur` field and the
-    calendar (Appendix A).
+  - **Shipped (Day timeline):** Today now has a one-day timeline above the activity tiles.
+    Logged activities are solid, planned ones dashed with a "tap to finish" cue, and the header
+    says how many are left. Tapping a planned block finishes it where it is (with Undo); tapping
+    an empty space opens the Add form at that time (the quarter hour, one hour long), which is
+    the backfilling; dragging a logged block moves it, dragging its edge sets how long it took,
+    and arrow keys do the same. A mouse can also drag an activity tile onto the timeline to log it
+    at that time, with the length from its name ("Deep focus (2 hours)" logs two hours). A touch
+    screen uses the grip on a block and the tap-to-add form instead, since a finger drag scrolls.
+    The timeline sits above the tiles in the right-hand column, because the left column is sticky
+    and a tall block in it could not be reached.
+  - **Not done:** carrying the planned time onto the log for plan-vs-actual (H7).
   - Test: `test/browser-planner.cjs` (stays on Today, Undo, correcting from the logged
     activity, Plan's form path, and a past day keeping `21:30`). It fails with the old flow at
     `Done stays on Today`.
@@ -239,7 +248,7 @@ problems. I substituted the nearest honest equivalents:
 - **Original proposal:**
   - Plan: when `f.rows.length === 0 && !f.logged`, render **only** the empty-state card,
     with the button inside it (`Plan your day`), and hide `#plan-forecast`. On phones add a
-    sticky "Add" button above the tab bar. *Not built as written:* plan rows' Done / Edit /
+    sticky "Add" button above the tab bar. _Not built as written:_ plan rows' Done / Edit /
     Remove buttons are right-aligned on phones, exactly where a floating button would sit,
     and it would stack on the fixed tab bar. A card at the top of the page avoids both.
   - History: when there are no logged days, replace the grid with a one-card preview
@@ -311,7 +320,7 @@ problems. I substituted the nearest honest equivalents:
 - **Where:** `web/planner-model.js:18` (`plan.allowance ?? settings.budget`),
   `web/planner.js:269-271`. `/#plan`.
 - **Problem:** The closest thing to "answers collected but never used". People set their
-  Amber, Red and poor-sleep penalties in Account, and they are applied to *logged* days.
+  Amber, Red and poor-sleep penalties in Account, and they are applied to _logged_ days.
   When planning a future day the allowance silently defaults to the full budget, so
   every future day assumes a Green day and the chips ("Wed 8") are optimistic. The hint
   promises "including expected sleep or check-in effects", but the user has to work
@@ -365,7 +374,7 @@ problems. I substituted the nearest honest equivalents:
   emptiest day) when nothing is logged.
 - **Fix:** put the calendar first. Move Period into a toolbar above it, make "Prepare
   summary" a secondary toolbar button, keep the day `<select>` as a visually-hidden
-  accessible fallback, and default selection to the most recent day *with records*.
+  accessible fallback, and default selection to the most recent day _with records_.
 
 ### H9. Touch targets and text are smaller than the audience can comfortably use
 
@@ -459,7 +468,7 @@ problems. I substituted the nearest honest equivalents:
   `t` stays local `HH:MM`. v1: a block may not cross midnight (clamp `t + dur ≤ 24:00`).
   Decide separately whether overnight sleep needs splitting.
 - Add optional **`dur`** to saved activity presets so "Deep focus" arrives as 120 min.
-  Parse existing names once as a *suggestion* only ("(2 hours)" → 120), never silently.
+  Parse existing names once as a _suggestion_ only ("(2 hours)" → 120), never silently.
 - **Server:** `validateDoc` ignores unknown fields by design (`validate.go:11-14`), so old
   data and old tabs keep working, and an old tab's `editEntry` preserves `dur`
   (`{...e, ...changes}`, `model.js:493`). Still add a check in the `p-` rows loop
@@ -470,11 +479,11 @@ problems. I substituted the nearest honest equivalents:
 
 ### A3. Views
 
-| Page    | Default                   | Contents                                                                                       |
-| ------- | ------------------------- | ---------------------------------------------------------------------------------------------- |
-| Today   | Day timeline (replaces `#today-plan`) | Hour rail, now-line, logged = solid, planned = dashed ghost, "Anytime" tray for untimed |
-| Plan    | Week board (Day on phones) | 7 day columns × 06:00–22:00 (range follows data), saved-activity palette, per-day budget bar   |
-| History | Week/Day grid + Month heatmap | Same renderer, read-only: solid logged, ghost planned, episode range bars in their own lane  |
+| Page    | Default                               | Contents                                                                                     |
+| ------- | ------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Today   | Day timeline (replaces `#today-plan`) | Hour rail, now-line, logged = solid, planned = dashed ghost, "Anytime" tray for untimed      |
+| Plan    | Week board (Day on phones)            | 7 day columns × 06:00–22:00 (range follows data), saved-activity palette, per-day budget bar |
+| History | Week/Day grid + Month heatmap         | Same renderer, read-only: solid logged, ghost planned, episode range bars in their own lane  |
 
 - Phone: Day view with a 7-day header strip (see C1), activity palette as a bottom
   sheet, and editing in a sheet. Desktop: palette in a side column; drag from it onto a
@@ -532,23 +541,23 @@ template is blocked.** Set geometry from JS after render with the CSSOM
 1. C1 CSS fix, H6 `−0` and C5 empty states (**done**; see each finding for what remains).
 2. `dur` + validation + sorted rows + List/Calendar toggle.
 3. Plan Week/Day board with drag, resize and keyboard (**done**).
-4. Today Day timeline (C3; the one-tap Done part of it is **done**).
+4. Today Day timeline (C3; **done**).
 5. History grid with plan-vs-actual and episode bars; Month heatmap resized (C4).
 
 ---
 
 ## Appendix B. First-time walkthrough (in-app only)
 
-| Step | What I saw | Hesitation / verdict |
-| ---- | ---------- | -------------------- |
-| Sign-in → forced password change | **Code only, not run.** `web/app.js:119-147` hides the tabs and shows "A space of your own." | Good, friendly. Cannot judge the form. |
-| Today, first run (375) | Onboarding card with an inline number input, then check-in, ring `10 of 10`, `−0` / `+0`, ~24 tiles; ~5,100 px tall | Value is near the top, but the check-in is asked four times (N4) and the page reads as a lot (H1). |
-| First check-in | Green/Amber/Red state their cost; choice sets the allowance and the ring updates | **Respects the choice.** Best moment in the app. |
-| First activity tap | Tile turns green with ×1 and a stepper; Undo toast | Clear, reversible. |
-| Plan | Wall of zeros, the Add button below the fold on a phone | C5, H4. Likely abandonment point. |
-| Plan, once something is added | List rows, projected balance | Still can't see the day (C2); allowance assumes Green (H5). |
-| Done on Today | Teleports to Plan, full form, wrong time | C3. |
-| History, new account | Dashed grid, zeros, greyed "Prepare summary", "Share this day" | C5. Nothing says what it becomes. |
+| Step                             | What I saw                                                                                                          | Hesitation / verdict                                                                               |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Sign-in → forced password change | **Code only, not run.** `web/app.js:119-147` hides the tabs and shows "A space of your own."                        | Good, friendly. Cannot judge the form.                                                             |
+| Today, first run (375)           | Onboarding card with an inline number input, then check-in, ring `10 of 10`, `−0` / `+0`, ~24 tiles; ~5,100 px tall | Value is near the top, but the check-in is asked four times (N4) and the page reads as a lot (H1). |
+| First check-in                   | Green/Amber/Red state their cost; choice sets the allowance and the ring updates                                    | **Respects the choice.** Best moment in the app.                                                   |
+| First activity tap               | Tile turns green with ×1 and a stepper; Undo toast                                                                  | Clear, reversible.                                                                                 |
+| Plan                             | Wall of zeros, the Add button below the fold on a phone                                                             | C5, H4. Likely abandonment point.                                                                  |
+| Plan, once something is added    | List rows, projected balance                                                                                        | Still can't see the day (C2); allowance assumes Green (H5).                                        |
+| Done on Today                    | Teleports to Plan, full form, wrong time                                                                            | C3 (**fixed**: logs in place, with Undo).                                                          |
+| History, new account             | Dashed grid, zeros, greyed "Prepare summary", "Share this day"                                                      | C5. Nothing says what it becomes.                                                                  |
 
 ## Appendix C. Measurements
 
@@ -557,16 +566,16 @@ elements in the active tab narrower or shorter than 44 px.
 
 | Viewport / tab | Page height | Horizontal overflow | Interactive | Under 44 px | Text under 12 px |
 | -------------- | ----------: | ------------------: | ----------: | ----------: | ---------------: |
-| 1440 Today     |   2,938 px  |                 0   |          69 |           8 |          37 / 267 |
-| 1440 Plan      |   1,540 px  |                 0   |          16 |           0 |            0 / 57 |
-| 1440 History   |   1,975 px  |                 0   |          98 |          67 |          56 / 833 |
-| 375 Today      |   5,756 px  |                 0   |          69 |           7 |          37 / 267 |
-| 375 Plan       |   2,134 px  |                 0   |          16 |           0 |            0 / 57 |
-| 375 History    |   2,835 px  |                 0   |          98 |          52 |          56 / 833 |
-| 360 Today      |   5,591 px  |                 0   |          69 |           7 |                 – |
-| 360 History    |   2,792 px  |                 0   |          98 |          57 |                 – |
-| 320 Today      |   7,495 px  |                 0   |          69 |           7 |                 – |
-| 320 History    |   2,915 px  |                 0   |          98 |          46 |                 – |
+| 1440 Today     |    2,938 px |                   0 |          69 |           8 |         37 / 267 |
+| 1440 Plan      |    1,540 px |                   0 |          16 |           0 |           0 / 57 |
+| 1440 History   |    1,975 px |                   0 |          98 |          67 |         56 / 833 |
+| 375 Today      |    5,756 px |                   0 |          69 |           7 |         37 / 267 |
+| 375 Plan       |    2,134 px |                   0 |          16 |           0 |           0 / 57 |
+| 375 History    |    2,835 px |                   0 |          98 |          52 |         56 / 833 |
+| 360 Today      |    5,591 px |                   0 |          69 |           7 |                – |
+| 360 History    |    2,792 px |                   0 |          98 |          57 |                – |
+| 320 Today      |    7,495 px |                   0 |          69 |           7 |                – |
+| 320 History    |    2,915 px |                   0 |          98 |          46 |                – |
 
 Other measured facts: Today activity tiles are 127 px tall at 1440 and 375, and the
 activity block is 1,941 px (1440) / 2,669 px (375); the Plan chips are 88 × 100 px on

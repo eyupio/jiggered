@@ -104,7 +104,7 @@ The browser runner compiles once, then runs all shared scenarios:
 | `test/browser-energy-theme.cjs`         | Energy language, previews, saving, cross-device and responsive themes (in-memory API fixture)                                     |
 | `test/browser-product-improvements.cjs` | Mobile alignment, profile row gaps, validation, reusable activity, selected-day return, private sharing and empty exports         |
 | `test/browser-planner.cjs`              | Seven-day planning, repeat activities, actual cost correction, History comparisons, refresh and mobile overflow                   |
-| `test/browser-calendar.cjs`             | Plan timeline with a real mouse, keyboard and touch: move, resize, palette, click-to-add, Undo, one-day phone view                |
+| `test/browser-calendar.cjs`             | Plan and Today timelines with a real mouse, keyboard and touch: move, resize, palette, click-to-add, Undo, one-day phone view     |
 | `test/browser-today.cjs`                | Activity picker, logging, adjustments and Undo                                                                                    |
 | `test/browser-history.cjs`              | Large-account History, search, filters and mobile calendar                                                                        |
 | `test/browser-mobile.cjs`               | Phone-width Account editors and History navigation                                                                                |

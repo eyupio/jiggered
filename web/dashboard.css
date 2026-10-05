@@ -1912,6 +1912,15 @@
 .cal-block.is-dragging {
   opacity: 0.4;
 }
+.cal-block.cal-logged {
+  border-style: solid;
+}
+.cal-block.cal-logged.is-spend {
+  background: color-mix(in srgb, var(--amber) 30%, var(--surface));
+}
+.cal-block.cal-logged.is-recovery {
+  background: color-mix(in srgb, var(--green) 28%, var(--surface));
+}
 .cal-block.is-short {
   flex-direction: row;
   align-items: center;
@@ -2114,4 +2123,7 @@
   .cal-palette {
     display: none;
   }
+}
+.today-timeline-panel .history-section-body > .meta {
+  margin: 0;
 }

@@ -53,7 +53,7 @@ export function createTimeGrid(root, hooks) {
   const byKey = (key) => all("[data-key]").find((el) => el.dataset.key === key);
 
   const label = (b) =>
-    `${b.title}${b.slot ? ", " + b.slot : ""}, ${signed(b.cost)} ${b.cost < 0 ? "recovery" : "cost"}${b.done ? ", done" : ""}`;
+    `${b.title}${b.slot ? ", " + b.slot : ""}, ${signed(b.cost)} ${b.cost < 0 ? "recovery" : "cost"}${b.done ? ", done" : ""}${b.hint ? ". " + b.hint : ""}`;
 
   function paint(m) {
     model = m;
@@ -75,10 +75,10 @@ export function createTimeGrid(root, hooks) {
     const hours = Array.from({ length: (win[1] - win[0]) / 60 }, (_, i) => win[0] + i * 60);
     const editable = m.editable && hooks.editable();
     const block = (d, b) =>
-      html`<button type="button" class="cal-block cal-${b.kind}${b.done ? " is-done" : ""}${b.dur <= 30 ? " is-short" : ""}${b.cost < 0 ? " is-recovery" : b.cost > 0 ? " is-spend" : ""}${editable && b.editable ? " is-editable" : ""}" data-key="${d.date}|${b.id}" data-date="${d.date}" data-id="${b.id}" data-s="${b.start - win[0]}" data-d="${b.dur}" data-lane="${b.lane}" data-lanes="${b.lanes}" aria-label="${label(b)}" title="${label(b)}" aria-describedby="${helpId}">${editable && b.editable ? html`<span class="cal-resize" data-edge="top" aria-hidden="true"></span><span class="cal-grip" aria-hidden="true"></span>` : ""}<span class="cal-title">${b.done ? "✓ " : ""}${b.title}</span><span class="cal-meta">${b.slot}${b.slot ? " · " : ""}${signed(b.cost)}</span>${editable && b.editable ? html`<span class="cal-resize" data-edge="bottom" aria-hidden="true"></span>` : ""}</button>`;
+      html`<button type="button" class="cal-block cal-${b.kind}${b.done ? " is-done" : ""}${b.dur <= 30 ? " is-short" : ""}${b.cost < 0 ? " is-recovery" : b.cost > 0 ? " is-spend" : ""}${editable && b.editable ? " is-editable" : ""}" data-key="${d.date}|${b.id}" data-date="${d.date}" data-id="${b.id}" data-s="${b.start - win[0]}" data-d="${b.dur}" data-lane="${b.lane}" data-lanes="${b.lanes}" aria-label="${label(b)}" title="${label(b)}" aria-describedby="${helpId}">${editable && b.editable ? html`<span class="cal-resize" data-edge="top" aria-hidden="true"></span><span class="cal-grip" aria-hidden="true"></span>` : ""}<span class="cal-title">${b.done ? "✓ " : ""}${b.title}</span><span class="cal-meta">${b.slot}${b.slot ? " · " : ""}${signed(b.cost)}${b.hint ? " · " + b.hint : ""}</span>${editable && b.editable ? html`<span class="cal-resize" data-edge="bottom" aria-hidden="true"></span>` : ""}</button>`;
     setHTML(
       inner,
-      html`<p class="sr-only" id="${helpId}">${editable ? "Enter opens a block to edit it. Up and down arrows move it by 15 minutes, Left and Right move it to another day, and Shift with Up or Down changes how long it lasts." : "Enter opens a block."}</p>
+      html`<p class="sr-only" id="${helpId}">${(editable && m.help) || (editable ? "Enter opens a block to edit it. Up and down arrows move it by 15 minutes, Left and Right move it to another day, and Shift with Up or Down changes how long it lasts." : "Enter opens a block.")}</p>
       <div class="cal-scroll" data-cal-scroll><div class="cal-top"><div class="cal-head"><span class="cal-corner"></span>${days.map((d) => html`<button type="button" class="cal-day-head${d.today ? " is-today" : ""}${d.selected ? " is-selected" : ""}${d.warn ? " is-warn" : ""}" data-cal-day="${d.date}" aria-pressed="${!!d.selected}"><span>${d.label}</span><b>${d.value}</b></button>`)}</div>
       ${days.some((d) => d.tray.length) ? html`<div class="cal-tray-row"><span class="cal-corner">Any time</span>${days.map((d) => html`<div class="cal-tray" data-date="${d.date}">${d.tray.map((b) => html`<button type="button" class="cal-chip cal-${b.kind}${b.done ? " is-done" : ""}${editable && b.editable ? " is-editable" : ""}" data-key="${d.date}|${b.id}" data-date="${d.date}" data-id="${b.id}" aria-label="${label(b)}" title="${label(b)}">${b.done ? "✓ " : ""}${b.title}</button>`)}</div>`)}</div>` : ""}
       </div><div class="cal-body" data-cal-body><div class="cal-rail" aria-hidden="true">${hours.map((h) => html`<span>${fromMinutes(h)}</span>`)}</div>${days.map((d) => html`<div class="cal-col${d.today ? " is-today" : ""}" data-cal-col data-date="${d.date}" role="group" aria-label="${d.label}">${d.laid.map((b) => block(d, b))}${d.today ? html`<span class="cal-now" aria-hidden="true"></span>` : ""}</div>`)}</div></div>`,
@@ -157,7 +157,15 @@ export function createTimeGrid(root, hooks) {
   };
 
   function begin(e, s) {
-    session = { ...s, pointerId: e.pointerId, x0: e.clientX, y0: e.clientY, moved: false, last: e };
+    session = {
+      ...s,
+      pointerId: e.pointerId,
+      x0: e.clientX,
+      y0: e.clientY,
+      moved: false,
+      last: e,
+      armed: s.kind !== "external",
+    };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onCancel);
@@ -190,11 +198,20 @@ export function createTimeGrid(root, hooks) {
     const s = session;
     if (!s) return;
     s.last = e;
+    const sc = q("[data-cal-scroll]"),
+      area = sc.getBoundingClientRect();
     if (!s.moved && Math.hypot(e.clientX - s.x0, e.clientY - s.y0) < MOVE_SLOP) return;
     if (!s.moved) {
       s.moved = true;
       s.el?.classList.add("is-dragging");
     }
+    // Only over the grid does a drop count: letting go anywhere else (back where it started, say) changes nothing.
+    // A little room above and below lets a drag run past the edge, which scrolls.
+    const over =
+      e.clientX >= area.left &&
+      e.clientX <= area.right &&
+      e.clientY >= area.top - EDGE &&
+      e.clientY <= area.bottom + EDGE;
     if (s.kind.startsWith("resize")) {
       const col = s.el.closest("[data-cal-col]"),
         at = minuteAt(col, e.clientY);
@@ -206,18 +223,25 @@ export function createTimeGrid(root, hooks) {
         `${fromMinutes(s.target.start)} to ${fromMinutes(Math.min(s.target.start + s.target.dur, DAY))}`,
       );
     } else {
-      const col = colAt(e.clientX);
-      if (!col) return;
-      const at = minuteAt(col, e.clientY),
-        next = moveTo({ start: 0, dur: s.origin.dur }, at - s.grab);
-      s.target = { start: next.start, dur: next.dur, date: col.dataset.date };
-      preview(s.target.date, s.target.start, s.target.dur);
+      const col = over ? colAt(e.clientX) : null;
+      if (!col) {
+        s.target = null;
+        drop.hidden = true;
+      } else {
+        const at = minuteAt(col, e.clientY),
+          next = moveTo({ start: 0, dur: s.origin.dur }, at - s.grab);
+        s.target = { start: next.start, dur: next.dur, date: col.dataset.date };
+        preview(s.target.date, s.target.start, s.target.dur);
+      }
     }
     // Near the top or bottom of the scroller, keep scrolling so the rest of the day can be reached.
-    const sc = q("[data-cal-scroll]"),
-      r = sc.getBoundingClientRect(),
-      near = Math.min(e.clientY - r.top, r.bottom - e.clientY),
-      dir = e.clientY < r.top + EDGE ? -1 : e.clientY > r.bottom - EDGE ? 1 : 0,
+    const r = area,
+      near = Math.min(e.clientY - r.top, r.bottom - e.clientY);
+    // A drag that comes in from outside (an activity from the list) crosses the edge on its way in: only once it has
+    // been well inside the grid does reaching an edge scroll.
+    if (near > EDGE && e.clientX >= r.left && e.clientX <= r.right) s.armed = true;
+    const dir =
+        !over || !s.armed ? 0 : e.clientY < r.top + EDGE ? -1 : e.clientY > r.bottom - EDGE ? 1 : 0,
       speed = Math.max(2, Math.round((1 - Math.max(0, near) / EDGE) * 12));
     cancelAnimationFrame(s.raf);
     if (dir && !s.kind.startsWith("resize")) {
@@ -247,8 +271,9 @@ export function createTimeGrid(root, hooks) {
     if (!session || e.pointerId !== session.pointerId) return;
     update(e);
     const s = end();
-    if (!s.moved || !s.target) return;
+    if (!s.moved) return;
     holdClick(true);
+    if (!s.target) return;
     const t = s.target;
     if (s.kind === "external")
       hooks.onDrop(s.payload, { date: t.date, start: t.start, dur: t.dur });

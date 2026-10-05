@@ -1,11 +1,20 @@
 // The Today tab: morning check-in, the points gauge, tapping activities. It can also show and edit a past day.
 
 import { renderEnergyFlow } from "./energy-flow.js";
-import { renderTodayPlan } from "./planner.js";
+import { renderTodayPlan, completePlanned, reschedulePlanned } from "./planner.js";
+import { createTimeGrid } from "./calendar.js";
 import { forecast } from "./planner-model.js";
 import { energyWords, energyAmount, energyCopy, themeOf, SPOON_PATH } from "./energy-theme.js";
 import { $, html, setHTML, uid, fmtLongDay, signed } from "./util.js";
-import { DAY, slotText, toMinutes, validDur } from "./calendar-model.js";
+import {
+  DAY,
+  NEW_DUR,
+  fromMinutes,
+  slotText,
+  suggestDuration,
+  toMinutes,
+  validDur,
+} from "./calendar-model.js";
 import { normaliseProfile } from "./profile.js";
 import { historyInsights } from "./history-model.js";
 import { renderOngoing } from "./episodes.js";
@@ -210,6 +219,7 @@ export function init(ctx) {
     });
   }
   $("acts").addEventListener("click", (e) => {
+    if (board.justDropped()) return;
     const step = e.target.closest("[data-step]");
     const b = step || e.target.closest("button.act");
     if (!b) return;
@@ -222,6 +232,126 @@ export function init(ctx) {
     const latest = day().entries.findLast((en) => en.a === x.a);
     if (latest) removeEntry(latest);
   });
+  // ---- the day on a timeline: what each gesture on it means for the day ----
+  const writable = () => !ctx.store.status().readOnly && !ctx.store.status().restoring;
+  let burst = null; // the last change to a logged block, so a run of arrow-key moves undoes as one
+  function moveLogged(entry, t, dur, keyboard) {
+    const target = id(),
+      again = keyboard && burst?.id === entry.id && Date.now() - burst.at < 1500,
+      origin = again ? burst.origin : { t: entry.t, dur: entry.dur };
+    op("editEntry", { id: entry.id, changes: { t, dur } }, entry);
+    burst = { id: entry.id, origin, at: Date.now() };
+    ctx.toast(`Moved ${entry.a} to ${slotText({ t, dur })}.`, {
+      label: "Undo",
+      fn: () => {
+        burst = null;
+        op(
+          "editEntry",
+          { id: entry.id, changes: { t: origin.t ?? "", dur: origin.dur ?? null } },
+          { ...entry, t, dur },
+          target,
+        );
+      },
+    });
+  }
+  const board = createTimeGrid($("today-board"), {
+    editable: writable,
+    onSelectDay() {},
+    onOpen({ id: blockId }) {
+      if (blockId.startsWith("plan:")) return completePlanned(ctx, key(), blockId.slice(5));
+      const entry = day().entries.find((e) => e.id === blockId.slice(4));
+      if (entry) edit(entry);
+    },
+    // Clicking an empty space logs something at that time (the way to record what already happened).
+    onCreate({ start }) {
+      edit();
+      $("entry-time").value = fromMinutes(start);
+      $("entry-dur").value = String(Math.min(NEW_DUR, DAY - start));
+    },
+    onChange(c) {
+      if (c.id.startsWith("plan:"))
+        return reschedulePlanned(ctx, key(), c.id.slice(5), c.start, c.dur);
+      const entry = day().entries.find((e) => e.id === c.id.slice(4));
+      if (entry) moveLogged(entry, fromMinutes(c.start), c.dur, c.source === "keyboard");
+    },
+    // An activity dragged here from the list is logged at the time it is dropped on.
+    onDrop(payload, at) {
+      const target = id(),
+        entry = {
+          id: uid(),
+          a: payload.preset.a,
+          c: payload.preset.c,
+          t: fromMinutes(at.start),
+          dur: at.dur,
+        };
+      op("addEntry", entry);
+      ctx.toast(`Logged ${entry.a} at ${entry.t}.`, {
+        label: "Undo",
+        fn: () => op("removeEntry", entry, undefined, target),
+      });
+    },
+  });
+  // A mouse or pen can pick an activity up from the list; a tap still records it now.
+  $("acts").addEventListener("pointerdown", (e) => {
+    const tile = e.target.closest("button.act");
+    const preset =
+      tile && e.pointerType !== "touch" && e.button === 0
+        ? ctx.settings().activities[tile.dataset.i]
+        : null;
+    if (preset) board.beginExternalDrag(e, { preset, dur: suggestDuration(preset.a) ?? NEW_DUR });
+  });
+  // On a phone the timeline starts closed so it does not push the activity tiles a screen further down. A closed
+  // grid cannot be measured, so it is drawn again when opened.
+  const timeline = $("today-timeline-panel");
+  let timelineArgs = null;
+  if (matchMedia("(max-width: 959px)").matches) timeline.open = false;
+  timeline.addEventListener("toggle", () => {
+    if (timeline.open && timelineArgs) renderTimeline(...timelineArgs);
+  });
+  function renderTimeline(d, S, left) {
+    timelineArgs = [d, S, left];
+    const k = key(),
+      past = k !== ctx.today(),
+      pending = forecast(ctx.store.all(), k, S).pending;
+    $("today-timeline-summary").textContent = pending.length
+      ? `${d.entries.length} logged · ${pending.length} to do`
+      : `${d.entries.length} logged`;
+    board.render({
+      editable: writable(),
+      help: "Enter opens a logged activity to edit it, or marks a planned one as done. Up and down arrows move a block by 15 minutes, and Shift with Up or Down changes how long it lasts.",
+      days: [
+        {
+          date: k,
+          label: past ? fmtLongDay(k, S.locale) : "Today",
+          value: `${left} left`,
+          today: !past,
+          selected: true,
+          warn: left < 0,
+          blocks: [
+            ...d.entries.map((e) => ({
+              id: "log:" + e.id,
+              title: e.a,
+              cost: e.c,
+              t: e.t,
+              dur: e.dur,
+              kind: "logged",
+              editable: true,
+            })),
+            ...pending.map((r) => ({
+              id: "plan:" + r.id,
+              title: r.a,
+              cost: r.c,
+              t: r.t,
+              dur: r.dur,
+              kind: "plan",
+              editable: true,
+              hint: "tap to finish",
+            })),
+          ],
+        },
+      ],
+    });
+  }
   function nameCount() {
     const count = [...$("entry-name").value.trim()].length;
     $("entry-name-count").textContent = `${count} / 60 characters`;
@@ -620,6 +750,7 @@ export function init(ctx) {
     renderActivities(S);
     renderOnboarding(S, past);
     renderWeekly(past);
+    renderTimeline(d, S, left);
 
     $("activity-log").hidden = !d.entries.length;
     $("energy-activities").hidden = !d.entries.length;

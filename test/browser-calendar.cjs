@@ -1,4 +1,4 @@
-// The planning timeline on Plan, driven the way a person drives it: a real mouse, the keyboard, and real touch input.
+// The timelines on Plan and Today, driven the way a person drives it: a real mouse, the keyboard, and real touch input.
 // The real application with a private in-memory API fixture; no user data.
 const { runBrowser } = require("./support/browser.cjs");
 const assert = require("node:assert/strict");
@@ -45,8 +45,8 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
     ),
     ["p-" + d2]: plan({ id: "p7", a: "Meeting or call", c: 2, t: "10:00", dur: 30 }),
   });
-  async function openPlan(options) {
-    const docs = seed(),
+  async function openApp(options, tab = "plan", extra = {}) {
+    const docs = { ...seed(), ...extra },
       errors = [];
     const context = await browser.newContext({
       timezoneId: "UTC",
@@ -90,37 +90,42 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto("http://localhost:18759/");
     await page.locator("#acts .act, #acts button.act").first().waitFor();
-    await page.locator("#t-plan").click();
-    await page.locator(".cal-block").first().waitFor();
+    await page.locator("#t-" + tab).click();
+    // On a phone Today's timeline starts closed, so wait for it to be drawn, not for it to be seen.
+    await page
+      .locator(`#${tab === "plan" ? "plan" : "today"}-board .cal-block`)
+      .first()
+      .waitFor({ state: "attached" });
     return { page, context, docs, errors };
   }
   const entry = (docs, day, id) => docs["p-" + day]?.body.entries.find((e) => e.id === id);
-  const slot = (page, day, minute) =>
+  const slot = (page, day, minute, scope = "#plan-board") =>
     page.evaluate(
-      ([day, minute]) => {
-        const col = [...document.querySelectorAll("[data-cal-col]")].find(
-            (c) => c.dataset.date === day,
-          ),
+      ([day, minute, scope]) => {
+        const board = document.querySelector(scope),
+          col = [...board.querySelectorAll("[data-cal-col]")].find((c) => c.dataset.date === day),
           r = col.getBoundingClientRect(),
           hours = Number(
-            getComputedStyle(document.querySelector("[data-cal-body]")).getPropertyValue("--hours"),
+            getComputedStyle(board.querySelector("[data-cal-body]")).getPropertyValue("--hours"),
           ),
-          first = Number(document.querySelector(".cal-rail span").textContent.slice(0, 2)) * 60,
-          sc = document.querySelector(".cal-scroll").getBoundingClientRect(),
+          first = Number(board.querySelector(".cal-rail span").textContent.slice(0, 2)) * 60,
+          sc = board.querySelector(".cal-scroll").getBoundingClientRect(),
           y = r.top + ((minute - first) / (hours * 60)) * r.height;
         // Stay clear of the scroller's edges: near them a drag deliberately scrolls.
         if (y < sc.top + 90 || y > sc.bottom - 60)
           throw new Error(`${minute} min is not comfortably on screen`);
         return { x: r.left + r.width / 2, y };
       },
-      [day, minute],
+      [day, minute, scope],
     );
-  const show = (page) =>
-    page.evaluate(() => {
-      document.getElementById("plan-board").scrollIntoView({ block: "center" });
-      document.querySelector(".cal-scroll").scrollTop = 56;
-    });
-  const block = (page, id) => page.locator(`.cal-block[data-id="${id}"]`);
+  const show = (page, scope = "#plan-board") =>
+    page.evaluate((scope) => {
+      const board = document.querySelector(scope);
+      board.scrollIntoView({ block: "center" });
+      board.querySelector(".cal-scroll").scrollTop = 56;
+    }, scope);
+  const block = (page, id, scope = "#plan-board") =>
+    page.locator(`${scope} .cal-block[data-id="${id}"]`);
   async function drag(page, from, to) {
     await page.mouse.move(from.x, from.y);
     await page.mouse.down();
@@ -132,35 +137,37 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
 
   // ---------------- desktop: a mouse, the keyboard, and the palette ----------------
   {
-    const { page, context, docs, errors } = await openPlan({
+    const { page, context, docs, errors } = await openApp({
       viewport: { width: 1440, height: 1000 },
     });
     await show(page);
 
     // What is drawn: every timed block, the untimed one in "Any time", overlaps side by side, today marked.
-    assert.equal(await page.locator("[data-cal-col]").count(), 7);
-    assert.equal(await page.locator(".cal-block").count(), 6, "six timed blocks");
-    assert.equal(await page.locator(".cal-tray .cal-chip").count(), 1);
+    assert.equal(await page.locator("#plan-board [data-cal-col]").count(), 7);
+    assert.equal(await page.locator("#plan-board .cal-block").count(), 6, "six timed blocks");
+    assert.equal(await page.locator("#plan-board .cal-tray .cal-chip").count(), 1);
     const lanes = await page.evaluate(() =>
       ["p3", "p4"].map((id) => {
-        const b = document.querySelector(`.cal-block[data-id="${id}"]`);
+        const b = document.querySelector(`#plan-board .cal-block[data-id="${id}"]`);
         return `${b.dataset.lane}/${b.dataset.lanes}`;
       }),
     );
     assert.deepEqual(lanes, ["0/2", "1/2"], "overlapping blocks share the column");
-    assert.equal(await page.locator(".cal-col.is-today .cal-now").count(), 1);
+    assert.equal(await page.locator("#plan-board .cal-col.is-today .cal-now").count(), 1);
     assert.match(await block(page, "p3").getAttribute("aria-label"), /09:00–11:00/);
     assert.equal(
       await page.evaluate(() => {
-        const chip = document.querySelector(".cal-tray .cal-chip").getBoundingClientRect(),
-          sc = document.querySelector(".cal-scroll").getBoundingClientRect();
+        const chip = document
+            .querySelector("#plan-board .cal-tray .cal-chip")
+            .getBoundingClientRect(),
+          sc = document.querySelector("#plan-board .cal-scroll").getBoundingClientRect();
         return chip.top >= sc.top && chip.bottom <= sc.bottom;
       }),
       true,
       "the Any time row is visible without scrolling",
     );
-    await page.evaluate(() => (document.querySelector(".cal-scroll").scrollTop = 300));
-    assert.equal(await page.locator(".cal-tray .cal-chip").isVisible(), true);
+    await page.evaluate(() => (document.querySelector("#plan-board .cal-scroll").scrollTop = 300));
+    assert.equal(await page.locator("#plan-board .cal-tray .cal-chip").isVisible(), true);
     await show(page);
 
     // Move within a day: 14:00 -> 12:00. Undo puts it back.
@@ -239,6 +246,21 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
       () => !docs["p-" + d2].body.entries.some((e) => e.a === "Deep focus (2 hours)"),
       "undo removes it",
     );
+    // Letting go outside the grid changes nothing: a palette item put back, a block dropped off the board.
+    const planned = () =>
+      Object.entries(docs)
+        .filter(([id]) => id.startsWith("p-"))
+        .reduce((n, [, doc]) => n + doc.body.entries.length, 0);
+    const count = planned();
+    const spare = await box(page.locator('.cal-preset[data-preset="3"]'));
+    await drag(page, { x: spare.x + 20, y: spare.y + 10 }, { x: spare.x + 60, y: spare.y + 90 });
+    await page.waitForTimeout(250);
+    assert.equal(planned(), count, "a palette item put back adds nothing, on any day");
+    b = await box(block(page, "p5"));
+    await drag(page, { x: b.x + 30, y: b.y + 8 }, { x: spare.x + 40, y: spare.y + 130 });
+    await page.waitForTimeout(250);
+    assert.equal(entry(docs, d1, "p5").t, "14:00", "a block dropped off the board stays put");
+    assert.equal(await page.locator("#plan-form").isHidden(), true, "and that is not a click");
     // A plain click on a palette item fills the form instead of placing it.
     await page.locator('.cal-preset[data-preset="3"]').click();
     assert.equal(await page.locator("#plan-form").isVisible(), true);
@@ -286,7 +308,7 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
     );
     assert.equal(await page.evaluate(() => document.activeElement.dataset.key), `${d2}|p3`);
     assert.match(
-      await page.locator(".cal [role=status]").textContent(),
+      await page.locator("#plan-board [role=status]").textContent(),
       /Deep focus.*09:30 to 11:45/,
     );
     await undo(page);
@@ -299,12 +321,12 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
     );
 
     // The hours keep their place when you visit another tab and come back.
-    await page.evaluate(() => (document.querySelector(".cal-scroll").scrollTop = 300));
+    await page.evaluate(() => (document.querySelector("#plan-board .cal-scroll").scrollTop = 300));
     await page.waitForTimeout(120);
     await page.locator("#t-today").click();
     await page.locator("#t-plan").click();
     assert.equal(
-      await page.evaluate(() => document.querySelector(".cal-scroll").scrollTop),
+      await page.evaluate(() => document.querySelector("#plan-board .cal-scroll").scrollTop),
       300,
       "the timeline keeps its place",
     );
@@ -316,18 +338,22 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
 
   // ---------------- phone: one day, a grip to move blocks, and a page that still scrolls ----------------
   {
-    const { page, context, docs, errors } = await openPlan({
+    const { page, context, docs, errors } = await openApp({
       viewport: { width: 375, height: 812 },
       isMobile: true,
       hasTouch: true,
     });
-    assert.equal(await page.locator("[data-cal-col]").count(), 1, "a phone shows one day");
+    assert.equal(
+      await page.locator("#plan-board [data-cal-col]").count(),
+      1,
+      "a phone shows one day",
+    );
     assert.equal(await page.locator("#plan-palette").isHidden(), true);
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       true,
     );
-    await page.evaluate(() => (document.querySelector(".cal-scroll").scrollTop = 400));
+    await page.evaluate(() => (document.querySelector("#plan-board .cal-scroll").scrollTop = 400));
     await page.evaluate(() => {
       const b = document.querySelector('.cal-block[data-id="p1"]');
       window.scrollBy(0, b.getBoundingClientRect().top - 250);
@@ -363,6 +389,182 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
     assert.equal(await page.locator("#plan-form").isVisible(), true);
     assert.equal(await page.locator("#plan-time").inputValue(), "16:00");
     await harness.screenshot(page, "calendar-375.png");
+    assert.deepEqual(errors, []);
+    await context.close();
+  }
+
+  // ---------------- Today: what is logged and what is planned, on one timeline ----------------
+  const loggedDay = () => ({
+    ["d-" + today]: {
+      rev: 1,
+      body: {
+        date: today,
+        status: "green",
+        budget: 10,
+        sleepPenalty: 3,
+        entries: [
+          { id: "l1", a: "Meeting or call", c: 2, t: "09:30", dur: 60 },
+          { id: "l2", a: "Cooking a meal", c: 1, t: "12:15" },
+        ],
+      },
+    },
+  });
+  {
+    const T = "#today-board";
+    const { page, context, docs, errors } = await openApp(
+      { viewport: { width: 1440, height: 2600 } },
+      "today",
+      loggedDay(),
+    );
+    const logged = () => docs["d-" + today].body.entries,
+      find = (id) => logged().find((e) => e.id === id),
+      tile = () => page.locator("#acts button.act", { hasText: "Deep focus (2 hours)" }).first();
+    assert.equal(await page.locator("#today-timeline-panel").evaluate((d) => d.open), true);
+    assert.match(await page.locator("#today-timeline-summary").textContent(), /2 logged · 2 to do/);
+    await show(page, T);
+
+    // What is drawn: logged blocks solid, planned ones dashed with a cue, the header says what is left.
+    assert.equal(await page.locator(`${T} .cal-logged`).count(), 2);
+    assert.equal(await page.locator(`${T} .cal-plan`).count(), 2);
+    assert.match(await page.locator(`${T} .cal-day-head`).textContent(), /\d+ left/);
+    assert.match(await block(page, "plan:p1", T).textContent(), /tap to finish/);
+
+    // Tapping a planned block finishes it where it is (no form, no tab change); Undo takes it back.
+    await block(page, "plan:p2", T).click();
+    await until(() => logged().some((e) => e.id === `planned:${today}:p2`), "finished in place");
+    const finished = find(`planned:${today}:p2`);
+    assert.match(finished.t, /^\d\d:\d\d$/);
+    assert.ok(finished.dur >= 5 && finished.dur <= 45, "its planned length comes along");
+    assert.match(await page.locator("#toastbar").textContent(), /Logged Quiet break/);
+    await undo(page);
+    await until(() => !logged().some((e) => e.id === `planned:${today}:p2`), "undo takes it back");
+
+    // Move a logged block (09:30 -> 11:00), then Undo.
+    await show(page, T);
+    let b = await box(block(page, "log:l1", T));
+    const to = await slot(page, today, 11 * 60, T);
+    await drag(page, { x: b.x + 30, y: b.y + 8 }, { x: to.x, y: to.y + 8 });
+    await until(() => find("l1").t === "11:00", "a logged block moves");
+    assert.equal(find("l1").dur, 60);
+    await undo(page);
+    await until(() => find("l1").t === "09:30", "undo restores 09:30");
+
+    // A logged block with no recorded length is drawn as 30 minutes; dragging its edge gives it a real one.
+    b = await box(block(page, "log:l2", T));
+    await drag(
+      page,
+      { x: b.x + b.width / 2, y: b.y + b.height - 2 },
+      { x: b.x + b.width / 2, y: b.y + b.height - 2 + 56 },
+    );
+    await until(() => find("l2").dur >= 75, "resizing records a length");
+    assert.equal(find("l2").t, "12:15");
+
+    // Click an empty space to log something at that time (backfilling): 14:20 is in the 14:15 slot.
+    await show(page, T);
+    const empty = await slot(page, today, 14 * 60 + 20, T);
+    await page.mouse.click(empty.x, empty.y);
+    assert.equal(await page.locator("#entry-form").isVisible(), true);
+    assert.equal(await page.locator("#entry-time").inputValue(), "14:15");
+    assert.equal(await page.locator("#entry-dur").inputValue(), "60");
+    await page.locator("#entry-name").fill("Walk");
+    await page.locator("#entry-cost").fill("1");
+    await page.locator("#entry-form button[type=submit]").click();
+    await until(() => logged().some((e) => e.a === "Walk"), "backfilled activity saved");
+    assert.deepEqual(
+      [find(logged().find((e) => e.a === "Walk").id).t, logged().find((e) => e.a === "Walk").dur],
+      ["14:15", 60],
+    );
+
+    // Drag an activity from the list onto the timeline: logged at that time, with the length from its name.
+    await show(page, T);
+    let from = await box(tile());
+    const drop = await slot(page, today, 10 * 60 + 45, T);
+    await drag(page, { x: from.x + 30, y: from.y + 10 }, { x: drop.x, y: drop.y + 4 });
+    await until(
+      () => logged().some((e) => e.a === "Deep focus (2 hours)"),
+      "dropped activity logged",
+    );
+    const dropped = logged().find((e) => e.a === "Deep focus (2 hours)");
+    assert.deepEqual([dropped.t, dropped.dur], ["10:45", 120]);
+    await undo(page);
+    await until(() => !logged().some((e) => e.a === "Deep focus (2 hours)"), "undo removes it");
+
+    // Putting an activity back where it came from logs nothing, and is not mistaken for a tap.
+    const count = logged().length;
+    from = await box(tile());
+    await drag(page, { x: from.x + 30, y: from.y + 10 }, { x: from.x + 60, y: from.y + 60 });
+    await page.waitForTimeout(250);
+    assert.equal(logged().length, count, "an activity put back is not logged");
+    // A plain tap on it still records it now, with no length.
+    await tile().click();
+    await until(() => logged().length === count + 1, "a tap still logs it");
+    assert.equal(logged().at(-1).dur, undefined);
+
+    // The keyboard works on logged blocks too, with one Undo for the run.
+    await show(page, T);
+    await block(page, "log:l1", T).focus();
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("ArrowDown");
+    await until(() => find("l1").t === "10:00", "arrows move a logged block");
+    await undo(page);
+    await until(() => find("l1").t === "09:30", "one Undo for the run");
+
+    await harness.screenshot(page, "calendar-today-1440.png");
+    assert.deepEqual(errors, []);
+    await context.close();
+  }
+
+  // ---------------- Today on a phone ----------------
+  {
+    const T = "#today-board";
+    const { page, context, docs, errors } = await openApp(
+      { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true },
+      "today",
+      loggedDay(),
+    );
+    // Closed to begin with, so the activity tiles are not pushed a screen further down.
+    assert.equal(await page.locator("#today-timeline-panel").evaluate((d) => d.open), false);
+    const tilesAt = () =>
+      page.locator("#acts").evaluate((e) => Math.round(e.getBoundingClientRect().top + scrollY));
+    const closedAt = await tilesAt();
+    await page.locator("#today-timeline-panel > summary").click();
+    await page.locator(`${T} .cal-block`).first().waitFor();
+    assert.ok((await tilesAt()) - closedAt > 300, "opening it makes room");
+    assert.equal(await page.locator(`${T} [data-cal-col]`).count(), 1);
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      true,
+    );
+    const place = () =>
+      page.evaluate(() => {
+        document.querySelector("#today-board .cal-scroll").scrollTop = 56;
+        const b = document.querySelector('#today-board .cal-block[data-id="log:l1"]');
+        window.scrollBy(0, b.getBoundingClientRect().top - 250);
+      });
+    await place();
+    // Tapping an empty space opens the form for that time.
+    const empty = await slot(page, today, 11 * 60 + 20, T);
+    await page.touchscreen.tap(empty.x, empty.y);
+    assert.equal(await page.locator("#entry-form").isVisible(), true);
+    assert.equal(await page.locator("#entry-time").inputValue(), "11:15");
+    await page.locator("#entry-cancel").click();
+    // The grip moves a logged block: 72px is an hour at the touch scale.
+    await place();
+    const cdp = await context.newCDPSession(page);
+    const touch = (type, x, y) =>
+      cdp.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: type === "touchEnd" ? [] : [{ x, y }],
+      });
+    const grip = await box(page.locator(`${T} .cal-block[data-id="log:l1"] .cal-grip`));
+    await touch("touchStart", grip.x + grip.width / 2, grip.y + grip.height / 2);
+    for (let i = 1; i <= 10; i++)
+      await touch("touchMove", grip.x + grip.width / 2, grip.y + grip.height / 2 + (72 * i) / 10);
+    await touch("touchEnd");
+    await until(
+      () => docs["d-" + today].body.entries.find((e) => e.id === "l1").t === "10:30",
+      "the grip moves it an hour",
+    );
     assert.deepEqual(errors, []);
     await context.close();
   }

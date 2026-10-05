@@ -55,6 +55,70 @@ function rowsMarkup(ctx, f, date, todayOnly = false) {
   })}</ul>`;
 }
 
+// Done on Today logs the planned activity right there, as tapping an activity tile does, instead of sending the
+// person to Plan and a form. Undo takes it back; tapping it among the day's logged activities corrects it.
+// It started at its planned time if that has passed, otherwise now (see loggedStart), and keeps its planned length.
+export function completePlanned(ctx, day, id) {
+  if (!writable(ctx)) return;
+  const f = forecast(ctx.store.all(), day, ctx.settings()),
+    row = f.pending.find((r) => r.id === id);
+  if (!row) return;
+  const target = dayId(day),
+    start = loggedStart(ctx, row, day),
+    entry = {
+      id: plannedEntryId(day, row.id),
+      a: row.a,
+      c: row.c,
+      t: start,
+      ...loggedLength(row, start),
+    };
+  ctx.store.dispatch({
+    id: target,
+    type: "addEntry",
+    arg: entry,
+    stamp: {
+      budget: f.logged ? f.day.budget : f.allowance,
+      sleepPenalty: ctx.settings().sleepPenalty,
+    },
+    original: ctx.store.view(target),
+  });
+  ctx.toast(`Logged ${row.a}.`, {
+    label: "Undo",
+    fn: () =>
+      ctx.store.dispatch({
+        id: target,
+        type: "removeEntry",
+        arg: entry,
+        original: ctx.store.view(target),
+      }),
+  });
+  // The row that held focus is gone; keep keyboard focus on the next one (or the card's own button).
+  const card = $("today-plan");
+  (
+    card.querySelector("[data-plan-action='complete']") || card.querySelector("[data-open-plan]")
+  )?.focus();
+}
+
+// Moving a planned activity on its own day (from the timeline on Today). Undo puts its time and length back.
+export function reschedulePlanned(ctx, day, id, start, dur) {
+  if (!writable(ctx)) return;
+  const row = forecast(ctx.store.all(), day, ctx.settings()).pending.find((r) => r.id === id);
+  if (!row) return;
+  const t = fromMinutes(start);
+  dispatch(ctx, day, "editEntry", { id, changes: { t, dur } }, row);
+  ctx.toast(`Moved ${row.a} to ${slotText({ t, dur })}.`, {
+    label: "Undo",
+    fn: () =>
+      dispatch(
+        ctx,
+        day,
+        "editEntry",
+        { id, changes: { t: row.t ?? "", dur: row.dur ?? null } },
+        { ...row, t, dur },
+      ),
+  });
+}
+
 export function renderTodayPlan(ctx, date) {
   const root = $("today-plan"),
     f = forecast(ctx.store.all(), date, ctx.settings());
@@ -291,51 +355,8 @@ export function init(ctx) {
       render();
     }
     const done = e.target.closest("#today-plan [data-plan-action='complete']");
-    if (done) completePlanned(done.dataset.date, done.dataset.id);
+    if (done) completePlanned(ctx, done.dataset.date, done.dataset.id);
   });
-  // Done on Today logs the planned activity right there, as tapping an activity tile does, instead of sending the
-  // person to Plan and a form. Undo takes it back; tapping it among the day's logged activities corrects it.
-  // It started at its planned time if that has passed, otherwise now (see loggedStart), and keeps its planned length.
-  function completePlanned(day, id) {
-    if (!writable(ctx)) return;
-    const f = forecast(ctx.store.all(), day, ctx.settings()),
-      row = f.pending.find((r) => r.id === id);
-    if (!row) return;
-    const target = dayId(day),
-      start = loggedStart(ctx, row, day),
-      entry = {
-        id: plannedEntryId(day, row.id),
-        a: row.a,
-        c: row.c,
-        t: start,
-        ...loggedLength(row, start),
-      };
-    ctx.store.dispatch({
-      id: target,
-      type: "addEntry",
-      arg: entry,
-      stamp: {
-        budget: f.logged ? f.day.budget : f.allowance,
-        sleepPenalty: ctx.settings().sleepPenalty,
-      },
-      original: ctx.store.view(target),
-    });
-    ctx.toast(`Logged ${row.a}.`, {
-      label: "Undo",
-      fn: () =>
-        ctx.store.dispatch({
-          id: target,
-          type: "removeEntry",
-          arg: entry,
-          original: ctx.store.view(target),
-        }),
-    });
-    // The row that held focus is gone; keep keyboard focus on the next one (or the card's own button).
-    const card = $("today-plan");
-    (
-      card.querySelector("[data-plan-action='complete']") || card.querySelector("[data-open-plan]")
-    )?.focus();
-  }
   // ---- the timeline: what each gesture on the calendar means for the plan ----
   const narrow = matchMedia("(max-width: 700px)"); // a phone shows one day at a time
   narrow.addEventListener("change", () => render());
