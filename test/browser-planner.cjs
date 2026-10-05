@@ -182,7 +182,10 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     await page.locator("#plan-add").click();
     await page.locator("#plan-name").fill("Rest after travel");
     await page.locator("#plan-cost").fill("-2");
-    await waitForPersistedDraft(page, date);
+    const selectedDate = await page
+      .locator("[data-plan-day][aria-pressed='true']")
+      .getAttribute("data-plan-day");
+    await waitForPersistedDraft(page, selectedDate);
     await page.reload();
     await page.locator("#plan-form:not([hidden])").waitFor();
     assert.equal(await page.locator("#plan-name").inputValue(), "Rest after travel");
