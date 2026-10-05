@@ -359,7 +359,12 @@ function fatal(text) {
   // Constructors also restore drafts and selected records, so give them the final
   // initial snapshot instead of letting a late network response replace defaults.
   store.hydrate(me.id, me.username);
-  await Promise.all([loadDefaults(), store.load()]);
+  // Do not hold the first paint hostage to a hung connection: after 3s show this device's copy;
+  // the load keeps going in the background and updates the screen when it arrives.
+  await Promise.race([
+    Promise.all([loadDefaults(), store.load()]),
+    new Promise((resolve) => setTimeout(resolve, 3000)),
+  ]);
   if (leaving) return;
   const notice = initDefaultsNotice(ctx, {
     canWrite: () => coordination.writable && !store.status().restoring,

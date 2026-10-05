@@ -135,7 +135,7 @@ const ADMIN_SECTIONS = [
     hint: "Accounts & access",
     title: "People & access",
     description: "A welcoming space, with the right access for everyone.",
-    panels: ["users", "adduser"],
+    panels: ["adduser", "users"],
   },
   {
     id: "email",

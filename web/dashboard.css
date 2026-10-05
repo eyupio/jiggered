@@ -1848,6 +1848,22 @@
   flex-wrap: wrap;
   gap: 4px;
   padding-inline: 2px;
+  max-height: 76px; /* many untimed items must not push the hours off the screen */
+  overflow-y: auto;
+}
+.cal-chip:hover {
+  background: color-mix(in srgb, var(--accent) 14%, var(--accent-soft));
+}
+@media (pointer: coarse) {
+  .cal-chip {
+    min-height: 44px;
+  }
+}
+/* Palette chips are things to place, not planned blocks: solid, so the legend's "dashed = planned" holds. */
+.cal-chip.cal-preset {
+  border-style: solid;
+  border-color: var(--line);
+  background: var(--surface);
 }
 .cal-scroll {
   position: relative;
@@ -2146,7 +2162,8 @@
   min-height: 32px;
   padding: 4px 10px;
   border: 1px dashed var(--accent);
-  border-radius: 999px;
+  border-radius: 16px;
+  overflow-wrap: anywhere;
   background: var(--accent-soft);
   color: var(--fg);
   font: inherit;

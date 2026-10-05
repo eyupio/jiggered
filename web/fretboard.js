@@ -261,6 +261,27 @@ export function mount(ctx, root) {
     commit({ items: Object.fromEntries(changed.map((id) => [id, { ...item(id), s: next }])) });
   }
   // A thing typed into today's three also gets a card in the top right, unless a card already says the same.
+  // The first spot in "in my hands, matters now" where a new card (about 0.17 x 0.07) overlaps nothing, then
+  // anywhere on the board; if it is crowded, the spot with the fewest overlaps. "extra" are cards added in the same step.
+  function freeSpot(extra = []) {
+    const taken = [...ids().map((id) => item(id)), ...extra].filter(Boolean);
+    const W = 0.17,
+      H = 0.07;
+    let best = { x: 0.56, y: 0.12, hits: Infinity };
+    const tryArea = (x0, x1, y0, y1) => {
+      for (let y = y0; y <= y1; y += 0.08)
+        for (let x = x0; x <= x1; x += 0.06) {
+          const hits = taken.filter(
+            (o) => o.x < x + W && o.x + W > x && o.y < y + H && o.y + H > y,
+          ).length;
+          if (hits < best.hits) best = { x, y, hits };
+          if (!hits) return true;
+        }
+      return false;
+    };
+    if (!tryArea(0.56, 0.8, 0.12, 0.44)) tryArea(0.02, 0.8, 0.02, 0.9);
+    return best;
+  }
   function cardFor(text, extra = {}) {
     const wanted = text.trim().toLocaleLowerCase();
     const existing = ids().find(
@@ -268,7 +289,7 @@ export function mount(ctx, root) {
     );
     if (existing) return { id: existing, items: {} };
     if (ids().length >= 400) return { id: null, items: {} };
-    const n = Object.keys(extra).length + ids().length;
+    const spot = freeSpot(Object.values(extra));
     const id = uid();
     return {
       id,
@@ -276,8 +297,8 @@ export function mount(ctx, root) {
         [id]: {
           k: "card",
           t: text.trim(),
-          x: round3(0.56 + (n % 4) * 0.05),
-          y: round3(0.12 + ((n * 7) % 5) * 0.06),
+          x: round3(spot.x),
+          y: round3(spot.y),
           z: nextZ(board) + Object.keys(extra).length,
           s: "todo",
         },
@@ -1054,12 +1075,8 @@ export function mount(ctx, root) {
       const what = b.dataset.fb;
       if (what === "add-card" || what === "add-note") {
         // New things land near the middle of the "in my hands, matters" quadrant, a little apart from the last one.
-        const n = ids().length;
-        addItem(
-          what === "add-card" ? "card" : "note",
-          0.56 + (n % 4) * 0.05,
-          0.12 + ((n * 7) % 5) * 0.06,
-        );
+        const spot = freeSpot();
+        addItem(what === "add-card" ? "card" : "note", spot.x, spot.y);
       } else if (what === "undo") undoLast();
       else if (what === "redo") redoLast();
       else if (what === "example") loadExample();

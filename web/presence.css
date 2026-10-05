@@ -29,6 +29,9 @@
 .presence input {
   font: inherit;
 }
+.presence h1[tabindex="-1"]:focus-visible {
+  outline: none;
+}
 .presence :focus-visible {
   outline: 3px solid #b66a32;
   outline-offset: 5px;

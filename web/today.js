@@ -375,6 +375,27 @@ export function init(ctx) {
   function logAt(preset, start, dur) {
     const target = id(),
       entry = { id: uid(), a: preset.a, c: preset.c, t: fromMinutes(start), dur };
+    const nowAt = new Date();
+    if (key() === ctx.today() && start > nowAt.getHours() * 60 + nowAt.getMinutes()) {
+      // A time that has not happened yet is a plan, not a record: it spends nothing until it is finished.
+      ctx.store.dispatch({
+        id: planId(key()),
+        type: "addEntry",
+        arg: entry,
+        original: ctx.store.view(planId(key())),
+      });
+      ctx.toast(`Planned ${entry.a} for ${entry.t}. Tap it when it's done.`, {
+        label: "Undo",
+        fn: () =>
+          ctx.store.dispatch({
+            id: planId(key()),
+            type: "removeEntry",
+            arg: entry,
+            original: ctx.store.view(planId(key())),
+          }),
+      });
+      return;
+    }
     op("addEntry", entry);
     ctx.toast(`Logged ${entry.a} at ${entry.t}.`, {
       label: "Undo",
