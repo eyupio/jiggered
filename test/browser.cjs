@@ -46,7 +46,7 @@ runBrowser({ name: "walkthrough", username: "auditadmin" }, async (harness) => {
   await page.locator("#help-search").fill("no-matching-topic-xyz");
   await page.locator("#help-empty").waitFor();
   await page.locator("#help-clear").click();
-  assert.equal(await page.locator("#help-topics details:visible").count(), 13);
+  assert.equal(await page.locator("#help-topics details:visible").count(), 14);
   assert.equal(await page.locator("#help-security").count(), 1);
   await page.locator("#help-panel [data-help=points]").click();
   assert.equal(await page.locator("#help-points").getAttribute("open"), "");
