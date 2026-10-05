@@ -203,6 +203,57 @@ export async function withBusy(button, label, action) {
   }
 }
 
+// A modal yes/no question. Resolves true only for the confirm button; Escape, the backdrop and Cancel all resolve false.
+// Built on <dialog>, so focus is trapped and returned to what opened it. Text goes in through textContent.
+export function confirmDialog({ title, body, confirmLabel = "Remove", cancelLabel = "Keep it" }) {
+  return new Promise((resolve) => {
+    const opener = document.activeElement,
+      dialog = document.createElement("dialog"),
+      heading = document.createElement("h2"),
+      text = document.createElement("p"),
+      row = document.createElement("div"),
+      cancel = document.createElement("button"),
+      confirm = document.createElement("button");
+    dialog.className = "confirm-dialog";
+    dialog.setAttribute("role", "alertdialog");
+    heading.id = `confirm-title-${uid()}`;
+    text.id = `confirm-body-${uid()}`;
+    dialog.setAttribute("aria-labelledby", heading.id);
+    dialog.setAttribute("aria-describedby", text.id);
+    heading.textContent = title;
+    text.textContent = body;
+    row.className = "row confirm-actions";
+    cancel.type = confirm.type = "button";
+    cancel.className = "secondary";
+    confirm.className = "danger";
+    cancel.textContent = cancelLabel;
+    confirm.textContent = confirmLabel;
+    row.append(cancel, confirm);
+    dialog.append(heading, text, row);
+    let answer = false;
+    cancel.addEventListener("click", () => dialog.close());
+    confirm.addEventListener("click", () => {
+      answer = true;
+      dialog.close();
+    });
+    // A click on the backdrop lands on the dialog element itself, outside its padding box.
+    dialog.addEventListener("click", (e) => {
+      if (e.target !== dialog) return;
+      const r = dialog.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)
+        dialog.close();
+    });
+    dialog.addEventListener("close", () => {
+      dialog.remove();
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+      resolve(answer);
+    });
+    document.body.append(dialog);
+    dialog.showModal();
+    cancel.focus(); // the safe choice is the one under Enter
+  });
+}
+
 export function downloadFile(name, text, type = "application/json") {
   const url = URL.createObjectURL(new Blob([text], { type }));
   const a = Object.assign(document.createElement("a"), { href: url, download: name });

@@ -4,6 +4,7 @@ import { renderEnergyFlow } from "./energy-flow.js";
 import {
   renderTodayPlan,
   completePlanned,
+  removePlanned,
   reschedulePlanned,
   followLength,
   lengthToast,
@@ -12,7 +13,7 @@ import {
 import { createTimeGrid } from "./calendar.js";
 import { forecast } from "./planner-model.js";
 import { energyWords, energyAmount, energyCopy, themeOf, SPOON_PATH } from "./energy-theme.js";
-import { $, html, setHTML, uid, fmtLongDay, signed } from "./util.js";
+import { $, html, setHTML, uid, fmtLongDay, signed, confirmDialog } from "./util.js";
 import {
   DAY,
   NEW_DUR,
@@ -297,6 +298,19 @@ export function init(ctx) {
       const entry = day().entries.find((e) => e.id === c.id.slice(4));
       if (entry) moveLogged(entry, fromMinutes(c.start), c.dur, c.source === "keyboard", c.cost);
     },
+    async onRemove({ id: blockId }) {
+      if (blockId.startsWith("plan:")) return removePlanned(ctx, key(), blockId.slice(5));
+      const entry = day().entries.find((e) => e.id === blockId.slice(4));
+      if (!entry) return;
+      const when = slotText(entry);
+      const yes = await confirmDialog({
+        title: "Remove this activity?",
+        body: `${entry.a} (${signed(entry.c)}${when ? `, ${when}` : ""}) will be taken off ${key() === ctx.today() ? "today" : "this day"} and its points returned. You can undo this straight afterwards.`,
+      });
+      // It may have been changed or removed elsewhere while the question was open.
+      const current = yes && day().entries.find((e) => e.id === entry.id);
+      if (current && writable()) removeEntry(current);
+    },
     // An activity dragged here from the list is logged at the time it is dropped on.
     onDrop: (payload, at) => logAt(payload.preset, at.start, at.dur),
   });
@@ -401,7 +415,7 @@ export function init(ctx) {
       : `${d.entries.length} logged`;
     board.render({
       editable: writable(),
-      help: "Enter opens a logged activity to edit it, or marks a planned one as done. Up and down arrows move a block by 15 minutes, and Shift with Up or Down changes how long it lasts.",
+      help: "Enter opens a logged activity to edit it, or marks a planned one as done. Up and down arrows move a block by 15 minutes, and Shift with Up or Down changes how long it lasts. Delete removes the focused activity, after asking you to confirm.",
       days: [
         {
           date: k,
@@ -419,6 +433,7 @@ export function init(ctx) {
               dur: e.dur,
               kind: "logged",
               editable: true,
+              removable: true,
             })),
             ...pending.map((r) => ({
               id: "plan:" + r.id,
@@ -428,6 +443,7 @@ export function init(ctx) {
               dur: r.dur,
               kind: "plan",
               editable: true,
+              removable: true,
               hint: "tap to finish",
             })),
           ],

@@ -1,4 +1,4 @@
-import { $, html, setHTML, uid, fmtDay, signed } from "./util.js";
+import { $, html, setHTML, uid, fmtDay, signed, confirmDialog } from "./util.js";
 import { addDays, dayId, hhmm } from "./model.js";
 import {
   DAY,
@@ -125,6 +125,27 @@ export function completePlanned(ctx, day, id) {
   (
     card.querySelector("[data-plan-action='complete']") || card.querySelector("[data-open-plan]")
   )?.focus();
+}
+
+// Taking a planned activity off its day, after asking (a block is easy to catch while dragging). Undo puts it back.
+export async function removePlanned(ctx, day, id) {
+  const find = () =>
+    forecast(ctx.store.all(), day, ctx.settings()).pending.find((r) => r.id === id);
+  const row = find();
+  if (!row || !writable(ctx)) return;
+  const when = slotText(row);
+  const yes = await confirmDialog({
+    title: "Remove from your plan?",
+    body: `${row.a} (${signed(row.c)}${when ? `, ${when}` : ""}) will be taken off your plan. You can undo this straight afterwards.`,
+  });
+  // The plan can change while the question is open (another device, a sync): act only on what is still there.
+  const current = find();
+  if (!yes || !current || !writable(ctx)) return;
+  dispatch(ctx, day, "removeEntry", current);
+  ctx.toast("Removed from plan.", {
+    label: "Undo",
+    fn: () => dispatch(ctx, day, "addEntry", current),
+  });
 }
 
 // Moving a planned activity on its own day (from the timeline on Today). Undo puts its time and length back.
@@ -439,6 +460,7 @@ export function init(ctx) {
       $("plan-dur").value = String(Math.min(NEW_DUR, DAY - start));
     },
     onChange: (change) => moveBlock(change),
+    onRemove: ({ date: d, id }) => removePlanned(ctx, d, id),
     onDrop: (payload, at) => addPreset(payload.preset, at),
   });
   function moveBlock(c) {
@@ -642,6 +664,7 @@ export function init(ctx) {
             kind: "plan",
             done: m.done.includes(e),
             editable: !m.done.includes(e),
+            removable: !m.done.includes(e),
           })),
         };
       }),

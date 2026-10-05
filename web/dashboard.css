@@ -1402,6 +1402,14 @@
 }
 
 /* Energy movement and proactive planning use the same quiet, legible visual language. */
+/* The four tiles reflow to two rows when the card is narrow, so no label is clipped or spills out of its tile. */
+.energy-panel .energy-breakdown {
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+}
+.energy-panel .energy-breakdown dt {
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
 .energy-breakdown,
 .plan-metrics {
   display: grid;
@@ -2165,8 +2173,8 @@
   display: flex;
   flex-flow: row wrap;
   gap: 6px;
-  max-height: 124px;
-  overflow-y: auto;
+  max-height: none; /* every activity shows; a scroller inside the page's own scroll hid chips and trapped the wheel */
+  overflow: visible;
 }
 #today-palette h3 {
   flex-basis: 100%;
@@ -2200,7 +2208,88 @@
   #today-board .cal-scroll {
     max-height: min(52vh, 420px);
   }
-  #today-palette {
-    max-height: 176px;
+}
+
+/* Timeline: a small remove control in the corner of every block and chip; it asks before anything is removed. */
+.cal-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.7;
+  z-index: 4;
+}
+.cal-remove:hover {
+  opacity: 1;
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 14%, transparent);
+}
+.cal-chip.is-removable {
+  position: relative;
+  padding-right: 28px;
+}
+.cal-chip .cal-remove {
+  top: 50%;
+  transform: translateY(-50%);
+}
+.cal-block.is-removable {
+  padding-right: 24px;
+}
+.cal-block.is-removable .cal-grip {
+  right: 24px;
+}
+@media (pointer: coarse) {
+  .cal-remove {
+    width: 36px;
+    height: 36px;
+    font-size: 1.3rem;
   }
+  .cal-block.is-removable {
+    padding-right: 40px;
+  }
+  .cal-block.is-removable .cal-grip {
+    right: 40px;
+  }
+  .cal-block.is-removable .cal-resize {
+    right: 80px;
+  }
+  .cal-chip.is-removable {
+    padding-right: 40px;
+  }
+}
+.confirm-dialog {
+  width: min(420px, calc(100vw - 32px));
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  color: var(--fg);
+  background: var(--surface);
+}
+.confirm-dialog:not([open]) {
+  display: none;
+}
+.confirm-dialog::backdrop {
+  background: color-mix(in srgb, var(--fg) 40%, transparent);
+  backdrop-filter: blur(3px);
+}
+.confirm-dialog h2 {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+}
+.confirm-dialog p {
+  margin: 0 0 20px;
+  overflow-wrap: anywhere;
+}
+.confirm-actions {
+  justify-content: flex-end;
+  gap: 10px;
 }
