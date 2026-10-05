@@ -5,7 +5,13 @@ import { chartMarkup, bucketDescription } from "../web/history-charts.js";
 import { DEFAULTS, addDays, applyOp, operationConflicts } from "../web/model.js";
 import * as model from "../web/model.js";
 import { normaliseProfile, profileInitials } from "../web/profile.js";
-import { calendarWindow, calendarPaint, describeCalendarDay } from "../web/history-matrix.js";
+import {
+  calendarWindow,
+  calendarPaint,
+  describeCalendarDay,
+  matrixLayout,
+  summariseCalendarDay,
+} from "../web/history-matrix.js";
 const day = (status, entries = [], extra = {}) => ({ status, entries, budget: 10, ...extra });
 const activity = (a, c) => ({ a, c });
 const episode = (when, symptoms = [], before = []) => ({
@@ -204,6 +210,48 @@ test("calendar colour modes distinguish unlogged, zero-point, recovery and episo
   assert.deepEqual(calendarPaint({ ...c, net: -2, allowance: 7 }, "remaining"), ["green", 9]);
   assert.deepEqual(calendarPaint({ ...c, poorSleep: true }, "sleep"), ["amber", "!"]);
   assert.deepEqual(calendarPaint({ ...c, episodes: 12 }, "episodes"), ["level-4", 12]);
+});
+
+test("the calendar fills its panel: a list for a week, a calendar for weeks, a heatmap beyond", () => {
+  // A week or less is a row per day, wherever it falls in the calendar weeks, and on a phone too.
+  for (const compact of [false, true]) {
+    assert.equal(matrixLayout(1, 1, compact), "list");
+    assert.equal(matrixLayout(7, 2, compact), "list");
+  }
+  // Up to ten weeks is a Monday-to-Sunday calendar: the 30-day period is five or six rows.
+  assert.equal(matrixLayout(8, 2), "calendar");
+  assert.equal(matrixLayout(30, 6), "calendar");
+  assert.equal(matrixLayout(70, 10), "calendar");
+  // Longer is a column per week: 90 days, 180 days and a year.
+  assert.equal(matrixLayout(71, 11), "heatmap");
+  assert.equal(matrixLayout(90, 14), "heatmap");
+  assert.equal(matrixLayout(366, 53), "heatmap");
+  // Seven columns would be narrower than a thumb on a phone, so it keeps the heatmap (six columns for a month).
+  assert.equal(matrixLayout(30, 6, true), "heatmap");
+  assert.equal(matrixLayout(8, 2, true), "heatmap");
+});
+
+test("a day's row in the list says what was recorded in one line", () => {
+  const c = { logged: true, status: "red", net: 13, allowance: 10, poorSleep: false, episodes: 0 };
+  assert.equal(summariseCalendarDay(c), "Red check-in · 13 of 10 points used");
+  assert.equal(
+    summariseCalendarDay({ ...c, status: "amber", poorSleep: true, episodes: 1 }),
+    "Amber check-in · 13 of 10 points used · Poor sleep · 1 episode",
+  );
+  assert.equal(
+    summariseCalendarDay({ ...c, episodes: 3 }, "spoons"),
+    "Red check-in · 13 of 10 spoons used · 3 episodes",
+  );
+  assert.equal(
+    summariseCalendarDay({ ...c, status: null, net: null }),
+    "No check-in · No activities",
+  );
+  // A day with nothing on it, and one with only an episode.
+  assert.equal(summariseCalendarDay({ logged: false, episodes: 0, net: null }), "Nothing recorded");
+  assert.equal(
+    summariseCalendarDay({ logged: false, status: null, episodes: 1, net: null, poorSleep: false }),
+    "No check-in · No activities · 1 episode",
+  );
 });
 
 test("profile preferences normalise defensively and retain Unicode names", () => {

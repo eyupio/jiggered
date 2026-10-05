@@ -2265,42 +2265,75 @@ input[type="search"] {
 /* Calm History: one period, the calendar and one day before optional detail. */
 .history-period-bar {
   display: flex;
-  gap: 16px;
+  gap: 12px 16px;
   align-items: center;
   flex-wrap: wrap;
 }
 .history-period-bar > .field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+.history-period-bar > .field select {
+  width: auto;
   min-width: 130px;
 }
 .history-period-bar > .meta {
-  flex: 1;
-  min-width: 180px;
+  flex: 1 1 220px;
+  max-width: none;
 }
+.history-period-bar > .primary {
+  margin-left: auto;
+}
+/* Shown only after narrowing the period to one day: a button, not a bar the width of the page. */
+#history-return-period {
+  justify-self: start;
+}
+/* The calendar and the selected day are two cards of one height: the calendar fills its card whatever the period, and
+   the day's buttons dock to the bottom edge of theirs. */
 .history-overview {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
   gap: 18px;
-  align-items: start;
+  align-items: stretch;
 }
 .history-overview > * {
   min-width: 0;
 }
 .matrix-overview {
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
 }
-.matrix-overview > .label-row {
+.matrix-head {
+  display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 20px;
 }
-.matrix-overview h2 {
-  flex: 1 1 180px;
+.matrix-title {
+  flex: 1 1 240px;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.matrix-title h2 {
+  margin: 0;
+}
+.matrix-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px 24px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
 }
 .matrix-facts {
+  flex: 1 1 240px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
-  border-top: 1px solid var(--line);
-  padding-top: 12px;
 }
 .matrix-facts > div {
   display: grid;
@@ -2336,10 +2369,14 @@ input[type="search"] {
   text-align: right;
   overflow-wrap: anywhere;
 }
+/* The heading's bottom margin would push the title off the summary's centre. */
+.history-disclosure > summary h2,
+.history-filter-panel > summary h2 {
+  margin: 0;
+}
 .history-section-body {
   display: grid;
   gap: 18px;
-  margin-top: 16px;
   min-width: 0;
 }
 .history-section-body > * {
@@ -2347,11 +2384,18 @@ input[type="search"] {
 }
 .matrix-day-heading {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
 }
+.matrix-day-heading > div:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
 .matrix-day-heading .row {
+  flex: none;
+  flex-wrap: nowrap;
   gap: 6px;
 }
 .matrix-day-heading button {
@@ -2364,10 +2408,15 @@ input[type="search"] {
 }
 .matrix-balance {
   display: grid;
-  gap: 8px;
-  padding: 16px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 16px;
+  padding: 14px 16px;
   background: var(--accent-soft);
   border-radius: 10px;
+}
+.matrix-balance > .label {
+  grid-column: 1 / -1;
 }
 .matrix-balance > b {
   font: 700 2.5rem var(--display);
@@ -2384,12 +2433,14 @@ input[type="search"] {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 10px 0;
+  padding: 8px 0;
   border-bottom: 1px solid var(--line);
 }
 .matrix-activities li > span {
-  display: grid;
-  gap: 3px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
   overflow-wrap: anywhere;
   min-width: 0;
 }
@@ -2414,9 +2465,26 @@ input[type="search"] {
   margin: 0;
   font-size: 0.9rem;
 }
+.matrix-reading .plan-history {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 14px 16px;
+}
+.matrix-reading .plan-history p {
+  margin: 0;
+}
+.plan-history-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
 .matrix-mode {
-  font-size: 0.78rem;
+  flex: 0 1 200px;
   min-width: 190px;
+  font-size: 0.78rem;
 }
 .matrix-mode select {
   padding: 8px;
@@ -2434,107 +2502,87 @@ input[type="search"] {
 .matrix-period .row:has(button:not([hidden])) {
   min-height: 36px;
 }
-.matrix-calendar {
-  display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  gap: 8px 6px;
-  width: 100%;
-  max-width: calc(24px + var(--weeks) * 52px);
+
+/* The days. data-layout is set in history-matrix.js (see matrixLayout): a list of rows for a week or less, a calendar
+   for a few weeks, a heatmap with a column per week for more. Each fills the width of its card. A day's colours are
+   the --tone variables, so a list row can colour only its chip while a calendar square or heatmap cell is the colour. */
+.matrix-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
   min-width: 0;
 }
-.matrix-dense .matrix-calendar {
-  max-width: calc(24px + var(--weeks) * 28px);
-}
-.matrix-year .matrix-calendar {
-  flex-basis: 100%;
-  max-width: none;
-}
-.matrix-months {
-  grid-column: 2;
-  display: flex;
-  justify-content: space-between;
-  gap: 6px;
-  color: var(--muted);
-  font-size: 0.7rem;
-  white-space: nowrap;
-}
-.matrix-weekdays {
+.matrix-calendar {
   display: grid;
-  grid-template-rows: repeat(7, minmax(0, 1fr));
-  font-size: 0.7rem;
-  line-height: 1;
-  align-items: center;
-  color: var(--muted);
+  gap: 8px 6px;
+  min-width: 0;
 }
 .matrix-grid {
   display: grid;
-  grid-auto-flow: column;
-  grid-template-rows: repeat(7, minmax(0, 1fr));
-  grid-template-columns: repeat(var(--weeks), minmax(0, 1fr));
   gap: 4px;
   min-width: 0;
   align-self: start;
 }
 .matrix-cell {
-  aspect-ratio: 1;
-  max-height: 48px;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  padding: 0;
+  --tone-bg: var(--spent);
+  --tone-ink: var(--fg);
   min-width: 0;
   min-height: 0;
   width: 100%;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: var(--tone-bg);
+  color: var(--tone-ink);
   font: 700 0.68rem var(--body);
-  background: var(--spent);
-  color: var(--fg);
   cursor: pointer;
   display: grid;
   place-items: center;
 }
 .matrix-cell.green,
 .matrix-cell.recovery {
-  background: var(--green);
-  color: #fff;
+  --tone-bg: var(--green);
+  --tone-ink: #fff;
 }
 .matrix-cell.amber {
-  background: var(--amber);
-  color: #1d2624;
+  --tone-bg: var(--amber);
+  --tone-ink: #1d2624;
 }
 .matrix-cell.red {
-  background: var(--red);
-  color: #fff;
+  --tone-bg: var(--red);
+  --tone-ink: #fff;
 }
 .matrix-cell.level-1,
 .matrix-key.level-1 {
-  background: color-mix(in srgb, var(--accent) 20%, var(--surface));
+  --tone-bg: color-mix(in srgb, var(--accent) 20%, var(--surface));
 }
 .matrix-cell.level-2,
 .matrix-key.level-2 {
-  background: color-mix(in srgb, var(--accent) 40%, var(--surface));
+  --tone-bg: color-mix(in srgb, var(--accent) 40%, var(--surface));
 }
 .matrix-cell.level-3,
 .matrix-key.level-3 {
-  background: color-mix(in srgb, var(--accent) 70%, var(--surface));
-  color: var(--bg);
+  --tone-bg: color-mix(in srgb, var(--accent) 70%, var(--surface));
+  --tone-ink: var(--bg);
 }
 .matrix-cell.level-4,
 .matrix-key.level-4 {
-  background: var(--accent);
-  color: var(--bg);
+  --tone-bg: var(--accent);
+  --tone-ink: var(--bg);
+}
+.matrix-cell.empty {
+  --tone-bg: var(--bg);
+  --tone-ink: var(--muted);
+  border: 1px dashed color-mix(in srgb, var(--muted) 40%, transparent);
 }
 .matrix-blank {
-  aspect-ratio: 1;
-  max-height: 48px;
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 4px;
   background: var(--bg);
   opacity: 0.4;
-}
-.matrix-cell.empty {
-  border: 1px dashed color-mix(in srgb, var(--muted) 40%, transparent);
-  background: var(--bg);
-  color: var(--muted);
 }
 .matrix-cell[aria-pressed="true"] {
   outline: 2px solid var(--fg);
@@ -2544,26 +2592,172 @@ input[type="search"] {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
-.matrix-dense .matrix-cell span {
+.matrix-mark {
+  line-height: 1;
+}
+
+/* List: a row per day, each with its chip and a line saying what was recorded. */
+.matrix-calendar[data-layout="list"] .matrix-months,
+.matrix-calendar[data-layout="list"] .matrix-weekdays {
   display: none;
 }
-.matrix-dense .matrix-grid {
+.matrix-calendar[data-layout="list"] .matrix-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+.matrix-calendar[data-layout="list"] .matrix-cell {
+  grid-template-columns: 4.8rem 3.6rem minmax(0, 1fr);
+  place-items: center start;
+  column-gap: 14px;
+  min-height: 56px;
+  padding: 6px 16px 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 0.9rem var(--body);
+  text-align: left;
+}
+.matrix-calendar[data-layout="list"] .matrix-cell[aria-pressed="true"] {
+  background: var(--accent-soft);
+}
+.matrix-calendar[data-layout="list"] .matrix-when {
+  display: grid;
+  gap: 2px;
+  line-height: 1.2;
+}
+.matrix-calendar[data-layout="list"] .matrix-when b {
+  font-size: 0.95rem;
+}
+.matrix-calendar[data-layout="list"] .matrix-when span {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.matrix-calendar[data-layout="list"] .matrix-mark {
+  justify-self: stretch;
+  padding: 8px 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--tone-bg);
+  color: var(--tone-ink);
+  font: 700 1rem var(--display);
+  text-align: center;
+}
+.matrix-calendar[data-layout="list"] .matrix-cell.empty .matrix-mark {
+  border: 1px dashed color-mix(in srgb, var(--muted) 40%, transparent);
+}
+.matrix-calendar[data-layout="list"] .matrix-note {
+  color: var(--muted);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/* Calendar: Monday to Sunday across, a row per week, the date in each square. */
+.matrix-calendar[data-layout="calendar"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.matrix-calendar[data-layout="calendar"] .matrix-months {
+  display: none;
+}
+.matrix-calendar[data-layout="calendar"] .matrix-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+}
+.matrix-calendar[data-layout="calendar"] .matrix-grid {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-auto-rows: 58px;
+  gap: 6px;
+}
+.matrix-calendar[data-layout="calendar"] .matrix-cell {
+  grid-template-rows: auto 1fr;
+  place-items: stretch;
+  padding: 7px 9px;
+  border-radius: 8px;
+  text-align: left;
+}
+.matrix-calendar[data-layout="calendar"] .matrix-when {
+  font-size: 0.72rem;
+  line-height: 1.1;
+}
+.matrix-calendar[data-layout="calendar"] .matrix-mark {
+  align-self: end;
+  justify-self: end;
+  font: 700 1.05rem var(--display);
+}
+.matrix-calendar[data-layout="calendar"] .matrix-blank {
+  border-radius: 8px;
+}
+
+/* Heatmap: a column per week, weekday letters down the side. Cells share the width, so a longer period gets smaller
+   cells rather than a smaller grid. */
+.matrix-calendar[data-layout="heatmap"] {
+  grid-template-columns: 18px minmax(0, 1fr);
+}
+.matrix-calendar[data-layout="heatmap"] .matrix-months {
+  grid-column: 2;
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+.matrix-calendar[data-layout="heatmap"] .matrix-weekdays {
+  display: grid;
+  grid-template-rows: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  font-size: 0.7rem;
+  line-height: 1;
+  color: var(--muted);
+}
+/* The letters add no height of their own, so they never stretch their column past the cells beside them; each is
+   stretched to its row and centred in it, however small the cells are. */
+.matrix-calendar[data-layout="heatmap"] .matrix-weekdays span {
+  display: flex;
+  align-items: center;
+  contain: size;
+}
+.matrix-calendar[data-layout="heatmap"] .matrix-grid {
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--weeks), minmax(0, 1fr));
+}
+.matrix-calendar[data-layout="heatmap"] .matrix-cell,
+.matrix-calendar[data-layout="heatmap"] .matrix-blank {
+  aspect-ratio: 1;
+  max-height: 48px;
+}
+.matrix-dense .matrix-calendar .matrix-mark {
+  display: none;
+}
+.matrix-dense .matrix-calendar .matrix-grid,
+.matrix-dense .matrix-calendar .matrix-weekdays {
   gap: 3px;
 }
-.matrix-dense .matrix-cell {
-  max-height: 26px;
+.matrix-dense .matrix-calendar .matrix-cell,
+.matrix-dense .matrix-calendar .matrix-blank {
   border-radius: 2px;
 }
 .matrix-reading {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   min-width: 0;
 }
 .matrix-reading h3 {
-  font: 700 1rem var(--display);
+  font: 700 1.25rem/1.2 var(--display);
+  letter-spacing: -0.03em;
   margin: 0;
+  overflow-wrap: anywhere;
 }
 .matrix-reading dl {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin: 0;
 }
@@ -2577,9 +2771,25 @@ input[type="search"] {
   font-weight: 700;
   overflow-wrap: anywhere;
 }
+/* A day with nothing on it: the message fills the space the records would, and the button stays at the bottom. */
+.matrix-reading > .empty {
+  flex: 1 1 auto;
+  display: grid;
+  place-content: center;
+  padding: 16px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  text-align: center;
+}
+.matrix-reading > .row:last-child {
+  margin-top: auto;
+}
+.matrix-reading > .row > button {
+  flex: 1 1 auto;
+}
 .matrix-day {
+  flex: 0 1 220px;
   font-size: 0.8rem;
-  max-width: 340px;
 }
 .matrix-legend {
   margin-block: 0;
@@ -2588,8 +2798,12 @@ input[type="search"] {
   border-radius: 3px;
   width: 12px;
   height: 12px;
+  background: var(--tone-bg);
 }
 @media (max-width: 700px) {
+  #history-return-period {
+    justify-self: stretch;
+  }
   .history-overview {
     grid-template-columns: 1fr;
   }
@@ -2597,7 +2811,15 @@ input[type="search"] {
     align-items: stretch;
     gap: 12px;
   }
+  .history-period-bar > .field {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+  .history-period-bar > .field select {
+    flex: 1 1 auto;
+  }
   .history-period-bar > .meta {
+    flex-basis: 100%;
     min-width: 0;
   }
   .history-period-bar > .primary {
@@ -2609,37 +2831,39 @@ input[type="search"] {
   .history-disclosure > summary .meta {
     text-align: left;
   }
-  .matrix-dense .matrix-grid {
-    gap: 2px;
-  }
-  .matrix-months {
-    font-size: 0.65rem;
-  }
   .matrix-day {
-    max-width: none;
+    flex-basis: 100%;
   }
   .matrix-mode {
+    flex: 1 1 100%;
     min-width: 0;
-    width: 100%;
+  }
+  .matrix-calendar[data-layout="list"] .matrix-cell {
+    grid-template-columns: 4.2rem 3.2rem minmax(0, 1fr);
+    column-gap: 10px;
+    padding-inline: 10px;
   }
 }
 @media (max-width: 700px) {
   /* A month of days is six columns: let the grid use the panel's edge so each day is a touch-sized target. */
-  .matrix-calendar {
+  .matrix-calendar[data-layout="heatmap"] {
     grid-template-columns: 14px minmax(0, 1fr);
     gap: 8px 4px;
     width: calc(100% + 16px);
     margin-inline: -8px;
   }
-  .matrix-grid {
+  .matrix-calendar[data-layout="heatmap"] .matrix-grid {
     gap: 3px;
   }
-  .matrix-overview > .label-row {
-    flex-direction: column;
-    align-items: stretch;
+  .matrix-calendar[data-layout="heatmap"] .matrix-weekdays {
+    gap: 3px;
   }
-  .matrix-overview h2 {
-    flex: none;
+  .matrix-dense .matrix-calendar .matrix-grid,
+  .matrix-dense .matrix-calendar .matrix-weekdays {
+    gap: 2px;
+  }
+  .matrix-calendar[data-layout="heatmap"] .matrix-months {
+    font-size: 0.65rem;
   }
 }
 @media (forced-colors: active) {
@@ -2649,7 +2873,7 @@ input[type="search"] {
   .matrix-cell[aria-pressed="true"] {
     outline-color: Highlight;
   }
-  .matrix-dense .matrix-cell span {
+  .matrix-dense .matrix-calendar .matrix-mark {
     display: inline;
   }
   .matrix-reading {

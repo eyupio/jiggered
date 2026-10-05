@@ -719,15 +719,15 @@
 /* History has one heading; its calendar and selected day carry the page. */
 .app-shell .matrix-cell.green,
 .app-shell .matrix-cell.recovery {
-  background: var(--matrix-green);
-  color: var(--matrix-status-ink);
+  --tone-bg: var(--matrix-green);
+  --tone-ink: var(--matrix-status-ink);
 }
 .app-shell .matrix-cell.red {
-  background: var(--matrix-red);
-  color: var(--matrix-status-ink);
+  --tone-bg: var(--matrix-red);
+  --tone-ink: var(--matrix-status-ink);
 }
 .app-shell .matrix-cell.amber {
-  color: #101710;
+  --tone-ink: #101710;
 }
 .app-shell[data-view="history"] .dashboard-masthead {
   padding-block: 24px;
@@ -743,8 +743,18 @@
 .app-shell #history-panel > details:not([open]) {
   padding-block: 10px;
 }
+/* A closed disclosure is only its summary: the panel's row gap would otherwise leave a blank strip beneath it, where
+   the browser keeps the hidden content. */
+.app-shell .history-disclosure:not([open]),
+.app-shell .history-filter-panel:not([open]) {
+  gap: 0;
+}
 .app-shell #history-panel > .history-intro {
   background: var(--surface);
+}
+/* The cards of the overview sit one section gap apart, the same as every other History panel. */
+.app-shell .history-overview {
+  gap: 22px;
 }
 @media (min-width: 960px) {
   .app-shell #today-panel {
@@ -1332,18 +1342,6 @@
 @media (max-width: 959px) {
   .app-shell .history-overview {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .app-shell .matrix-overview > .label-row {
-    align-items: stretch;
-    flex-direction: column;
-  }
-  .app-shell .matrix-overview h2 {
-    flex: none;
-  }
-  .app-shell .matrix-mode,
-  .app-shell .matrix-mode select {
-    width: 100%;
-    min-width: 0;
   }
 }
 @media (max-width: 480px) {
