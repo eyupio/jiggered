@@ -120,6 +120,7 @@ export function init(ctx) {
     closeForm();
   });
   $("plan-add").addEventListener("click", () => openForm());
+  $("plan-start-add").addEventListener("click", () => openForm());
   $("plan-span").addEventListener("change", (e) => {
     span = Number(e.target.value);
     date = ctx.today();
@@ -254,11 +255,15 @@ export function init(ctx) {
     if (!validDate(date) || date > addDays(ctx.today(), 6)) date = ctx.today();
     $("plan-span").value = span;
     const f = model(),
-      dates = days();
+      dates = days(),
+      forecasts = dates.map((d) => forecast(ctx.store.all(), d, ctx.settings()));
+    // With nothing planned in view, a phone leads with the way to start instead of a row of "No plan" days.
+    $("plan-start").hidden = forecasts.some((m) => m.rows.length);
+    $("plan-start-add").disabled = !writable(ctx);
     setStable(
       $("plan-days"),
-      html`${dates.map((d) => {
-        const m = forecast(ctx.store.all(), d, ctx.settings());
+      html`${dates.map((d, i) => {
+        const m = forecasts[i];
         return html`<button type="button" class="plan-day ${m.afterWork < 0 ? "plan-warning" : ""}" data-plan-day="${d}" aria-pressed="${d === date}"><span>${d === ctx.today() ? "Today" : fmtDay(d, ctx.settings().locale).split(",")[0]}</span><b>${m.rows.length || m.logged ? m.projected : "—"}</b><small>${m.rows.length ? `${m.pending.length} planned` : "No plan"}</small><span class="sr-only">${m.rows.length ? `${amount(ctx, m.projected)} projected; ${amount(ctx, m.afterWork)} before recovery` : ""}</span></button>`;
       })}`,
     );
@@ -268,9 +273,12 @@ export function init(ctx) {
     $("plan-allowance-hint").textContent = f.logged
       ? "Uses this day’s logged allowance. Adjust check-in and sleep in Today."
       : "Your estimate for this day, including expected sleep or check-in effects. Each day starts fresh.";
+    // Totals only mean something once there is a plan or a log; an empty day would show a wall of zeros.
     setStable(
       $("plan-forecast"),
-      html`<div class="plan-metrics"><div><span>Available ${date === ctx.today() ? "now" : "for this day"}</span><b>${f.remaining}</b></div><div><span>Work still planned</span><b>${signed(f.committed)}</b></div><div><span>Uncommitted</span><b>${f.afterWork}</b></div><div class="is-recovery"><span>Planned recovery</span><b>${signed(-f.recovery)}</b></div><div><span>Projected balance</span><b>${f.projected}</b></div></div>
+      !f.rows.length && !f.logged
+        ? html``
+        : html`<div class="plan-metrics"><div><span>Available ${date === ctx.today() ? "now" : "for this day"}</span><b>${f.remaining}</b></div><div><span>Work still planned</span><b>${signed(f.committed)}</b></div><div><span>Uncommitted</span><b>${f.afterWork}</b></div><div class="is-recovery"><span>Planned recovery</span><b>${signed(-f.recovery)}</b></div><div><span>Projected balance</span><b>${f.projected}</b></div></div>
       <p class="plan-outlook ${f.shortfall ? "plan-warning" : ""}">${f.shortfall ? `${amount(ctx, f.shortfall)} recovery or less workload needed to stay within this allowance before recovery.` : `${amount(ctx, f.afterWork)} left after planned workload, before recovery.`}${f.recovery ? ` Your recovery plan adds an estimated ${amount(ctx, f.recovery)}; ${f.gap ? `${amount(ctx, f.gap)} still uncovered.` : "it is included only in the projected balance."}` : ""}</p>`,
     );
     setStable(

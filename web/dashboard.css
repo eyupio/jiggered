@@ -1630,6 +1630,16 @@
   width: 90px;
   margin: 0;
 }
+.plan-start {
+  display: none; /* phones only: see the max-width rule below */
+}
+.plan-start h2,
+.plan-start p {
+  margin: 0;
+}
+.plan-start p {
+  margin-block: 6px 16px;
+}
 .plan-empty {
   padding: 28px 16px;
   text-align: center;
@@ -1681,6 +1691,12 @@
     position: relative;
     flex: 0 0 88px;
     scroll-snap-align: start;
+  }
+  .plan-start:not([hidden]) {
+    display: block;
+  }
+  .plan-start .primary {
+    width: 100%;
   }
   .plan-activity {
     flex-wrap: wrap;

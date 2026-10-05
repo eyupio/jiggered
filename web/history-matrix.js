@@ -2,7 +2,7 @@
 import { planComparison } from "./planner-model.js";
 import { energyWords, themeOf } from "./energy-theme.js";
 import { html, setHTML, fmtDay, fmtWhen } from "./util.js";
-import { addDays, used, capOf } from "./model.js";
+import { addDays, used, capOf, isDayId, isEpisodeId } from "./model.js";
 import { validDate } from "./history-model.js";
 
 export function calendarWindow(data, S, end = data.to, limit = 366) {
@@ -79,7 +79,7 @@ export function initMatrix(root, ctx, explore) {
     root,
     html`<section class="panel matrix-overview" aria-labelledby="matrix-title">
       <div class="label-row"><h2 id="matrix-title">Your days at a glance</h2><label class="field matrix-mode">Colour by<select data-matrix-mode><option value="checkin">Morning check-in</option><option value="episodes">Episodes recorded</option><option value="remaining" data-energy-copy="Points remaining">Points remaining</option><option value="used" data-energy-copy="Activity points used">Activity points used</option><option value="points" data-energy-copy="Net activity points">Net activity points</option><option value="sleep">Poor sleep marked</option></select></label></div>
-      <p class="hint">Select a day to see what you recorded.</p>
+      <p class="hint" data-matrix-hint>Select a day to see what you recorded.</p>
       <div class="matrix-period"><span class="meta" data-matrix-period></span><div class="row"><button class="secondary small" data-matrix-earlier>Earlier days</button><button class="secondary small" data-matrix-later>Later days</button></div></div>
       <div class="matrix-calendar"><div class="matrix-months" data-matrix-months aria-hidden="true"></div><div class="matrix-weekdays" aria-hidden="true"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div><div class="matrix-grid" data-matrix-grid role="group" aria-label="Daily calendar. Arrow keys move between days; Enter selects; Escape clears selection."></div></div>
       <div class="chart-legend matrix-legend" data-matrix-legend></div>
@@ -115,11 +115,18 @@ export function initMatrix(root, ctx, explore) {
       ${entries.length ? html`<div><h4>Activities</h4><ul class="matrix-activities">${entries.slice(0, expanded ? entries.length : 5).map((e) => html`<li><span>${e.a}${e.t ? html`<time class="meta">${e.t}</time>` : ""}</span><b class="${e.c < 0 ? "recovery" : ""}">${e.c > 0 ? "−" + e.c : e.c < 0 ? "+" + Math.abs(e.c) : "0"}<span class="sr-only"> ${words.plural} ${e.c < 0 ? "recovered" : "used"}</span></b></li>`)}</ul>${!expanded && entries.length > 5 ? html`<p class="hint">Showing 5 of ${entries.length} activities. Choose Show all records below for the full log.</p>` : ""}</div>` : ""}
       ${c.episodes ? html`<div><h4>Episodes</h4><ul class="matrix-episodes">${c.episodeRecords.slice(0, expanded ? c.episodes : 3).map(([id, e]) => html`<li><button class="x" data-matrix-edit="${id}"><span>${e.symptoms.join(", ") || "No symptoms ticked"}<span class="meta">${fmtWhen(e.when, S.locale)}${e.duration === "Still going" && !e.endedAt ? " · ongoing" : ""}</span></span><span aria-hidden="true">→</span></button></li>`)}</ul>${!expanded && c.episodes > 3 ? html`<button class="x" data-matrix-episodes>View all ${c.episodes} episodes</button>` : ""}</div>` : ""}
       ${comparison ? html`<div class="plan-history"><h4>Plan and actual</h4><p>${comparison.completed} of ${comparison.total} planned activities logged · ${comparison.estimated} net ${words.plural} estimated for completed activities · ${comparison.actual} actually used.</p><p class="hint">Unfinished plans are excluded from reported usage.</p><button type="button" class="secondary" data-open-plan="${c.date}">Review this plan</button></div>` : ""}
-      <div class="row"><button class="secondary" data-matrix-open>Edit day</button><button class="secondary" data-matrix-all>${expanded ? "Show fewer records" : "Show all records for this day"}</button><button class="primary" data-matrix-share>Share this day</button></div>`,
+      ${day || c.episodes ? html`<div class="row"><button class="secondary" data-matrix-open>Edit day</button><button class="secondary" data-matrix-all>${expanded ? "Show fewer records" : "Show all records for this day"}</button><button class="primary" data-matrix-share>Share this day</button></div>` : html`<div class="row"><button class="primary" data-matrix-open>${c.date === ctx.today() ? "Log today" : "Log this day"}</button></div>`}`,
     );
   }
   function paint() {
     win = calendarWindow(data, S, end || data.to, limit());
+    // An account with no days or episodes at all (not just an empty period) is told what this calendar will become.
+    const firstRun = !Object.entries(ctx.store.all()).some(
+      ([id, doc]) => doc && (isDayId(id) || isEpisodeId(id)),
+    );
+    get("[data-matrix-hint]").textContent = firstRun
+      ? "Nothing logged yet. Each day you check in or record an activity fills in a square, so you can see how your days compare."
+      : "Select a day to see what you recorded.";
     root.style.setProperty("--weeks", win.weeks);
     root.classList.toggle("matrix-dense", win.weeks > 13);
     root.classList.toggle("matrix-year", win.weeks > 26);

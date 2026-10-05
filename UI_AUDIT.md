@@ -181,11 +181,29 @@ problems. I substituted the nearest honest equivalents:
     "Share this day"** (for a day with nothing in it), and a page-level primary
     "Prepare summary" that renders greyed out. Nothing says what History becomes after a
     week of use, or how to get there.
-- **Fix:**
+- **Status: mostly fixed.** What shipped, and where it differs from the original proposal
+  below:
+  - **Plan:** the totals tiles are not rendered when the selected day has no plan and no
+    log (`planner.js`, `#plan-forecast`). On phones a "Nothing planned yet." card with a
+    full-width "Plan your day" button leads the page whenever nothing is planned in the
+    visible days (`#plan-start`, shown only at ≤700 px). It sits above the day strip, so it
+    is above the fold on a clean first-run account (measured at y 392–439 px, 375 px wide).
+    A "shared defaults updated" notice (426 px tall on a phone) can sit above the page and
+    push it down; that notice is existing behaviour and was not changed.
+  - **History:** the calendar stays (an existing test pins the empty-account layout). A
+    first-time account now gets a line explaining what the calendar fills in, and a day with
+    no records offers a single primary "Log today" / "Log this day" instead of "Share this
+    day". Days with records are unchanged.
+  - Tests: `test/browser-planner.cjs` and `test/browser-view-state.cjs`. Each new assertion
+    was shown to fail with its half of the change reverted.
+  - **Not done:** the example calendar sample, and demoting "Prepare summary" (it is already
+    disabled when there is nothing to prepare; the hierarchy change belongs with H8).
+- **Original proposal:**
   - Plan: when `f.rows.length === 0 && !f.logged`, render **only** the empty-state card,
     with the button inside it (`Plan your day`), and hide `#plan-forecast`. On phones add a
-    sticky "Add" button above the tab bar (`.app-shell .toastbar` already clears it with
-    `bottom: calc(86px + env(safe-area-inset-bottom))`, `dashboard.css:840-842`, as a model).
+    sticky "Add" button above the tab bar. *Not built as written:* plan rows' Done / Edit /
+    Remove buttons are right-aligned on phones, exactly where a floating button would sit,
+    and it would stack on the fixed tab bar. A card at the top of the page avoids both.
   - History: when there are no logged days, replace the grid with a one-card preview
     ("Your week will look like this once you've logged a few days") with a sample and a
     "Log today" button. Hide "Share this day" for days with no records and demote
@@ -473,7 +491,7 @@ template is blocked.** Set geometry from JS after render with the CSSOM
 
 ### A8. Suggested order
 
-1. C1 CSS fix and H6 `−0` (**done**), then C5 empty states (small, independent).
+1. C1 CSS fix, H6 `−0` and C5 empty states (**done**; see each finding for what remains).
 2. `dur` + validation + sorted rows + List/Calendar toggle.
 3. Plan Week/Day board with drag, resize and keyboard.
 4. Today Day timeline with one-tap Done (C3).

@@ -74,10 +74,14 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     assert.match(emptyToday, /Recovered\s*0/);
     assert.doesNotMatch(emptyToday, /[−+]0(?!\d)/);
     await page.locator("#t-plan").click();
-    const emptyPlan = await page.locator("#plan-forecast").textContent();
-    assert.match(emptyPlan, /Work still planned\s*0/);
-    assert.match(emptyPlan, /Planned recovery\s*0/);
-    assert.doesNotMatch(emptyPlan, /[−+]0(?!\d)/);
+    // Nothing planned: no wall of zero totals, and on a phone the way to start comes first.
+    assert.equal((await page.locator("#plan-forecast").textContent()).trim(), "");
+    assert.equal(await page.locator("#plan-start").isVisible(), width < 700);
+    if (width < 700) {
+      const start = await page.locator("#plan-start-add").boundingBox(),
+        strip = await page.locator("#plan-days").boundingBox();
+      assert.ok(start.y + start.height < strip.y, `start button leads the day strip at ${width}`);
+    }
     // A scrolling day strip must leave room for the selected day's ring (the left edge was clipped on phones).
     await page.evaluate(
       () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
@@ -97,6 +101,12 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     });
     assert.equal(strip.scrollLeft, 0, "day strip starts unscrolled at " + width);
     assert.ok(!strip.clips || strip.room >= -0.01, `selected day ring clipped at ${width}`);
+    if (width < 700) {
+      await page.locator("#plan-start-add").click();
+      assert.equal(await page.locator("#plan-form").isVisible(), true);
+      assert.equal(await page.evaluate(() => document.activeElement.id), "plan-name");
+      await page.locator("#plan-cancel").click();
+    }
     await page.locator("#plan-add").click();
     await page.locator("#plan-presets").selectOption("0");
     await page.locator("#plan-repeat").fill("3");
@@ -110,6 +120,11 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     assert.equal(Object.keys(docs).filter((k) => k.startsWith("p-")).length, 3);
     assert.equal(Object.keys(docs).filter((k) => k.startsWith("d-")).length, 0);
     assert.match(await page.locator("#plan-forecast").textContent(), /Uncommitted\s*3/);
+    assert.equal(
+      await page.locator("#plan-start").isHidden(),
+      true,
+      "start card goes once planned",
+    );
     await page.locator("#plan-add").click();
     await page.locator("#plan-presets").selectOption("1");
     await page.locator("#plan-submit").click();
@@ -184,6 +199,15 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     await page.locator("#plan-form:not([hidden])").waitFor();
     assert.equal(await page.locator("#plan-name").inputValue(), "Rest after travel");
     await page.locator("#plan-cancel").click();
+    // A day with only recovery planned has no work: that total reads 0, not "−0".
+    await page.locator("[data-plan-day]").nth(3).click();
+    await page.locator("#plan-add").click();
+    await page.locator("#plan-presets").selectOption("1");
+    await page.locator("#plan-submit").click();
+    const recoveryOnly = await page.locator("#plan-forecast").textContent();
+    assert.match(recoveryOnly, /Work still planned\s*0/);
+    assert.match(recoveryOnly, /Planned recovery\s*\+2/);
+    assert.doesNotMatch(recoveryOnly, /−0(?!\d)/);
     assert.deepEqual(errors, []);
     await context.close();
   }
