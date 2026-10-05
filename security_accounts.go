@@ -95,6 +95,19 @@ func (s *server) registerAccount(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, 400, err.Error())
 		return
 	}
+	// A taken username is said out loud: people choose it themselves, and a silent "check your email" for a name that
+	// can never be created sends them to an inbox for nothing. The address stays generic (below), because that is the
+	// private fact. There is deliberately no distinct "too many requests" answer, which would tell a prober that an
+	// address is new.
+	var taken int
+	if err = s.db.QueryRowContext(r.Context(), `SELECT count(*) FROM users WHERE username=?`, name).Scan(&taken); err != nil {
+		serverError(w, r, err)
+		return
+	}
+	if taken > 0 {
+		jsonError(w, 409, "That username is taken. Try another.")
+		return
+	}
 	hash, err := s.hashPassword(in.Password)
 	if err != nil {
 		jsonError(w, 503, "Busy right now. Try again shortly.")
@@ -133,7 +146,7 @@ func (s *server) registerAccount(w http.ResponseWriter, r *http.Request) {
 			serverError(w, r, err)
 			return
 		}
-		s.queueAccountMail(cfg, email, "Verify your Jiggered account", "Confirm your email to create your account. This link expires in 30 minutes.", "verify", token)
+		s.queueAccountMail(cfg, email, "Verify your Jiggered account", "Confirm your email to start using Jiggered. The link works once and expires in 30 minutes.\n\nDidn't ask for this? Ignore this email; no account will be created.", "verify", token)
 	}
 	genericEmailResponse(w)
 }
@@ -180,7 +193,7 @@ func (s *server) forgotPassword(w http.ResponseWriter, r *http.Request) {
 				serverError(w, r, e)
 				return
 			}
-			s.queueAccountMail(cfg, email, "Reset your Jiggered password", "A password reset was requested. If it wasn't you, ignore this email. This link expires in 30 minutes. If two-step verification is enabled, you will also need an authenticator or recovery code.", "reset", token)
+			s.queueAccountMail(cfg, email, "Reset your Jiggered password", "A password reset was requested for your Jiggered account. The link works once and expires in 30 minutes. If two-step verification is on, you will also need your authenticator or a recovery code.\n\nDidn't ask for this? Ignore this email: your password has not changed.", "reset", token)
 		}
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		serverError(w, r, err)
@@ -416,6 +429,10 @@ func (s *server) requestRecoveryEmail(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
-	s.queueAccountMail(cfg, email, "Verify your Jiggered recovery email", "Confirm this email address for your account. It will replace your previous verified address. This link expires in 30 minutes.", "verify", token)
-	writeJSON(w, 200, map[string]string{"message": "Verification email requested. Your current address stays active until the new one is verified."})
+	s.queueAccountMail(cfg, email, "Verify your Jiggered recovery email", "Confirm this email address as the recovery address for your Jiggered account. It replaces any address you verified before. The link works once and expires in 30 minutes.\n\nDidn't ask for this? Ignore this email.", "verify", token)
+	message := "A verification link is on its way to " + email + ". It works once and expires in 30 minutes."
+	if len(current) > 0 {
+		message += " Your current address stays active until this one is verified."
+	}
+	writeJSON(w, 200, map[string]string{"message": message})
 }

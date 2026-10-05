@@ -23,6 +23,7 @@ import {
 } from "./calendar-model.js";
 
 const MOVE_SLOP = 4; // pixels before a press becomes a drag; a smaller movement is still a click
+const TOUCH_SLOP = 8; // a fingertip is less exact than a mouse, so it needs more room before a press becomes a drag
 const EDGE = 40; // pixels from the top or bottom of the scroller where dragging starts to scroll it, faster the closer
 const PAGE_EDGE = 70; // the same for the window itself, while something is carried in from elsewhere on the page
 let grids = 0;
@@ -93,13 +94,12 @@ export function createTimeGrid(root, hooks) {
         : "";
     const removable = (b) => (editable && hooks.onRemove && b.removable ? " is-removable" : "");
     const block = (d, b) =>
-      html`<button type="button" class="cal-block cal-${b.kind}${b.side ? " cal-side" : ""}${b.done ? " is-done" : ""}${b.dur <= 30 ? " is-short" : ""}${b.cost < 0 ? " is-recovery" : b.cost > 0 ? " is-spend" : ""}${b.tone ? ` cal-tone cal-tone-${b.tone}` : ""}${editable && b.editable ? " is-editable" : ""}${removable(b)}" data-key="${d.date}|${b.id}" data-date="${d.date}" data-id="${b.id}" data-s="${b.start - win[0]}" data-d="${b.dur}" data-lane="${b.lane}" data-lanes="${b.lanes}" data-cost="${b.cost ?? ""}" aria-label="${label(b)}" title="${label(b)}" aria-describedby="${helpId}">${editable && b.editable ? html`<span class="cal-resize" data-edge="top" aria-hidden="true"></span><span class="cal-grip" aria-hidden="true"></span>` : ""}${remove(b)}<span class="cal-title">${b.done ? "✓ " : ""}${b.title}</span><span class="cal-meta">${meta(b)}</span>${editable && b.editable ? html`<span class="cal-resize" data-edge="bottom" aria-hidden="true"></span>` : ""}</button>`;
+      html`<button type="button" class="cal-block cal-${b.kind}${b.side ? " cal-side" : ""}${b.done ? " is-done" : ""}${b.dur <= 30 ? " is-short" : ""}${b.cost < 0 ? " is-recovery" : b.cost > 0 ? " is-spend" : ""}${b.tone ? ` cal-tone cal-tone-${b.tone}` : ""}${editable && b.editable ? " is-editable" : ""}${removable(b)}" data-key="${d.date}|${b.id}" data-date="${d.date}" data-id="${b.id}" data-s="${b.start - win[0]}" data-d="${b.dur}" data-lane="${b.lane}" data-lanes="${b.lanes}" data-cost="${b.cost ?? ""}" aria-label="${label(b)}" title="${label(b)}" aria-describedby="${helpId}">${editable && b.editable ? html`<span class="cal-resize" data-edge="top" aria-hidden="true"></span><span class="cal-grip" aria-hidden="true"></span>` : ""}${remove(b)}<span class="cal-title">${b.done ? "✓ " : ""}${b.title}</span>${b.cost === undefined ? "" : html`<b class="cal-cost-badge" aria-hidden="true">${signed(b.cost)}</b>`}<span class="cal-meta">${meta(b)}</span>${editable && b.editable ? html`<span class="cal-resize" data-edge="bottom" aria-hidden="true"></span>` : ""}</button>`;
     setHTML(
       inner,
-      html`<p class="sr-only" id="${helpId}">${(editable && m.help) || (editable ? "Enter opens a block to edit it. Up and down arrows move it by 15 minutes, Left and Right move it to another day, and Shift with Up or Down changes how long it lasts." + (hooks.onRemove ? " Delete removes it, after asking you to confirm." : "") : "Enter opens a block.")}</p>
-      <div class="cal-scroll" data-cal-scroll><div class="cal-top"><div class="cal-head"><span class="cal-corner"></span>${days.map((d) => html`<button type="button" class="cal-day-head${d.today ? " is-today" : ""}${d.selected ? " is-selected" : ""}${d.warn ? " is-warn" : ""}" data-cal-day="${d.date}" aria-pressed="${!!d.selected}"><span>${d.label}</span><b>${d.value}</b></button>`)}</div>
-      ${days.some((d) => d.tray.length) ? html`<div class="cal-tray-row"><span class="cal-corner">Any time</span>${days.map((d) => html`<div class="cal-tray" data-date="${d.date}">${d.tray.map((b) => html`<button type="button" class="cal-chip cal-${b.kind}${b.done ? " is-done" : ""}${b.tone ? ` cal-tone cal-tone-${b.tone}` : ""}${editable && b.editable ? " is-editable" : ""}${removable(b)}" data-key="${d.date}|${b.id}" data-date="${d.date}" data-id="${b.id}" aria-label="${label(b)}" title="${label(b)}">${b.done ? "✓ " : ""}${b.title}${remove(b)}</button>`)}</div>`)}</div>` : ""}
-      </div><div class="cal-body" data-cal-body><div class="cal-rail" aria-hidden="true">${hours.map((h) => html`<span>${fromMinutes(h)}</span>`)}</div>${days.map((d) => html`<div class="cal-col${d.today ? " is-today" : ""}${m.strip ? " has-side" : ""}" data-cal-col data-date="${d.date}" role="group" aria-label="${d.label}">${d.laid.map((b) => block(d, b))}${d.today ? html`<span class="cal-now" aria-hidden="true"></span>` : ""}</div>`)}</div></div>`,
+      html`      <div class="cal-scroll" data-cal-scroll><div class="cal-top"><div class="cal-head"><span class="cal-corner"></span>${days.map((d) => html`<button type="button" class="cal-day-head${d.today ? " is-today" : ""}${d.selected ? " is-selected" : ""}${d.warn ? " is-warn" : ""}" data-cal-day="${d.date}" aria-pressed="${!!d.selected}" ${d.aria ? html`aria-label="${d.aria}"` : ""}><span>${d.label}</span><b>${d.value}</b>${d.warn ? html`<i class="cal-warn" aria-hidden="true">!</i>` : ""}</button>`)}</div>
+      ${days.some((d) => d.tray.length) ? html`<div class="cal-tray-row"><span class="cal-corner">Any time</span>${days.map((d) => html`<div class="cal-tray" data-date="${d.date}">${d.tray.map((b) => html`<button type="button" class="cal-chip cal-${b.kind}${b.done ? " is-done" : ""}${b.tone ? ` cal-tone cal-tone-${b.tone}` : ""}${editable && b.editable ? " is-editable" : ""}${removable(b)}" data-key="${d.date}|${b.id}" data-date="${d.date}" data-id="${b.id}" aria-label="${label(b)}" title="${label(b)}">${b.done ? "✓ " : ""}${b.title}${b.cost === undefined ? "" : html` <b class="cal-chip-cost" aria-hidden="true">${signed(b.cost)}</b>`}${remove(b)}</button>`)}</div>`)}</div>` : ""}
+      </div><div class="cal-body" data-cal-body><div class="cal-rail" aria-hidden="true">${hours.map((h) => html`<span>${fromMinutes(h)}</span>`)}</div>${days.map((d) => html`<div class="cal-col${d.today ? " is-today" : ""}${m.strip ? " has-side" : ""}" data-cal-col data-date="${d.date}" role="group" aria-label="${d.label}">${d.laid.map((b) => block(d, b))}${d.today ? html`<span class="cal-now" aria-hidden="true"></span>` : ""}</div>`)}</div></div><p class="cal-help" id="${helpId}">${(editable && m.help) || (editable ? "Enter opens a block to edit it. Up and down arrows move it by 15 minutes, Left and Right move it to another day, and Shift with Up or Down changes how long it lasts." + (hooks.onRemove ? " Delete removes it, after asking you to confirm." : "") : "Enter opens a block.")}</p>`,
     );
     const body = q("[data-cal-body]");
     inner.style.setProperty("--cols", String(days.length));
@@ -182,6 +182,7 @@ export function createTimeGrid(root, hooks) {
     session = {
       ...s,
       pointerId: e.pointerId,
+      slop: e.pointerType === "mouse" ? MOVE_SLOP : TOUCH_SLOP,
       x0: e.clientX,
       y0: e.clientY,
       moved: false,
@@ -228,7 +229,7 @@ export function createTimeGrid(root, hooks) {
     s.last = e;
     const sc = q("[data-cal-scroll]"),
       area = sc.getBoundingClientRect();
-    if (!s.moved && Math.hypot(e.clientX - s.x0, e.clientY - s.y0) < MOVE_SLOP) return;
+    if (!s.moved && Math.hypot(e.clientX - s.x0, e.clientY - s.y0) < s.slop) return;
     if (!s.moved) {
       s.moved = true;
       s.el?.classList.add("is-dragging");
@@ -371,9 +372,43 @@ export function createTimeGrid(root, hooks) {
     const resize = e.target.closest(".cal-resize"),
       date = el.dataset.date,
       untimed = el.classList.contains("cal-chip");
-    // A finger scrolls the page unless it starts on a handle; the handles are the only places that stop scrolling.
+    // A finger scrolls the page unless it starts on the grip, or presses and holds an edge: the invisible edges must
+    // not turn an ordinary scroll that happens to start on a block into a resize.
     if (e.pointerType === "touch" && !resize && !e.target.closest(".cal-grip")) return;
     if (untimed && e.pointerType === "touch") return;
+    if (e.pointerType === "touch" && resize) {
+      holdThen(e, () => startDrag(e, el, resize, date, untimed));
+      return;
+    }
+    startDrag(e, el, resize, date, untimed);
+  });
+  // Waits for a finger to rest on an edge before it becomes a resize; moving first means it is a scroll.
+  const HOLD_MS = 300,
+    HOLD_SLOP = 8;
+  function holdThen(e, start) {
+    const pointerId = e.pointerId,
+      x0 = e.clientX,
+      y0 = e.clientY;
+    let timer = 0;
+    const stop = () => {
+      clearTimeout(timer);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", stop);
+      window.removeEventListener("pointercancel", stop);
+    };
+    const move = (ev) => {
+      if (ev.pointerId === pointerId && Math.hypot(ev.clientX - x0, ev.clientY - y0) > HOLD_SLOP)
+        stop();
+    };
+    timer = setTimeout(() => {
+      stop();
+      if (!session) start();
+    }, HOLD_MS);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
+  }
+  function startDrag(e, el, resize, date, untimed) {
     const origin = untimed
       ? { date, start: 0, dur: NEW_DUR, untimed: true }
       : { date, start: Number(el.dataset.s) + win[0], dur: Number(el.dataset.d) };
@@ -392,7 +427,16 @@ export function createTimeGrid(root, hooks) {
     } catch {
       /* a pointer that is already gone cannot be captured */
     }
-  });
+  }
+  // While a finger is carrying a held edge the page must not scroll under it. (The grip stops scrolling by itself with
+  // touch-action: none.) The listener has to exist before the touch starts, or the browser has already begun to scroll.
+  root.addEventListener(
+    "touchmove",
+    (ev) => {
+      if (session?.kind.startsWith("resize") && ev.cancelable) ev.preventDefault();
+    },
+    { passive: false },
+  );
   root.addEventListener(
     "click",
     (e) => {

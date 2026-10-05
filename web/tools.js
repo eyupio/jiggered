@@ -5,6 +5,9 @@ import { $, html, setHTML } from "./util.js";
 import * as fretboard from "./fretboard.js";
 
 const TOOLS = [fretboard];
+// While there is one tool it has no tab and no launcher: the account menu opens it directly. A second tool brings
+// the launcher (and a tab, if it earns one) back.
+const ONLY = TOOLS.length === 1 ? TOOLS[0] : null;
 
 export function init(ctx) {
   const launcher = $("tool-launcher"),
@@ -13,22 +16,24 @@ export function init(ctx) {
   const mounted = {}; // id -> { view, root }
   let active = null;
 
-  setHTML(
-    $("tool-grid"),
-    html`${TOOLS.map(
-      ({ meta }) =>
-        html`<button type="button" class="tool-card" data-tool="${meta.id}">
+  $("tool-back").hidden = !!ONLY;
+  if (!ONLY)
+    setHTML(
+      $("tool-grid"),
+      html`${TOOLS.map(
+        ({ meta }) =>
+          html`<button type="button" class="tool-card" data-tool="${meta.id}">
           <span class="tool-card-eyebrow">${meta.eyebrow}</span>
           <span class="tool-card-name">${meta.name}</span>
           <span class="tool-card-text">${meta.description}</span>
           <span class="tool-card-open">Open ${meta.name} ›</span>
         </button>`,
-    )}<div class="tool-card is-soon" aria-hidden="true">
+      )}<div class="tool-card is-soon" aria-hidden="true">
         <span class="tool-card-eyebrow">Next</span>
         <span class="tool-card-name">More tools, in time</span>
         <span class="tool-card-text">This space grows one tool at a time. Each one stays small, quiet and yours.</span>
       </div>`,
-  );
+    );
 
   const byId = (id) => TOOLS.find((t) => t.meta.id === id);
   function open(id) {
@@ -50,12 +55,16 @@ export function init(ctx) {
     launcher.hidden = true;
     stage.hidden = false;
     mounted[id].view.show();
+    // A screen reader should land on the tool, not stay on the menu that opened it.
+    $("tool-title").tabIndex = -1;
+    $("tool-title").focus({ preventScroll: true });
     ctx.measure("tool_opened");
   }
   function close() {
     if (active) mounted[active]?.view.hide();
     active = null;
     saved.tool = "";
+    if (ONLY) return open(ONLY.meta.id); // there is nothing else to show
     stage.hidden = true;
     launcher.hidden = false;
   }
@@ -75,7 +84,8 @@ export function init(ctx) {
       if (active) mounted[active].view.render();
     },
     show() {
-      if (!active && byId(saved.tool)) open(saved.tool);
+      if (!active && ONLY) open(ONLY.meta.id);
+      else if (!active && byId(saved.tool)) open(saved.tool);
       else if (active) mounted[active].view.show();
     },
     hide() {

@@ -52,7 +52,9 @@ Keep those instructions current when changing the workflow or tooling.
 ## Conventions and gotchas
 
 - **Public pages use `public.go`'s registry.** Page templates live in
-  `web/public/`; keep routes, navigation, sitemap and `llms.txt` in step. Only
+  `web/public/`; keep routes, navigation, sitemap and `llms.txt` in step. `Nav` is the
+  short header label (empty means footer only), `publicFooterGroups` lists every page once,
+  and an unknown address renders `web/public/notfound.html`. Only
   `publicAssets` (and the `/fonts/` prefix) in `routes()` are served as static
   files without login; everything else under `web/` sits behind `requireAuth`.
   The canonical public origin is explicit, and indexing is opt-in.

@@ -192,7 +192,10 @@ runBrowser(
     await page.locator("#security-password").fill("preview-password1");
     await page.locator("#security-start").click();
     await page.locator("#security-setup").waitFor();
-    const secret = await page.locator("#security-secret").textContent();
+    // The key is shown in groups of four to be read and typed; the copy button (and an app) take it without spaces.
+    const shown = await page.locator("#security-secret").textContent();
+    assert.match(shown, /^([A-Z2-7]{4} )+[A-Z2-7]{1,4}$/);
+    const secret = shown.replaceAll(" ", "");
     // Produce TOTP in the harness using the RFC counter and HMAC, independently of the Go implementation.
     // RFC 4226 dynamic truncation with RFC 6238's SHA-1/6-digit/30-second defaults, matching the vectors
     // TestTOTPStandardVector pins on the Go side ("287082" at step 1). The optional `ahead` asks for a later
@@ -259,7 +262,7 @@ runBrowser(
       .waitFor();
     assert.equal(
       (await join.locator("[data-registration-copy]").first().textContent()).trim(),
-      "Email verification is required.",
+      "No card needed. We’ll email you a link to confirm your address, then you’re on Today in about a minute.",
     );
     assert.equal(
       await join.locator("[data-register-link]").last().getAttribute("href"),
@@ -276,20 +279,32 @@ runBrowser(
     await join.locator("#register-name").fill("newmember");
     await join.locator("#register-email").fill("member@example.com");
     await join.locator("#register-password").fill("member-password1");
-    await join.locator("#register-confirm").fill("different-password1");
-    await join.locator("#register-form [type=submit]").click();
-    await join.locator("#register-msg").filter({ hasText: "passwords do not match" }).waitFor();
+    // One password box with a Show button inside it, not a second box to retype into.
+    assert.equal(await join.locator("#register-confirm").count(), 0);
     await join.locator("[aria-controls=register-password]").click();
     assert.equal(await join.locator("#register-password").getAttribute("type"), "text");
+    assert.equal(
+      await join.locator("[aria-controls=register-password]").getAttribute("aria-pressed"),
+      "true",
+    );
+    const toggleBox = await join.locator("[aria-controls=register-password]").boundingBox();
+    assert.ok(toggleBox.height >= 44, "the Show button is a full-size target");
     await join.locator("[aria-controls=register-password]").click();
-    await join.locator("#register-confirm").fill("member-password1");
     await screenshot(join, "registration-mobile.png");
     assert.equal(
       await join.evaluate(() => document.documentElement.scrollWidth > innerWidth),
       false,
     );
     await join.locator("#register-form [type=submit]").click();
-    await join.locator("#register-msg").filter({ hasText: "an email will arrive" }).waitFor();
+    // The form says where the link went (a masked address) instead of leaving a hedged sentence under the button.
+    const sent = join.locator("#register-sent");
+    await sent.waitFor();
+    assert.match(await sent.textContent(), /Check your inbox/);
+    assert.match(await sent.textContent(), /•••@/);
+    assert.match(
+      await join.locator("#register-form [type=submit]").textContent(),
+      /Send another link \(\d+s\)/,
+    );
     const verify = await waitMail("verify");
     await join.goto(base + "/login#verify=" + verify);
     await join.locator("#verify-form").waitFor();
@@ -300,7 +315,11 @@ runBrowser(
     );
     await join.locator("#verify-form [type=submit]").click();
     await join.locator("#verify-msg").filter({ hasText: "Email verified" }).waitFor();
-    await join.locator("#verify-form [data-signin]").click();
+    assert.equal(await join.locator("#verify-form h1").textContent(), "Email verified");
+    await join.locator("#verify-form").getByRole("button", { name: "Sign in" }).click();
+    // The new member's username is already filled in and the cursor is in the password box.
+    await join.waitForFunction(() => document.querySelector("#username")?.value === "newmember");
+    assert.equal(await join.evaluate(() => document.activeElement?.id), "password");
     await join.locator("#username").fill("newmember");
     await join.locator("#password").fill("member-password1");
     await join.locator("#signin-form [type=submit]").click();
@@ -317,7 +336,8 @@ runBrowser(
     await join.locator("#reset-confirm").fill("replacement-password1");
     await join.locator("#reset-form [type=submit]").click();
     await join.locator("#reset-msg").filter({ hasText: "Password changed" }).waitFor();
-    await join.locator("#reset-form [data-signin]").click();
+    assert.equal(await join.locator("#reset-form h1").textContent(), "Password changed");
+    await join.locator("#reset-form").getByRole("button", { name: "Sign in" }).click();
     await join.locator("#username").fill("newmember");
     await join.locator("#password").fill("replacement-password1");
     await join.locator("#signin-form [type=submit]").click();
@@ -329,7 +349,7 @@ runBrowser(
     await join.locator("#security-password").fill("replacement-password1");
     await join.locator("#security-start").click();
     await join.locator("#security-setup").waitFor();
-    const memberSecret = await join.locator("#security-secret").textContent();
+    const memberSecret = (await join.locator("#security-secret").textContent()).replaceAll(" ", "");
     await join.locator("#security-password").fill("replacement-password1");
     await join.locator("#security-code").fill(totp(memberSecret));
     await join.locator("#security-enable").click();
@@ -376,7 +396,21 @@ runBrowser(
       freshCodes.every((c) => !codes.includes(c)),
       "a regenerated set repeated an old code",
     );
+    // The codes are shown once, so hiding them asks first; the copy button is there for the careful.
+    await manage.locator("#security-copy").waitFor();
+    manage.once("dialog", (d) => {
+      assert.match(d.message(), /not be shown again/);
+      return d.dismiss();
+    });
     await manage.locator("#security-hide").click();
+    assert.equal(
+      await manage.locator("#security-recovery").isVisible(),
+      true,
+      "kept when not confirmed",
+    );
+    manage.once("dialog", (d) => d.accept());
+    await manage.locator("#security-hide").click();
+    assert.equal(await manage.locator("#security-recovery").isVisible(), false);
     await manage.locator("#security-password").fill("preview-password1");
     await manage.locator("#security-code").fill("bad");
     manage.once("dialog", (d) => d.accept());
@@ -397,7 +431,7 @@ runBrowser(
     await manage.locator("#security-email-form [type=submit]").click();
     await manage
       .locator("#security-email-msg")
-      .filter({ hasText: "Verification email requested" })
+      .filter({ hasText: "A verification link is on its way to admin2@example.com" })
       .waitFor();
     await manage
       .locator("#security-email-current")

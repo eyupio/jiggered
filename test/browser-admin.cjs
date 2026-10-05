@@ -135,10 +135,60 @@ runBrowser(
     await page.locator("#admin-confirm-pw").fill("preview-password1");
     await page.locator("#adduser [type=submit]").click();
     await page.locator("#adduser-msg").filter({ hasText: "Created newmember" }).waitFor();
+    // The temporary password is shown once, in a dialog that takes the screen, with Copy ready under the cursor.
+    await page.locator("#reveal[open]").waitFor();
+    assert.equal(await page.evaluate(() => document.activeElement.id), "reveal-copy");
+    assert.match(await page.locator("#reveal-pw").textContent(), /Temporary password: \S+/);
+    await page.keyboard.press("Escape");
+    await page.locator("#reveal").waitFor({ state: "hidden" });
+    assert.equal(
+      await page.locator("#reveal-pw").textContent(),
+      "",
+      "the password goes with the dialog",
+    );
     const row = page.locator('[data-name="newmember"]');
     assert.equal(await row.locator('[data-act="reset"]').isVisible(), false);
     await row.locator("summary").click();
     assert.equal(await row.locator('[data-act="reset"]').isVisible(), true);
+    // A long list is paged: twenty people, then a button for the rest, and a new search starts from twenty again.
+    for (let i = 1; i <= 22; i++) {
+      const created = await page.context().request.post(base + "/api/admin/users", {
+        headers: { "X-Requested-With": "jiggered", "X-Jiggered-Password": "preview-password1" },
+        data: { username: `bulk-${String(i).padStart(2, "0")}`, role: "user" },
+      });
+      assert.equal(created.status(), 201);
+    }
+    await page.locator("#users-retry").click();
+    await page.locator("#people-matches").filter({ hasText: "Showing the first 20" }).waitFor();
+    assert.equal(await page.locator("#users > li[data-id]").count(), 20);
+    await page.locator("[data-more-people]").click();
+    assert.equal(await page.locator("#users > li[data-id]").count(), 24, "admin + newmember + 22");
+    assert.equal(await page.locator("[data-more-people]").count(), 0, "nothing left to show");
+    await page.locator("#people-search").fill("bulk-1");
+    assert.equal(await page.locator("#users > li[data-id]").count(), 10);
+    await page.locator("#people-search").fill("");
+    assert.equal(
+      await page.locator("#users > li[data-id]").count(),
+      20,
+      "a changed filter starts again",
+    );
+    // Setup that is unfinished is said at the top of People, with the way to the tab that fixes it.
+    await page.locator("#admin-tab-connection").click();
+    const secure = await page.locator("#px-cookie").textContent();
+    await page.locator("#admin-tab-people").click();
+    assert.equal(
+      await page.locator("#setup-notes").isVisible(),
+      /plain http/.test(secure),
+      "the strip is shown exactly when the Connection tab reports plain-http cookies",
+    );
+    if (await page.locator("#setup-notes").isVisible()) {
+      await page.locator("#setup-notes [data-audit-open=connection]").click();
+      assert.equal(
+        await page.locator("#admin-tab-connection").getAttribute("aria-selected"),
+        "true",
+      );
+      await page.locator("#admin-tab-people").click();
+    }
     await page.locator("#brand-home").click();
     assert.equal(await page.locator("#t-today").getAttribute("aria-selected"), "true");
     assert.equal(await page.locator("#today-panel").isVisible(), true);

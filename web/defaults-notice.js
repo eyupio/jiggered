@@ -5,14 +5,14 @@ import { defaultsGap, mergeDefaults, gapSignature, identifyActivities } from "./
 
 const KEYS = ["activities", "symptoms", "triggers"];
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
-export const describeGap = (gap) =>
-  [
+export const describeGap = (gap) => {
+  const parts = [
     gap.acts.length && plural(gap.acts.length, "activity", "activities"),
     gap.sym.length && plural(gap.sym.length, "symptom", "symptoms"),
     gap.trig.length && plural(gap.trig.length, "trigger", "triggers"),
-  ]
-    .filter(Boolean)
-    .join(", ");
+  ].filter(Boolean);
+  return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : parts[0] || "";
+};
 export const previewGap = (gap, max = 4) => {
   const names = [...gap.acts.map((x) => x.a), ...gap.sym, ...gap.trig];
   return (
@@ -58,7 +58,7 @@ export function initDefaultsNotice(ctx, { canWrite }) {
     el.dataset.sig = sig;
     setHTML(
       el,
-      html`<h2>New in the shared defaults</h2><p>Your admin has added ${describeGap(gap)} that aren't in your lists yet: <span class="meta">${previewGap(gap)}</span>. Your own items, order and points won't change.</p><div class="row"><button class="primary" data-notice="add">Add ${gap.total === 1 ? "it" : `all ${gap.total}`} to my lists</button><button class="secondary" data-notice="review">Review in Account</button><button class="x" data-notice="later">Not now</button></div>`,
+      html`<p><b>New in the shared defaults:</b> your admin added ${describeGap(gap)} (<span class="meta">${previewGap(gap)}</span>). They go at the end of your lists; your own items, order and points don't change.</p><div class="row"><button class="primary small" data-notice="add">Add ${gap.total === 1 ? "it" : `all ${gap.total}`}</button><button class="secondary small" data-notice="review">Review</button><button class="secondary small" data-notice="later">Not now</button></div>`,
     );
     el.hidden = false;
   }

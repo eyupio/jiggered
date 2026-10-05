@@ -23,9 +23,13 @@ runBrowser({ name: "tools", portEnv: "JIGGERED_TOOLS_PORT" }, async (harness) =>
   await page.locator("#acts details.act-group").first().waitFor();
   await saved(page);
 
-  // The Tools tab lists Fretboard; opening it shows an empty board with its hint.
-  await page.getByRole("tab", { name: "Tools" }).click();
-  await page.locator('#tool-grid [data-tool="fretboard"]').click();
+  // Fretboard is the only tool, so it has no tab: it opens from the account menu, straight to an empty board.
+  assert.equal(await page.getByRole("tab", { name: "Tools" }).count(), 0, "no Tools tab");
+  const openFretboard = async () => {
+    await page.locator("#account-menu summary").click();
+    await page.locator('[data-menu-go="tools"]').click();
+  };
+  await openFretboard();
   await page.locator("#fb-canvas").waitFor();
   assert.ok(await page.locator("#fb-empty").isVisible(), "an empty board explains itself");
   assert.match(await page.locator("#tool-title").textContent(), /Fretboard/);
@@ -37,11 +41,15 @@ runBrowser({ name: "tools", portEnv: "JIGGERED_TOOLS_PORT" }, async (harness) =>
   await page.locator('[data-fb="undo"]').click();
   await page.waitForFunction(() => document.querySelectorAll(".fb-item").length === 0);
   // The server copy must be empty again before the next step reads it.
-  await page.waitForFunction(async () => {
-    const r = await fetch("/api/docs", { credentials: "same-origin" });
-    const body = (await r.json())["t-fretboard"]?.body;
-    return !body || Object.keys(body.items || {}).length === 0;
-  });
+  for (let i = 0, empty = false; !empty; i++) {
+    assert.ok(i < 100, "the undone example reaches the server");
+    empty = await page.evaluate(async () => {
+      const r = await fetch("/api/docs", { credentials: "same-origin" });
+      const body = (await r.json())["t-fretboard"]?.body;
+      return !body || Object.keys(body.items || {}).length === 0;
+    });
+    if (!empty) await page.waitForTimeout(100);
+  }
 
   // Double-click adds a card where the mouse is and starts typing straight away.
   await page.locator("#fb-canvas").scrollIntoViewIfNeeded();
@@ -196,11 +204,15 @@ runBrowser({ name: "tools", portEnv: "JIGGERED_TOOLS_PORT" }, async (harness) =>
   assert.equal(await page.locator('[data-axis="right"]').textContent(), "Controlled");
   assert.match(await page.locator("#fb-summary").textContent(), /4 cards/);
 
-  // Back to the launcher, and the phone layout stacks the tray under the board.
-  await page.locator("#tool-back").click();
-  assert.ok(await page.locator("#tool-launcher").isVisible());
+  // Leave and come back, and the phone layout stacks the tray under the board.
+  assert.equal(
+    await page.locator("#tool-back").isVisible(),
+    false,
+    "there is no launcher to go back to",
+  );
+  await page.locator("#t-today").click();
   await page.setViewportSize({ width: 390, height: 900 });
-  await page.locator('#tool-grid [data-tool="fretboard"]').click();
+  await openFretboard();
   await page.locator("#fb-canvas").waitFor();
   const tray = await page.locator(".fb-tray").boundingBox();
   const board = await page.locator("#fb-canvas").boundingBox();

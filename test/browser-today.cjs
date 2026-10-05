@@ -35,6 +35,17 @@ runBrowser({ name: "today", portEnv: "JIGGERED_TODAY_PORT" }, async (harness) =>
     "nothing is ticked before anything is logged",
   );
 
+  // The optional wording step switches the whole app between points and spoons, and back.
+  await page.locator('#onboarding [data-wording="spoons"]').click();
+  await page.waitForFunction(() => document.documentElement.dataset.energyTheme === "spoons");
+  assert.equal(
+    await page.locator('#onboarding [data-wording="spoons"]').getAttribute("aria-pressed"),
+    "true",
+  );
+  await page.locator('#onboarding [data-wording="points"]').click();
+  await page.waitForFunction(() => document.documentElement.dataset.energyTheme === "points");
+  await saved(page);
+
   // The check-in collapses to one line once chosen; changing or clearing it offers Undo.
   await page.locator('#checkin [data-s="amber"]').click();
   await saved(page);
@@ -101,6 +112,27 @@ runBrowser({ name: "today", portEnv: "JIGGERED_TODAY_PORT" }, async (harness) =>
     await page.locator("#acts details.act-group button.act", { hasText: name }).count(),
     0,
     "the plain button became the logged card",
+  );
+  // The keyboard's place follows the tile: it lands on the card's "+", and Ctrl+Z takes the log back while the
+  // toast with Undo is on screen.
+  assert.equal(
+    await card.locator('[data-step="1"]').evaluate((el) => el === document.activeElement),
+    true,
+    "focus follows the tile to its + button",
+  );
+  await page.keyboard.press("Control+z");
+  await page.locator("#entries li").first().waitFor({ state: "detached" });
+  assert.equal(await page.locator("#acts .act.on").count(), 0, "Ctrl+Z took the activity back");
+  // Log it again from the keyboard: Enter on the tile, focus lands on the card's +.
+  const again = page.locator("#acts details.act-group[open] button.act", { hasText: name }).first();
+  await again.focus();
+  await page.keyboard.press("Enter");
+  await saved(page);
+  await card.waitFor();
+  assert.equal(
+    await card.locator('[data-step="1"]').evaluate((el) => el === document.activeElement),
+    true,
+    "Enter on a tile leaves focus on the logged card, not the page",
   );
   const green = await page.evaluate(() =>
     getComputedStyle(document.documentElement).getPropertyValue("--green").trim(),
@@ -262,7 +294,18 @@ runBrowser({ name: "today", portEnv: "JIGGERED_TODAY_PORT" }, async (harness) =>
     "keyboard edit opens the correct duplicate",
   );
   await page.locator("#entry-name").fill("A gentle recovery break");
+  // The form says what the number will look like everywhere else: a cost of 2 shows as −2, a recovery of 2 as +2.
+  await page.locator("#entry-cost").fill("2");
+  assert.match(await page.locator("#entry-effect").textContent(), /Uses 2 points\. Shown as −2\./);
+  await page.locator("#entry-cost").fill("-1");
+  assert.match(
+    await page.locator("#entry-effect").textContent(),
+    /Gives back 1 point\. Shown as \+1\./,
+  );
+  await page.locator("#entry-cost").fill("0");
+  assert.match(await page.locator("#entry-effect").textContent(), /Only records the activity/);
   await page.locator("#entry-cost").fill("-2");
+  assert.match(await page.locator("#entry-effect").textContent(), /Shown as \+2\./);
   await page.locator('#entry-form button[type="submit"]').click();
   await saved(page);
   assert.match(await pills.first().textContent(), /A gentle recovery break/);
@@ -326,6 +369,45 @@ runBrowser({ name: "today", portEnv: "JIGGERED_TODAY_PORT" }, async (harness) =>
   await page.reload();
   await saved(page);
   assert.equal(await pills.count(), 3, "pills survive reload and sync");
+  // An episode that is still going can be ended with one tap, and the length is worked out from when it started.
+  const ongoing = await page.evaluate(async () => {
+    const started = new Date(Date.now() - 2 * 3600_000);
+    const p = (n) => String(n).padStart(2, "0");
+    const when = `${started.getFullYear()}-${p(started.getMonth() + 1)}-${p(started.getDate())}T${p(started.getHours())}:${p(started.getMinutes())}`;
+    const r = await fetch("/api/docs/e-1700000000001", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "jiggered",
+        "If-None-Match": "*",
+      },
+      body: JSON.stringify({
+        when,
+        symptoms: ["Headache"],
+        onset: "Sudden",
+        duration: "Still going",
+        before: [],
+        notes: "",
+      }),
+    });
+    return r.status;
+  });
+  assert.equal(ongoing, 200, "the ongoing episode was accepted");
+  await page.reload();
+  await saved(page);
+  const banner = page.locator("#today-ongoing");
+  await banner.waitFor();
+  await banner.locator("[data-end-episode-now]").click();
+  for (let i = 0, ended = false; !ended; i++) {
+    assert.ok(i < 100, "the ended episode reaches the server");
+    ended = await page.evaluate(async () => {
+      const r = await fetch("/api/docs", { credentials: "same-origin" });
+      const doc = (await r.json())["e-1700000000001"]?.body;
+      return doc?.duration === "1–4 hours" && !!doc?.endedAt;
+    });
+    if (!ended) await page.waitForTimeout(100);
+  }
+  await banner.waitFor({ state: "hidden" }); // the banner goes once the episode has ended
   await page.locator("#t-history").click();
   assert.equal(await page.locator("#view-heading").textContent(), "History");
   await page.reload();

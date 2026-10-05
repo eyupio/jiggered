@@ -195,6 +195,9 @@ export function initProfile(ctx) {
       $("profile-stats"),
       html`<div><b>${days.filter((d) => d.status).length}</b><span>check-ins</span></div><div><b>${days.reduce((n, d) => n + d.entries.length, 0)}</b><span>activities logged</span></div><div><b>${episodes.length}</b><span>episodes recorded</span></div>`,
     );
+    // A new account has nothing to count yet: a row of zeros is not a reward, so it waits for the first record.
+    $("profile-stats").hidden =
+      !days.some((d) => d.status) && !days.some((d) => d.entries.length) && !episodes.length;
     if (!ticket) return;
     const state = saveFeedback(ctx.store, ticket, $("profile-msg"));
     $("profile-save").disabled = state === "pending";

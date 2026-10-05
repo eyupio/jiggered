@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
@@ -13,7 +13,8 @@
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <meta name="theme-color" content="#2f6f62" />
+    <meta name="theme-color" content="#f8f9f4" />
+    <meta name="theme-color" content="#17221c" media="(prefers-color-scheme: dark)" />
     <link
       rel="preload"
       href="/fonts/atkinson-400-latin.woff2"
@@ -93,7 +94,7 @@
             <span aria-hidden="true"
               ><svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
                 <path
-                  d="M6 18 18 6M6 6h12v12"
+                  d="M5 12h14M13 6l6 6-6 6"
                   stroke="currentColor"
                   stroke-width="1.7"
                   stroke-linecap="round"
@@ -117,17 +118,25 @@
               id="register-name"
               autocomplete="username"
               autocapitalize="none"
+              spellcheck="false"
+              enterkeyhint="next"
               maxlength="64"
               required
           /></label>
           <label
-            >Email address<input id="register-email" type="email" autocomplete="email" required
+            >Email address<input
+              id="register-email"
+              type="email"
+              autocomplete="email"
+              enterkeyhint="next"
+              required
           /></label>
           <label
             >Password<input
               id="register-password"
               type="password"
               autocomplete="new-password"
+              enterkeyhint="go"
               minlength="8"
               required
               aria-describedby="register-password-hint"
@@ -135,13 +144,13 @@
           <p id="register-password-hint" class="meta">
             Use 8 to 72 characters. A longer, unique passphrase is better.
           </p>
-          <label
-            >Confirm password<input
-              id="register-confirm"
-              type="password"
-              autocomplete="new-password"
-              required
-          /></label>
+          <div class="sent-box" id="register-sent" role="status" tabindex="-1" hidden>
+            <h2>Check your inbox</h2>
+            <p>
+              We sent a link to <b data-sent-to></b>. It works once and expires in 30 minutes. If it
+              has not arrived in a minute, look in spam, or press the button again.
+            </p>
+          </div>
           <button class="primary" type="submit">Send verification email</button>
           <p class="msg" role="status" id="register-msg"></p>
           <button class="secondary" type="button" data-signin>Back to sign in</button>
@@ -153,12 +162,16 @@
             minutes.
           </p>
           <label
-            >Email address<input
-              id="forgot-email"
-              type="email"
-              autocomplete="email"
-              required /></label
-          ><button class="primary" type="submit">Request reset link</button>
+            >Email address<input id="forgot-email" type="email" autocomplete="email" required
+          /></label>
+          <div class="sent-box" id="forgot-sent" role="status" tabindex="-1" hidden>
+            <h2>Check your inbox</h2>
+            <p>
+              If that address belongs to an account, a link is on its way to <b data-sent-to></b>.
+              It works once and expires in 30 minutes. Look in spam if it does not arrive.
+            </p>
+          </div>
+          <button class="primary" type="submit">Request reset link</button>
           <p class="msg" role="status" id="forgot-msg"></p>
           <button class="secondary" type="button" data-signin>Back to sign in</button>
         </form>
@@ -221,8 +234,6 @@
               autocapitalize="none"
               spellcheck="false"
               enterkeyhint="done"
-              autocapitalize="none"
-              spellcheck="false"
               required /></label
           ><button class="primary" type="submit">Verify & sign in</button>
           <p class="msg" role="status" id="two-step-msg"></p>
@@ -237,18 +248,23 @@
           </p>
           <p>
             Lost your authenticator? Use an unused recovery code, or ask an administrator to reset
-            two-step verification. Server operators can reset a password with
-            <code>jiggered user reset-password NAME</code>.
+            two-step verification. Whoever runs the server can reset a password with
+            <code>docker compose exec jiggered /jiggered user reset-password NAME</code>. If someone
+            was locked out by wrong guesses, also run <code>docker compose restart jiggered</code>.
+            If the only admin lost their authenticator, use
+            <code>docker compose exec jiggered /jiggered user reset-two-factor NAME</code>.
           </p>
         </details>
       </main>
     </div>
     <footer class="site-footer shell">
       <p>A personal log, not a medical device.</p>
-      <a href="/welcome#privacy">Your privacy</a>
+      <a href="/privacy">Your privacy</a>
       <p>
         Developed by <a href="https://eyup.io">EyUp.io</a> ·
-        <a href="https://github.com/eyupio/jiggered">Source on GitHub</a>
+        <a href="https://github.com/eyupio/jiggered" target="_blank" rel="noopener"
+          >Source on GitHub<span class="sr-only"> (opens in a new tab)</span></a
+        >
       </p>
     </footer>
     <script src="/login.js"></script>

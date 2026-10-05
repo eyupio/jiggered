@@ -360,6 +360,7 @@ func (s *server) routes() http.Handler {
 		}
 	}
 	mux.Handle("GET /fonts/", files)
+	mux.Handle("GET /shots/", files) // real screenshots shown on the public pages
 	mux.Handle("GET /v/{ver}/{file...}", s.versionedAsset(files))
 	mux.HandleFunc("GET /sw.js", func(w http.ResponseWriter, r *http.Request) {
 		b, err := fs.ReadFile(static, "sw.js")
@@ -419,7 +420,7 @@ func (s *server) routes() http.Handler {
 				return
 			}
 			if !knownPrivateFile(static, r.URL.Path) {
-				http.NotFound(w, r)
+				public.notFound(w, r)
 				return
 			}
 			s.requireAuth(files).ServeHTTP(w, r)

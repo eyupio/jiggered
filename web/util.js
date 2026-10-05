@@ -76,6 +76,8 @@ export function fmtBytes(n) {
 
 // A cost as it reads on screen: spending is −n, recovery is +n, and nothing is a plain 0 (never "−0" or "+0").
 export const signed = (c) => (c > 0 ? `−${c}` : c < 0 ? `+${-c}` : "0");
+// A balance, with a real minus sign when it is below zero.
+export const minus = (n) => String(n).replace("-", "−");
 
 // "Firefox on Linux", for the list of signed-in devices.
 export function describeUA(ua = "") {
@@ -139,7 +141,7 @@ export async function api(method, path, body, headers = {}) {
   try {
     r = await fetch(path, opts);
     if (r.status === 401) {
-      location.href = "/login";
+      location.href = "/login?e=expired";
       return { ok: false, status: 401, data: null, error: "You've been signed out." };
     }
     // A connection can fail after headers arrive; consuming its body belongs to the same transport boundary.
@@ -201,6 +203,64 @@ export async function withBusy(button, label, action) {
       button.textContent = before;
     }
   }
+}
+
+// sheetMode shows an in-page form as a centred sheet over the page instead of wherever it happens to sit in the
+// document, so editing from a timeline neither moves the page nor loses the timeline. The form keeps its markup and
+// handlers; it leaves the sheet as soon as it is hidden again. Escape and a click outside call onCancel, and Tab
+// stays inside while it is open.
+export function sheetMode(form, { onCancel, labelledBy = "" }) {
+  let backdrop = null;
+  const focusable =
+    "a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled])";
+  const keys = (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      onCancel();
+      return;
+    }
+    if (e.key !== "Tab") return;
+    const items = [...form.querySelectorAll(focusable)].filter((el) => el.offsetParent !== null);
+    if (!items.length) return;
+    const first = items[0],
+      last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+  function off() {
+    if (!form.classList.contains("is-sheet")) return;
+    form.classList.remove("is-sheet");
+    form.removeAttribute("role");
+    form.removeAttribute("aria-modal");
+    form.removeAttribute("aria-labelledby");
+    form.removeEventListener("keydown", keys);
+    backdrop?.remove();
+    backdrop = null;
+  }
+  new MutationObserver(() => {
+    if (form.hidden) off();
+  }).observe(form, { attributes: true, attributeFilter: ["hidden"] });
+  return {
+    on() {
+      if (form.classList.contains("is-sheet")) return;
+      backdrop = document.createElement("div");
+      backdrop.className = "sheet-backdrop";
+      backdrop.addEventListener("click", onCancel);
+      document.body.append(backdrop);
+      form.classList.add("is-sheet");
+      form.setAttribute("role", "dialog");
+      form.setAttribute("aria-modal", "true");
+      if (labelledBy) form.setAttribute("aria-labelledby", labelledBy);
+      form.addEventListener("keydown", keys);
+    },
+    off,
+  };
 }
 
 // A modal yes/no question. Resolves true only for the confirm button; Escape, the backdrop and Cancel all resolve false.

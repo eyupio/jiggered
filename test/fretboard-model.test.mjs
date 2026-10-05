@@ -181,3 +181,22 @@ test("field patches merge with another device's change to the same card and neve
   const gone = m.applyBoardPatch({ items: { b: null } }, server);
   assert.equal(m.applyBoardPatch({ fields: { b: { x: 0.2 } } }, gone).items.b, undefined);
 });
+
+test("the summary counts what can be read: an empty, never-typed card is not one of them", () => {
+  const b = m.normaliseBoard({
+    items: {
+      a: { k: "card", t: "Real", x: 0.7, y: 0.2, z: 1, s: "todo" },
+      ghost: { k: "card", t: "  ", x: 0.1, y: 0.1, z: 2, s: "todo" },
+      n: { k: "note", t: "", x: 0.2, y: 0.8, z: 3 },
+    },
+  });
+  const s = m.summarise(b);
+  assert.equal(s.cards, 1);
+  assert.equal(s.notes, 0);
+  assert.equal(
+    s.weight,
+    0,
+    "the ghost does not become 'one thing that matters and is out of your hands'",
+  );
+  assert.equal(s.yoursHigh, 1);
+});

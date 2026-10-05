@@ -71,6 +71,7 @@ function say(el, text, bad = false) {
 }
 
 const MARKUP = `${servicesMarkup}
+<dialog id="reveal" class="panel security-dialog" aria-labelledby="reveal-title"><h2 id="reveal-title">Temporary password</h2><p class="meta"><b id="reveal-who"></b> can sign in with this temporary password. It is shown once: copy it before you close this. They will choose their own at first sign-in.</p><code id="reveal-pw"></code><div class="service-actions"><button class="primary" id="reveal-copy" type="button">Copy sign-in instructions</button><button class="secondary" id="reveal-hide" type="button">Close</button></div></dialog>
 <dialog id="factor-reset-dialog" class="panel security-dialog" aria-labelledby="factor-reset-title"><form id="factor-reset-form"><h2 id="factor-reset-title">Reset two-step verification</h2><p class="meta" id="factor-reset-description"></p><label>Your admin password<input id="factor-reset-password" type="password" autocomplete="current-password" required></label><label>Your authenticator or recovery code<input id="factor-reset-code" autocomplete="one-time-code" autocapitalize="none"><span class="meta">Required if your own account has two-step verification enabled.</span></label><p class="msg" role="status" id="factor-reset-msg"></p><div class="service-actions"><button class="danger" type="submit">Reset & sign out devices</button><button class="secondary" type="button" id="factor-reset-cancel">Cancel</button></div></form></dialog>
     <div class="panel"><label class="field">Confirm an admin change<input type="password" id="admin-confirm-pw" autocomplete="current-password"></label><p class="hint">Your password confirms changes to accounts, connection settings and shared defaults.</p></div>
     <div class="panel">
@@ -81,6 +82,7 @@ const MARKUP = `${servicesMarkup}
       <p class="msg" id="users-msg" aria-live="polite"></p><button class="secondary" id="users-retry">Refresh people</button>
     </div>
     <div class="panel">
+      <div class="banner setup-notes" id="setup-notes" role="status" hidden></div>
       <h2>Add someone</h2>
       <form id="adduser">
         <label class="field">Username<input type="text" id="new-name" autocomplete="off" autocapitalize="none" maxlength="64" required></label>
@@ -88,12 +90,6 @@ const MARKUP = `${servicesMarkup}
         <button class="primary" type="submit">Create account</button>
         <p class="msg" id="adduser-msg" aria-live="polite"></p>
       </form>
-      <div class="reveal" id="reveal" hidden>
-        <p><b id="reveal-who"></b> can sign in with this temporary password. It is shown once. They'll choose their own at first sign-in.</p>
-        <code id="reveal-pw"></code>
-        <button class="secondary" id="reveal-copy" type="button">Copy</button>
-        <button class="x" id="reveal-hide" type="button">Hide</button>
-      </div>
     </div>
     <div class="panel">
       <h2>Activity</h2>
@@ -357,12 +353,18 @@ function wire(ctx) {
   $("audit-filters").addEventListener("reset", () => setTimeout(() => loadAudit(true), 0));
   $("people-search").value = savedUI.peopleSearch || "";
   $("people-state").value = savedUI.peopleState || "";
-  $("people-search").addEventListener("input", renderUsers);
-  $("people-state").addEventListener("change", renderUsers);
+  // A long list is shown twenty people at a time: the last row's buttons used to sit under the tab bar.
+  const PEOPLE_PAGE = 20;
+  let peopleShown = PEOPLE_PAGE;
+  const refilter = () => {
+    peopleShown = PEOPLE_PAGE;
+    renderUsers();
+  };
+  $("people-search").addEventListener("input", refilter);
+  $("people-state").addEventListener("change", refilter);
   let limits = { docs: 10000, bytes: 25 * 1024 * 1024 };
   let users = [],
-    oldest = 0,
-    loaded = false;
+    oldest = 0;
 
   function confirmation() {
     const field = $("admin-confirm-pw"),
@@ -410,12 +412,13 @@ function wire(ctx) {
           (state === "enabled" && !u.disabled) ||
           (state === "new" && u.must_change_password && !u.disabled)),
     );
+    const shown = matches.slice(0, peopleShown);
     $("people-matches").textContent =
-      `${matches.length} of ${users.length} people${matches.length ? "" : ". Clear your search or filters to see everyone."}`;
+      `${matches.length} of ${users.length} people${matches.length ? "" : ". Clear your search or filters to see everyone."}${shown.length < matches.length ? ` Showing the first ${shown.length}.` : ""}`;
     ctx.ui?.details($("users"));
     setHTML(
       $("users"),
-      html`${matches.map((u) => {
+      html`${shown.map((u) => {
         const self = u.id === me.id;
         return html`<li data-id="${u.id}" data-name="${u.username}">
         <div class="top"><b>${u.username}</b>${self ? html` <span class="badge">you</span>` : ""}${u.role === "admin" ? html` <span class="badge">admin</span>` : ""}${u.disabled ? html` <span class="badge off">disabled</span>` : ""}${u.must_change_password && !u.disabled ? html` <span class="badge wait">hasn't chosen a password yet</span>` : ""}</div>
@@ -434,7 +437,7 @@ function wire(ctx) {
         </div></details>`
         }
       </li>`;
-      })}`,
+      })}${shown.length < matches.length ? html`<li class="people-more"><button class="secondary" type="button" data-more-people>Show ${Math.min(PEOPLE_PAGE, matches.length - shown.length)} more</button></li>` : ""}`,
     );
     ctx.ui?.details($("users"), true);
   }
@@ -443,11 +446,13 @@ function wire(ctx) {
     $("reveal-who").textContent = who;
     $("reveal-pw").textContent =
       `Sign in at ${location.origin}/login\nUsername: ${who}\nTemporary password: ${pw}\nChoose your own password at first sign-in.`;
-    $("reveal").hidden = false;
     $("reveal-copy").textContent = "Copy sign-in instructions";
+    // The password is shown once, so it takes the whole screen: wherever the admin was in a long list, it is here.
+    if (!$("reveal").open) $("reveal").showModal();
+    $("reveal-copy").focus();
   }
-  $("reveal-hide").addEventListener("click", () => {
-    $("reveal").hidden = true;
+  $("reveal-hide").addEventListener("click", () => $("reveal").close());
+  $("reveal").addEventListener("close", () => {
     $("reveal-pw").textContent = "";
   });
   $("reveal-copy").addEventListener("click", async () => {
@@ -465,6 +470,11 @@ function wire(ctx) {
   });
 
   $("users").addEventListener("click", async (e) => {
+    if (e.target.closest("[data-more-people]")) {
+      peopleShown += PEOPLE_PAGE;
+      renderUsers();
+      return;
+    }
     const b = e.target.closest("[data-act]");
     if (!b) return;
     return withBusy(b, "Working…", async () => {
@@ -542,8 +552,21 @@ function wire(ctx) {
         }
       }
       const failed = r && !r.ok ? r.error : "";
-      await loadUsers(); // the refresh writes its own status line, so say the error after it
+      const outcomes = {
+        disable: "was disabled.",
+        enable: "was enabled.",
+        promote: "is now an admin.",
+        demote: "is now an ordinary user.",
+      };
+      const done =
+        r?.ok && outcomes[b.dataset.act]
+          ? `${name} ${outcomes[b.dataset.act]}`
+          : !failed && msg.textContent && !msg.classList.contains("err")
+            ? msg.textContent
+            : "";
+      await loadUsers(); // the refresh writes its own status line, so say what happened after it
       if (failed) say(msg, failed, true);
+      else if (done) say(msg, done);
       loadAudit(true);
     });
   });
@@ -696,7 +719,23 @@ function wire(ctx) {
   );
 
   // ---- how Jiggered finds out who is connecting ----
+  // Two things a new operator is told nowhere else until they open this tab: said at the top of People, with the way there.
+  function showSetupNotes(c) {
+    const notes = [];
+    if (!c.secure_cookie) notes.push("Sign-in cookies also travel over plain http.");
+    if (!c.trust_proxy && c.seen.forwarded_for)
+      notes.push(
+        "A proxy is in front of Jiggered but isn't trusted, so everyone behind it shares one sign-in lockout.",
+      );
+    if (!$("setup-notes")) return;
+    $("setup-notes").hidden = !notes.length;
+    setHTML(
+      $("setup-notes"),
+      html`<b>Finish setting up.</b> ${notes.map((n) => html`${n} `)}<button type="button" class="secondary small" data-audit-open="connection">Open Connection</button>`,
+    );
+  }
   function showConnection(c) {
+    showSetupNotes(c);
     $("px-on").checked = c.trust_proxy;
     $("px-hops").value = c.proxy_hops;
     $("px-cidrs").value = c.trusted_proxy_cidrs || "";
@@ -718,7 +757,7 @@ function wire(ctx) {
       $("px-cookie"),
       c.secure_cookie
         ? html`Sign-in cookies only travel over HTTPS.`
-        : html`<b>Sign-in cookies also travel over plain http.</b> That is only meant for testing. Turn it back on with <code>jiggered settings set secure_cookie true</code>.`,
+        : html`<b>Sign-in cookies also travel over plain http.</b> That is only meant for testing. Turn it back on with <code>docker compose exec jiggered /jiggered settings set secure_cookie true</code>.`,
     );
   }
   async function loadConnection() {
@@ -858,7 +897,7 @@ function wire(ctx) {
     setHTML(
       $("usage-report"),
       r.data.rows.length
-        ? html`<table><thead><tr><th>Week (UTC)</th><th>Task</th><th>Participants</th><th>Completions</th><th>Active on 2+ days</th></tr></thead><tbody>${r.data.rows.map((x) => html`<tr><td>${x.week}</td><td>${x.event.replaceAll("_", " ")}</td><td>${x.participants}</td><td>${x.tasks}</td><td>${x.repeat_days_participants ?? "Hidden (fewer than 5)"}</td></tr>`)}</tbody></table>`
+        ? html`<div class="table-scroll" tabindex="0" role="region" aria-label="Usage report"><table><thead><tr><th>Week (UTC)</th><th>Task</th><th>Participants</th><th>Completions</th><th>Active on 2+ days</th></tr></thead><tbody>${r.data.rows.map((x) => html`<tr><td>${x.week}</td><td>${x.event.replaceAll("_", " ")}</td><td>${x.participants}</td><td>${x.tasks}</td><td>${x.repeat_days_participants ?? "Hidden (fewer than 5)"}</td></tr>`)}</tbody></table></div>`
         : html`<p class="meta">No reportable groups yet. Every event needs at least five consenting participants in the same week.</p>`,
     );
   }
@@ -886,10 +925,6 @@ function wire(ctx) {
       services.destroy();
     },
     show() {
-      if (!loaded) {
-        loaded = true;
-        $("reveal").hidden = true;
-      }
       return Promise.all([
         services.load(),
         loadUsers(),

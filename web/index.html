@@ -51,6 +51,7 @@
               ><span class="who" id="who"></span>
             </summary>
             <div class="menu-pop">
+              <button class="menu-item" type="button" data-menu-go="tools">Fretboard</button>
               <button class="menu-item" type="button" data-menu-go="account">
                 Account and settings
               </button>
@@ -124,7 +125,7 @@
           tabindex="-1"
           aria-selected="false"
           data-tab="episode"
-          data-heading="A moment to notice."
+          data-heading="Log a symptom episode."
           data-description="Record what happened, how it felt, and anything you’d like to remember."
         >
           Episode
@@ -144,6 +145,7 @@
         <button
           role="tab"
           id="t-tools"
+          hidden
           aria-controls="tools-panel"
           tabindex="-1"
           aria-selected="false"
@@ -201,13 +203,25 @@
                   min="1"
                   max="30"
                   inputmode="numeric" /></label
-              ><button type="button" class="secondary small" id="onboarding-keep">
-                Use this allowance
-              </button>
+              ><button type="button" class="secondary small" id="onboarding-keep">Save</button>
+            </li>
+            <li id="step-wording">
+              <span class="tick" aria-hidden="true"></span
+              ><span class="step-wording-line"
+                ><span>Optional: count your energy in</span>
+                <span class="step-wording" role="group" aria-label="Count your energy in"
+                  ><button type="button" class="secondary small" data-wording="points">
+                    Points</button
+                  ><button type="button" class="secondary small" data-wording="spoons">
+                    Spoons
+                  </button></span
+                ></span
+              >
             </li>
           </ol>
         </div>
         <div class="panel" id="today-ongoing" hidden></div>
+        <section class="panel" id="weekly-review" hidden aria-label="Weekly review"></section>
         <p class="notice" id="day-notice" hidden>
           You're looking at a past day. Changes here are saved to that day.
           <button class="x" id="day-back">Back to today</button>
@@ -262,7 +276,7 @@
                 class="help-tip"
                 data-energy-label="Help with energy points"
                 aria-label="Help with energy points"
-                data-energy-tooltip="Points are personal estimates. Positive activity costs spend points; negative costs record recovery. Your balance can go below zero or above your starting budget. The ring shows the balance within your starting allowance; the number always shows the full balance."
+                data-energy-tooltip="Points are personal estimates. An activity that uses energy shows as −2; one that gives energy back shows as +2. Your balance can go below zero or above your starting budget. The ring shows the balance within your starting allowance; the number always shows the full balance."
               >
                 ?
               </button>
@@ -418,6 +432,7 @@
                 ><input type="number" id="entry-cost" min="-10" max="10" step="1" required /></label
               ><label class="field">Time (optional)<input type="time" id="entry-time" /></label>
             </div>
+            <p class="hint" id="entry-effect" role="status"></p>
             <label class="field"
               >Duration, minutes (optional)<input
                 type="number"
@@ -430,8 +445,9 @@
             <p class="hint" id="entry-length-hint" role="status"></p>
             <p class="hint">
               <span
-                data-energy-copy="Negative points record recovery. Zero only records the activity."
-                >Negative points record recovery. Zero only records the activity.</span
+                data-energy-copy="Type what it costs: 2 uses 2 points, −1 gives 1 back, 0 only records the activity."
+                >Type what it costs: 2 uses 2 points, −1 gives 1 back, 0 only records the
+                activity.</span
               >
             </p>
             <div class="row">
@@ -441,7 +457,6 @@
             <p id="entry-msg" class="msg" role="status"></p>
           </form>
         </div>
-        <section class="panel" id="weekly-review" hidden aria-label="Weekly review"></section>
       </section>
 
       <section role="tabpanel" aria-labelledby="t-episode" id="episode-panel" hidden>
@@ -464,7 +479,7 @@
             <h2 id="ep-title">Log an episode</h2>
             <button class="help-link x" data-settings="set-sym">Edit lists</button>
           </div>
-          <form id="epform">
+          <form id="epform" novalidate>
             <div class="field-block">
               <label class="legend" for="ep-when">When it started</label
               ><input type="datetime-local" id="ep-when" required />
@@ -494,12 +509,15 @@
               <button type="button" class="secondary small" id="ep-sym-more" hidden></button>
             </fieldset>
             <fieldset>
-              <legend>How it came on</legend>
+              <legend>
+                How it came on <span class="meta">(optional; tap again to clear)</span>
+              </legend>
               <div class="chips" id="ep-onset"></div>
             </fieldset>
             <div class="field-block">
-              <label class="legend" for="ep-dur">How long it lasted</label
-              ><select id="ep-dur"></select>
+              <label class="legend" for="ep-dur">How long it lasted (required)</label
+              ><select id="ep-dur" aria-describedby="ep-dur-hint"></select>
+              <p class="hint" id="ep-dur-hint" role="status"></p>
             </div>
             <label class="field" id="ep-ended-row" hidden
               >When it ended (optional)<input type="datetime-local" id="ep-ended"
@@ -593,6 +611,9 @@
             <span id="plan-placing-text"></span>
             <button type="button" class="x" id="plan-placing-cancel">Cancel</button>
           </p>
+          <button type="button" class="skip-inline" id="plan-skip-palette">
+            Skip the activity list, go to the timeline
+          </button>
           <div class="plan-board-layout">
             <div id="plan-palette" class="cal-palette" aria-label="Your saved activities"></div>
             <div id="plan-board" class="cal"></div>
@@ -615,10 +636,24 @@
               aria-describedby="plan-allowance-hint"
           /></label>
           <p class="hint" id="plan-allowance-hint"></p>
+          <div class="plan-daytype" id="plan-daytype" role="group" aria-label="Kind of day">
+            <button type="button" class="secondary small" data-daytype="green">Green</button>
+            <button type="button" class="secondary small" data-daytype="amber" id="plan-day-amber">
+              Amber
+            </button>
+            <button type="button" class="secondary small" data-daytype="red" id="plan-day-red">
+              Red
+            </button>
+            <label class="toggle"
+              ><input type="checkbox" id="plan-poorsleep" /><span id="plan-poorsleep-text"
+                >Poor sleep</span
+              ></label
+            >
+          </div>
           <div id="plan-forecast" aria-live="polite" aria-atomic="true"></div>
           <div id="plan-list"></div>
           <div id="plan-recovery-options"></div>
-          <form id="plan-form" class="plan-form" hidden>
+          <form id="plan-form" class="plan-form" novalidate hidden>
             <h3 id="plan-form-title">Add to your plan</h3>
             <label id="plan-presets-row"
               >Use a saved activity<select id="plan-presets"></select
@@ -634,7 +669,7 @@
                   max="10"
                   step="1"
                   required
-                  aria-describedby="plan-cost-hint" /></label
+                  aria-describedby="plan-cost-hint plan-effect" /></label
               ><label>Time (optional)<input type="time" id="plan-time" /></label
               ><label
                 >Duration, minutes (optional)<input
@@ -645,27 +680,22 @@
                   step="5"
                   inputmode="numeric"
               /></label>
+              <p class="hint" id="plan-effect" role="status"></p>
               <p class="hint" id="plan-length-hint" role="status"></p>
               <label id="plan-repeat-row"
-                >Add on consecutive days<input
-                  type="number"
-                  id="plan-repeat"
-                  min="1"
-                  max="7"
-                  step="1"
-                  value="1"
-                  required
+                ><span id="plan-repeat-label">Add on consecutive days</span
+                ><input type="number" id="plan-repeat" min="1" max="7" step="1" value="1" required
               /></label>
             </div>
             <p
               class="hint"
               id="plan-cost-hint"
-              data-energy-copy="Positive points spend energy. Negative points estimate recovery. Zero records the activity without changing your balance."
+              data-energy-copy="Type what it costs: 2 uses 2 points, −1 gives 1 back, 0 only records the activity. It then shows as −2 or +1 everywhere else."
             >
-              Positive points spend energy. Negative points estimate recovery. Zero records the
-              activity without changing your balance.
+              Type what it costs: 2 uses 2 points, −1 gives 1 back, 0 only records the activity. It
+              then shows as −2 or +1 everywhere else.
             </p>
-            <p id="plan-form-error" class="error" role="alert"></p>
+            <p id="plan-form-error" class="msg err" role="alert"></p>
             <div class="row">
               <button type="submit" class="primary" id="plan-submit">Save plan</button
               ><button type="button" class="secondary" id="plan-cancel">Cancel</button>
@@ -689,7 +719,10 @@
               </select></label
             >
             <p class="meta" id="history-period" role="status"></p>
-            <button class="primary" id="history-prepare">Prepare summary</button>
+            <button class="secondary" id="history-prepare" aria-describedby="history-prepare-why">
+              Prepare summary
+            </button>
+            <p class="meta" id="history-prepare-why"></p>
           </div>
         </div>
         <details class="panel history-filter-panel" id="history-filter-panel">
@@ -759,14 +792,21 @@
             >
               Preview summary
             </button>
-            <div id="summary-preview" hidden></div>
+            <div
+              id="summary-preview"
+              hidden
+              tabindex="0"
+              role="region"
+              aria-label="Summary preview"
+            ></div>
             <div class="row">
               <button class="primary" id="sum-print">Print or save as PDF</button>
             </div>
             <p class="hint">
               The summary and CSV files use the period and filters above. Private episode notes are
-              included only when selected above. Activity costs are positive for spending, negative
-              for recovery and zero for recording only.
+              included only when selected above. In the activities file a positive cost is energy
+              spent, a negative cost is energy recovered, and zero only records the activity; the
+              days file spells each one out as "spent" or "recovered".
             </p>
             <div class="row">
               <button class="secondary" id="csv-days">Days as CSV</button
@@ -877,15 +917,67 @@
           role="navigation"
           aria-label="Account sections"
         >
-          <button class="secondary small" data-account-target="profile-panel">Profile</button
-          ><button class="secondary small" data-account-target="settings-panel">
+          <button class="secondary small" data-account-target="settings-panel">
             Energy &amp; lists</button
+          ><button class="secondary small" data-account-target="profile-panel">Profile</button
           ><button class="secondary small" data-account-target="pw-panel">Password</button
           ><button class="secondary small" data-account-target="security-panel">
             Sign-in security</button
           ><button class="secondary small" data-account-target="sessions-panel">Devices</button
           ><button class="secondary small" data-account-target="data-panel">Your data</button>
         </div>
+        <div class="panel" id="settings-panel">
+          <div class="label-row">
+            <h2>Energy &amp; personal lists</h2>
+            <button class="help-link x" data-help="activities">Help with customising</button>
+          </div>
+          <form id="setform">
+            <div class="row2">
+              <label class="field"
+                >Points per day<input
+                  type="number"
+                  id="set-budget"
+                  min="1"
+                  max="30"
+                  inputmode="numeric"
+              /></label>
+              <label class="field"
+                >Poor sleep costs<input
+                  type="number"
+                  id="set-penalty"
+                  min="0"
+                  max="30"
+                  inputmode="numeric"
+              /></label>
+            </div>
+            <label class="field">Date format<select id="set-locale"></select></label>
+            <fieldset>
+              <legend>Activities</legend>
+              <p class="hint">
+                Points an activity costs: −10 to 10, including zero. Negative numbers give points
+                back. Up to 200 distinct names, each up to 60 characters.
+              </p>
+              <div id="set-acts"></div>
+              <button class="secondary" type="button" id="set-addact">Add an activity</button>
+            </fieldset>
+            <label class="field"
+              >Symptoms to pick from (one per line)<textarea id="set-sym" rows="6"></textarea>
+            </label>
+            <label class="field"
+              >Possible triggers to pick from (one per line)<textarea
+                id="set-trig"
+                rows="6"
+              ></textarea>
+            </label>
+            <div class="row">
+              <button class="primary" type="submit">Save settings</button>
+              <button class="secondary" type="button" id="set-discard">Discard draft</button>
+              <button class="secondary" type="button" id="set-reset">Back to the defaults</button>
+            </div>
+            <p class="msg" id="set-msg" aria-live="polite"></p>
+          </form>
+        </div>
+
         <div class="panel" id="profile-panel">
           <div class="label-row">
             <h2>Make it yours</h2>
@@ -927,7 +1019,7 @@
                 type="text"
                 maxlength="60"
                 autocomplete="nickname"
-                placeholder="How you'd like to be greeted"
+                placeholder="Shown next to your avatar"
             /></label>
             <p class="hint">Optional. Leave blank to use your sign-in username.</p>
             <label class="field"
@@ -941,7 +1033,9 @@
               ></textarea>
             </label>
             <div class="label-row">
-              <p class="hint" id="profile-focus-hint">A private reminder of what matters to you.</p>
+              <p class="hint" id="profile-focus-hint">
+                A private reminder, shown on this page and, if you choose, on a printed summary.
+              </p>
               <span class="meta" id="profile-focus-count"></span>
             </div>
             <div class="row2">
@@ -976,7 +1070,10 @@
               ><input id="profile-weekly-review" type="checkbox" /> Offer a gentle weekly review on
               Today</label
             >
-            <p class="hint">Optional, in-app only. No reminders, streaks or emails.</p>
+            <p class="hint">
+              Optional, in-app only. No reminders, streaks or emails. It appears on Today once you
+              have three check-ins in the past week.
+            </p>
             <fieldset class="energy-theme-picker" aria-describedby="energy-theme-hint">
               <legend>Energy language</legend>
               <p class="hint" id="energy-theme-hint">
@@ -1044,7 +1141,7 @@
                 time.
               </p>
             </fieldset>
-            <div class="row">
+            <div class="row sticky-save">
               <button class="primary" id="profile-save" type="submit">Save profile</button
               ><button class="secondary" type="button" id="profile-discard" disabled>
                 Discard draft
@@ -1089,60 +1186,13 @@
         <div class="panel" id="sessions-panel">
           <h2>Where you're signed in</h2>
           <ul class="list" id="sessions"></ul>
-          <button class="secondary" id="revoke-others">Sign out all other devices</button>
-          <p class="msg" id="sessions-msg" aria-live="polite"></p>
-        </div>
-
-        <div class="panel" id="settings-panel">
-          <div class="label-row">
-            <h2>Energy &amp; personal lists</h2>
-            <button class="help-link x" data-help="activities">Help with customising</button>
+          <div class="row">
+            <button class="secondary" id="revoke-others">Sign out all other devices</button
+            ><button class="secondary" type="button" id="account-signout">
+              Sign out of this device
+            </button>
           </div>
-          <form id="setform">
-            <div class="row2">
-              <label class="field"
-                >Points per day<input
-                  type="number"
-                  id="set-budget"
-                  min="1"
-                  max="30"
-                  inputmode="numeric"
-              /></label>
-              <label class="field"
-                >Poor sleep costs<input
-                  type="number"
-                  id="set-penalty"
-                  min="0"
-                  max="30"
-                  inputmode="numeric"
-              /></label>
-            </div>
-            <label class="field">Dates shown as<select id="set-locale"></select></label>
-            <fieldset>
-              <legend>Activities</legend>
-              <p class="hint">
-                Points an activity costs: −10 to 10, including zero. Negative numbers give points
-                back. Up to 200 distinct names, each up to 60 characters.
-              </p>
-              <div id="set-acts"></div>
-              <button class="secondary" type="button" id="set-addact">Add an activity</button>
-            </fieldset>
-            <label class="field"
-              >Symptoms to pick from (one per line)<textarea id="set-sym" rows="6"></textarea>
-            </label>
-            <label class="field"
-              >Possible triggers to pick from (one per line)<textarea
-                id="set-trig"
-                rows="6"
-              ></textarea>
-            </label>
-            <div class="row">
-              <button class="primary" type="submit">Save settings</button>
-              <button class="secondary" type="button" id="set-discard">Discard draft</button>
-              <button class="secondary" type="button" id="set-reset">Back to the defaults</button>
-            </div>
-            <p class="msg" id="set-msg" aria-live="polite"></p>
-          </form>
+          <p class="msg" id="sessions-msg" aria-live="polite"></p>
         </div>
 
         <div class="panel" id="data-panel">
@@ -1192,8 +1242,9 @@
         <div class="panel danger-zone">
           <h2>Delete my account</h2>
           <p class="meta">
-            This removes your account and everything you've logged, for good. Download your data
-            first if you want to keep it.
+            This removes your account and everything you've logged from this server, for good.
+            Copies already in the server's backups are not erased. Download your data first if you
+            want to keep it.
           </p>
           <form id="delform">
             <label class="field"

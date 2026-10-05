@@ -94,7 +94,7 @@
 .fb {
   display: grid;
   gap: 12px;
-  --fb-todo: var(--red);
+  --fb-todo: color-mix(in srgb, var(--fg) 50%, var(--surface)); /* a new card is not an alarm */
   --fb-doing: var(--amber);
   --fb-done: var(--green);
   --fb-external: var(--muted);
@@ -349,9 +349,8 @@
   padding: 10px 12px;
   pointer-events: none;
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: 0.75rem;
   line-height: 1.35;
-  opacity: 0.75;
 }
 .fb-quad span {
   max-width: 24ch;
@@ -444,14 +443,14 @@
   text-decoration-color: color-mix(in srgb, var(--fb-done) 60%, transparent);
 }
 .fb-card.fb-s-external {
-  --fb-tone: var(--red);
+  --fb-tone: var(--fb-external);
   background: var(--surface);
-  border: 2px dashed var(--red);
+  border: 2px dashed var(--fb-external);
   border-left-width: 2px;
 }
 .fb-card.fb-s-external .fb-dot {
   background: transparent;
-  border: 2px solid var(--red);
+  border: 2px solid var(--fb-external);
   width: 8px;
   height: 8px;
 }
@@ -588,8 +587,9 @@
 }
 .fb-three-item {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
-  gap: 8px;
+  /* number, tick, text, remove; the "on board" chip drops to a row of its own so the text keeps its width */
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  gap: 4px 8px;
   align-items: center;
   padding: 8px 10px;
   border-radius: 10px;
@@ -642,10 +642,93 @@
   outline: none;
   padding: 0;
 }
+.fb {
+  position: relative;
+}
+.fb-legend-label {
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+  padding-inline: 4px;
+}
+/* What can be done with the selection. It floats over the page rather than sitting in it: a bar that opened above the
+   board would move the board under the pointer the moment a card was pressed. */
+.fb-actions {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  z-index: 8;
+  transform: translateX(-50%);
+  width: min(760px, calc(100vw - 24px));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--fg) 22%, transparent);
+}
+.fb-actions[hidden] {
+  display: none;
+}
+@media (max-width: 700px) {
+  .fb-actions {
+    bottom: 84px; /* clear of the tab bar */
+  }
+}
+.fb-set {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.fb-set-button {
+  font: inherit;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg);
+  cursor: pointer;
+}
+.fb-set-button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 700;
+}
+.fb-set-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.fb-actions .is-danger {
+  color: var(--red-text, var(--red));
+}
+.fb-count {
+  display: block;
+  text-align: right;
+  font-size: 0.75rem;
+}
+.fb-status {
+  margin: 0;
+}
+.fb-status.err {
+  color: var(--red-text, var(--red));
+  font-weight: 700;
+}
+.fb-three-item .fb-chip {
+  grid-column: 3;
+  justify-self: start;
+}
 .fb-chip {
   font: inherit;
-  font-size: 0.68rem;
-  padding: 2px 7px;
+  font-size: 0.75rem;
+  padding: 2px 8px;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: var(--accent-soft);
@@ -758,11 +841,46 @@
   padding: 0 5px;
 }
 
+/* Fingers: every control is a 44px target, and the menu stops advertising keys that a phone does not have. */
+@media (pointer: coarse) {
+  .fb-three-check,
+  .fb-three-remove,
+  .fb-legend-item,
+  .fb-set-button,
+  .fb-axis-label,
+  .fb-toolbar .ghost,
+  .fb-menu button,
+  .fb-chip {
+    min-height: 44px;
+  }
+  .fb-three-check,
+  .fb-three-remove {
+    min-width: 44px;
+    display: inline-grid;
+    place-items: center;
+  }
+  .fb-three-check input {
+    width: 22px;
+    height: 22px;
+  }
+  .fb-menu kbd {
+    display: none;
+  }
+}
+
 @media print {
   .fb-toolbar,
   .fb-tray-actions,
   .fb-three-form,
   .fb-menu {
     display: none;
+  }
+}
+
+/* In forced-colours mode the status dot must keep its own colour so cards stay distinguishable. */
+@media (forced-colors: active) {
+  .fb-dot,
+  .fb-swatch {
+    forced-color-adjust: none;
   }
 }

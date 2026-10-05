@@ -18,18 +18,19 @@ import (
 // Dates are deliberately omitted: a release date is not a content modification date.
 type publicPage struct {
 	Path, File, Title, Description, Label string
+	Nav                                   string // short label for the header; empty means the page is not in the header
 }
 
 var publicPages = []publicPage{
-	{"/welcome", "landing.html", "Jiggered — Free Energy & Symptom Tracker", "Track daily energy, activities and symptom episodes with Jiggered. Review patterns in your personal log. Free to use, with email verification for new accounts.", "Home"},
-	{"/features/energy-tracking", "public/energy.html", "Daily Energy Tracking & Personal Budgets | Jiggered", "Log daily energy, activities and rest with a personal points budget. Learn how Jiggered's check-ins work and how they relate to Spoon Theory.", "Energy tracking"},
-	{"/features/symptom-tracking", "public/symptoms.html", "Track Symptom Episodes, Duration & Triggers | Jiggered", "Record symptom episodes, their duration and relevant circumstances. Review your personal history and export your observations with Jiggered.", "Symptom tracking"},
-	{"/guides/spoon-theory", "public/spoons.html", "Spoon Theory & Personal Energy Budgets | Jiggered", "Learn what Spoon Theory means, read Christine Miserandino's original essay, and see how to log your own energy budget and activities in Jiggered.", "Spoon Theory"},
-	{"/pricing", "public/pricing.html", "Jiggered Pricing & Account Availability", "Jiggered is free to use. Check account availability, email verification requirements, and MIT-licensed self-hosting options.", "Pricing & access"},
-	{"/docs/getting-started", "public/start.html", "Start Your Energy & Symptom Log | Jiggered Guide", "Make your first energy check-in, log an activity, record a symptom episode and review your history. A practical guide to getting started with Jiggered.", "Getting started"},
-	{"/docs/export-and-share", "public/export.html", "Export Your Symptom Diary to CSV or PDF | Jiggered", "Export days and symptom episodes as CSV, or preview a printable summary and save it as PDF. Choose what personal information you share.", "Export & share"},
-	{"/docs/offline-use", "public/offline.html", "Use Jiggered Offline: Setup, Saving & Sync", "Set up Jiggered online, then record on a trusted device offline. Understand queued changes, server acknowledgement, storage limits and recovery.", "Offline use"},
-	{"/privacy", "public/privacy.html", "Jiggered Privacy: Your Logs, Hosting & Data Control", "Understand account isolation, server operator access, device copies, backups, exports and account deletion before using Jiggered for personal records.", "Privacy"},
+	{"/welcome", "landing.html", "Jiggered — Free Energy & Symptom Tracker", "Track daily energy, activities and symptom episodes with Jiggered. Review patterns in your personal log. Free to use, with email verification for new accounts.", "Home", ""},
+	{"/features/energy-tracking", "public/energy.html", "Daily Energy Tracking & Personal Budgets | Jiggered", "Log daily energy, activities and rest with a personal points budget. Learn how Jiggered's check-ins work and how they relate to Spoon Theory.", "Energy tracking", "Energy"},
+	{"/features/symptom-tracking", "public/symptoms.html", "Track Symptom Episodes, Duration & Triggers | Jiggered", "Record symptom episodes, their duration and relevant circumstances. Review your personal history and export your observations with Jiggered.", "Symptom tracking", "Symptoms"},
+	{"/guides/spoon-theory", "public/spoons.html", "Spoon Theory & Personal Energy Budgets | Jiggered", "Learn what Spoon Theory means, read Christine Miserandino's original essay, and see how to log your own energy budget and activities in Jiggered.", "Spoon Theory", ""},
+	{"/pricing", "public/pricing.html", "Jiggered Pricing & Account Availability", "Jiggered is free to use. Check account availability, email verification requirements, and MIT-licensed self-hosting options.", "Pricing & access", ""},
+	{"/docs/getting-started", "public/start.html", "Start Your Energy & Symptom Log | Jiggered Guide", "Make your first energy check-in, log an activity, record a symptom episode and review your history. A practical guide to getting started with Jiggered.", "Getting started", "How it works"},
+	{"/docs/export-and-share", "public/export.html", "Export Your Symptom Diary to CSV or PDF | Jiggered", "Export days and symptom episodes as CSV, or preview a printable summary and save it as PDF. Choose what personal information you share.", "Export & share", ""},
+	{"/docs/offline-use", "public/offline.html", "Use Jiggered Offline: Setup, Saving & Sync", "Set up Jiggered online, then record on a trusted device offline. Understand queued changes, server acknowledgement, storage limits and recovery.", "Offline use", ""},
+	{"/privacy", "public/privacy.html", "Jiggered Privacy: Your Logs, Hosting & Data Control", "Understand account isolation, server operator access, device copies, backups, exports and account deletion before using Jiggered for personal records.", "Privacy", "Privacy"},
 }
 
 func (c *config) loadPublicConfig() error {
@@ -55,10 +56,11 @@ func (c *config) loadPublicConfig() error {
 }
 
 type publicSite struct {
-	s      *server
-	files  *static
-	shared *template.Template
-	pages  map[string]*template.Template
+	s           *server
+	files       *static
+	shared      *template.Template
+	pages       map[string]*template.Template
+	notFound404 *template.Template
 }
 
 type publicData struct {
@@ -66,13 +68,42 @@ type publicData struct {
 	URL, Origin, Image, Robots          string
 	Index, Registration                 bool
 	CTA, CTALabel, Availability, Status string
+	OperatorName, OperatorContact       string
+	SignedIn                            bool // a visitor who already has a session is offered the app, not an account
 	Pages                               []publicPage
+	Nav                                 []publicPage  // the short list in the header
+	FooterGroups                        []footerGroup // everything else, grouped, in the footer
 	Content                             template.HTML // exclusively rendered from trusted embedded templates below
+}
+
+type footerGroup struct {
+	Title string
+	Pages []publicPage
+}
+
+// publicFooterGroups lists every public page once, under the question a visitor is asking.
+var publicFooterGroups = []struct {
+	Title string
+	Paths []string
+}{
+	{"Product", []string{"/features/energy-tracking", "/features/symptom-tracking", "/pricing"}},
+	{"Guides", []string{"/docs/getting-started", "/guides/spoon-theory", "/docs/export-and-share", "/docs/offline-use"}},
+	{"Trust", []string{"/privacy"}},
+}
+
+func publicPageAt(path string) (publicPage, bool) {
+	for _, page := range publicPages {
+		if page.Path == path {
+			return page, true
+		}
+	}
+	return publicPage{}, false
 }
 
 func newPublicSite(s *server, files *static) *publicSite {
 	p := &publicSite{s: s, files: files, pages: map[string]*template.Template{}}
 	p.shared = template.Must(template.ParseFS(files.fsys, "public/layout.html"))
+	p.notFound404 = template.Must(template.ParseFS(files.fsys, "public/notfound.html"))
 	for _, page := range publicPages {
 		if page.Path == "/welcome" {
 			p.pages[page.Path] = template.Must(template.Must(p.shared.Clone()).ParseFS(files.fsys, page.File))
@@ -95,7 +126,21 @@ func (p *publicSite) data(r *http.Request, page publicPage) publicData {
 	d := publicData{publicPage: page, Origin: p.s.cfg.publicOrigin, Index: p.s.cfg.publicIndex, Pages: publicPages,
 		Robots: "noindex, follow", CTA: "/login", CTALabel: "Log in", Status: "SIGNUP AVAILABILITY UNKNOWN",
 		Availability: "Account availability could not be checked. Open the account page to try again."}
-	if d.Origin != "" {
+	for _, listed := range publicPages {
+		if listed.Nav != "" {
+			d.Nav = append(d.Nav, listed)
+		}
+	}
+	for _, group := range publicFooterGroups {
+		g := footerGroup{Title: group.Title}
+		for _, path := range group.Paths {
+			if listed, ok := publicPageAt(path); ok {
+				g.Pages = append(g.Pages, listed)
+			}
+		}
+		d.FooterGroups = append(d.FooterGroups, g)
+	}
+	if d.Origin != "" && page.Path != "" {
 		d.URL = d.Origin + page.Path
 		d.Image = d.Origin + "/icon-512.png"
 	}
@@ -104,14 +149,27 @@ func (p *publicSite) data(r *http.Request, page publicPage) publicData {
 	}
 	settings, err := p.s.loadServices(r.Context(), false)
 	if err == nil {
+		d.OperatorName = strings.TrimSpace(settings.Accounts.OperatorName)
+		d.OperatorContact = strings.TrimSpace(settings.Accounts.OperatorContact)
 		d.Registration = settings.Accounts.Registration && settings.Email.Enabled
 		if d.Registration {
 			d.Status, d.CTA, d.CTALabel = "OPEN FOR REGISTRATION", "/register", "Create your free account"
-			d.Availability = "Email verification is required."
+			d.Availability = "No card needed. We’ll email you a link to confirm your address, then you’re on Today in about a minute."
+			if page.Path == "/guides/spoon-theory" {
+				d.CTA = "/register?w=spoons" // someone who read about spoons should start counting in them
+			}
 		} else {
 			d.Status = "REGISTRATION CLOSED"
 			d.Availability = "Registration is currently closed. Existing members can sign in."
+			if d.OperatorContact != "" {
+				d.Availability += " Ask " + d.OperatorContact + " for an account, or run your own copy."
+			}
 		}
+	}
+	if p.s.lookup(r) != nil {
+		// Someone who is already signed in is not shown a sign-up pitch: the way in is the app itself.
+		d.SignedIn = true
+		d.Status, d.CTA, d.CTALabel, d.Availability = "SIGNED IN", "/", "Open Jiggered", "You're signed in."
 	}
 	return d
 }
@@ -218,8 +276,64 @@ func (p *publicSite) llms(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// publicSections are the folders in the public URLs. They are not pages, but people shorten links by hand.
+var publicSections = map[string]string{
+	"/docs":     "/docs/getting-started",
+	"/features": "/features/energy-tracking",
+	"/guides":   "/guides/spoon-theory",
+}
+
+// notFound answers a mistyped or stale address with a page that says where to go. Scripts, images and the API keep
+// the plain 404 they can parse.
+func (p *publicSite) notFound(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.URL.Path, "/api/") || !strings.Contains(r.Header.Get("Accept"), "text/html") {
+		http.NotFound(w, r)
+		return
+	}
+	missing := publicPage{File: "public/notfound.html", Title: "Page not found | Jiggered", Description: "That page isn't here.", Label: "Page not found"}
+	d := p.data(r, missing)
+	d.Robots = "noindex, follow"
+	var body, result bytes.Buffer
+	if err := p.notFound404.Execute(&body, d); err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	d.Content = template.HTML(body.String()) // embedded source, escaped by html/template; no user HTML
+	if err := p.shared.ExecuteTemplate(&result, "page", d); err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("X-Robots-Tag", d.Robots)
+	sw := &statusWriter{ResponseWriter: w, status: http.StatusNotFound}
+	serveHTML(sw, r, p.files, p.files.versionPage(result.Bytes()))
+	sw.WriteHeader(http.StatusNotFound) // a HEAD request writes no body, so nothing has sent the status yet
+}
+
+// statusWriter lets serveHTML (which negotiates compression and writes the body) send a status other than 200.
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+	sent   bool
+}
+
+func (w *statusWriter) WriteHeader(code int) {
+	if !w.sent {
+		w.sent = true
+		w.ResponseWriter.WriteHeader(code)
+	}
+}
+
+func (w *statusWriter) Write(b []byte) (int, error) {
+	w.WriteHeader(w.status)
+	return w.ResponseWriter.Write(b)
+}
+
 func (p *publicSite) redirectAlias(w http.ResponseWriter, r *http.Request) bool {
 	alias := strings.TrimSuffix(strings.ToLower(r.URL.Path), "/")
+	if target, ok := publicSections[alias]; ok {
+		http.Redirect(w, r, target, http.StatusMovedPermanently)
+		return true
+	}
 	for _, page := range publicPages {
 		if alias == page.Path && r.URL.Path != page.Path {
 			target := page.Path

@@ -37,8 +37,8 @@ export function calendarWindow(data, S, end = data.to, limit = 366) {
   const offset = (new Date(from + "T12:00:00Z").getUTCDay() + 6) % 7;
   return { from, to: end, offset, cells, weeks: Math.ceil((offset + cells.length) / 7) };
 }
-export function describeCalendarDay(c, locale, theme = "points") {
-  return `${fmtDay(c.date, locale)}. ${c.status ? c.status + " check-in" : "No matching check-in"}. ${c.net === null ? "No activities logged" : `${c.spent === undefined ? "" : `${c.spent} ${energyWords(theme).plural} used before recovery; `}${c.net} net ${energyWords(theme).plural} used, ${c.allowance} available`}. ${c.poorSleep ? "Sleep marked poor" : "Sleep not marked poor"}. ${c.episodes} matching ${c.episodes === 1 ? "episode" : "episodes"} recorded.`;
+export function describeCalendarDay(c, locale, theme = "points", filtered = false) {
+  return `${fmtDay(c.date, locale)}. ${c.status ? c.status + " check-in" : filtered ? "No matching check-in" : "No check-in"}. ${c.net === null ? "No activities logged" : `${c.spent === undefined ? "" : `${c.spent} ${energyWords(theme).plural} used before recovery; `}${c.net} net ${energyWords(theme).plural} used, ${c.allowance} available`}. ${c.poorSleep ? "Sleep marked poor" : "Sleep not marked poor"}. ${c.episodes} ${filtered ? "matching " : ""}${c.episodes === 1 ? "episode" : "episodes"} recorded.`;
 }
 // How a period's days are laid out so they fill their panel. A week or less is a list of rows, a few weeks a calendar
 // (Monday to Sunday across, a row per week) and anything longer a heatmap with a column per week. A phone keeps the
@@ -102,7 +102,8 @@ export function initMatrix(root, ctx, explore) {
   let expanded = saved.expanded === true;
   let cursorDate = validDate(saved.cursorDate) ? saved.cursorDate : null;
   const compact = matchMedia("(max-width:700px)"),
-    limit = () => 366;
+    // On a phone five weeks at a time keep every day a touch-sized square; Earlier and Later page through the rest.
+    limit = () => (compact.matches ? 35 : 366);
   setHTML(
     root,
     html`<section class="panel matrix-overview" aria-labelledby="matrix-title">
@@ -131,16 +132,17 @@ export function initMatrix(root, ctx, explore) {
       day = c.day,
       entries = day?.entries || [],
       remaining = c.net === null || c.allowance === null ? null : c.allowance - c.net;
-    const comparison = planComparison(ctx.store.all(), c.date);
+    const filtered = data.filtered === true,
+      comparison = planComparison(ctx.store.all(), c.date);
     setHTML(
       get("[data-matrix-reading]"),
       html`<div class="matrix-day-heading"><div><span class="label">${chosen === c.date ? "Selected day" : "Day detail"}</span><h3>${fmtDay(c.date, S.locale)}</h3></div><div class="row"><button class="secondary small" data-matrix-prev aria-label="Previous day" ${index === 0 ? html`disabled` : ""}>←</button><button class="secondary small" data-matrix-next aria-label="Next day" ${index === win.cells.length - 1 ? html`disabled` : ""}>→</button></div></div>
-      <dl><div><dt>Morning check-in</dt><dd><span class="dot ${c.status || ""}"></span>${c.status || "No matching check-in"}</dd></div><div><dt>Sleep</dt><dd>${!day ? "No matching day log" : c.poorSleep ? "Marked poor" : "Not marked poor"}</dd></div><div><dt>Episodes</dt><dd>${c.episodes} recorded</dd></div></dl>
-      ${day ? html`<div class="matrix-balance"><span class="label">${words.title} remaining</span><b>${remaining === null ? "—" : remaining}</b><span class="meta">${entries.length ? `${c.net} net used of ${c.allowance} available` : `${c.allowance} available · no activities logged`}</span></div>` : html`<p class="empty">No matching day log. Review this day to see or add records.</p>`}
+      <dl><div><dt>Morning check-in</dt><dd><span class="dot ${c.status || ""}"></span>${c.status || (filtered ? "No matching check-in" : "No check-in for this day")}</dd></div><div><dt>Sleep</dt><dd>${!day ? (filtered ? "No matching day log" : "Nothing logged for this day") : c.poorSleep ? "Marked poor" : "Not marked poor"}</dd></div><div><dt>Episodes</dt><dd>${c.episodes} recorded</dd></div></dl>
+      ${day ? html`<div class="matrix-balance"><span class="label">${words.title} remaining</span><b>${remaining === null ? "—" : remaining}</b><span class="meta">${entries.length ? `${c.net} net used of ${c.allowance} available` : `${c.allowance} available · no activities logged`}</span></div>` : filtered ? html`<p class="empty">Nothing matches your filters for this day. It may be hidden by them.</p>` : html`<p class="empty">Nothing logged for this day.</p>`}
       ${entries.length ? html`<div><h4>Activities</h4><ul class="matrix-activities">${entries.slice(0, expanded ? entries.length : 5).map((e) => html`<li><span>${e.a}${slotText(e) ? html`<time class="meta">${slotText(e)}</time>` : ""}</span><b class="${e.c < 0 ? "recovery" : ""}">${e.c > 0 ? "−" + e.c : e.c < 0 ? "+" + Math.abs(e.c) : "0"}<span class="sr-only"> ${words.plural} ${e.c < 0 ? "recovered" : "used"}</span></b></li>`)}</ul>${!expanded && entries.length > 5 ? html`<p class="hint">Showing 5 of ${entries.length} activities. Choose Show all records below for the full log.</p>` : ""}</div>` : ""}
       ${c.episodes ? html`<div><h4>Episodes</h4><ul class="matrix-episodes">${c.episodeRecords.slice(0, expanded ? c.episodes : 3).map(([id, e]) => html`<li><button class="x" data-matrix-edit="${id}"><span>${e.symptoms.join(", ") || "No symptoms ticked"}<span class="meta">${fmtWhen(e.when, S.locale)}${e.duration === "Still going" && !e.endedAt ? " · ongoing" : ""}</span></span><span aria-hidden="true">→</span></button></li>`)}</ul>${!expanded && c.episodes > 3 ? html`<button class="x" data-matrix-episodes>View all ${c.episodes} episodes</button>` : ""}</div>` : ""}
       ${comparison ? html`<div class="plan-history"><div class="plan-history-head"><h4>Plan and actual</h4><button type="button" class="secondary" data-open-plan="${c.date}">Review this plan</button></div><p>${comparison.completed} of ${comparison.total} planned activities logged · ${comparison.estimated} net ${words.plural} estimated for completed activities · ${comparison.actual} actually used.</p><p class="hint">Unfinished plans are excluded from reported usage.</p></div>` : ""}
-      ${day || c.episodes ? html`<div class="row"><button class="secondary" data-matrix-open>Edit day</button><button class="secondary" data-matrix-all>${expanded ? "Show fewer records" : "Show all records for this day"}</button><button class="primary" data-matrix-share>Share this day</button></div>` : html`<div class="row"><button class="primary" data-matrix-open>${c.date === ctx.today() ? "Log today" : "Log this day"}</button></div>`}`,
+      ${day || c.episodes ? html`<div class="row"><button class="primary" data-matrix-open>Edit day</button><button class="secondary" data-matrix-all>${expanded ? "Show fewer records" : "Show all records for this day"}</button><button class="secondary" data-matrix-share>Print or export this day</button></div>` : filtered ? html`<div class="row"><button class="primary" data-matrix-clear>Clear filters</button><button class="secondary" data-matrix-open>Open this day</button></div>` : html`<div class="row"><button class="primary" data-matrix-open>${c.date === ctx.today() ? "Log today" : "Log this day"}</button></div>`}`,
     );
   }
   function paint() {
@@ -149,9 +151,13 @@ export function initMatrix(root, ctx, explore) {
     const firstRun = !Object.entries(ctx.store.all()).some(
       ([id, doc]) => doc && (isDayId(id) || isEpisodeId(id)),
     );
-    get("[data-matrix-hint]").textContent = firstRun
-      ? "Nothing logged yet. Each day you check in or record an activity fills in a square, so you can see how your days compare."
-      : "Select a day to see what you recorded.";
+    // An empty copy on a device that has not heard from the server is not the same as an empty account.
+    const unheard = firstRun && !ctx.store.status().loaded;
+    get("[data-matrix-hint]").textContent = unheard
+      ? "Your history has not loaded from the server yet. It will appear here as soon as it does."
+      : firstRun
+        ? "Nothing logged yet. Each day you check in or record an activity fills in a square, so you can see how your days compare."
+        : "Select a day to see what you recorded.";
     const layout = matrixLayout(win.cells.length, win.weeks, compact.matches),
       heatmap = layout === "heatmap";
     get("[data-matrix-calendar]").dataset.layout = layout;
@@ -190,7 +196,7 @@ export function initMatrix(root, ctx, explore) {
       html`${padded ? Array.from({ length: win.offset }, () => blank) : ""}${win.cells.map(
         (c, i) => {
           const [tone, mark] = calendarPaint(c, mode),
-            description = describeCalendarDay(c, S.locale, theme);
+            description = describeCalendarDay(c, S.locale, theme, data.filtered === true);
           return html`<button type="button" class="matrix-cell ${tone}" data-cell="${i}" data-date="${c.date}" tabindex="${i === cursor ? 0 : -1}" aria-pressed="${c.date === chosen}" aria-label="${description}" ${layout === "list" ? "" : html`data-tooltip="${description}"`}>${dayLabel(c, i)}<span class="matrix-mark" aria-hidden="true">${mark}</span>${c.episodes && mode !== "episodes" ? html`<i class="matrix-ep" aria-hidden="true"></i>` : ""}${layout === "list" ? html`<span class="matrix-note" aria-hidden="true">${summariseCalendarDay(c, theme)}</span>` : ""}</button>`;
         },
       )}${padded ? Array.from({ length: win.weeks * 7 - win.offset - win.cells.length }, () => blank) : ""}`,
@@ -230,7 +236,7 @@ export function initMatrix(root, ctx, explore) {
             : html`<span>Less</span>${[1, 2, 3, 4].map((level) => html`<i class="matrix-key level-${level}" aria-hidden="true"></i>`)}<span>More ${mode === "episodes" ? "recorded episodes" : `${mode === "used" ? "activity" : "net"} ${energyWords(themeOf(ctx)).plural} used`}</span>${mode === "points" ? html`<span><i class="legend-green"></i>− · Negative net ${energyWords(themeOf(ctx)).plural} / recovery</span>` : ""}`;
     setHTML(
       get("[data-matrix-legend]"),
-      html`${legend}${mode === "episodes" ? "" : html`<span><i class="matrix-ep matrix-ep-key"></i>Episode recorded</span>`}<span><i></i>No matching record / unmarked</span>`,
+      html`${legend}${mode === "episodes" ? "" : html`<span><i class="matrix-ep matrix-ep-key"></i>Episode recorded</span>`}<span><i></i>${data.filtered ? "No matching record / unmarked" : "Nothing logged / unmarked"}</span>`,
     );
     setHTML(
       get("[data-matrix-day]"),
@@ -303,6 +309,8 @@ export function initMatrix(root, ctx, explore) {
     }
     if (e.target.closest("[data-matrix-share]")) explore(win.cells[cursor].date, true);
     if (e.target.closest("[data-matrix-open]")) ctx.openDay(win.cells[cursor].date);
+    if (e.target.closest("[data-matrix-clear]"))
+      document.querySelector("#history-filter-panel [type=reset]")?.click();
     if (e.target.closest("[data-matrix-episodes]")) explore(win.cells[cursor].date);
   });
   compact.addEventListener("change", () => {

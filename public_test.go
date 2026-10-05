@@ -142,7 +142,8 @@ func TestSignupAndSpoonTheoryAreInInitialHTML(t *testing.T) {
 	}
 	for _, route := range []string{"/welcome", "/pricing"} {
 		_, body = anon.req("GET", route, nil)
-		if !strings.Contains(string(body), "OPEN FOR REGISTRATION") || !strings.Contains(string(body), `href="/register"`) || !strings.Contains(string(body), "Email verification is required") {
+		// The landing page names the state in a pill; /pricing says it in its heading and button instead.
+		if (route == "/welcome" && !strings.Contains(string(body), "OPEN FOR REGISTRATION")) || !strings.Contains(string(body), `href="/register"`) || !strings.Contains(string(body), "confirm your address") {
 			t.Fatalf("%s does not resolve open signup", route)
 		}
 	}
@@ -214,5 +215,150 @@ func TestSitemapOriginUsesConfiguredOriginAndRejectsUntrustedForwarding(t *testi
 	r.Host = "bad.example/path"
 	if got := p.sitemapOrigin(r); got != "" {
 		t.Fatalf("invalid host accepted: %s", got)
+	}
+}
+
+// A visitor should be able to see whose server this is, and while registration is closed whom to ask.
+func TestOperatorDetailsAreShownOnPublicPages(t *testing.T) {
+	e := newTestServer(t)
+	admin := e.signedInAdmin()
+	cfg := testServices(t, e)
+	cfg.Accounts.OperatorName = "Riverside Practice"
+	cfg.Accounts.OperatorContact = "records@riverside.example"
+	saveTestServices(t, e, admin, cfg)
+	anon := e.newClient()
+	for _, path := range []string{"/welcome", "/privacy", "/pricing"} {
+		_, body := anon.req("GET", path, nil)
+		if !strings.Contains(string(body), "Riverside Practice") {
+			t.Errorf("%s does not name the operator", path)
+		}
+	}
+	_, pricing := anon.req("GET", "/pricing", nil)
+	if !strings.Contains(string(pricing), "invite-only") || !strings.Contains(string(pricing), "records@riverside.example") {
+		t.Error("the closed pricing page does not say whom to ask")
+	}
+	// Plain text only, and bounded.
+	for _, bad := range []string{strings.Repeat("x", 81), "line\nbreak"} {
+		cfg = testServices(t, e) // the saved revision moves on with every save
+		cfg.Accounts.OperatorName = bad
+		if r, _ := admin.req("PUT", "/api/admin/services", map[string]any{"password": adminPass, "settings": cfg}); r.StatusCode != 400 {
+			t.Errorf("operator name %q was accepted: %d", bad, r.StatusCode)
+		}
+	}
+}
+
+// The landing page shows a real screenshot, which a signed-out visitor must be able to fetch; nothing else
+// under web/ becomes public through that route.
+func TestScreenshotsArePublicAndOnlyScreenshots(t *testing.T) {
+	e := newTestServer(t)
+	anon := e.newClient()
+	resp, body := anon.req("GET", "/shots/today.webp", nil)
+	if resp.StatusCode != 200 || resp.Header.Get("Content-Type") != "image/webp" || len(body) < 1000 {
+		t.Fatalf("screenshot: %d %q (%d bytes)", resp.StatusCode, resp.Header.Get("Content-Type"), len(body))
+	}
+	for _, p := range []string{"/shots/%2e%2e/admin.js", "/shots/..%2fapp.js", "/shots/"} {
+		r, b := anon.req("GET", p, nil)
+		if r.StatusCode == 200 && strings.Contains(string(b), "export") {
+			t.Errorf("signed-out GET %s served private front-end code", p)
+		}
+	}
+	_, landing := anon.req("GET", "/welcome", nil)
+	if !strings.Contains(string(landing), `src="/shots/today.webp"`) {
+		t.Error("the landing page does not show the screenshot")
+	}
+}
+
+// A stale link lands on a page that says where to go, not on a bare "404 page not found"; the folders in the public
+// URLs lead somewhere; scripts and the API keep the plain answer they can parse.
+func TestUnknownPagesGetAHelpfulNotFoundAndFoldersRedirect(t *testing.T) {
+	e := newTestServer(t)
+	anon := e.newClient()
+	for from, to := range map[string]string{"/docs": "/docs/getting-started", "/features/": "/features/energy-tracking", "/Guides": "/guides/spoon-theory"} {
+		resp, _ := anon.req("GET", from, nil)
+		if resp.StatusCode != http.StatusMovedPermanently || resp.Header.Get("Location") != to {
+			t.Errorf("%s: %d -> %q, want 301 -> %s", from, resp.StatusCode, resp.Header.Get("Location"), to)
+		}
+	}
+	resp, body := anon.req("GET", "/nope", nil, "Accept", "text/html,application/xhtml+xml")
+	page := string(body)
+	if resp.StatusCode != 404 || !strings.HasPrefix(resp.Header.Get("Content-Type"), "text/html") {
+		t.Fatalf("browser navigation to a missing page: %d %s", resp.StatusCode, resp.Header.Get("Content-Type"))
+	}
+	if !strings.Contains(resp.Header.Get("X-Robots-Tag"), "noindex") || strings.Contains(page, `rel="canonical"`) {
+		t.Error("a missing page must not be indexable or claim a canonical address")
+	}
+	for _, want := range []string{"That page isn’t here", `href="/features/energy-tracking"`, `href="/pricing"`, `href="/login"`} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the not-found page lacks %q", want)
+		}
+	}
+	if strings.Contains(page, `href="/welcome"`) == false {
+		t.Error("the not-found page offers no way home")
+	}
+	// Anything that is not a person in a browser keeps the plain 404.
+	for _, tc := range []struct{ path, accept string }{{"/missing.js", "*/*"}, {"/nope", ""}, {"/api/nothing", "text/html"}, {"/missing.png", "image/avif,image/webp,*/*"}} {
+		resp, body := anon.req("GET", tc.path, nil, "Accept", tc.accept)
+		if resp.StatusCode != 404 || !strings.HasPrefix(resp.Header.Get("Content-Type"), "text/plain") || strings.Contains(string(body), "<html") {
+			t.Errorf("%s (Accept %q): %d %s", tc.path, tc.accept, resp.StatusCode, resp.Header.Get("Content-Type"))
+		}
+	}
+	if code := anon.do("HEAD", "/nope", nil, "Accept", "text/html"); code != 404 {
+		t.Errorf("HEAD to a missing page: %d", code)
+	}
+}
+
+// Someone who is already signed in is shown the way into the app, not a sign-up pitch.
+func TestSignedInVisitorsAreOfferedTheAppOnPublicPages(t *testing.T) {
+	e := newTestServer(t)
+	admin := e.signedInAdmin()
+	_, anonPricing := e.newClient().req("GET", "/pricing", nil)
+	if !strings.Contains(string(anonPricing), `href="/login"`) || strings.Contains(string(anonPricing), "Open Jiggered") {
+		t.Fatal("a signed-out visitor should see Log in, not Open Jiggered")
+	}
+	for _, path := range []string{"/welcome", "/pricing", "/guides/spoon-theory", "/privacy"} {
+		_, body := admin.req("GET", path, nil)
+		page := string(body)
+		if !strings.Contains(page, "Open Jiggered") || !strings.Contains(page, "data-signed-in") {
+			t.Errorf("%s does not offer the app to a signed-in visitor", path)
+		}
+		if strings.Contains(page, `class="p-button small secondary" href="/login"`) {
+			t.Errorf("%s still shows a Log in button to someone who is signed in", path)
+		}
+	}
+	resp, _ := admin.req("GET", "/nope", nil, "Accept", "text/html")
+	if resp.StatusCode != 404 {
+		t.Errorf("the not-found page for a signed-in person: %d", resp.StatusCode)
+	}
+}
+
+// The header carries the four questions a visitor has; everything else is in the footer, once, and the page you are
+// on is marked in both.
+func TestPublicHeaderAndFooterListEveryPageOnce(t *testing.T) {
+	e := newTestServer(t)
+	anon := e.newClient()
+	_, body := anon.req("GET", "/features/energy-tracking", nil)
+	page := string(body)
+	header := page[strings.Index(page, `<header`):strings.Index(page, `</header>`)]
+	for _, want := range []string{">Energy<", ">Symptoms<", ">How it works<", ">Privacy<"} {
+		if !strings.Contains(header, want) {
+			t.Errorf("the header lacks %s", want)
+		}
+	}
+	if !strings.Contains(header, `href="/features/energy-tracking"`) || !strings.Contains(header, `aria-current="page"`) {
+		t.Error("the header does not mark the current page")
+	}
+	footer := page[strings.Index(page, `<footer`):]
+	for _, p := range publicPages {
+		if p.Path == "/welcome" {
+			continue
+		}
+		if n := strings.Count(footer, `href="`+p.Path+`"`); n != 1 {
+			t.Errorf("footer links %s %d times, want once", p.Path, n)
+		}
+	}
+	for _, group := range []string{"Product", "Guides", "Trust"} {
+		if !strings.Contains(footer, ">"+group+"<") {
+			t.Errorf("the footer has no %s group", group)
+		}
 	}
 }

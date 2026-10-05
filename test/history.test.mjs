@@ -180,8 +180,13 @@ test("calendar windows stay bounded, align Monday rows and retain gaps and episo
   assert.equal(short.cells[1].net, null);
   assert.equal(short.cells[2].logged, false);
   assert.equal(short.cells[2].episodes, 1);
+  // "Matching" is only said when a filter is doing the matching.
   assert.match(
     describeCalendarDay(short.cells[2], "en-GB"),
+    /No check-in\..*No activities logged.*1 episode recorded/,
+  );
+  assert.match(
+    describeCalendarDay(short.cells[2], "en-GB", "points", true),
     /No matching check-in.*No activities logged.*1 matching episode/,
   );
   const older = calendarWindow(d, DEFAULTS, addDays(win.from, -1));

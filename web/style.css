@@ -508,6 +508,20 @@ legend {
   font-weight: 700;
   margin-bottom: 6px;
 }
+/* The browser's default placeholder grey is under 3:1 on the dark theme; the muted text colour is chosen for both. */
+::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+/* One size for every question on the Episode form (the single-answer ones were 14px, the multi-answer ones 16px). */
+#epform legend,
+#epform label.legend {
+  font: 700 1rem var(--body);
+}
+#epform legend .meta {
+  font-weight: 400;
+  font-size: 0.85rem;
+}
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -1189,6 +1203,10 @@ ul.audit li {
 .panel.recovery {
   border: 2px solid var(--red);
 }
+/* The status pill hangs below the header; with a refused change it has words in it, so leave room for them. */
+#recovery:not([hidden]) {
+  margin-top: 44px;
+}
 .recovery-item {
   margin-top: 1rem;
   border-top: 1px solid var(--line);
@@ -1229,9 +1247,58 @@ input[type="search"] {
   padding: 0.35rem;
   text-align: left;
 }
+/* On a phone the preview is read as part of the page, with each row a small card, not a window onto a wide table. */
+@media (max-width: 700px) {
+  #summary-preview {
+    max-height: none;
+    overflow: visible;
+  }
+  #summary-preview table,
+  #summary-preview tbody {
+    display: block;
+  }
+  #summary-preview thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  #summary-preview tr {
+    display: block;
+    margin-bottom: 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 6px 8px;
+  }
+  #summary-preview td {
+    display: grid;
+    grid-template-columns: minmax(6.5rem, 38%) 1fr;
+    gap: 8px;
+    border: 0;
+    padding: 3px 0;
+    overflow-wrap: anywhere;
+  }
+  #summary-preview td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-weight: 700;
+  }
+  #summary-preview td:empty {
+    display: none;
+  }
+}
 #reveal-pw {
+  display: block;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px dashed var(--accent);
+  border-radius: 10px;
+  font-size: 1.05rem;
+  letter-spacing: 0.03em;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  user-select: all;
 }
 @media (max-width: 480px) {
   .order-row {
@@ -1613,11 +1680,13 @@ input[type="search"] {
 .defaults-notice {
   border-left: 4px solid var(--accent);
 }
-.defaults-notice h2 {
-  margin: 0 0 6px;
+.defaults-notice {
+  padding-block: 12px;
 }
 .defaults-notice p {
-  margin: 0 0 12px;
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  line-height: 1.45;
 }
 .defaults-notice p .meta {
   font-size: inherit;
@@ -1625,11 +1694,10 @@ input[type="search"] {
 }
 .defaults-notice .row {
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px;
 }
-.defaults-notice .x {
+.defaults-notice .small {
   min-height: 44px;
-  padding: 10px 12px;
 }
 
 /* Symptom and trigger lists: status line above the chips */
@@ -3050,6 +3118,32 @@ input[type="search"] {
   color: var(--muted);
   text-decoration: line-through;
 }
+#step-wording .tick {
+  visibility: hidden; /* a choice, not a step to finish */
+}
+.step-wording-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+.step-wording {
+  display: inline-flex;
+  gap: 8px;
+}
+.app-shell .step-wording button[aria-pressed="true"],
+.app-shell .plan-daytype button[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+.plan-daytype {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 12px;
+}
 .step-budget {
   display: flex;
   flex-wrap: wrap;
@@ -3637,4 +3731,79 @@ input[type="search"] {
   height: 100%;
   border-radius: inherit;
   object-fit: cover;
+}
+
+/* An editor opened from a timeline floats over the page, so the timeline and the scroll position stay where they were. */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: color-mix(in srgb, var(--fg) 45%, transparent);
+}
+form.is-sheet {
+  position: fixed;
+  z-index: 61;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(540px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  margin: 0;
+  padding: 18px 18px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px #0000004d;
+}
+
+/* On a phone the Save button stays in reach above the tab bar while a long form is on screen. */
+@media (max-width: 700px) {
+  .row.sticky-save > .primary {
+    position: sticky;
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+    z-index: 4;
+    box-shadow: 0 6px 18px #00000033;
+  }
+}
+/* The activity and list editor on a phone: the name on top, points and group below it, the move buttons last. */
+@media (max-width: 480px) {
+  .order-row {
+    display: grid;
+    grid-template-columns: 44px 4.5rem minmax(0, 1fr);
+    gap: 6px 8px;
+    align-items: center;
+  }
+  .order-row > .drag-handle {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+  }
+  .order-row > input[type="text"]:not(.order-group) {
+    grid-column: 2 / span 2;
+    grid-row: 1;
+    width: 100%;
+  }
+  .order-row > input.order-cost {
+    grid-column: 2;
+    grid-row: 2;
+    margin: 0;
+    width: 4.5rem;
+  }
+  .order-row > input.order-group {
+    grid-column: 3;
+    grid-row: 2;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+  }
+  .order-row:not(:has(.order-cost)) > input.order-group {
+    grid-column: 2 / span 2;
+  }
+  .order-row > .order-actions {
+    grid-column: 2 / span 2;
+    grid-row: 3;
+    margin: 0;
+    justify-self: end;
+  }
 }

@@ -1,6 +1,16 @@
 // The page: who is signed in, the tabs, and the wiring between the views and the sync store.
 
-import { api, $, fmtLongDay, setPageUser, html, setHTML, downloadFile, withBusy } from "./util.js";
+import {
+  api,
+  $,
+  fmtLongDay,
+  fmtWhen,
+  setPageUser,
+  html,
+  setHTML,
+  downloadFile,
+  withBusy,
+} from "./util.js";
 import {
   openDeviceStorage,
   createDrafts,
@@ -60,6 +70,7 @@ const SIGN_IN = "sign-in"; // getMe's answer when the browser is being sent to t
 
 // Who is signed in. Offline, fall back to who this device last saw so the app still opens;
 // null means nobody is known here and the server can't be reached.
+let meProblem = ""; // why the server could not say who is signed in, when it answered at all
 async function getMe() {
   let r = null;
   try {
@@ -67,6 +78,7 @@ async function getMe() {
   } catch {
     /* offline, or too slow to wait for */
   }
+  if (r && !r.ok && r.status !== 401) meProblem = `HTTP ${r.status}`;
   if (r && r.status === 401) {
     forget();
     try {
@@ -74,7 +86,7 @@ async function getMe() {
     } catch {}
     try {
       await purgeDeviceStorage(legacyStorage);
-      location.href = "/login";
+      location.href = "/login?e=expired";
     } catch {
       fatal(
         "Signed out, but this browser could not remove its device copy. Clear site data before sharing this device.",
@@ -90,10 +102,21 @@ async function getMe() {
   return recall();
 }
 
-function fatal(text) {
+function fatal(text, { retry = false } = {}) {
   document.body.classList.remove("app-loading");
   const p = Object.assign(document.createElement("p"), { className: "fatal", textContent: text });
-  document.querySelector(".wrap").replaceChildren(p);
+  const parts = [p];
+  if (retry) {
+    // A page that says "try again later" with nothing to press is a dead end.
+    const again = Object.assign(document.createElement("button"), {
+      className: "primary",
+      type: "button",
+      textContent: "Try again",
+    });
+    again.addEventListener("click", () => location.reload());
+    parts.push(again);
+  }
+  document.querySelector(".wrap").replaceChildren(...parts);
 }
 
 (async function boot() {
@@ -101,7 +124,10 @@ function fatal(text) {
   if (me === SIGN_IN) return;
   if (!me) {
     fatal(
-      "Can't reach the server, and nobody has signed in on this device yet. Connect once to get started.",
+      meProblem
+        ? `The server isn't answering properly (${meProblem}). Nothing you saved has been lost. Try again in a moment.`
+        : "Can't reach the server, and nobody has signed in on this device yet. Connect once to get started.",
+      { retry: true },
     );
     return;
   }
@@ -129,9 +155,9 @@ function fatal(text) {
       p.hidden = true;
     });
     $("sync").hidden = true;
-    document.querySelectorAll("header [data-help]").forEach((b) => {
+    document.querySelectorAll("header [data-help], [data-menu-go]").forEach((b) => {
       b.hidden = true;
-    }); // nothing to open until the password is changed
+    }); // nothing to open until the password is changed; the menu keeps only "Sign out"
     $("banner").hidden = false;
     $("banner").classList.add("welcome");
     $("banner").textContent =
@@ -155,7 +181,7 @@ function fatal(text) {
 
   // Several things can notice at once that the session has ended; the browser should be sent to sign in only once.
   let leaving = false;
-  const toSignIn = async () => {
+  const toSignIn = async (reason) => {
     if (leaving) return;
     leaving = true;
     forget();
@@ -169,7 +195,8 @@ function fatal(text) {
       try {
         sessionStorage.removeItem(`jiggered:nav:${me.id}`);
       } catch {}
-      location.href = "/login";
+      // Say why, if we know: a bare sign-in page after a click looks like a crash.
+      location.href = typeof reason === "string" ? `/login?e=${reason}` : "/login";
     } catch {
       fatal(
         "Signed out, but this browser could not remove its device copy. Clear site data before sharing this device.",
@@ -205,7 +232,7 @@ function fatal(text) {
       renderActive();
       updateSync();
     },
-    onAuthLost: toSignIn,
+    onAuthLost: () => toSignIn("expired"),
     onTask: (event) => {
       if (!ready) return;
       ctx.measure(event);
@@ -331,6 +358,7 @@ function fatal(text) {
     },
     toast,
     go,
+    tab: () => active, // the tab on screen, for a form that wants to say where "back" goes
     back() {
       go(views[beforeHelp] && beforeHelp !== "help" ? beforeHelp : "today");
     },
@@ -438,7 +466,7 @@ function fatal(text) {
   });
 
   $("tabs").addEventListener("keydown", (e) => {
-    const buttons = [...$("tabs").querySelectorAll("button")],
+    const buttons = [...$("tabs").querySelectorAll("button:not([hidden])")],
       i = buttons.indexOf(e.target);
     if (i < 0 || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
     e.preventDefault();
@@ -478,7 +506,9 @@ function fatal(text) {
       return;
     }
     const settings = e.target.closest("[data-settings]"),
-      finish = e.target.closest("[data-finish-episode]");
+      finish = e.target.closest("[data-finish-episode]"),
+      endNow = e.target.closest("[data-end-episode-now]");
+    if (endNow) episodesView.endEpisodeNow(ctx, endNow.dataset.endEpisodeNow); // read-only tabs never get here
     if (settings) ctx.editSettings(settings.dataset.settings);
     if (finish) views.episode.edit(finish.dataset.finishEpisode, null, true);
   });
@@ -557,7 +587,7 @@ function fatal(text) {
     } // another tab signed in as someone else
     if (r.status === 401) {
       forget();
-      toSignIn();
+      toSignIn("expired");
       return;
     }
     if (!r.ok) return;
@@ -578,12 +608,21 @@ function fatal(text) {
   // page down and back up on every tap. A routine "Sending…" is held back briefly, so a normal quick save shows nothing.
   let quietTimer = null,
     quietSince = 0;
-  let lastUsageFailure = false;
+  let lastUsageFailure = false,
+    failuresSeen = -1; // how many refused changes were on screen at the last look; -1 until the first paint
   function updateSync() {
     const st = store.status(),
       n = st.pending;
     if (st.failed && !lastUsageFailure) ctx.measure("save_failed");
     lastUsageFailure = !!st.failed;
+    // The panel that holds a refused change can be thousands of pixels from where it was made: say so where the person is.
+    if (failuresSeen >= 0 && st.failed > failuresSeen)
+      toast("Couldn't save that. It is kept in Recovery at the top of the page.", {
+        label: "Show",
+        plain: true,
+        fn: () => $("recovery-title")?.focus(),
+      });
+    failuresSeen = ready ? st.failed : -1;
     const routine =
       !!n &&
       !st.offline &&
@@ -611,6 +650,17 @@ function fatal(text) {
     }
     paintSync(null);
   }
+  // A refused change is named for what it was, not by its record id ("d-2026-10-03").
+  function recordName(f) {
+    const { locale } = ctx.settings(),
+      day = /^([dp])-(\d{4}-\d{2}-\d{2})$/.exec(f.id);
+    if (f.id === "settings") return "Your settings";
+    if (day) return `${day[1] === "p" ? "Plan" : "Log"} for ${fmtLongDay(day[2], locale)}`;
+    if (/^e-\d+$/.test(f.id))
+      return f.body?.when ? `Episode, ${fmtWhen(f.body.when, locale)}` : "An episode";
+    if (/^t-/.test(f.id)) return "A tool's board";
+    return f.id;
+  }
   function paintSync(quiet) {
     const st = store.status(),
       n = st.pending;
@@ -630,10 +680,14 @@ function fatal(text) {
                   ? !st.durable
                     ? `${n} ${n === 1 ? "change is" : "changes are"} only in memory while device storage finishes. Keep this page open.`
                     : st.offline
-                      ? `${n} ${n === 1 ? "change" : "changes"} queued on this device. Will retry when connected.`
+                      ? st.serverStatus
+                        ? `Server problem (${st.serverStatus}). ${n} ${n === 1 ? "change is" : "changes are"} kept on this device. Retrying…`
+                        : `${n} ${n === 1 ? "change" : "changes"} queued on this device. Will retry when connected.`
                       : `${n} ${n === 1 ? "change" : "changes"} queued on this device. Sending…`
                   : st.offline
-                    ? "Offline. Showing this device's copy."
+                    ? st.serverStatus
+                      ? `Server problem (${st.serverStatus}). Showing this device's copy.`
+                      : "Offline. Showing this device's copy."
                     : st.loaded
                       ? ""
                       : "Connecting…");
@@ -643,20 +697,43 @@ function fatal(text) {
     if (!$("recovery").hidden)
       setHTML(
         $("recovery"),
-        html`<h2>Recover unsaved changes</h2><p>Download a private copy before leaving this device. This recovery file is for support or manual recovery, not the account restore form.</p><button class="secondary" data-action="download">Download recovery copy</button>${failures.map((f) => html`<div class="recovery-item"><b>${f.id}</b><p>${f.message}</p><button class="secondary" data-action="retry" data-key="${f.key}">${f.conflict ? (f.deleted || f.deletedEntry ? "Restore my record" : "Use my change") : "Retry"}</button>${f.body && (f.id === "settings" || /^e-/.test(f.id)) ? html`<button class="secondary" data-action="edit" data-key="${f.key}">Edit a recovered copy</button>` : ""}<button class="x" data-action="discard" data-key="${f.key}">${f.conflict ? "Keep server copy" : "Discard"}</button></div>`)}`,
+        html`<h2 id="recovery-title" tabindex="-1">Recover unsaved changes</h2><p>Download a private copy before leaving this device. This recovery file is for support or manual recovery, not the account restore form.</p><button class="secondary" data-action="download">Download recovery copy</button>${failures.map((f) => html`<div class="recovery-item"><b>${recordName(f)}</b><p>${f.message}</p><button class="secondary" data-action="retry" data-key="${f.key}">${f.conflict ? (f.deleted || f.deletedEntry ? "Restore my record" : "Use my change") : "Retry"}</button>${f.body && (f.id === "settings" || /^e-/.test(f.id)) ? html`<button class="secondary" data-action="edit" data-key="${f.key}">Edit a recovered copy</button>` : ""}<button class="x" data-action="discard" data-key="${f.key}">${f.conflict ? "Keep server copy" : "Discard"}</button></div>`)}`,
       );
   }
 
   // ---- toast, with an optional Undo ----
   let toastTimer;
+  let lastUndo = null; // the Undo of the toast on screen, for the keyboard
   const hideToast = () => {
     $("toastbar").hidden = true;
+    lastUndo = null;
   };
+  document.addEventListener("keydown", (e) => {
+    if (
+      !lastUndo ||
+      e.defaultPrevented || // something with its own undo (the Fretboard) has already answered
+      e.key.toLowerCase() !== "z" ||
+      !(e.ctrlKey || e.metaKey) ||
+      e.shiftKey ||
+      e.altKey
+    )
+      return;
+    if (e.target.closest?.("input,textarea,select,[contenteditable]")) return; // fields keep their own undo
+    e.preventDefault();
+    const { fn } = lastUndo;
+    hideToast();
+    fn();
+  });
   function toast(message, undo) {
     const bar = $("toastbar");
     bar.replaceChildren(Object.assign(document.createElement("span"), { textContent: message }));
+    // An Undo answers Ctrl or ⌘ + Z; a plain action ("Show") does not.
+    lastUndo = undo && !undo.plain ? { fn: undo.fn } : null;
     if (undo) {
-      const b = Object.assign(document.createElement("button"), { textContent: undo.label });
+      const b = Object.assign(document.createElement("button"), {
+        textContent: undo.label,
+        ...(undo.plain ? {} : { title: `${undo.label} (Ctrl or ⌘ + Z)` }),
+      });
       b.addEventListener("click", () => {
         undo.fn();
         hideToast();

@@ -375,8 +375,9 @@ it while the app runs:
 | `secure_cookie`       | on      | Sign-in cookies only travel over HTTPS. Turn off only to test over plain http.                                                                                                                    | `jiggered settings set secure_cookie false` |
 
 `secure_cookie` isn't in the web page on purpose: turning it on while you're using plain http would lock you out.
-From the command line, `jiggered settings` lists all settings and `jiggered settings set KEY VALUE` changes one; a
-running server notices within a couple of seconds.
+From the command line, `jiggered settings list` shows all settings and `jiggered settings set KEY VALUE` changes one
+(in Docker, put `docker compose exec jiggered /jiggered` in front of either); a running server notices within a couple
+of seconds.
 
 For a loopback proxy, set `trusted_proxy_cidrs` to `127.0.0.1/32,::1/128` before enabling `trust_proxy`.
 For a container proxy, use its actual source CIDR and keep the backend private. Every configured hop must be
@@ -404,7 +405,7 @@ docker compose exec jiggered /jiggered user add bob --admin
 docker compose exec jiggered /jiggered user reset-password alice # new temporary password; signs her out everywhere
 docker compose exec jiggered /jiggered user disable alice        # also enable, promote, demote
 docker compose exec jiggered /jiggered user delete alice --yes   # her account and everything she logged
-docker compose exec jiggered /jiggered settings                  # show the instance settings
+docker compose exec jiggered /jiggered settings list            # show the instance settings
 ```
 
 If the container is stopped, use `docker compose run --rm jiggered user list` instead.
@@ -513,6 +514,10 @@ than visitor-supplied Host headers (localhost HTTP is allowed for testing). Regi
 only after email verification. Existing users add a recovery address in **Account → Sign-in security** and verify
 it before it becomes active. Links expire after 30 minutes, work once, and are removed by password changes,
 account disablement and restores. Reset requests give the same public response for known and unknown addresses.
+
+**Who runs this server** and **How to reach them** (Admin → Email & signup, both optional) are shown on the landing,
+pricing and privacy pages so a visitor knows whose server will hold their log. While registration is closed the
+contact is also named as who to ask for an account. They are plain text of up to 80 and 160 characters.
 
 Users can optionally enable **two-step verification** in Account: scan the locally generated QR code, confirm
 an authenticator code, and save the ten recovery codes shown once. It uses standard 30-second, six-digit TOTP;

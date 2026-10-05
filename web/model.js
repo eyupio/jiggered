@@ -628,8 +628,19 @@ export const csvCell = (v) => {
 const csv = (rows) => rows.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
 
 export function daysCsv(docs, S) {
+  // One convention in every export: a cost is the energy spent (positive) or recovered (negative, written as
+  // "recovered"). points_used is spent minus recovered; the two columns after "activities" give each side.
   const rows = [
-    ["date", "check_in", "poor_sleep", "points_used", "points_available", "activities"],
+    [
+      "date",
+      "check_in",
+      "poor_sleep",
+      "points_used",
+      "points_available",
+      "activities",
+      "points_spent",
+      "points_recovered",
+    ],
   ];
   for (const d of listDays(docs).reverse()) {
     rows.push([
@@ -639,8 +650,13 @@ export function daysCsv(docs, S) {
       used(d),
       capOf(d, S),
       (d.entries || [])
-        .map((e) => `${e.t ? e.t + " " : ""}${e.a} (${e.c > 0 ? "-" : "+"}${Math.abs(e.c)})`)
+        .map(
+          (e) =>
+            `${e.t ? e.t + " " : ""}${e.a} (${e.c > 0 ? "spent " + e.c : e.c < 0 ? "recovered " + -e.c : "no change"})`,
+        )
         .join("; "),
+      (d.entries || []).reduce((n, e) => n + Math.max(0, e.c), 0),
+      (d.entries || []).reduce((n, e) => n + Math.max(0, -e.c), 0),
     ]);
   }
   return csv(rows);
@@ -847,13 +863,15 @@ export function validateEpisodeTimes(value, original = {}, now = new Date()) {
     value.endedAt === original.endedAt && Number.isFinite(original.endOffset)
       ? recordedInstant(value.endedAt, original.endOffset)
       : localInstant(value.endedAt);
-  if (!value.when || !Number.isFinite(start) || start > now.getTime())
-    return ["ep-when", "Choose a valid start time that isn't in the future."];
-  if (value.endedAt && (!Number.isFinite(end) || end < start || end > now.getTime()))
-    return [
-      "ep-ended",
-      "End time must be between the start time and now, including the recorded time-zone offset.",
-    ];
+  if (!value.when || !Number.isFinite(start)) return ["ep-when", "Choose when it started."];
+  if (start > now.getTime())
+    return ["ep-when", "Start time can't be in the future. Choose a time before now."];
+  if (value.endedAt && !Number.isFinite(end))
+    return ["ep-ended", "Choose when it ended, or leave it empty."];
+  if (value.endedAt && end < start)
+    return ["ep-ended", "It can't have ended before it started. Choose a later end time."];
+  if (value.endedAt && end > now.getTime())
+    return ["ep-ended", "End time can't be in the future. Choose a time before now."];
   return null;
 }
 

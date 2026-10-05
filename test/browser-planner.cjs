@@ -113,8 +113,8 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     await page.locator("#t-plan").click();
     // Nothing planned: no wall of zero totals, and on a phone the way to start comes first.
     assert.equal((await page.locator("#plan-forecast").textContent()).trim(), "");
-    assert.equal(await page.locator("#plan-start").isVisible(), width < 700);
-    if (width < 700) {
+    assert.equal(await page.locator("#plan-start").isVisible(), true, `start card at ${width}`);
+    {
       const start = await page.locator("#plan-start-add").boundingBox(),
         strip = await page.locator("#plan-days").boundingBox();
       assert.ok(start.y + start.height < strip.y, `start button leads the day strip at ${width}`);
@@ -138,11 +138,23 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     });
     assert.equal(strip.scrollLeft, 0, "day strip starts unscrolled at " + width);
     assert.ok(!strip.clips || strip.room >= -0.01, `selected day ring clipped at ${width}`);
-    if (width < 700) {
+    {
+      await page.locator("#plan-start-add").scrollIntoViewIfNeeded();
+      const before = await page.evaluate(() => scrollY);
       await page.locator("#plan-start-add").click();
       assert.equal(await page.locator("#plan-form").isVisible(), true);
+      assert.equal(
+        await page.locator("#plan-form.is-sheet").count(),
+        1,
+        "the form floats over the page",
+      );
       assert.equal(await page.evaluate(() => document.activeElement.id), "plan-name");
-      await page.locator("#plan-cancel").click();
+      assert.ok(
+        Math.abs((await page.evaluate(() => scrollY)) - before) <= 3,
+        "the page did not move",
+      );
+      await page.keyboard.press("Escape");
+      assert.equal(await page.locator("#plan-form").isVisible(), false, "Escape closes the form");
     }
     await page.locator("#plan-add").click();
     await page.locator("#plan-presets").selectOption("0");
@@ -237,6 +249,15 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     // A known heavy day exposes a shortfall and offers personal recovery choices.
     await page.locator("#t-plan").click();
     await page.locator("[data-plan-day]").nth(1).click();
+    // The kind of day takes the same amounts off the budget as a check-in: amber 3 off ten, then poor sleep 3 more.
+    await page.locator('#plan-daytype [data-daytype="amber"]').click();
+    await page.waitForFunction(() => document.querySelector("#plan-allowance").value === "7");
+    await page.locator("#plan-poorsleep").check();
+    await page.waitForFunction(() => document.querySelector("#plan-allowance").value === "4");
+    await page.locator('#plan-daytype [data-daytype="green"]').click();
+    await page.waitForFunction(() => document.querySelector("#plan-allowance").value === "7");
+    // Let the saves from those choices finish: a re-render when one lands would reset a number typed meanwhile.
+    await page.waitForFunction(() => document.querySelector("#sync")?.dataset.state === "saved");
     await page.locator("#plan-allowance").fill("4");
     await page.locator("#plan-allowance").dispatchEvent("change");
     await page.locator("[data-plan-recovery]").first().waitFor();
@@ -248,6 +269,10 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
       await page.locator("#plan-forecast").textContent(),
       /1 (point|spoon) still uncovered/,
     );
+    // A keyboard can skip the long list of saved activities and land on the timeline.
+    await page.locator("#plan-skip-palette").focus();
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() => !!document.activeElement.closest("#plan-board"));
     // Unfinished input survives navigation and refresh without becoming actual usage.
     await page.locator("#plan-add").click();
     await page.locator("#plan-name").fill("Rest after travel");
@@ -295,6 +320,26 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     await page.locator("#plan-dur").fill("120");
     await page.locator("#plan-submit").click();
     assert.match(await page.locator("#plan-form-error").textContent(), /past midnight/);
+    // The message belongs to one field: it is marked, holds the cursor, and clears when it is corrected.
+    assert.equal(await page.locator("#plan-dur").getAttribute("aria-invalid"), "true");
+    assert.equal(
+      await page.evaluate(() => document.activeElement.id),
+      "plan-dur",
+      "focus goes to the field the message is about",
+    );
+    await page.locator("#plan-dur").fill("30");
+    assert.equal(await page.locator("#plan-dur").getAttribute("aria-invalid"), null);
+    assert.equal(await page.locator("#plan-form-error").textContent(), "");
+    // The form says which day it is for, and how many days "consecutive" can reach.
+    assert.match(await page.locator("#plan-form-title").textContent(), /^Add to .*\d{4}$/);
+    await page.locator("#plan-name").fill("");
+    await page.locator("#plan-submit").click();
+    assert.equal(await page.evaluate(() => document.activeElement.id), "plan-name");
+    assert.match(await page.locator("#plan-form-error").textContent(), /name of 1–60 characters/);
+    await page.locator("#plan-name").fill("Night shift");
+    await page.locator("#plan-time").fill("23:00");
+    await page.locator("#plan-dur").fill("120");
+    await page.locator("#plan-submit").click();
     // The browser itself refuses a length under 5 minutes, so the form is not even submitted.
     await page.locator("#plan-dur").fill("3");
     await page.locator("#plan-submit").click();

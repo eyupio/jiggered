@@ -738,14 +738,25 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
     const gap = await slot(page, today, 14 * 60 + 20, T);
     await page.mouse.click(gap.x, gap.y);
     assert.equal(await page.locator("#entry-form").isVisible(), true);
+    // The editor floats over the timeline as a sheet: the page does not move and the form is on screen.
+    assert.equal(await page.locator("#entry-form.is-sheet").count(), 1, "the form is a sheet");
     assert.ok(
-      Math.abs((await page.evaluate(() => scrollY)) - y0) > 50,
-      "the form is lower down the page",
+      Math.abs((await page.evaluate(() => scrollY)) - y0) <= 3,
+      "the page stays where it was",
     );
+    const sheetBox = await box(page.locator("#entry-form"));
+    assert.ok(
+      sheetBox.y >= 0 && sheetBox.y + sheetBox.height <= (await page.evaluate(() => innerHeight)),
+      "the whole form is on screen",
+    );
+    await page.keyboard.press("Escape");
+    assert.equal(await page.locator("#entry-form").isVisible(), false, "Escape closes it");
+    assert.equal(await page.locator("#entry-form.is-sheet").count(), 0);
+    await page.mouse.click(gap.x, gap.y);
     await page.locator("#entry-cancel").click();
     assert.ok(
       Math.abs((await page.evaluate(() => scrollY)) - y0) <= 3,
-      "and cancelling comes back",
+      "and cancelling leaves the page where it was",
     );
 
     // Carrying an activity up from the list further down the page scrolls the page towards the timeline.
@@ -866,6 +877,8 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
     const handle = await box(
       page.locator(`${T} .cal-block[data-id="log:l1"] .cal-resize[data-edge="bottom"]`),
     );
+    // A swipe that starts on the edge is a scroll, not a resize: nothing changes.
+    const before = docs["d-" + today].body.entries.find((e) => e.id === "l1").dur;
     await touch("touchStart", handle.x + handle.width / 2, handle.y + handle.height / 2);
     for (let i = 1; i <= 10; i++)
       await touch(
@@ -873,6 +886,24 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
         handle.x + handle.width / 2,
         handle.y + handle.height / 2 + (72 * i) / 10,
       );
+    await touch("touchEnd");
+    await page.waitForTimeout(500);
+    assert.equal(
+      docs["d-" + today].body.entries.find((e) => e.id === "l1").dur,
+      before,
+      "a swipe from the edge does not resize",
+    );
+    // Pressing and holding the edge, then dragging, does. (The swipe above scrolled the page, so find the edge again.)
+    await page
+      .locator(`${T} .cal-block[data-id="log:l1"]`)
+      .evaluate((el) => el.scrollIntoView({ block: "center" }));
+    const held = await box(
+      page.locator(`${T} .cal-block[data-id="log:l1"] .cal-resize[data-edge="bottom"]`),
+    );
+    await touch("touchStart", held.x + held.width / 2, held.y + held.height / 2);
+    await page.waitForTimeout(450);
+    for (let i = 1; i <= 10; i++)
+      await touch("touchMove", held.x + held.width / 2, held.y + held.height / 2 + (72 * i) / 10);
     await touch("touchEnd");
     await until(
       () => docs["d-" + today].body.entries.find((e) => e.id === "l1").dur === 120,

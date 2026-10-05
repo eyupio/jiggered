@@ -640,13 +640,36 @@ test("a busy or rate-limiting server (408, 425, 429) is retried, not treated as 
     await d.store.dispatch(op(DAY, "setStatus", "red"));
     assert.equal(d.store.status().pending, 1, `${code}: the change is kept`);
     assert.equal(d.store.status().offline, true, `${code}: and retried later`);
+    assert.equal(
+      d.store.status().serverStatus,
+      code,
+      `${code}: and the page can say what the server answered`,
+    );
     assert.equal(d.store.status().error, "");
     s.status = null;
     d.timers.at(-1).f();
     await d.store.flush();
     assert.equal(d.store.status().pending, 0);
+    assert.equal(d.store.status().serverStatus, undefined, `${code}: cleared once it answers`);
     assert.equal(s.docs.get(DAY).body.status, "red");
   }
+});
+
+test("a server error is reported as the server's, a dropped connection is not", async () => {
+  const s = new FakeServer(),
+    d = device(s);
+  s.status = 500;
+  await d.store.dispatch(op(DAY, "setStatus", "red"));
+  assert.equal(d.store.status().offline, true);
+  assert.equal(d.store.status().serverStatus, 500, "so the header can say Server problem (500)");
+  assert.equal(d.store.status().pending, 1, "and nothing is lost");
+  s.status = null;
+  s.down = true;
+  d.timers.at(-1).f();
+  await d.store.flush();
+  assert.equal(d.store.status().offline, true);
+  assert.equal(d.store.status().serverStatus, undefined, "a network failure has no status to show");
+  s.down = false;
 });
 
 test("every request says whose page it is, so a page that outlived its person is refused", async () => {

@@ -26,7 +26,7 @@ const HINTS = {
   "#sleep": "Subtract your chosen sleep cost from this day's starting budget.",
   "#other-activity": "Log a one-off activity without changing your preset list.",
   "#entry-cost,.order-cost":
-    "Positive points spend energy; negative points record recovery; zero only logs the activity.",
+    "Type what it costs: 2 uses 2 points, −1 gives 1 back, 0 only logs the activity. It shows as −2 or +1 elsewhere.",
   "#entry-time,#act-time": "Optional. Leave blank if you don't remember the time.",
   "#ep-when": "The symptom start time. New captures use this device's local time zone.",
   "#ep-dur": "Choose Still going to keep this episode available for a later completion.",

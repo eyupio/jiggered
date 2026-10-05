@@ -24,6 +24,7 @@ import { describeGap, previewGap } from "./defaults-notice.js";
 import { initSecurity, securityMarkup } from "./security.js";
 import { initProfile, profileIdentity } from "./profile.js";
 
+const plural = (n, one) => `${n} ${one}${n === 1 ? "" : "s"}`;
 function say(el, text, bad = false) {
   el.textContent = text;
   el.classList.toggle("err", bad);
@@ -60,10 +61,14 @@ export function init(ctx) {
     $("account-usage").textContent =
       `${u.docs} of ${u.max_docs} records · ${(u.bytes / 1048576).toFixed(1)} of ${(u.max_bytes / 1048576).toFixed(0)} MB used.${u.docs >= u.max_docs * 0.9 || u.bytes >= u.max_bytes * 0.9 ? " Near the limit: export a copy and contact your instance administrator. Records are never removed automatically." : ""}`;
   }
-  $("account-usage").insertAdjacentHTML(
-    "afterend",
-    `<form id="usage-consent-form"><h3>Optional product usage</h3><p class="meta">Off by default. With your permission, Jiggered stores coarse weekly task counts and days active for capture, History, generated exports, print requests, settings, save failures and recovered saves, for up to 90 days. No symptoms, notes, activity names, record dates or IP addresses are sent. Admin reports hide groups smaller than five; consent is linked to your account for deletion. Disabling deletes your stored events. No external analytics service.</p><label class="radio"><input type="checkbox" id="usage-consent"> Help improve Jiggered with local task counts</label><button type="submit" class="secondary">Save usage preference</button><p id="usage-consent-msg" class="msg" role="status"></p></form>`,
-  );
+  // Below "Your privacy", and only when the operator has switched it on: a disabled form of legal text above the
+  // download buttons reads like an analytics opt-in being pushed.
+  document
+    .querySelector(".account-privacy")
+    .insertAdjacentHTML(
+      "beforeend",
+      `<form id="usage-consent-form" hidden><h3>Optional product usage</h3><label class="radio"><input type="checkbox" id="usage-consent"> Help improve Jiggered with local task counts</label><details><summary>About optional usage counts</summary><p class="meta">Off by default. With your permission, Jiggered stores coarse weekly task counts and days active for capture, History, generated exports, print requests, settings, save failures and recovered saves, for up to 90 days. No symptoms, notes, activity names, record dates or IP addresses are sent. Admin reports hide groups smaller than five; consent is linked to your account for deletion. Disabling deletes your stored events. No external analytics service.</p></details><button type="submit" class="secondary">Save usage preference</button><p id="usage-consent-msg" class="msg" role="status"></p></form>`,
+    );
   async function loadConsent() {
     const r = await api("GET", "/api/me/usage-consent");
     if (!r.ok) {
@@ -71,6 +76,7 @@ export function init(ctx) {
         "Could not load usage preference. Try again by reopening Account.";
       return;
     }
+    $("usage-consent-form").hidden = !r.data.available && !r.data.enabled;
     $("usage-consent").checked = r.data.enabled;
     $("usage-consent").disabled = !r.data.available && !r.data.enabled;
     $("usage-consent-form").querySelector("button").disabled = !r.data.available && !r.data.enabled;
@@ -102,8 +108,14 @@ export function init(ctx) {
       block: "start",
       behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
     });
-    panel.querySelector("input,select,textarea,button")?.focus({ preventScroll: true });
+    // Land on the section's heading, so a screen reader reads where it is rather than the first button.
+    const heading = panel.querySelector("h2");
+    if (heading) {
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+    }
   });
+  $("account-signout")?.addEventListener("click", () => $("signout").requestSubmit());
 
   // ---- password ----
   $("pwform").addEventListener("submit", async (e) => {
@@ -329,15 +341,28 @@ export function init(ctx) {
       } catch {
         return say(msg, "That isn't a Jiggered export.", true);
       }
+      // The device recovery copy is for support, not for this form: say so instead of listing its keys as errors.
+      if (data?.format === "jiggered-device-recovery-v1")
+        return say(
+          msg,
+          "That is a device recovery file, not an account export. Choose a file named like jiggered-2026-10-05.json (from Download everything).",
+          true,
+        );
       const mode = document.querySelector("input[name=import-mode]:checked").value;
       const r = await api("POST", "/api/restore/preview?mode=" + mode, data);
-      if (!r.ok) return say(msg, [r.error, ...(r.data?.issues || [])].join("\n"), true);
+      if (!r.ok) {
+        // A long list of record problems is a wall; the first few say what kind of file this is.
+        const issues = r.data?.issues || [];
+        const shown = issues.slice(0, 3);
+        if (issues.length > 3) shown.push(`…and ${issues.length - 3} more.`);
+        return say(msg, [r.error, ...shown].join("\n"), true);
+      }
       restorePreview = { data, mode, token: r.data.token };
       const p = r.data;
       $("import-preview").hidden = false;
       setHTML(
         $("import-preview"),
-        html`<h3>Review restore</h3><p>${p.additions} new records. ${p.matches} matching records. ${p.overwrites} will be replaced; ${p.skipped} will be kept.</p><p>${p.settingsChanged ? "Your settings will change, including activity lists and ordering." : "Your current settings will be kept."}</p><p>A private copy of your current server data will download before restoring. Keep it so you can undo a restore later.</p><button class="${p.overwrites ? "danger" : "primary"}" id="import-confirm" type="button">Download backup and ${p.overwrites ? `replace ${p.overwrites} matching records` : "restore missing records"}</button>`,
+        html`<h3>Review restore</h3><p>${plural(p.additions, "new record")}. ${plural(p.matches, "matching record")}. ${p.overwrites} will be replaced; ${p.skipped} will be kept.</p><p>${p.settingsChanged ? "Your settings will change, including activity lists and ordering." : "Your current settings will be kept."}</p><p>A private copy of your current server data will download before restoring. Keep it: it lets you put back records the restore replaced. Records the restore adds are not removed by it.</p><button class="${p.overwrites ? "danger" : "primary"}" id="import-confirm" type="button">Download backup and ${p.overwrites ? `replace ${p.overwrites} matching records` : "restore missing records"}</button>`,
       );
       say(msg, "Preview ready. Nothing has changed.");
     });
@@ -370,7 +395,7 @@ export function init(ctx) {
           $("importform").reset();
           say(
             $("import-msg"),
-            `Restored ${r.data.imported} records; kept ${r.data.skipped} matching records. Your pre-restore backup was downloaded.`,
+            `Restored ${plural(r.data.imported, "record")}; kept ${plural(r.data.skipped, "matching record")}. Your pre-restore backup was downloaded.`,
           );
         });
         if (restored) {
@@ -383,7 +408,7 @@ export function init(ctx) {
     });
   });
 
-  $("export-device").addEventListener("click", () =>
+  $("export-device").addEventListener("click", () => {
     downloadFile(
       "jiggered-device-recovery.json",
       JSON.stringify(
@@ -395,8 +420,12 @@ export function init(ctx) {
         null,
         2,
       ),
-    ),
-  );
+    );
+    say(
+      $("export-msg"),
+      "Device recovery copy downloaded. It can't be restored on this page; keep it in case you need support.",
+    );
+  });
   $("export-all").addEventListener("click", async () =>
     withBusy($("export-all"), "Downloading…", async () => {
       await ctx.store.flush();
@@ -418,11 +447,20 @@ export function init(ctx) {
   $("delform").addEventListener("submit", async (e) => {
     e.preventDefault();
     return withBusy($("delform").querySelector("[type=submit]"), "Deleting…", async () => {
-      if (!confirm("Delete your account and everything you've logged? This can't be undone."))
+      // Ask for the password first: a scary question that ends in "wrong password" is the wrong way round.
+      if (!$("del-pw").value) {
+        $("del-pw").focus();
+        return say($("del-msg"), "Enter your password to delete your account.", true);
+      }
+      if (
+        !confirm(
+          "Delete your account and everything you've logged from this server? This can't be undone. Copies already in server backups are not erased.",
+        )
+      )
         return;
       const r = await api("DELETE", "/api/me", { password: $("del-pw").value });
       if (!r.ok) return say($("del-msg"), r.error, true);
-      await ctx.leave();
+      await ctx.leave("deleted");
     });
   });
 

@@ -1,24 +1,25 @@
-<p class="eyebrow">PRICING &amp; ACCESS</p>
 <h1>Free to use.</h1>
 <p class="public-lead">
   Jiggered is a personal energy and symptom log. There is no paid plan offered in this app.
 </p>
 <section class="public-example" aria-labelledby="access-title">
-  <h2 id="access-title">Create an account</h2>
-  <p class="choice-status">{{.Status}}</p>
-  <p>{{.Availability}}</p>
   {{if .Registration}}
+  <h2 id="access-title">Create an account</h2>
+  <p>{{.Availability}}</p>
   <p>
     Choose a username and password, supply your email address, and follow the verification link.
     Your account is created after you verify your email.
   </p>
   {{else}}
+  <h2 id="access-title">This Jiggered is invite-only</h2>
+  <p>{{.Availability}}</p>
   <p>
-    If registration is closed, ask the administrator whether they can create an account. There is no
-    automatic waiting list.
+    Ask {{if .OperatorContact}}{{.OperatorContact}}{{else}}whoever runs this server{{end}} for an
+    account. There is no automatic waiting list. You can also run your own copy: the source is MIT
+    licensed.
   </p>
   {{end}}
-  <p><a href="{{.CTA}}">{{.CTALabel}}</a></p>
+  <p><a class="p-button" href="{{.CTA}}">{{.CTALabel}}</a></p>
 </section>
 <h2>What you can record</h2>
 <p>
@@ -27,6 +28,9 @@
   deletion. Read the <a href="/docs/getting-started">getting-started guide</a> to see the workflow.
 </p>
 <h2>Who can access your records</h2>
+{{if .OperatorName}}
+<p>This server is run by {{.OperatorName}}{{if .OperatorContact}} ({{.OperatorContact}}){{end}}.</p>
+{{end}}
 <p>
   Each account has its own log, but server operators can access the database and backups. Choose a
   service and administrator you trust. This page does not promise a support response time, uptime
@@ -37,8 +41,9 @@
 <h2>MIT-licensed self-hosting</h2>
 <p>
   Run Jiggered on your own server using the
-  <a href="https://github.com/eyupio/jiggered">source and Docker setup instructions</a>. The
-  application uses the MIT License; bundled fonts retain their own licence notices.
+  <a href="https://github.com/eyupio/jiggered" target="_blank" rel="noopener"
+    >source and Docker setup instructions<span class="sr-only"> (opens in a new tab)</span></a
+  >. The application uses the MIT License; bundled fonts retain their own licence notices.
 </p>
 <p>
   Existing operators may have hosting or infrastructure costs. “Free to use” does not mean that

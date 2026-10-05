@@ -10,6 +10,7 @@
   --green: #64825a;
   --amber: #a77a24;
   --red: #b55f4b;
+  --red-text: #a14b38; /* 5.8:1 on the header; --red is 4.4:1 and less on the selected day */
   --spent: #e2e7da;
   --ring-track: #e8ecdf;
   --matrix-green: #56734d;
@@ -28,6 +29,7 @@
     --green: #a6c98e;
     --amber: #e1bb70;
     --red: #ea9b84;
+    --red-text: #f0a590;
     --spent: #3b4d3f;
     --ring-track: #394b3d;
     --matrix-green: var(--green);
@@ -46,6 +48,7 @@
   --green: #a6c98e;
   --amber: #e1bb70;
   --red: #ea9b84;
+  --red-text: #f0a590;
   --spent: #3b4d3f;
   --ring-track: #394b3d;
   --matrix-green: var(--green);
@@ -1649,9 +1652,6 @@
   width: 90px;
   margin: 0;
 }
-.plan-start {
-  display: none; /* phones only: see the max-width rule below */
-}
 .plan-start h2,
 .plan-start p {
   margin: 0;
@@ -1677,6 +1677,76 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
+}
+/* "Still going" episodes: what it was on one line, the two ways to end it on the next. */
+#episode-ongoing .ongoing-item,
+#today-ongoing .ongoing-item {
+  margin-block: 10px;
+}
+#episode-ongoing .ongoing-item p,
+#today-ongoing .ongoing-item p {
+  margin: 0 0 8px;
+}
+#episode-ongoing .ongoing-item .row,
+#today-ongoing .ongoing-item .row {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+/* Visible only to someone who tabs to it. */
+.skip-inline {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.plan-board-panel {
+  position: relative;
+}
+.skip-inline:focus {
+  /* Over the panel's corner, not in the flow: showing and hiding it must not move what is under the pointer. */
+  top: 8px;
+  right: 12px;
+  z-index: 6;
+  width: auto;
+  height: auto;
+  padding: 10px 14px;
+  clip-path: none;
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-weight: 700;
+}
+.pattern-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  font-size: 0.9rem;
+}
+.pattern-row b {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+.plan-form input[aria-invalid="true"] {
+  border-color: var(--red-text);
+  outline: 2px solid var(--red-text);
+  outline-offset: 1px;
+}
+.plan-form :focus-visible {
+  outline-offset: 2px; /* the ring must not sit on the label above the field */
+}
+.plan-form-fields > .hint {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.plan-form-fields > .hint:empty,
+#entry-effect:empty {
+  display: none;
 }
 .plan-history {
   margin: 18px 0;
@@ -1787,6 +1857,27 @@
     --hour: 72px;
   }
 }
+/* The keyboard help is read aloud with the grid. Where there is a mouse and a keyboard it is also printed below the
+   grid; it must not appear and vanish with focus, which would move the page under a click. */
+.cal-help {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+@media (hover: hover) and (pointer: fine) {
+  .cal-help {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 8px 0 0;
+    clip-path: none;
+    color: var(--muted);
+    font-size: 0.8rem;
+    line-height: 1.5;
+  }
+}
 .cal-inner {
   --cols: 7;
   min-width: 0;
@@ -1807,7 +1898,7 @@
 .cal-corner {
   align-self: center;
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
 }
 .cal-day-head {
   display: flex;
@@ -1843,7 +1934,24 @@
   background: var(--accent-soft);
 }
 .cal-day-head.is-warn b {
-  color: var(--red);
+  color: var(--red-text);
+}
+/* The red number alone would be colour only: a mark says "over your allowance before recovery". */
+.cal-warn {
+  position: absolute;
+  top: 3px;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--red-text);
+  color: var(--surface);
+  font: 700 0.62rem/1 var(--display);
+}
+.cal-day-head {
+  position: relative;
 }
 .cal-tray-row {
   margin-block: 6px;
@@ -1890,7 +1998,7 @@
   box-sizing: border-box;
   padding: 2px 6px 0 0;
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
@@ -2047,11 +2155,41 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Short blocks have no room for the time line, but the cost is never left to colour alone. */
+.cal-cost-badge {
+  display: none;
+  position: absolute;
+  top: 3px;
+  right: 30px;
+  font-size: 0.68rem;
+  line-height: 1.2;
+  pointer-events: none;
+}
+.cal-block.is-short .cal-cost-badge {
+  display: block;
+}
+.cal-block.is-short .cal-title {
+  padding-right: 52px;
+}
+.cal-chip-cost {
+  flex: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap; /* "−2" must not break between the sign and the number */
+}
+@media (pointer: coarse) {
+  .cal-cost-badge {
+    right: 44px;
+  }
+  .cal-block.is-short .cal-title {
+    padding-right: 66px;
+  }
+}
 .cal-meta {
   overflow: hidden;
   color: var(--fg);
   opacity: 0.82;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2118,6 +2256,10 @@
   .cal-resize {
     right: 40px;
     height: 24px;
+    touch-action: auto; /* a swipe that starts on an edge still scrolls; only press-and-hold resizes */
+  }
+  .cal-resize::after {
+    opacity: 0.45; /* so the edge looks like something you can hold */
   }
   .cal-resize[data-edge="top"] {
     top: -10px;
@@ -2294,6 +2436,12 @@
   opacity: 0.7;
   z-index: 4;
 }
+/* The glyph is 20px; the area that takes the click is bigger, so a mouse does not have to hit it exactly. */
+.cal-remove::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+}
 .cal-remove:hover {
   opacity: 1;
   color: var(--red);
@@ -2301,7 +2449,7 @@
 }
 .cal-chip.is-removable {
   position: relative;
-  padding-right: 28px;
+  padding-right: 24px;
 }
 .cal-chip .cal-remove {
   top: 50%;
@@ -2358,4 +2506,13 @@
 .confirm-actions {
   justify-content: flex-end;
   gap: 10px;
+}
+
+/* An admin has six tabs: on the narrowest phones the labels get a little less room around them and a smaller size. */
+@media (max-width: 340px) {
+  .app-shell #tabs button {
+    padding-inline: 0;
+    font-size: 10.5px;
+    letter-spacing: 0;
+  }
 }

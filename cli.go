@@ -20,18 +20,12 @@ import (
 
 const usage = `Jiggered ` + "(no arguments runs the server)" + `
 
-  jiggered hash [password]             print a bcrypt hash for APP_PASSWORD_HASH
-  jiggered backup [file|-] [--password-file PATH]  save a consistent ZIP backup (no argument: into the data volume's backups folder; "-" writes it to stdout)
-  jiggered restore <file> [--password-file PATH] --yes  put a backup in place of the database (stop the server first; what was there is kept)
-  jiggered healthcheck                 exit 0 if the running server answers /healthz
-  jiggered settings                    show the instance settings (they live in the database)
-  jiggered settings set KEY VALUE      change one: secure_cookie, trust_proxy, proxy_hops, trusted_proxy_cidrs
-  jiggered version
+In Docker, put this before every command below:  docker compose exec jiggered /jiggered
 
 Accounts (work on the database directly, so they still work if you are locked out of the web UI):
 
-  jiggered user list
   jiggered user add <name> [--admin]   create an account with a one-time temporary password
+  jiggered user list
   jiggered user reset-password <name>  new temporary password, signs the account out everywhere
   jiggered user reset-two-factor <name> remove authenticator protection after verifying identity
   jiggered user disable <name>         block sign-in and end its sessions
@@ -39,6 +33,16 @@ Accounts (work on the database directly, so they still work if you are locked ou
   jiggered user promote <name>         make an admin
   jiggered user demote <name>
   jiggered user delete <name> --yes    delete the account and all its data
+
+Settings, backups and checks:
+
+  jiggered settings [list]             show the instance settings (they live in the database)
+  jiggered settings set KEY VALUE      change one: secure_cookie, trust_proxy, proxy_hops, trusted_proxy_cidrs
+  jiggered backup [file|-] [--password-file PATH]  save a consistent ZIP backup (no argument: into the data volume's backups folder; "-" writes it to stdout)
+  jiggered restore <file> [--password-file PATH] --yes  put a backup in place of the database (stop the server first; what was there is kept)
+  jiggered healthcheck                 exit 0 if the running server answers /healthz
+  jiggered hash [password]             print a bcrypt hash for APP_PASSWORD_HASH (older setups)
+  jiggered version
 `
 
 // runCLI runs a subcommand if args name one. handled is false when there is
@@ -445,6 +449,9 @@ func cmdHealthcheck() error {
 
 // cmdSettings shows or changes the instance settings. A running server notices within a couple of seconds.
 func cmdSettings(args []string, out io.Writer) error {
+	if len(args) == 1 && args[0] == "list" { // the same as no argument, spelled like "user list"
+		args = nil
+	}
 	if len(args) != 0 && !(len(args) == 3 && args[0] == "set") {
 		return errors.New("usage: jiggered settings | jiggered settings set KEY VALUE")
 	}

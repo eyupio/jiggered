@@ -1,12 +1,12 @@
 // Small same-origin SVG charts, with a keyboard inspector and an equivalent data table.
 import { energyCopy, energyAmount, energyWords } from "./energy-theme.js";
 import { html, fmtDay } from "./util.js";
-const W = 640,
-  H = 220,
-  LEFT = 44,
-  RIGHT = 620,
-  TOP = 18,
+// The drawing is scaled to its container, so on a phone a 640-wide drawing shrinks its 13px labels to 6px. A narrower
+// drawing keeps them near their size.
+const TOP = 18,
   BOTTOM = 180;
+const geometry = (compact) =>
+  compact ? { W: 320, H: 220, LEFT: 36, RIGHT: 308 } : { W: 640, H: 220, LEFT: 44, RIGHT: 620 };
 const num = (value, theme) =>
   value === null ? "No activities logged" : energyAmount(value, theme);
 const rangeLabel = (b, locale) =>
@@ -17,13 +17,14 @@ export function bucketDescription(b, locale, theme = "points") {
   return `${rangeLabel(b, locale)}. ${plural(b.checked, "check-in")} (${b.green} green, ${b.amber} amber, ${b.red} red). ${plural(b.logged, "day")} with activities. ${b.avgUsed === null ? energyCopy("No activity points recorded.", theme) : `Used ${energyWords(theme).plural} ${b.avgSpent}; recovered ${b.avgRecovery}; Net ${energyWords(theme).plural} ${b.avgUsed}; allowance ${b.avgAllowance}${b.from !== b.to ? " (averages on activity days)" : ""}.`} ${plural(b.episodes, "episode")}; ${plural(b.poorSleep, "day")} marked poor sleep; ${plural(b.recorded - b.poorSleep, "recorded day")} without a poor-sleep mark.`;
 }
 
-export function chartMarkup(data, kind, locale, theme = "points") {
+export function chartMarkup(data, kind, locale, theme = "points", compact = false) {
+  const { W, H, LEFT, RIGHT } = geometry(compact);
   const { buckets } = data,
     combined = kind === "combined",
     energy = kind !== "episodes",
     id = "chart-" + kind;
   const height = combined ? 330 : H,
-    left = combined ? 86 : LEFT;
+    left = combined ? (compact ? 72 : 86) : LEFT;
   const values = energy
     ? buckets.flatMap((b) => [b.avgSpent, b.avgUsed, b.avgAllowance]).filter((n) => n !== null)
     : buckets.map((b) => b.episodes);
@@ -74,7 +75,7 @@ export function chartMarkup(data, kind, locale, theme = "points") {
       })}
       ${energy && lo < 0 ? html`<line class="chart-zero" x1="${left}" x2="${RIGHT}" y1="${y(0)}" y2="${y(0)}"></line>` : ""}
       ${energy ? html`<path class="chart-spent" d="${line("avgSpent")}"></path>${buckets.map((b, i) => (b.avgSpent !== null ? html`<circle class="chart-spent-point" cx="${x(i)}" cy="${y(b.avgSpent)}" r="3.5"></circle>` : ""))}<path class="chart-allowance" d="${line("avgAllowance")}"></path><path class="chart-used" d="${line("avgUsed")}"></path>${buckets.map((b, i) => (b.avgUsed !== null ? html`<circle class="chart-point" cx="${x(i)}" cy="${y(b.avgUsed)}" r="3.5"></circle>` : ""))}` : buckets.map((b, i) => html`<rect class="chart-episode" x="${x(i) - ((RIGHT - left) / buckets.length) * 0.32}" y="${y(b.episodes)}" width="${((RIGHT - left) / buckets.length) * 0.64}" height="${BOTTOM - y(b.episodes)}" rx="3"></rect>`)}
-      ${combined ? combinedRows(buckets, left) : ""}
+      ${combined ? combinedRows(buckets, left, RIGHT) : ""}
       ${buckets.map((b, i) => html`<rect class="chart-hit" data-bucket="${i}" x="${left + (i / buckets.length) * (RIGHT - left)}" y="${TOP}" width="${(RIGHT - left) / buckets.length}" height="${(combined ? 294 : BOTTOM) - TOP}"><title>${bucketDescription(b, locale, theme)}</title></rect>`)}
       <text class="chart-axis" x="${left}" y="${height - 12}">${buckets[0].from}</text><text class="chart-axis" x="${RIGHT}" y="${height - 12}" text-anchor="end">${buckets.at(-1).to}</text>
     </svg>`
@@ -86,8 +87,8 @@ export function chartMarkup(data, kind, locale, theme = "points") {
   </div>`;
 }
 
-function combinedRows(buckets, left) {
-  const width = (RIGHT - left) / buckets.length;
+function combinedRows(buckets, left, right) {
+  const width = (right - left) / buckets.length;
   return html`<text class="chart-axis" x="${left - 8}" y="240" text-anchor="end">Check-in</text><text class="chart-axis" x="${left - 8}" y="280" text-anchor="end">Sleep flag</text>${buckets.map(
     (b, i) => {
       const days = Math.round((Date.parse(b.to) - Date.parse(b.from)) / 86400000) + 1;

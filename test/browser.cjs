@@ -167,7 +167,7 @@ runBrowser({ name: "walkthrough", username: "auditadmin" }, async (harness) => {
   });
   await page.locator("#importform [type=submit]").click();
   await page.locator("#import-msg").filter({ hasText: "Preview ready." }).waitFor();
-  assert.match(await page.locator("#import-preview").textContent(), /1 new records/);
+  assert.match(await page.locator("#import-preview").textContent(), /1 new record\./);
   const beforeDocs = await (await context.request.get(base + "/api/export")).json();
   assert.equal(beforeDocs["e-998"], undefined, "preview did not write");
   await context.request.put(base + "/api/docs/e-997", {
@@ -186,7 +186,7 @@ runBrowser({ name: "walkthrough", username: "auditadmin" }, async (harness) => {
   await page.locator("#import-confirm").click();
   const backup = await backupDownload;
   assert.match(backup.suggestedFilename(), /^jiggered-before-restore-/);
-  await page.locator("#import-msg").filter({ hasText: "Restored 1 records;" }).waitFor();
+  await page.locator("#import-msg").filter({ hasText: "Restored 1 record;" }).waitFor();
   const afterDocs = await (await context.request.get(base + "/api/export")).json();
   assert.equal(afterDocs["e-998"].notes, "Legacy restored note");
   assert.equal(afterDocs["e-997"].notes, "Changed after preview");
@@ -311,10 +311,39 @@ runBrowser({ name: "walkthrough", username: "auditadmin" }, async (harness) => {
   await phone.locator("#ep-save").click();
   await phone.locator("#eptoast").filter({ hasText: "Saved." }).waitFor();
   await phone.locator("#t-today").click();
-  await phone.locator("#today-ongoing button").click();
+  await phone.locator("#today-ongoing [data-finish-episode]").click(); // "Ended earlier…" opens the form
   await phone.locator("#ep-dur").selectOption("Ended (duration unknown)");
   await phone.locator("#ep-save").click();
   await phone.locator("#eptoast").filter({ hasText: "Saved." }).waitFor();
+  // An edit that began on Today offers the way back to Today.
+  assert.equal((await phone.locator("#ep-cancel").textContent()).trim(), "Back to Today");
+  await phone.locator("#ep-cancel").click();
+  await phone.locator("#today-panel:not([hidden])").waitFor();
+  // Moving the start back clears "Still going"; the form says so beside the field instead of failing silently.
+  await phone.locator("#t-episode").click();
+  await phone.locator("#ep-sym input").first().check();
+  await phone.locator("#ep-when").evaluate((el) => {
+    const t = new Date(Date.now() - 3 * 3600_000 - new Date().getTimezoneOffset() * 60000);
+    el.value = t.toISOString().slice(0, 16);
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  assert.match(await phone.locator("#ep-dur-hint").textContent(), /choose how long it lasted/);
+  assert.equal(await phone.locator("#ep-dur").getAttribute("aria-invalid"), "true");
+  await phone.locator("#ep-dur").selectOption("1–4 hours");
+  assert.equal(await phone.locator("#ep-dur-hint").textContent(), "");
+  // A start time in the future gets our own sentence, not the browser's bubble.
+  await phone.locator("#ep-when").evaluate((el) => {
+    const t = new Date(Date.now() + 26 * 3600_000 - new Date().getTimezoneOffset() * 60000);
+    el.value = t.toISOString().slice(0, 16);
+  });
+  await phone.locator("#ep-save").click();
+  assert.match(await phone.locator("#eptoast").textContent(), /can't be in the future/);
+  assert.equal(await phone.evaluate(() => document.activeElement.id), "ep-when");
+  // Correcting the form takes the complaint away; it must not stay on screen in the success colour.
+  await phone.locator("#ep-notes").fill("Started later than I thought");
+  assert.equal(await phone.locator("#eptoast").textContent(), "");
+  phone.once("dialog", (dialog) => dialog.accept()); // "Delete this draft?"
+  await phone.locator("#ep-discard").click();
   await phone.locator("#t-history").click();
   await phone.evaluate(() => {
     document.getElementById("history-filter-panel").open = true;
@@ -387,9 +416,20 @@ runBrowser({ name: "walkthrough", username: "auditadmin" }, async (harness) => {
   await phone.locator("#ep-notes").fill("Retained refusal");
   await phone.locator("#ep-save").click();
   await phone.locator("#recovery").filter({ hasText: "Test quota refusal" }).waitFor();
+  assert.match(
+    await phone.locator("#recovery .recovery-item b").first().textContent(),
+    /^Episode, /,
+    "a refused change is named for what it was, not by its record id",
+  );
+  await phone.locator("#toastbar").filter({ hasText: "Couldn't save that" }).waitFor();
   await phone.reload();
   await phone.locator("#t-episode").click();
   assert.equal(await phone.locator("#ep-notes").inputValue(), "Retained refusal");
+  assert.equal(
+    await phone.locator("#toastbar").isHidden(),
+    true,
+    "a refusal from an earlier visit is in Recovery, not announced again",
+  );
   await phone.unroute("**/api/docs/*");
   await phone.locator("#recovery [data-action=retry]").click();
   await phone.locator("#eptoast").filter({ hasText: "Saved." }).waitFor();

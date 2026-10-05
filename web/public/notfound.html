@@ -1,0 +1,12 @@
+<h1>That page isn’t here</h1>
+<p class="public-lead">
+  The link may be old, or the address mistyped. These pages are open to everyone:
+</p>
+<ul class="public-links">
+  {{range .Pages}}{{if ne .Path "/welcome"}}
+  <li><a href="{{.Path}}">{{.Label}}</a></li>
+  {{end}}{{end}}
+</ul>
+<p>
+  <a href="/welcome">Back to the home page</a>
+</p>

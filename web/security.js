@@ -3,18 +3,20 @@ export const securityMarkup = `<section class="panel" id="security-panel" aria-l
  <div class="service-heading"><h2 id="security-title">Sign-in security</h2><span class="badge" id="security-status">Loading</span></div>
  <p class="meta">Protect your account with an authenticator app and a verified recovery email.</p>
  <form id="security-email-form"><h3>Recovery email</h3><p id="security-email-current" class="meta"></p><label>Email address<input id="security-email" type="email" autocomplete="email" required></label><label>Your current password<input id="security-email-password" type="password" autocomplete="current-password" required></label><button class="secondary" type="submit">Send verification email</button><p class="msg" id="security-email-msg" role="status"></p></form>
+ <p class="meta" id="security-email-unavailable" hidden>Recovery email isn't available on this server. Ask the person who runs it to set up email.</p>
  <form id="security-factor-form"><h3>Two-step verification</h3><p class="meta" id="security-factor-description">Use an authenticator such as Microsoft Authenticator, Google Authenticator, Aegis or your password manager.</p>
  <label>Your current password<input id="security-password" type="password" autocomplete="current-password" required></label>
- <div id="security-setup" hidden><p class="meta">1. Scan the QR code in your authenticator app, or enter the key manually.<br>2. Enter the app's six-digit code below, then confirm.</p><img class="security-qr" id="security-qr" alt="Authenticator setup QR code"><p class="security-secret" id="security-secret"></p></div>
+ <div id="security-setup" hidden><p class="meta">1. Scan the QR code in your authenticator app, or enter the key manually.<br>2. Enter the app's six-digit code below, then confirm.</p><img class="security-qr" id="security-qr" alt="Authenticator setup QR code"><p class="security-secret" id="security-secret"></p><button class="secondary small" type="button" id="security-copy-secret">Copy key</button></div>
  <label id="security-code-label" hidden>Authenticator or unused recovery code<input id="security-code" autocomplete="one-time-code" autocapitalize="none" spellcheck="false"></label>
  <div class="service-actions"><button class="primary" type="button" id="security-start" data-tooltip="A code must be confirmed before two-step verification is enabled. Recovery codes are shown once after setup.">Set up authenticator</button><button class="primary" type="button" id="security-enable" hidden>Confirm & enable</button><button class="secondary" type="button" id="security-cancel" hidden>Cancel setup</button><button class="secondary" type="button" id="security-regenerate" hidden>Create new recovery codes</button><button class="danger" type="button" id="security-disable" hidden>Disable two-step verification</button></div>
  <p class="msg" id="security-msg" role="status" aria-live="polite"></p></form>
- <div id="security-recovery" hidden><h3>Keep your recovery codes safe</h3><p class="meta">Each code works once if you lose access to your authenticator. These codes are shown only now. Store them privately; keep them separate from your password.</p><div id="security-codes" class="security-codes"></div><div class="service-actions"><button class="secondary" id="security-download" type="button">Download codes</button><button class="primary" id="security-hide" type="button">I've saved my codes</button></div></div>
+ <div id="security-recovery" hidden><h3>Keep your recovery codes safe</h3><p class="meta">Each code works once if you lose access to your authenticator. These codes are shown only now. Store them privately; keep them separate from your password.</p><div id="security-codes" class="security-codes"></div><div class="service-actions"><button class="secondary" id="security-copy" type="button">Copy all</button><button class="secondary" id="security-download" type="button">Download codes</button><button class="primary" id="security-hide" type="button">I've saved my codes</button></div></div>
  <button class="secondary small" id="security-refresh">Refresh security status</button>
 </section>`;
 export function initSecurity(ctx) {
   let enabled = false,
     pending = false,
+    secret = "",
     codes = [];
   const say = (id, text, bad = false) => {
     if (!$(id)) return;
@@ -31,6 +33,8 @@ export function initSecurity(ctx) {
       ? `Verified address: ${r.data.email}`
       : "No verified recovery email yet.";
     $("security-email-form").hidden = !r.data.email_available;
+    $("security-email-unavailable").hidden = r.data.email_available;
+    $("security-email-current").hidden = !r.data.email_available && !r.data.email;
     $("security-start").hidden = enabled || pending;
     $("security-enable").hidden = !pending;
     $("security-cancel").hidden = !pending;
@@ -81,12 +85,14 @@ export function initSecurity(ctx) {
         pending = true;
         $("security-setup").hidden = false;
         $("security-qr").src = r.data.qr;
-        $("security-secret").textContent = r.data.secret;
+        secret = r.data.secret;
+        // Grouped in fours it can be read aloud and typed; the copy button gives the plain key.
+        $("security-secret").textContent = secret.match(/.{1,4}/g)?.join(" ") || secret;
       } else {
         pending = false;
         $("security-setup").hidden = true;
         $("security-qr").removeAttribute("src");
-        $("security-secret").textContent = "";
+        $("security-secret").textContent = secret = "";
       }
       if (r.data.codes) {
         codes = r.data.codes;
@@ -115,11 +121,28 @@ export function initSecurity(ctx) {
       `Jiggered recovery codes for ${ctx.me.username}\n${location.origin}\nEach code can be used once. Keep private.\n\n${codes.join("\n")}`,
     ),
   );
+  const copy = async (text, done) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      say("security-msg", done);
+    } catch {
+      say("security-msg", "Couldn't copy. Select the text and copy it yourself.", true);
+    }
+  };
+  $("security-copy").addEventListener("click", () =>
+    copy(codes.join("\n"), "Recovery codes copied. Keep them somewhere private."),
+  );
+  $("security-copy-secret").addEventListener("click", () => copy(secret, "Key copied."));
   $("security-hide").addEventListener("click", () => {
+    if (!confirm("Have you saved these codes? They will not be shown again.")) return;
     codes = [];
     $("security-codes").replaceChildren();
     $("security-recovery").hidden = true;
   });
   $("security-refresh").addEventListener("click", load);
+  // The recovery link is often opened in another tab: look again when this one comes back into view.
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && $("security-panel") && !$("account-panel").hidden) load();
+  });
   return { load };
 }

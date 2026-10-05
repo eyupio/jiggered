@@ -16,7 +16,17 @@ import {
 import { createTimeGrid } from "./calendar.js";
 import { forecast, planId } from "./planner-model.js";
 import { energyWords, energyAmount, energyCopy, themeOf, SPOON_PATH } from "./energy-theme.js";
-import { $, html, setHTML, uid, fmtLongDay, signed, confirmDialog } from "./util.js";
+import {
+  $,
+  html,
+  setHTML,
+  uid,
+  fmtLongDay,
+  signed,
+  minus,
+  confirmDialog,
+  sheetMode,
+} from "./util.js";
 import {
   DAY,
   NEW_DUR,
@@ -116,6 +126,8 @@ export function init(ctx) {
       target = id();
     changing = false;
     op("setStatus", next);
+    // The colour buttons have just been swapped for the summary; keep the keyboard on the one control that is left.
+    if (next && !$("checkin-done").hidden) $("checkin-change").focus({ preventScroll: true });
     // A cleared or changed check-in changes the day's points, so it can always be taken back.
     if (was)
       ctx.toast(next ? `Changed to ${named(next)}.` : "Check-in cleared.", {
@@ -139,6 +151,30 @@ export function init(ctx) {
       before: Object.fromEntries(Object.keys(arg).map((k) => [k, raw[k]])),
       original: raw,
     });
+  }
+  // Points or spoons: the same numbers, in the words the person thinks in. Chosen here or in Account.
+  $("onboarding").addEventListener("click", (e) => {
+    const pick = e.target.closest("[data-wording]");
+    if (!pick || !writable()) return;
+    const raw = ctx.store.view("settings");
+    if (!raw) return;
+    patchSettings({
+      profile: { ...normaliseProfile(raw.profile), energyTheme: pick.dataset.wording },
+    });
+    render();
+  });
+  // Someone who came from the Spoon Theory guide starts in spoons, once, if they have not chosen yet.
+  function applyWelcomeWording() {
+    try {
+      if (localStorage.getItem("jiggered:w") !== "spoons" || !writable()) return;
+      const raw = ctx.store.view("settings");
+      if (!raw) return;
+      localStorage.removeItem("jiggered:w");
+      if (!raw.profile?.energyTheme)
+        patchSettings({ profile: { ...normaliseProfile(raw.profile), energyTheme: "spoons" } });
+    } catch {
+      /* storage can be blocked; the checklist step still works */
+    }
   }
   $("onboarding-keep").addEventListener("click", () => {
     patchSettings({
@@ -406,6 +442,7 @@ export function init(ctx) {
   let returnTo = null;
   function fromTimeline(open) {
     const y = window.scrollY;
+    sheet.on(); // before the form opens, so focusing its first field cannot scroll the page away
     open();
     returnTo = y;
   }
@@ -452,9 +489,9 @@ export function init(ctx) {
     const preset = activity(placing);
     setPlacing(null);
     if (!preset) return;
-    const nowAt = new Date();
-    const start = Math.min(nowAt.getHours() * 60 + nowAt.getMinutes(), DAY - NEW_DUR);
-    logAt(preset, start, lengthOf(preset, start));
+    // "Log it now" means "I just did this": the same record a tap on the activity makes, not a block that runs on
+    // into the future.
+    logOne(preset);
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && placing !== null && !$("today-panel").hidden) setPlacing(null);
@@ -488,7 +525,7 @@ export function init(ctx) {
     }
     const coarse = matchMedia("(pointer: coarse)").matches;
     $("today-timeline-help").textContent = coarse
-      ? "What you have logged is solid; what is still planned is dashed. Tap an activity, then a time. Use the handle on a block to move it, and drag its bottom edge to change how long it took: the points follow."
+      ? "What you have logged is solid; what is still planned is dashed. Tap an activity, then a time. Use the handle on a block to move it; to change how long it took, press and hold its bottom edge, then drag: the points follow."
       : "What you have logged is solid; what is still planned is dashed. Drag an activity onto the timeline, or click one and then a time. Drag a block to move it, or its edge to change how long it took: the points follow.";
     setStable(
       palette,
@@ -506,7 +543,8 @@ export function init(ctx) {
         {
           date: k,
           label: past ? fmtLongDay(k, S.locale) : "Today",
-          value: `${left} left`,
+          value: `${minus(left)} left`,
+          aria: `${past ? fmtLongDay(k, S.locale) : "Today"}: ${points(left)} left${left < 0 ? " (over your allowance)" : ""}`,
           today: !past,
           selected: true,
           warn: left < 0,
@@ -551,7 +589,17 @@ export function init(ctx) {
     "change",
     () => ($("entry-group-row").hidden = !$("entry-save-choice").checked),
   );
-  const lengthPoints = followLength(ctx, $("entry-dur"), $("entry-cost"), $("entry-length-hint"));
+  const lengthPoints = followLength(
+    ctx,
+    $("entry-dur"),
+    $("entry-cost"),
+    $("entry-length-hint"),
+    $("entry-effect"),
+  );
+  const sheet = sheetMode(entryForm, {
+    onCancel: () => $("entry-cancel").click(),
+    labelledBy: "entry-heading",
+  });
   function edit(entry = null) {
     editing = entry;
     editingDate = key();
@@ -578,6 +626,7 @@ export function init(ctx) {
     $("entry-cost").value = draft.c;
     $("entry-time").value = draft.t;
     $("entry-dur").value = draft.dur ?? "";
+    lengthPoints.refresh();
     $("entry-save-choice").checked = draft.saveChoice === true;
     $("entry-group").value = draft.group || "";
     $("entry-group-row").hidden = !$("entry-save-choice").checked;
@@ -671,7 +720,7 @@ export function init(ctx) {
     entryForm.hidden = true;
     backToTimeline();
     ctx.toast(
-      previous ? "Activity correction queued." : "Activity queued.",
+      previous ? `Updated ${changes.a}.` : `Logged ${changes.a}.`,
       previous
         ? {
             label: "Undo correction",
@@ -813,6 +862,13 @@ export function init(ctx) {
     ]);
     if (listKey === actsKey) return; // only rebuild the buttons when something shown has changed
     actsKey = listKey;
+    // Rebuilding the buttons would drop the keyboard's place: note which one it was on and return to it afterwards.
+    const held = document.activeElement,
+      heldFilter = $("act-filter").contains(held) ? held.dataset.filter : null,
+      heldTile =
+        $("acts").contains(held) && held.dataset.i !== undefined
+          ? { i: held.dataset.i, step: held.dataset.step }
+          : null;
     // One tap on a group narrows the list to it; tapping it again, or "All", brings everything back.
     $("act-filter").hidden = names.length < 2;
     setHTML(
@@ -834,9 +890,22 @@ export function init(ctx) {
       html`${favs.length ? html`<div class="act-fav"><h3 class="label">Frequent and recent</h3>${grid(favs)}</div>` : ""}${sections.map(part)}${q && !found.length ? html`<p class="empty">No activity matches${groupFilter ? ` in ${groupFilter}. Choose All to search every group` : ""}. Use Other activity to log it once.</p>` : ""}`,
     );
     $("noacts").hidden = S.activities.length > 0;
+    if (heldFilter != null)
+      [...$("act-filter").children]
+        .find((b) => b.dataset.filter === heldFilter)
+        ?.focus({ preventScroll: true });
+    if (heldTile) {
+      // A tile that was just logged is now a card: land on its "+", so another tap logs it again.
+      const at = (step) => $("acts").querySelector(`[data-step="${step}"][data-i="${heldTile.i}"]`);
+      (heldTile.step && at(heldTile.step)
+        ? at(heldTile.step)
+        : at("1") || $("acts").querySelector(`button.act[data-i="${heldTile.i}"]`)
+      )?.focus({ preventScroll: true });
+    }
   }
 
   function render() {
+    applyWelcomeWording();
     if (!entryForm.hidden && editingDate !== key()) {
       editing = null;
       entryForm.hidden = true;
@@ -1031,6 +1100,13 @@ export function init(ctx) {
     $("step-checkin").classList.toggle("done", checked);
     $("step-activity").classList.toggle("done", logged);
     $("step-budget").classList.toggle("done", !!ob.budget);
+    for (const b of $("step-wording").querySelectorAll("[data-wording]"))
+      b.setAttribute(
+        "aria-pressed",
+        String(
+          b.dataset.wording === (raw?.profile?.energyTheme === "spoons" ? "spoons" : "points"),
+        ),
+      );
     if (document.activeElement !== $("onboarding-budget")) $("onboarding-budget").value = S.budget;
   }
 

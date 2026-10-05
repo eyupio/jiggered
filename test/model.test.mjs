@@ -282,9 +282,15 @@ test("CSV exports", () => {
     },
   };
   const days = m.daysCsv(docs, S).split("\r\n");
-  assert.equal(days[0], "date,check_in,poor_sleep,points_used,points_available,activities");
-  assert.equal(days[1], "2026-09-30,,no,0,10,");
-  assert.equal(days[2], "2026-10-01,amber,yes,1,7,10:15 Meeting or call (-2); Quiet break (+1)");
+  assert.equal(
+    days[0],
+    "date,check_in,poor_sleep,points_used,points_available,activities,points_spent,points_recovered",
+  );
+  assert.equal(days[1], "2026-09-30,,no,0,10,,0,0");
+  assert.equal(
+    days[2],
+    "2026-10-01,amber,yes,1,7,10:15 Meeting or call (spent 2); Quiet break (recovered 1),2,1",
+  );
   assert.equal(days[3], "");
   const eps = m.episodesCsv(docs).split("\r\n");
   assert.equal(
