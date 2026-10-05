@@ -248,8 +248,11 @@
           </p>
           <p>
             Lost your authenticator? Use an unused recovery code, or ask an administrator to reset
-            two-step verification. Server operators can reset a password with
-            <code>jiggered user reset-password NAME</code>.
+            two-step verification. Whoever runs the server can reset a password with
+            <code>docker compose exec jiggered /jiggered user reset-password NAME</code>. If someone
+            was locked out by wrong guesses, also run <code>docker compose restart jiggered</code>.
+            If the only admin lost their authenticator, use
+            <code>docker compose exec jiggered /jiggered user reset-two-factor NAME</code>.
           </p>
         </details>
       </main>

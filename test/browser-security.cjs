@@ -26,6 +26,7 @@ runBrowser({ name: "security", portEnv: "JIGGERED_SECURITY_PORT" }, async (harne
   await page.locator("#admin-confirm-pw").fill("local-preview-password");
   await page.locator("#adduser [type=submit]").click();
   await page.locator("#adduser-msg").filter({ hasText: "Created safeuser." }).waitFor();
+  await page.locator("#reveal-hide").click(); // the temporary password is in a dialog
   assert.equal(await page.locator("#admin-confirm-pw").inputValue(), "");
   const stolen = await request.newContext({ storageState: await context.storageState() });
   const changed = await context.request.post(base + "/api/me/password", {
@@ -87,7 +88,9 @@ runBrowser({ name: "security", portEnv: "JIGGERED_SECURITY_PORT" }, async (harne
     200,
   );
   await reader.evaluate(() => window.dispatchEvent(new Event("online")));
-  await reader.waitForURL("**/login");
+  await reader.waitForURL("**/login?e=expired");
+  // A session that was ended elsewhere says so, instead of dropping the person on a bare sign-in page.
+  await reader.locator("#err").filter({ hasText: "You were signed out" }).waitFor();
   assert.equal(await reader.evaluate(() => localStorage.getItem("jiggered:me")), null);
   console.log(
     "PASS: admin changes require fresh password, cookie rotation kills copied token, reader logout purges IndexedDB and fences writer, revoked sessions purge identity",

@@ -167,7 +167,7 @@ runBrowser({ name: "walkthrough", username: "auditadmin" }, async (harness) => {
   });
   await page.locator("#importform [type=submit]").click();
   await page.locator("#import-msg").filter({ hasText: "Preview ready." }).waitFor();
-  assert.match(await page.locator("#import-preview").textContent(), /1 new records/);
+  assert.match(await page.locator("#import-preview").textContent(), /1 new record\./);
   const beforeDocs = await (await context.request.get(base + "/api/export")).json();
   assert.equal(beforeDocs["e-998"], undefined, "preview did not write");
   await context.request.put(base + "/api/docs/e-997", {
@@ -186,7 +186,7 @@ runBrowser({ name: "walkthrough", username: "auditadmin" }, async (harness) => {
   await page.locator("#import-confirm").click();
   const backup = await backupDownload;
   assert.match(backup.suggestedFilename(), /^jiggered-before-restore-/);
-  await page.locator("#import-msg").filter({ hasText: "Restored 1 records;" }).waitFor();
+  await page.locator("#import-msg").filter({ hasText: "Restored 1 record;" }).waitFor();
   const afterDocs = await (await context.request.get(base + "/api/export")).json();
   assert.equal(afterDocs["e-998"].notes, "Legacy restored note");
   assert.equal(afterDocs["e-997"].notes, "Changed after preview");
@@ -413,9 +413,20 @@ runBrowser({ name: "walkthrough", username: "auditadmin" }, async (harness) => {
   await phone.locator("#ep-notes").fill("Retained refusal");
   await phone.locator("#ep-save").click();
   await phone.locator("#recovery").filter({ hasText: "Test quota refusal" }).waitFor();
+  assert.match(
+    await phone.locator("#recovery .recovery-item b").first().textContent(),
+    /^Episode, /,
+    "a refused change is named for what it was, not by its record id",
+  );
+  await phone.locator("#toastbar").filter({ hasText: "Couldn't save that" }).waitFor();
   await phone.reload();
   await phone.locator("#t-episode").click();
   assert.equal(await phone.locator("#ep-notes").inputValue(), "Retained refusal");
+  assert.equal(
+    await phone.locator("#toastbar").isHidden(),
+    true,
+    "a refusal from an earlier visit is in Recovery, not announced again",
+  );
   await phone.unroute("**/api/docs/*");
   await phone.locator("#recovery [data-action=retry]").click();
   await phone.locator("#eptoast").filter({ hasText: "Saved." }).waitFor();

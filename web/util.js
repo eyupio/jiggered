@@ -141,7 +141,7 @@ export async function api(method, path, body, headers = {}) {
   try {
     r = await fetch(path, opts);
     if (r.status === 401) {
-      location.href = "/login";
+      location.href = "/login?e=expired";
       return { ok: false, status: 401, data: null, error: "You've been signed out." };
     }
     // A connection can fail after headers arrive; consuming its body belongs to the same transport boundary.

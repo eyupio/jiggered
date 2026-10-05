@@ -508,6 +508,11 @@ legend {
   font-weight: 700;
   margin-bottom: 6px;
 }
+/* The browser's default placeholder grey is under 3:1 on the dark theme; the muted text colour is chosen for both. */
+::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
 /* One size for every question on the Episode form (the single-answer ones were 14px, the multi-answer ones 16px). */
 #epform legend,
 #epform label.legend {
@@ -1198,6 +1203,10 @@ ul.audit li {
 .panel.recovery {
   border: 2px solid var(--red);
 }
+/* The status pill hangs below the header; with a refused change it has words in it, so leave room for them. */
+#recovery:not([hidden]) {
+  margin-top: 44px;
+}
 .recovery-item {
   margin-top: 1rem;
   border-top: 1px solid var(--line);
@@ -1280,8 +1289,16 @@ input[type="search"] {
   }
 }
 #reveal-pw {
+  display: block;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px dashed var(--accent);
+  border-radius: 10px;
+  font-size: 1.05rem;
+  letter-spacing: 0.03em;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  user-select: all;
 }
 @media (max-width: 480px) {
   .order-row {

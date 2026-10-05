@@ -158,6 +158,8 @@ export function summarise(board) {
     weight: 0, // open cards that matter and are out of your hands: the ones worth noticing
   };
   for (const item of Object.values(board.items)) {
+    // An empty card is one that was started and never typed into: nothing for the summary to count.
+    if (!item.t.trim()) continue;
     if (item.k !== "card") {
       out.notes++;
       continue;

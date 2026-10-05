@@ -10,6 +10,7 @@ import {
   STATUS_ORDER,
   TEXT_LIMIT,
   THREE_LIMIT,
+  ITEM_LIMIT,
   exampleBoard,
   nextZ,
   normaliseBoard,
@@ -61,6 +62,7 @@ export function mount(ctx, root) {
           <button type="button" class="primary small" data-fb="add-card">+ Card</button>
           <button type="button" class="secondary small" data-fb="add-note">+ Note</button>
           <div class="fb-legend" role="group" aria-label="Show cards by status" id="fb-legend">
+            <span class="fb-legend-label" aria-hidden="true">Show:</span>
             ${STATUS_ORDER.map(
               (s) =>
                 html`<button type="button" class="fb-legend-item" data-status="${s}" aria-pressed="true"><span class="fb-swatch fb-s-${s}"></span>${STATUSES[s].label}</button>`,
@@ -73,6 +75,21 @@ export function mount(ctx, root) {
           <button type="button" class="help-link x" data-help="fretboard">How it works</button>
         </div>
       </div>
+      <div class="fb-actions" id="fb-actions" role="group" aria-label="What to do with the selection" hidden>
+        <span class="meta" id="fb-actions-label"></span>
+        <span class="fb-set" role="group" aria-label="Set the status of the selected cards">
+          ${STATUS_ORDER.map(
+            (s) =>
+              html`<button type="button" class="fb-set-button" data-set-status="${s}" aria-pressed="false" aria-label="Set to ${STATUSES[s].label}"><span class="fb-swatch fb-s-${s}"></span>${STATUSES[s].short}</button>`,
+          )}
+        </span>
+        <button type="button" class="secondary small" data-fb="edit-selected">Edit text</button>
+        <button type="button" class="secondary small" data-fb="three-selected">Add to today's three</button>
+        <button type="button" class="secondary small is-danger" data-fb="delete-selected">Delete</button>
+      </div>
+      <button type="button" class="skip-inline" data-fb="skip-board">
+        Skip the board, go to today's three
+      </button>
       <div class="fb-stage">
         <div class="fb-board">
           <div class="fb-axis fb-axis-x">
@@ -141,6 +158,7 @@ export function mount(ctx, root) {
         </aside>
       </div>
       <p class="fb-summary meta" id="fb-summary" role="status" aria-live="polite"></p>
+      <p class="fb-status meta" id="fb-status" role="status" aria-live="polite"></p>
       <div class="fb-menu" id="fb-menu" role="menu" hidden></div>
     </div>`,
   );
@@ -241,8 +259,8 @@ export function mount(ctx, root) {
   const selectedIds = () => [...selected].filter((id) => item(id));
   function addItem(kind, x, y, text = "") {
     if (!writable()) return refuse();
-    if (ids().length >= 400) {
-      ctx.toast("The board holds 400 items. Clear a few done ones first.");
+    if (ids().length >= ITEM_LIMIT) {
+      ctx.toast(`The board holds ${ITEM_LIMIT} items. Clear a few done ones first.`);
       return false;
     }
     const id = uid();
@@ -253,13 +271,20 @@ export function mount(ctx, root) {
       y: round3(clamp(y, 0, 0.92)),
       z: nextZ(board),
     };
-    if (kind === "card") fresh.s = "todo";
+    if (kind === "card") {
+      fresh.s = "todo";
+      showStatus("todo");
+    }
     if (!commit({ items: { [id]: fresh } })) return false;
     selected.clear();
     selected.add(id);
     render();
     if (!text) startEdit(id, true);
     return id;
+  }
+  // A card given a status that the "Show:" pills have switched off would vanish into the dimmed layer; switch it on.
+  function showStatus(s) {
+    if (hidden.delete(s)) renderLegend();
   }
   function removeItems(list) {
     const gone = list.filter((id) => item(id));
@@ -280,28 +305,44 @@ export function mount(ctx, root) {
     const next = cards.every((id) => item(id).s === s) && s !== "todo" ? "todo" : s;
     const changed = cards.filter((id) => item(id).s !== next);
     if (!changed.length) return;
+    showStatus(next);
     commit({ items: Object.fromEntries(changed.map((id) => [id, { ...item(id), s: next }])) });
   }
   // A thing typed into today's three also gets a card in the top right, unless a card already says the same.
   // The first spot in "in my hands, matters now" where a new card (about 0.17 x 0.07) overlaps nothing, then
   // anywhere on the board; if it is crowded, the spot with the fewest overlaps. "extra" are cards added in the same step.
   function freeSpot(extra = []) {
-    const taken = [...ids().map((id) => item(id)), ...extra].filter(Boolean);
+    const best = freeSpotIn(0.56, 0.8, 0.12, 0.44, [], extra);
+    return best.hits ? freeSpotIn(0.02, 0.8, 0.02, 0.9, [], extra, best) : best;
+  }
+  // The first spot in a box (a card is about 0.17 x 0.07) that overlaps nothing, else the one that overlaps least.
+  // "skip" are ids not counted as in the way (the cards being moved); "also" are positions already taken this step.
+  function freeSpotIn(
+    x0,
+    x1,
+    y0,
+    y1,
+    skip = [],
+    also = [],
+    start = { x: x0, y: y0, hits: Infinity },
+  ) {
+    const taken = [
+      ...ids()
+        .filter((id) => !skip.includes(id))
+        .map((id) => item(id)),
+      ...(Array.isArray(also) ? also : Object.values(also)),
+    ].filter(Boolean);
     const W = 0.17,
       H = 0.07;
-    let best = { x: 0.56, y: 0.12, hits: Infinity };
-    const tryArea = (x0, x1, y0, y1) => {
-      for (let y = y0; y <= y1; y += 0.08)
-        for (let x = x0; x <= x1; x += 0.06) {
-          const hits = taken.filter(
-            (o) => o.x < x + W && o.x + W > x && o.y < y + H && o.y + H > y,
-          ).length;
-          if (hits < best.hits) best = { x, y, hits };
-          if (!hits) return true;
-        }
-      return false;
-    };
-    if (!tryArea(0.56, 0.8, 0.12, 0.44)) tryArea(0.02, 0.8, 0.02, 0.9);
+    let best = start;
+    for (let y = y0; y <= y1; y += 0.08)
+      for (let x = x0; x <= x1; x += 0.06) {
+        const hits = taken.filter(
+          (o) => o.x < x + W && o.x + W > x && o.y < y + H && o.y + H > y,
+        ).length;
+        if (hits < best.hits) best = { x, y, hits };
+        if (!hits) return best;
+      }
     return best;
   }
   function cardFor(text, extra = {}) {
@@ -310,7 +351,7 @@ export function mount(ctx, root) {
       (id) => item(id).k === "card" && item(id).t.trim().toLocaleLowerCase() === wanted,
     );
     if (existing) return { id: existing, items: {} };
-    if (ids().length >= 400) return { id: null, items: {} };
+    if (ids().length >= ITEM_LIMIT) return { id: null, items: {} };
     const spot = freeSpot(Object.values(extra));
     const id = uid();
     return {
@@ -331,6 +372,10 @@ export function mount(ctx, root) {
     const copies = {};
     const picks = list.filter((id) => item(id));
     if (!picks.length) return;
+    if (ids().length + picks.length > ITEM_LIMIT) {
+      ctx.toast(`The board holds ${ITEM_LIMIT} items. Clear a few done ones first.`);
+      return;
+    }
     let z = nextZ(board);
     for (const id of picks) {
       const src = item(id);
@@ -378,6 +423,24 @@ export function mount(ctx, root) {
     }
     commit({ items });
   }
+  // The same move as dragging, for those who cannot drag: each card goes to a free spot in the chosen corner.
+  function moveToQuadrant(list, quad) {
+    const [control, priority] = quad.split(":");
+    const x0 = control === "yours" ? 0.52 : 0.02,
+      y0 = priority === "high" ? 0.04 : 0.54;
+    const moving = list.filter((id) => item(id));
+    const placed = [];
+    const items = {};
+    for (const id of moving) {
+      const src = item(id);
+      const spot = freeSpotIn(x0, x0 + 0.34, y0, y0 + 0.36, moving, placed);
+      const to = keepInside(nodes.get(id), spot.x, spot.y);
+      placed.push(to);
+      if (to.x !== src.x || to.y !== src.y) items[id] = { ...src, ...to };
+    }
+    if (Object.keys(items).length)
+      commit({ items }, `Moved to ${placeName({ control, priority })}.`);
+  }
   function addToThree(id) {
     const src = item(id);
     if (!src || !src.t.trim()) return;
@@ -405,15 +468,18 @@ export function mount(ctx, root) {
     };
   };
   // Keep an element inside the canvas: its top-left can go no further than the canvas minus its own size.
-  function keepInside(el, x, y) {
-    const b = bounds();
+  function keepInside(el, x, y, b = bounds()) {
     const maxX = Math.max(0, 1 - el.offsetWidth / b.width),
       maxY = Math.max(0, 1 - el.offsetHeight / b.height);
     return { x: round3(clamp(x, 0, maxX)), y: round3(clamp(y, 0, maxY)) };
   }
+  // What each card was last placed for. Measuring a card forces the browser to lay the page out, so a rebuild of a
+  // large board measures only the cards whose position, text or canvas size changed.
+  const placedAs = new WeakMap();
   function place(el, x, y) {
     el.style.left = `${x * 100}%`;
     el.style.top = `${y * 100}%`;
+    placedAs.delete(el); // something other than a repaint moved it; the next repaint must put it right
   }
   function moveSelection(dx, dy, label = "") {
     const picks = selectedIds();
@@ -444,7 +510,19 @@ export function mount(ctx, root) {
     layer.append(el);
     return el;
   }
-  function paintItem(id, src) {
+  // Where a card sits, in the words on the board's own axes (the person may have renamed them). The standard labels
+  // read more naturally as a sentence, so those keep their plain wording.
+  const PLAIN = {
+    left: "Out of your hands",
+    right: "In your hands",
+    top: "matters most",
+    bottom: "can wait",
+  };
+  const sideWord = (side) =>
+    board.axes[side] === DEFAULT_AXES[side] ? PLAIN[side] : board.axes[side];
+  const placeName = (q) =>
+    `${sideWord(q.control === "yours" ? "right" : "left")}, ${sideWord(q.priority === "high" ? "top" : "bottom")}`;
+  function paintItem(id, src, b = bounds()) {
     const el = itemNode(id);
     const q = quadrantOf(src);
     el.className = [
@@ -461,8 +539,12 @@ export function mount(ctx, root) {
     el.setAttribute("aria-pressed", selected.has(id));
     el.setAttribute(
       "aria-label",
-      `${src.k === "card" ? STATUSES[src.s].label + ": " : "Note: "}${src.t || "untitled"}. ${q.control === "yours" ? "In your hands" : "Out of your hands"}, ${q.priority === "high" ? "matters most" : "can wait"}.`,
+      `${src.k === "card" ? STATUSES[src.s].label + ": " : "Note: "}${src.t || "untitled"}. ${placeName(q)}.`,
     );
+    const dimmed = src.k === "card" && hidden.has(src.s);
+    el.tabIndex = dimmed ? -1 : 0;
+    if (dimmed) el.setAttribute("aria-hidden", "true");
+    else el.removeAttribute("aria-hidden");
     el.style.zIndex = String(10 + (src.z || 0));
     const textEl = el.querySelector(".fb-text");
     if (editing !== id) {
@@ -471,11 +553,26 @@ export function mount(ctx, root) {
     }
     // A card is drawn where it was saved, pulled in only as far as the canvas edge: a narrower screen clips nothing.
     if (!(drag && drag.moved && drag.ids.includes(id))) {
-      const to = keepInside(el, src.x, src.y);
-      place(el, to.x, to.y);
+      const key = [src.x, src.y, src.k, src.t, src.s, editing === id, b.width, b.height].join("|");
+      if (placedAs.get(el) !== key) {
+        const to = keepInside(el, src.x, src.y, b);
+        place(el, to.x, to.y);
+        placedAs.set(el, key);
+      }
     }
   }
+  // Selection changes during a marquee touch only the cards that joined or left it.
+  function paintSelection(before) {
+    for (const [id, el] of nodes) {
+      const on = selected.has(id);
+      if (before.has(id) === on) continue;
+      el.classList.toggle("is-selected", on);
+      el.setAttribute("aria-pressed", String(on));
+    }
+    $("fb").classList.toggle("has-selection", selected.size > 0);
+  }
   function renderItems() {
+    const b = bounds();
     for (const [id, el] of nodes)
       if (!item(id)) {
         if (editing === id) editing = null;
@@ -483,9 +580,56 @@ export function mount(ctx, root) {
         nodes.delete(id);
         selected.delete(id);
       }
-    for (const [id, src] of Object.entries(board.items)) paintItem(id, src);
+    for (const [id, src] of Object.entries(board.items)) paintItem(id, src, b);
     $("fb-empty").hidden = ids().length > 0;
     $("fb").classList.toggle("has-selection", selected.size > 0);
+    renderActions();
+  }
+  // What can be done to what is selected, in plain view: status, edit, add to today's three, delete.
+  function renderActions() {
+    const bar = $("fb-actions"),
+      picks = selectedIds();
+    bar.hidden = !picks.length || !writable();
+    if (bar.hidden) return;
+    const cardsPicked = picks.filter((id) => item(id).k === "card");
+    // One card needs no count; several do, so that Delete is not a surprise.
+    $("fb-actions-label").textContent = picks.length > 1 ? `${picks.length} selected` : "";
+    $("fb-actions-label").hidden = picks.length < 2;
+    for (const b of bar.querySelectorAll("[data-set-status]")) {
+      b.disabled = !cardsPicked.length;
+      b.setAttribute(
+        "aria-pressed",
+        String(
+          cardsPicked.length > 0 && cardsPicked.every((id) => item(id).s === b.dataset.setStatus),
+        ),
+      );
+    }
+    const only = picks.length === 1 ? item(picks[0]) : null;
+    bar.querySelector('[data-fb="edit-selected"]').disabled = !only;
+    bar.querySelector('[data-fb="three-selected"]').disabled = !(
+      only &&
+      only.k === "card" &&
+      only.s !== "external" &&
+      only.t.trim()
+    );
+    bar.querySelector('[data-fb="delete-selected"]').textContent =
+      picks.length > 1 ? `Delete ${picks.length}` : "Delete";
+  }
+  // Whether the person's changes have reached the server is easy to lose sight of at the bottom of a long page.
+  function renderStatus() {
+    const st = ctx.store.status(),
+      line = $("fb-status");
+    if (st.failed) {
+      line.textContent =
+        "A change could not be saved. It is kept in Recovery at the top of the page.";
+    } else if (st.pending) {
+      line.textContent = st.offline
+        ? `Offline. ${plural(st.pending, "change")} saved on this device and sent when you are back online.`
+        : `${plural(st.pending, "change")} saved on this device, being sent.`;
+    } else {
+      line.textContent = "";
+    }
+    line.classList.toggle("err", !!st.failed);
   }
   function renderAxes() {
     for (const b of root.querySelectorAll("[data-axis]")) {
@@ -494,6 +638,16 @@ export function mount(ctx, root) {
       b.textContent = board.axes[side];
       b.title = "Click to rename";
       b.setAttribute("aria-label", `Rename the ${side} label: ${board.axes[side]}`);
+    }
+    // The corner captions advise in the default words; once the axes are renamed they just name the corner.
+    const standard = Object.keys(DEFAULT_AXES).every(
+      (side) => board.axes[side] === DEFAULT_AXES[side],
+    );
+    for (const quad of root.querySelectorAll(".fb-quad")) {
+      const [control, priority] = quad.dataset.quad.split(":");
+      quad.querySelector("span").textContent = standard
+        ? QUADRANT_HINTS[quad.dataset.quad]
+        : placeName({ control: control === "yours" ? "yours" : "beyond", priority });
     }
   }
   function renderLegend() {
@@ -529,7 +683,7 @@ export function mount(ctx, root) {
     const note = $("fb-three-note");
     const left = board.three.filter((t) => !t.done).length;
     note.hidden = true;
-    if (board.three.length > 3) {
+    if (left > 3) {
       note.hidden = false;
       note.textContent = "That is more than three. Keep the ones that really matter today.";
     } else if (board.three.length && !left) {
@@ -547,14 +701,17 @@ export function mount(ctx, root) {
     const parts = [];
     if (!s.cards && !s.notes) parts.push("An empty board is a fine place to start");
     else {
+      // Where the cards sit, then (separately, since they overlap it) how far along they are.
       parts.push(plural(s.cards, "card"));
       if (s.yoursHigh + s.yoursLow)
         parts.push(
           `${s.yoursHigh + s.yoursLow} in your hands${s.yoursHigh ? ` (${s.yoursHigh} that matter most)` : ""}`,
         );
       if (s.beyondHigh + s.beyondLow) parts.push(`${s.beyondHigh + s.beyondLow} out of your hands`);
-      if (s.byStatus.done) parts.push(`${s.byStatus.done} done`);
-      if (s.byStatus.external) parts.push(`${s.byStatus.external} not yours`);
+      const along = [];
+      if (s.byStatus.done) along.push(`${s.byStatus.done} done`);
+      if (s.byStatus.external) along.push(`${s.byStatus.external} marked not yours`);
+      if (along.length) parts.push(`of all of them, ${along.join(" and ")}`);
     }
     let gentle = "";
     if (s.weight)
@@ -571,6 +728,7 @@ export function mount(ctx, root) {
     renderLegend();
     renderThree();
     renderSummary();
+    renderStatus();
     $("fb").classList.toggle("is-readonly", !writable());
     root.querySelector('[data-fb="undo"]').disabled = !undoStack.length;
     root.querySelector('[data-fb="redo"]').disabled = !redoStack.length;
@@ -592,14 +750,23 @@ export function mount(ctx, root) {
     ta.value = src.t;
     ta.setAttribute("aria-label", src.k === "card" ? "Card text" : "Note text");
     ta.dataset.new = isNew ? "1" : "";
-    textEl.replaceChildren(ta);
     textEl.classList.remove("is-placeholder");
     el.classList.add("is-editing");
     const grow = () => {
       ta.style.height = "auto";
       ta.style.height = `${ta.scrollHeight}px`;
     };
-    ta.addEventListener("input", grow);
+    // The limit is silent when text is pasted or typed past it; say how much room is left near the end.
+    const count = Object.assign(document.createElement("span"), { className: "fb-count meta" });
+    count.setAttribute("aria-live", "polite");
+    const tally = () => {
+      count.textContent = ta.value.length >= 200 ? `${ta.value.length} / ${TEXT_LIMIT}` : "";
+    };
+    ta.addEventListener("input", () => {
+      grow();
+      tally();
+    });
+    textEl.replaceChildren(ta, count);
     ta.addEventListener("keydown", (e) => {
       e.stopPropagation();
       if (e.key === "Enter" && !e.shiftKey) {
@@ -615,6 +782,7 @@ export function mount(ctx, root) {
     ta.addEventListener("dblclick", (e) => e.stopPropagation());
     ta.addEventListener("contextmenu", (e) => e.stopPropagation());
     grow();
+    tally();
     ta.focus();
     if (!isNew) ta.select();
     const to = keepInside(el, src.x, src.y);
@@ -740,6 +908,15 @@ export function mount(ctx, root) {
       }
       if (one && one.k === "card" && one.s !== "external")
         add("Add to today's three", () => addToThree(picks[0]), { key: "T" });
+      entries.push({ heading: "Move to" });
+      for (const [q, label] of [
+        ["yours:high", `${board.axes.right}, ${board.axes.top}`],
+        ["yours:low", `${board.axes.right}, ${board.axes.bottom}`],
+        ["beyond:high", `${board.axes.left}, ${board.axes.top}`],
+        ["beyond:low", `${board.axes.left}, ${board.axes.bottom}`],
+      ])
+        add(label, () => moveToQuadrant(picks, q));
+      sep();
       add(picks.length > 1 ? "Duplicate all" : "Duplicate", () => duplicate(picks), {
         key: "Ctrl+D",
       });
@@ -842,10 +1019,13 @@ export function mount(ctx, root) {
       const id = el.dataset.id;
       if (editing === id) return;
       if (editing) finishEdit();
+      const wasSelected = selected.has(id) && selected.size === 1;
       if (e.shiftKey || e.ctrlKey || e.metaKey) select(id, { toggle: true });
       else if (!selected.has(id)) select(id);
       if (!selected.has(id)) return;
       drag = {
+        // A second tap on the one card that is selected edits it: a phone has no double-click.
+        editOnTap: e.pointerType === "touch" && wasSelected,
         ids: selectedIds(),
         startX: e.clientX,
         startY: e.clientY,
@@ -940,6 +1120,14 @@ export function mount(ctx, root) {
         marqueeEl.hidden = false;
         if (!marquee.add) selected.clear();
         marquee.base = new Set(selected);
+        // Cards do not move during a marquee: measure them once, not on every pointer move.
+        marquee.rects = [...nodes].map(([id, el]) => [
+          id,
+          el.offsetLeft,
+          el.offsetTop,
+          el.offsetWidth,
+          el.offsetHeight,
+        ]);
       }
       const left = Math.min(x, marquee.x),
         top = Math.min(y, marquee.y),
@@ -949,17 +1137,15 @@ export function mount(ctx, root) {
       marqueeEl.style.top = `${top}px`;
       marqueeEl.style.width = `${w}px`;
       marqueeEl.style.height = `${h}px`;
+      const before = new Set(selected);
       selected.clear();
       for (const id of marquee.base) selected.add(id);
-      for (const [id, el] of nodes) {
+      for (const [id, l, t, cw, ch] of marquee.rects) {
         const src = item(id);
         if (!src || (src.k === "card" && hidden.has(src.s))) continue;
-        const l = el.offsetLeft,
-          t = el.offsetTop;
-        if (l < left + w && l + el.offsetWidth > left && t < top + h && t + el.offsetHeight > top)
-          selected.add(id);
+        if (l < left + w && l + cw > left && t < top + h && t + ch > top) selected.add(id);
       }
-      renderItems();
+      paintSelection(before);
     }
   });
   const endPointer = (e) => {
@@ -987,8 +1173,9 @@ export function mount(ctx, root) {
         }
         if (Object.keys(items).length) commit({ items });
         else render();
-      } else if (e.type === "pointerup" && d.clickOnly) select(d.id);
-      if (e.type === "pointerup") d.target.focus({ preventScroll: true });
+      } else if (e.type === "pointerup" && d.editOnTap) startEdit(d.id);
+      else if (e.type === "pointerup" && d.clickOnly) select(d.id);
+      if (e.type === "pointerup" && !editing) d.target.focus({ preventScroll: true });
       return;
     }
     if (marquee && e.pointerId === marquee.pointerId) {
@@ -998,6 +1185,7 @@ export function mount(ctx, root) {
         canvas.releasePointerCapture(m.pointerId);
       } catch {}
       marqueeEl.hidden = true;
+      if (m.started) render(); // the selection is final: bring the rest of the board in line with it
       if (!m.started && e.type === "pointerup" && !m.add) clearSelection();
       if (!m.started && e.type === "pointerup") canvas.focus({ preventScroll: true });
     }
@@ -1116,10 +1304,25 @@ export function mount(ctx, root) {
       render();
       return;
     }
+    const setTo = e.target.closest("[data-set-status]");
+    if (setTo) {
+      setStatus(selectedIds(), setTo.dataset.setStatus);
+      return;
+    }
     const b = e.target.closest("[data-fb]");
     if (b) {
       const what = b.dataset.fb;
-      if (what === "add-card" || what === "add-note") {
+      if (what === "edit-selected") {
+        if (selectedIds().length === 1) startEdit(selectedIds()[0]);
+      } else if (what === "three-selected") {
+        if (selectedIds().length === 1) addToThree(selectedIds()[0]);
+      } else if (what === "delete-selected") {
+        removeItems(selectedIds());
+        canvas.focus({ preventScroll: true });
+      } else if (what === "skip-board") {
+        // After the key press has finished: the same Enter must not also activate the control it lands on.
+        setTimeout(() => $("fb-three-input").focus(), 0);
+      } else if (what === "add-card" || what === "add-note") {
         // New things land near the middle of the "in my hands, matters" quadrant, a little apart from the last one.
         const spot = freeSpot();
         addItem(what === "add-card" ? "card" : "note", spot.x, spot.y);
@@ -1127,11 +1330,13 @@ export function mount(ctx, root) {
       else if (what === "redo") redoLast();
       else if (what === "example") loadExample();
       else if (what === "suggest") {
-        const picks = suggestThree(board, 3 - Math.min(3, board.three.length));
+        // Ticked-off things are finished: only what is still to do takes up one of the three.
+        const open = board.three.filter((t) => !t.done).length;
+        const picks = suggestThree(board, 3 - Math.min(3, open));
         if (!picks.length) {
           ctx.toast(
-            board.three.length >= 3
-              ? "Three is the point. Tick one off to make room."
+            open >= 3
+              ? "You have three to do already. Finish or remove one to make room."
               : "Nothing to suggest yet. Add a card that is in your hands and matters.",
           );
           return;
@@ -1214,6 +1419,8 @@ export function mount(ctx, root) {
       return;
     }
     const card = cardFor(value);
+    if (card.id === null)
+      ctx.toast(`The board holds ${ITEM_LIMIT} items, so this is on today's three without a card.`);
     if (
       commit({
         ...(Object.keys(card.items).length ? { items: card.items } : {}),

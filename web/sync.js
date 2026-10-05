@@ -59,6 +59,7 @@ export function createStore({
   const readOnly = () => storage?.writable === false;
   let flushing = false,
     offline = false,
+    serverStatus = 0, // the HTTP status behind "offline" when the server answered, so a 500 is not called "offline"
     error = "",
     loaded = false;
   let retryTimer = null,
@@ -231,6 +232,7 @@ export function createStore({
     durable,
     localError,
     localWrites,
+    ...(offline && serverStatus ? { serverStatus } : {}),
     ...(readOnly() ? { readOnly: true } : {}),
     ...(restoring ? { restoring: true } : {}),
   });
@@ -494,9 +496,11 @@ export function createStore({
         }
       }
       offline = false;
+      serverStatus = 0;
     } catch (e) {
       if (!(e instanceof Stop)) {
         offline = true;
+        serverStatus = Number(/^HTTP (\d+)$/.exec(e.message || "")?.[1]) || 0;
         if (e.message?.startsWith("Recovery is full")) error = e.message;
         // Back off only when a scheduled retry itself fails; extra attempts from the person tapping don't count.
         retryTimer = setTimer(
@@ -569,12 +573,14 @@ export function createStore({
         if (stopped) return false;
         if (r.status === 304 && snapshotTag) {
           offline = false;
+          serverStatus = 0;
           notify();
           return true;
         }
         if (!r.ok) {
           retryPending = true;
           offline = true;
+          serverStatus = r.status;
           notify();
           return false;
         }
@@ -590,12 +596,14 @@ export function createStore({
         snapshotTag = tag;
         loaded = true;
         offline = false;
+        serverStatus = 0;
         persist();
         notify();
         return true;
       } catch {
         retryPending = true;
         offline = true;
+        serverStatus = 0;
         notify();
         return false; // a dropped connection or a body that never finished: keep what we have
       }

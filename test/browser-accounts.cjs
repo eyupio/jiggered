@@ -192,7 +192,10 @@ runBrowser(
     await page.locator("#security-password").fill("preview-password1");
     await page.locator("#security-start").click();
     await page.locator("#security-setup").waitFor();
-    const secret = await page.locator("#security-secret").textContent();
+    // The key is shown in groups of four to be read and typed; the copy button (and an app) take it without spaces.
+    const shown = await page.locator("#security-secret").textContent();
+    assert.match(shown, /^([A-Z2-7]{4} )+[A-Z2-7]{1,4}$/);
+    const secret = shown.replaceAll(" ", "");
     // Produce TOTP in the harness using the RFC counter and HMAC, independently of the Go implementation.
     // RFC 4226 dynamic truncation with RFC 6238's SHA-1/6-digit/30-second defaults, matching the vectors
     // TestTOTPStandardVector pins on the Go side ("287082" at step 1). The optional `ahead` asks for a later
@@ -346,7 +349,7 @@ runBrowser(
     await join.locator("#security-password").fill("replacement-password1");
     await join.locator("#security-start").click();
     await join.locator("#security-setup").waitFor();
-    const memberSecret = await join.locator("#security-secret").textContent();
+    const memberSecret = (await join.locator("#security-secret").textContent()).replaceAll(" ", "");
     await join.locator("#security-password").fill("replacement-password1");
     await join.locator("#security-code").fill(totp(memberSecret));
     await join.locator("#security-enable").click();
@@ -393,7 +396,21 @@ runBrowser(
       freshCodes.every((c) => !codes.includes(c)),
       "a regenerated set repeated an old code",
     );
+    // The codes are shown once, so hiding them asks first; the copy button is there for the careful.
+    await manage.locator("#security-copy").waitFor();
+    manage.once("dialog", (d) => {
+      assert.match(d.message(), /not be shown again/);
+      return d.dismiss();
+    });
     await manage.locator("#security-hide").click();
+    assert.equal(
+      await manage.locator("#security-recovery").isVisible(),
+      true,
+      "kept when not confirmed",
+    );
+    manage.once("dialog", (d) => d.accept());
+    await manage.locator("#security-hide").click();
+    assert.equal(await manage.locator("#security-recovery").isVisible(), false);
     await manage.locator("#security-password").fill("preview-password1");
     await manage.locator("#security-code").fill("bad");
     manage.once("dialog", (d) => d.accept());
@@ -414,7 +431,7 @@ runBrowser(
     await manage.locator("#security-email-form [type=submit]").click();
     await manage
       .locator("#security-email-msg")
-      .filter({ hasText: "Verification email requested" })
+      .filter({ hasText: "A verification link is on its way to admin2@example.com" })
       .waitFor();
     await manage
       .locator("#security-email-current")

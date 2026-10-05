@@ -96,7 +96,7 @@ In **Admin → Connection**, configure the actual trusted proxy CIDRs before ena
 
 ### 4. Make it yours
 
-Set your energy allowance and preferred language in **Account**, customise your activity lists, and complete your first check-in. Registration is closed by default; administrators can add accounts directly or enable verified-email signup after configuring SMTP and a trusted public application URL.
+Set your energy allowance, the way energy is counted (points or spoons) and your date format in **Account**, customise your activity lists, and complete your first check-in. Registration is closed by default; administrators can add accounts directly or enable verified-email signup after configuring SMTP and a trusted public application URL.
 
 For local HTTP development, follow [CONTRIBUTING.md](CONTRIBUTING.md#run-locally).
 

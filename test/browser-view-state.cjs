@@ -585,7 +585,7 @@ runBrowser({ name: "view-state", startServer: false }, async (harness) => {
     route.fulfill({ status: 401, contentType: "application/json", body: '{"error":"Signed out"}' }),
   );
   await page.reload();
-  await page.waitForURL("http://localhost:18759/login");
+  await page.waitForURL("http://localhost:18759/login?e=expired");
   assert.equal(await page.evaluate(() => sessionStorage.getItem("jiggered:view:2:sam")), null);
   assert.deepEqual(errors, []);
   await context.close();

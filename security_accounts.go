@@ -430,5 +430,9 @@ func (s *server) requestRecoveryEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.queueAccountMail(cfg, email, "Verify your Jiggered recovery email", "Confirm this email address as the recovery address for your Jiggered account. It replaces any address you verified before. The link works once and expires in 30 minutes.\n\nDidn't ask for this? Ignore this email.", "verify", token)
-	writeJSON(w, 200, map[string]string{"message": "Verification email requested. Your current address stays active until the new one is verified."})
+	message := "A verification link is on its way to " + email + ". It works once and expires in 30 minutes."
+	if len(current) > 0 {
+		message += " Your current address stays active until this one is verified."
+	}
+	writeJSON(w, 200, map[string]string{"message": message})
 }

@@ -43,9 +43,17 @@ function initAuth() {
     disabled:
       "This account has been switched off. Ask whoever runs this Jiggered to turn it back on.",
     busy: "Lots of people are signing in at once. Try again in a moment.",
+    expired:
+      "You were signed out: your session ended or was revoked. Changes that had not been sent were not kept.",
+    deleted: "Your account and its data were deleted from this server.",
   };
   const msg = msgs[Object.hasOwn(msgs, e) ? e : ""];
-  if (msg) document.getElementById("err").textContent = msg;
+  if (msg) {
+    const line = document.getElementById("err");
+    line.textContent = msg;
+    // A deleted account is news, not an error.
+    if (e === "deleted") line.className = "msg";
+  }
   // A visitor who came from the Spoon Theory guide starts in spoons. This is best effort: it survives the email
   // round trip only when the link is opened in the same browser; the first-run checklist asks everyone else.
   try {
