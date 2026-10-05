@@ -98,20 +98,20 @@ Do not commit build output, browser artifacts or database files.
 
 The browser runner compiles once, then runs all shared scenarios:
 
-| Script                                  | Coverage                                                                                                                          |
-| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `test/browser-view-state.cjs`           | Calm History, shared exports, refresh restoration, photos and regions (in-memory API fixture)                                     |
-| `test/browser-energy-theme.cjs`         | Energy language, previews, saving, cross-device and responsive themes (in-memory API fixture)                                     |
-| `test/browser-product-improvements.cjs` | Mobile alignment, profile row gaps, validation, reusable activity, selected-day return, private sharing and empty exports         |
-| `test/browser-planner.cjs`              | Seven-day planning, repeat activities, actual cost correction, History comparisons, refresh and mobile overflow                   |
-| `test/browser-calendar.cjs`             | Plan and Today timelines with a real mouse, keyboard and touch: move, resize, palette, click-to-add, Undo, one-day phone view     |
-| `test/browser-today.cjs`                | Activity picker, logging, adjustments and Undo                                                                                    |
-| `test/browser-history.cjs`              | Large-account History, search, filters and mobile calendar                                                                        |
-| `test/browser-mobile.cjs`               | Phone-width Account editors and History navigation                                                                                |
-| `test/browser-security.cjs`             | Password confirmation, revocation and reader-tab cleanup                                                                          |
-| `test/browser-accounts.cjs`             | Local SMTP relay, registration, recovery, 2FA (including disable and regenerating codes), recovery-email change and mobile layout |
-| `test/browser-admin.cjs`                | Admin navigation, layout and encrypted manual backups                                                                             |
-| `test/browser.cjs`                      | Full desktop/touch walkthrough, offline sync and recovery                                                                         |
+| Script                                  | Coverage                                                                                                                                                                             |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `test/browser-view-state.cjs`           | Calm History, shared exports, refresh restoration, photos and regions (in-memory API fixture)                                                                                        |
+| `test/browser-energy-theme.cjs`         | Energy language, previews, saving, cross-device and responsive themes (in-memory API fixture)                                                                                        |
+| `test/browser-product-improvements.cjs` | Mobile alignment, profile row gaps, validation, reusable activity, selected-day return, private sharing and empty exports                                                            |
+| `test/browser-planner.cjs`              | Seven-day planning, repeat activities, actual cost correction, History comparisons, refresh and mobile overflow                                                                      |
+| `test/browser-calendar.cjs`             | Plan and Today timelines with a real mouse, keyboard and touch (move, resize, palette, click-to-add, Undo, one-day phone view) and the read-only History week with its episode strip |
+| `test/browser-today.cjs`                | Activity picker, logging, adjustments and Undo                                                                                                                                       |
+| `test/browser-history.cjs`              | Large-account History, search, filters and mobile calendar                                                                                                                           |
+| `test/browser-mobile.cjs`               | Phone-width Account editors and History navigation                                                                                                                                   |
+| `test/browser-security.cjs`             | Password confirmation, revocation and reader-tab cleanup                                                                                                                             |
+| `test/browser-accounts.cjs`             | Local SMTP relay, registration, recovery, 2FA (including disable and regenerating codes), recovery-email change and mobile layout                                                    |
+| `test/browser-admin.cjs`                | Admin navigation, layout and encrypted manual backups                                                                                                                                |
+| `test/browser.cjs`                      | Full desktop/touch walkthrough, offline sync and recovery                                                                                                                            |
 
 The public pages have a separate browser check for JavaScript-disabled rendering,
 metadata, links, signup availability and mobile layouts. CI reuses the same fixture

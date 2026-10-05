@@ -52,8 +52,11 @@ export function createTimeGrid(root, hooks) {
   const all = (selector, from = root) => [...from.querySelectorAll(selector)];
   const byKey = (key) => all("[data-key]").find((el) => el.dataset.key === key);
 
+  // Blocks with no cost (an episode) leave the cost out of what is said and shown.
   const label = (b) =>
-    `${b.title}${b.slot ? ", " + b.slot : ""}, ${signed(b.cost)} ${b.cost < 0 ? "recovery" : "cost"}${b.done ? ", done" : ""}${b.hint ? ". " + b.hint : ""}`;
+    `${b.title}${b.slot ? ", " + b.slot : ""}${b.cost === undefined ? "" : `, ${signed(b.cost)} ${b.cost < 0 ? "recovery" : "cost"}`}${b.done ? ", done" : ""}${b.hint ? ". " + b.hint : ""}`;
+  const meta = (b) =>
+    [b.slot, b.cost === undefined ? "" : signed(b.cost), b.hint].filter(Boolean).join(" · ");
 
   function paint(m) {
     model = m;
@@ -69,19 +72,24 @@ export function createTimeGrid(root, hooks) {
           const s = spanOf(b);
           return s ? [{ ...b, ...s }] : [];
         });
-      return { ...d, laid: layoutDay(timed), tray: marked.filter((b) => !spanOf(b)) };
+      // Blocks marked `side` (episodes) are laid out among themselves, in a strip down the edge of the column.
+      const laid = [
+        ...layoutDay(timed.filter((b) => !b.side)),
+        ...layoutDay(timed.filter((b) => b.side)),
+      ];
+      return { ...d, laid, tray: marked.filter((b) => !spanOf(b)) };
     });
     win = hourWindow(days.flatMap((d) => d.laid));
     const hours = Array.from({ length: (win[1] - win[0]) / 60 }, (_, i) => win[0] + i * 60);
     const editable = m.editable && hooks.editable();
     const block = (d, b) =>
-      html`<button type="button" class="cal-block cal-${b.kind}${b.done ? " is-done" : ""}${b.dur <= 30 ? " is-short" : ""}${b.cost < 0 ? " is-recovery" : b.cost > 0 ? " is-spend" : ""}${editable && b.editable ? " is-editable" : ""}" data-key="${d.date}|${b.id}" data-date="${d.date}" data-id="${b.id}" data-s="${b.start - win[0]}" data-d="${b.dur}" data-lane="${b.lane}" data-lanes="${b.lanes}" aria-label="${label(b)}" title="${label(b)}" aria-describedby="${helpId}">${editable && b.editable ? html`<span class="cal-resize" data-edge="top" aria-hidden="true"></span><span class="cal-grip" aria-hidden="true"></span>` : ""}<span class="cal-title">${b.done ? "✓ " : ""}${b.title}</span><span class="cal-meta">${b.slot}${b.slot ? " · " : ""}${signed(b.cost)}${b.hint ? " · " + b.hint : ""}</span>${editable && b.editable ? html`<span class="cal-resize" data-edge="bottom" aria-hidden="true"></span>` : ""}</button>`;
+      html`<button type="button" class="cal-block cal-${b.kind}${b.side ? " cal-side" : ""}${b.done ? " is-done" : ""}${b.dur <= 30 ? " is-short" : ""}${b.cost < 0 ? " is-recovery" : b.cost > 0 ? " is-spend" : ""}${editable && b.editable ? " is-editable" : ""}" data-key="${d.date}|${b.id}" data-date="${d.date}" data-id="${b.id}" data-s="${b.start - win[0]}" data-d="${b.dur}" data-lane="${b.lane}" data-lanes="${b.lanes}" aria-label="${label(b)}" title="${label(b)}" aria-describedby="${helpId}">${editable && b.editable ? html`<span class="cal-resize" data-edge="top" aria-hidden="true"></span><span class="cal-grip" aria-hidden="true"></span>` : ""}<span class="cal-title">${b.done ? "✓ " : ""}${b.title}</span><span class="cal-meta">${meta(b)}</span>${editable && b.editable ? html`<span class="cal-resize" data-edge="bottom" aria-hidden="true"></span>` : ""}</button>`;
     setHTML(
       inner,
       html`<p class="sr-only" id="${helpId}">${(editable && m.help) || (editable ? "Enter opens a block to edit it. Up and down arrows move it by 15 minutes, Left and Right move it to another day, and Shift with Up or Down changes how long it lasts." : "Enter opens a block.")}</p>
       <div class="cal-scroll" data-cal-scroll><div class="cal-top"><div class="cal-head"><span class="cal-corner"></span>${days.map((d) => html`<button type="button" class="cal-day-head${d.today ? " is-today" : ""}${d.selected ? " is-selected" : ""}${d.warn ? " is-warn" : ""}" data-cal-day="${d.date}" aria-pressed="${!!d.selected}"><span>${d.label}</span><b>${d.value}</b></button>`)}</div>
       ${days.some((d) => d.tray.length) ? html`<div class="cal-tray-row"><span class="cal-corner">Any time</span>${days.map((d) => html`<div class="cal-tray" data-date="${d.date}">${d.tray.map((b) => html`<button type="button" class="cal-chip cal-${b.kind}${b.done ? " is-done" : ""}${editable && b.editable ? " is-editable" : ""}" data-key="${d.date}|${b.id}" data-date="${d.date}" data-id="${b.id}" aria-label="${label(b)}" title="${label(b)}">${b.done ? "✓ " : ""}${b.title}</button>`)}</div>`)}</div>` : ""}
-      </div><div class="cal-body" data-cal-body><div class="cal-rail" aria-hidden="true">${hours.map((h) => html`<span>${fromMinutes(h)}</span>`)}</div>${days.map((d) => html`<div class="cal-col${d.today ? " is-today" : ""}" data-cal-col data-date="${d.date}" role="group" aria-label="${d.label}">${d.laid.map((b) => block(d, b))}${d.today ? html`<span class="cal-now" aria-hidden="true"></span>` : ""}</div>`)}</div></div>`,
+      </div><div class="cal-body" data-cal-body><div class="cal-rail" aria-hidden="true">${hours.map((h) => html`<span>${fromMinutes(h)}</span>`)}</div>${days.map((d) => html`<div class="cal-col${d.today ? " is-today" : ""}${m.strip ? " has-side" : ""}" data-cal-col data-date="${d.date}" role="group" aria-label="${d.label}">${d.laid.map((b) => block(d, b))}${d.today ? html`<span class="cal-now" aria-hidden="true"></span>` : ""}</div>`)}</div></div>`,
     );
     const body = q("[data-cal-body]");
     inner.style.setProperty("--cols", String(days.length));
@@ -99,7 +107,11 @@ export function createTimeGrid(root, hooks) {
       next.scrollTop = top;
     } else if (!scrolled) {
       // First view: start an hour before the earliest block, or at the working day if the grid is empty.
-      const first = days.flatMap((d) => d.laid).reduce((n, b) => Math.min(n, b.start), 8 * 60);
+      // The side strip (episodes) does not count: one that began the night before must not scroll the view to midnight.
+      const first = days
+        .flatMap((d) => d.laid)
+        .filter((b) => !b.side)
+        .reduce((n, b) => Math.min(n, b.start), 8 * 60);
       const head = q(".cal-top");
       next.scrollTop = Math.max(
         0,

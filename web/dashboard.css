@@ -1876,8 +1876,8 @@
 .cal-block {
   position: absolute;
   top: calc(var(--start) * var(--min));
-  left: calc(var(--lane) * 100% / var(--lanes) + 2px);
-  width: calc(100% / var(--lanes) - 4px);
+  left: calc(var(--lane) * (100% - var(--strip, 0px)) / var(--lanes) + 2px);
+  width: calc((100% - var(--strip, 0px)) / var(--lanes) - 4px);
   height: max(calc(var(--span) * var(--min) - 2px), 22px);
   box-sizing: border-box;
   display: flex;
@@ -1920,6 +1920,22 @@
 }
 .cal-block.cal-logged.is-recovery {
   background: color-mix(in srgb, var(--green) 28%, var(--surface));
+}
+/* Episodes: a strip down the right of each day, so a symptom sits beside the activity that came before it. */
+.cal-col.has-side {
+  --strip: 18px;
+}
+.cal-block.cal-side {
+  left: calc(100% - var(--strip) + var(--lane) * (var(--strip) - 2px) / var(--lanes));
+  width: calc((var(--strip) - 2px) / var(--lanes) - 2px);
+  padding: 0;
+  border: 1px solid var(--red);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--red) 55%, var(--surface));
+}
+.cal-block.cal-side .cal-title,
+.cal-block.cal-side .cal-meta {
+  display: none;
 }
 .cal-block.is-short {
   flex-direction: row;
@@ -2126,4 +2142,21 @@
 }
 .today-timeline-panel .history-section-body > .meta {
   margin: 0;
+}
+/* History: the week on a timeline. */
+.history-week .week-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.history-week .week-nav .meta {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+}
+.history-week .week-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }

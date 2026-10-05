@@ -346,14 +346,15 @@ export function init(ctx) {
       });
     } else openForm(entry, button.dataset.planAction === "complete");
   });
+  function openDay(day) {
+    date = day;
+    closeForm();
+    ctx.go("plan");
+    render();
+  }
   document.addEventListener("click", (e) => {
     const open = e.target.closest("[data-open-plan]");
-    if (open) {
-      date = open.dataset.openPlan;
-      closeForm();
-      ctx.go("plan");
-      render();
-    }
+    if (open) openDay(open.dataset.openPlan);
     const done = e.target.closest("#today-plan [data-plan-action='complete']");
     if (done) completePlanned(ctx, done.dataset.date, done.dataset.id);
   });
@@ -557,6 +558,7 @@ export function init(ctx) {
       restoreDraft();
     },
     render,
+    openDay,
     hide() {
       rememberDraft();
       closeForm();

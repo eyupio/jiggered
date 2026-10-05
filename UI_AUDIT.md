@@ -210,6 +210,24 @@ problems. I substituted the nearest honest equivalents:
   week, with day cells ≥44 px at ≤700 px (replace the fixed `max-width`/`max-height`
   with a `min(100%, …)` and `aspect-ratio`). Keep the six colour modes, but behind a
   small "Colour by" menu on the Month view only.
+- **Status: fixed, except that the plan is shown only where it was not done.**
+  - **Shipped:** History opens with **Your week on a timeline**, the same grid as Plan, read-only:
+    logged activities solid, planned activities that were not logged dashed ("planned, not logged"
+    on a past day), and episodes as bars in a strip down the right of each day. An episode runs
+    from its start to its recorded end; with no end time it is drawn at the middle of its length
+    range and says it is approximate, and one that is still going runs to now. One that crosses
+    midnight carries on in the next day's column. Previous/next week, a Today jump, and one day at
+    a time on a phone. Selecting a block opens it where it can be changed (the day on Today, the
+    plan, or the episode). The week reads the whole account, not the period and filters chosen
+    above it.
+  - The month overview stays below it. Selecting a day there offers "See in the week view", and
+    its squares now fill the panel instead of staying 25 px: about 48 px for a 30-day period at
+    375 px and on desktop.
+  - **Not done:** a plan row that _was_ logged is not drawn as a ghost beside the log, so the
+    plan-versus-actual drift (H7) is still only the sentence in the day's detail; the Month
+    "Colour by" menu is unchanged.
+  - Tests: `test/week-model.test.mjs` (week days, episode spans and midnight cuts, each broken
+    to confirm a failure) and the History sections of `test/browser-calendar.cjs`.
 
 ### C5. A new user's Plan and History are dead ends
 
@@ -542,7 +560,7 @@ template is blocked.** Set geometry from JS after render with the CSSOM
 2. `dur` + validation + sorted rows + List/Calendar toggle.
 3. Plan Week/Day board with drag, resize and keyboard (**done**).
 4. Today Day timeline (C3; **done**).
-5. History grid with plan-vs-actual and episode bars; Month heatmap resized (C4).
+5. History week grid with episode bars; Month heatmap resized (C4; **done**, plan-versus-actual drift not).
 
 ---
 
