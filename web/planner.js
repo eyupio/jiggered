@@ -1,4 +1,4 @@
-import { $, html, setHTML, uid, fmtDay } from "./util.js";
+import { $, html, setHTML, uid, fmtDay, signed } from "./util.js";
 import { addDays, dayId, hhmm } from "./model.js";
 import { validDate } from "./history-model.js";
 import { energyAmount, themeOf } from "./energy-theme.js";
@@ -10,7 +10,6 @@ function setStable(el, markup) {
   markupCache.set(el, markup.s);
   setHTML(el, markup);
 }
-const signed = (c) => (c > 0 ? `−${c}` : c < 0 ? `+${-c}` : "0");
 const amount = (ctx, n) => energyAmount(n, themeOf(ctx));
 const writable = (ctx) => !ctx.store.status().readOnly && !ctx.store.status().restoring;
 const dispatch = (ctx, date, type, arg, before) =>
@@ -271,7 +270,7 @@ export function init(ctx) {
       : "Your estimate for this day, including expected sleep or check-in effects. Each day starts fresh.";
     setStable(
       $("plan-forecast"),
-      html`<div class="plan-metrics"><div><span>Available ${date === ctx.today() ? "now" : "for this day"}</span><b>${f.remaining}</b></div><div><span>Work still planned</span><b>−${f.committed}</b></div><div><span>Uncommitted</span><b>${f.afterWork}</b></div><div class="is-recovery"><span>Planned recovery</span><b>+${f.recovery}</b></div><div><span>Projected balance</span><b>${f.projected}</b></div></div>
+      html`<div class="plan-metrics"><div><span>Available ${date === ctx.today() ? "now" : "for this day"}</span><b>${f.remaining}</b></div><div><span>Work still planned</span><b>${signed(f.committed)}</b></div><div><span>Uncommitted</span><b>${f.afterWork}</b></div><div class="is-recovery"><span>Planned recovery</span><b>${signed(-f.recovery)}</b></div><div><span>Projected balance</span><b>${f.projected}</b></div></div>
       <p class="plan-outlook ${f.shortfall ? "plan-warning" : ""}">${f.shortfall ? `${amount(ctx, f.shortfall)} recovery or less workload needed to stay within this allowance before recovery.` : `${amount(ctx, f.afterWork)} left after planned workload, before recovery.`}${f.recovery ? ` Your recovery plan adds an estimated ${amount(ctx, f.recovery)}; ${f.gap ? `${amount(ctx, f.gap)} still uncovered.` : "it is included only in the projected balance."}` : ""}</p>`,
     );
     setStable(

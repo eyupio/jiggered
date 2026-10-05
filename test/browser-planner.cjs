@@ -68,7 +68,35 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto("http://localhost:18758/");
     await page.locator("#acts button.act").first().waitFor();
+    // Nothing logged or planned yet: zero reads as a plain "0", never "−0" or "+0".
+    const emptyToday = await page.locator("#energy-breakdown").textContent();
+    assert.match(emptyToday, /Used\s*0/);
+    assert.match(emptyToday, /Recovered\s*0/);
+    assert.doesNotMatch(emptyToday, /[−+]0(?!\d)/);
     await page.locator("#t-plan").click();
+    const emptyPlan = await page.locator("#plan-forecast").textContent();
+    assert.match(emptyPlan, /Work still planned\s*0/);
+    assert.match(emptyPlan, /Planned recovery\s*0/);
+    assert.doesNotMatch(emptyPlan, /[−+]0(?!\d)/);
+    // A scrolling day strip must leave room for the selected day's ring (the left edge was clipped on phones).
+    await page.evaluate(
+      () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+    );
+    const strip = await page.evaluate(() => {
+      const row = document.getElementById("plan-days"),
+        chip = row.querySelector('[aria-pressed="true"]'),
+        ring = getComputedStyle(chip);
+      return {
+        clips: getComputedStyle(row).overflowX !== "visible",
+        scrollLeft: row.scrollLeft,
+        room:
+          chip.getBoundingClientRect().left -
+          (parseFloat(ring.outlineWidth) + parseFloat(ring.outlineOffset)) -
+          row.getBoundingClientRect().left,
+      };
+    });
+    assert.equal(strip.scrollLeft, 0, "day strip starts unscrolled at " + width);
+    assert.ok(!strip.clips || strip.room >= -0.01, `selected day ring clipped at ${width}`);
     await page.locator("#plan-add").click();
     await page.locator("#plan-presets").selectOption("0");
     await page.locator("#plan-repeat").fill("3");

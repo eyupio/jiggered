@@ -1672,7 +1672,9 @@
   .plan-days {
     display: flex;
     overflow-x: auto;
-    padding: 4px;
+    margin-inline: -8px; /* cancels the padding below, so the days stay aligned with the text above */
+    padding: 6px 8px; /* room for the selected day's 3px ring, which the scroller would clip */
+    scroll-padding-inline: 8px; /* snapping to the first day must not scroll that padding away */
     scroll-snap-type: x proximity;
   }
   .app-shell .plan-day {

@@ -74,6 +74,9 @@ export function fmtBytes(n) {
   return `${(n / 1048576).toFixed(1)} MB`;
 }
 
+// A cost as it reads on screen: spending is −n, recovery is +n, and nothing is a plain 0 (never "−0" or "+0").
+export const signed = (c) => (c > 0 ? `−${c}` : c < 0 ? `+${-c}` : "0");
+
 // "Firefox on Linux", for the list of signed-in devices.
 export function describeUA(ua = "") {
   const browser = /Edg(e|A|iOS)?\//.test(ua)

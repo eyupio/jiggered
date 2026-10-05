@@ -4,7 +4,7 @@ import { renderEnergyFlow } from "./energy-flow.js";
 import { renderTodayPlan } from "./planner.js";
 import { forecast } from "./planner-model.js";
 import { energyWords, energyAmount, energyCopy, themeOf, SPOON_PATH } from "./energy-theme.js";
-import { $, html, setHTML, uid, fmtLongDay } from "./util.js";
+import { $, html, setHTML, uid, fmtLongDay, signed } from "./util.js";
 import { normaliseProfile } from "./profile.js";
 import { historyInsights } from "./history-model.js";
 import { renderOngoing } from "./episodes.js";
@@ -25,7 +25,6 @@ import {
   listDays,
 } from "./model.js";
 
-const costLabel = (c) => (c > 0 ? "−" + c : c < 0 ? "+" + -c : "0");
 const named = (s) => s[0].toUpperCase() + s.slice(1);
 
 export function init(ctx) {
@@ -417,10 +416,10 @@ export function init(ctx) {
   });
 
   const actButton = ({ item: x, i }) =>
-    html`<button class="act${x.c < 0 ? " rec" : ""}" data-i="${i}"><span>${x.a}</span><span class="c">${costLabel(x.c)}<span class="sr-only"> ${energyWords(themeOf(ctx)).plural}</span></span><span class="activity-add" aria-hidden="true"><span>Record</span><b>+</b></span></button>`;
+    html`<button class="act${x.c < 0 ? " rec" : ""}" data-i="${i}"><span>${x.a}</span><span class="c">${signed(x.c)}<span class="sr-only"> ${energyWords(themeOf(ctx)).plural}</span></span><span class="activity-add" aria-hidden="true"><span>Record</span><b>+</b></span></button>`;
   // An activity already logged on this day: green, how many times, and − / + to take one off or add another.
   const selectedCard = (count, { item: x, i }) =>
-    html`<div class="act on${x.c < 0 ? " rec" : ""}"><span class="name">${x.a}</span><span class="c">${costLabel(x.c)}<span class="sr-only"> ${energyWords(themeOf(ctx)).plural}</span></span><span class="stepper"><button type="button" class="step" data-step="-1" data-i="${i}" aria-label="Remove one ${x.a}">−</button><b class="count" aria-label="${count} ${count === 1 ? "time" : "times"} logged">×${count}</b><button type="button" class="step" data-step="1" data-i="${i}" aria-label="Add one more ${x.a}">+</button></span></div>`;
+    html`<div class="act on${x.c < 0 ? " rec" : ""}"><span class="name">${x.a}</span><span class="c">${signed(x.c)}<span class="sr-only"> ${energyWords(themeOf(ctx)).plural}</span></span><span class="stepper"><button type="button" class="step" data-step="-1" data-i="${i}" aria-label="Remove one ${x.a}">−</button><b class="count" aria-label="${count} ${count === 1 ? "time" : "times"} logged">×${count}</b><button type="button" class="step" data-step="1" data-i="${i}" aria-label="Add one more ${x.a}">+</button></span></div>`;
   // Long lists get a search box, a favourites row (most and latest used), sections by group and "Show more" paging.
   // Short lists look exactly as before. Buttons keep their index into the settings list, so tapping is unchanged.
   function renderActivities(S) {
@@ -608,12 +607,12 @@ export function init(ctx) {
       pillsKey = nextPillsKey;
       setHTML(
         $("energy-activity-pills"),
-        html`${d.entries.map((e) => html`<li class="energy-activity-pill${e.c < 0 ? " recovery" : ""}"><button type="button" class="energy-activity-edit" data-entry="${e.id}" data-action="edit" aria-label="Edit ${e.a}${e.t ? ` at ${e.t}` : ""}" title="Edit ${e.a}"><span class="energy-activity-name">${e.a}</span><span class="energy-activity-detail">${e.t ? html`<time>${e.t}</time>` : ""}<b>${costLabel(e.c)}<span class="sr-only"> ${energyWords(themeOf(ctx)).plural}</span></b></span></button><button type="button" class="energy-activity-remove" data-entry="${e.id}" data-action="remove" aria-label="Remove ${e.a}${e.t ? ` at ${e.t}` : ""}" title="Remove ${e.a}"><span aria-hidden="true">×</span></button></li>`)}`,
+        html`${d.entries.map((e) => html`<li class="energy-activity-pill${e.c < 0 ? " recovery" : ""}"><button type="button" class="energy-activity-edit" data-entry="${e.id}" data-action="edit" aria-label="Edit ${e.a}${e.t ? ` at ${e.t}` : ""}" title="Edit ${e.a}"><span class="energy-activity-name">${e.a}</span><span class="energy-activity-detail">${e.t ? html`<time>${e.t}</time>` : ""}<b>${signed(e.c)}<span class="sr-only"> ${energyWords(themeOf(ctx)).plural}</span></b></span></button><button type="button" class="energy-activity-remove" data-entry="${e.id}" data-action="remove" aria-label="Remove ${e.a}${e.t ? ` at ${e.t}` : ""}" title="Remove ${e.a}"><span aria-hidden="true">×</span></button></li>`)}`,
       );
     }
     setHTML(
       $("entries"),
-      html`${d.entries.map((e, i) => html`<li><div class="logged-activity"><span class="meta logged-time">${e.t || "Time not set"}</span><span class="logged-name">${e.a}</span><b class="logged-cost">${costLabel(e.c)}<span class="sr-only"> ${energyWords(themeOf(ctx)).plural}</span></b></div><div class="logged-actions"><button type="button" class="secondary logged-edit" data-entry="${e.id}" data-action="edit" aria-label="Edit ${e.a}">Edit</button><button type="button" class="secondary logged-remove" data-entry="${e.id}" data-action="remove" aria-label="Remove ${e.a}">Remove</button></div></li>`)}`,
+      html`${d.entries.map((e, i) => html`<li><div class="logged-activity"><span class="meta logged-time">${e.t || "Time not set"}</span><span class="logged-name">${e.a}</span><b class="logged-cost">${signed(e.c)}<span class="sr-only"> ${energyWords(themeOf(ctx)).plural}</span></b></div><div class="logged-actions"><button type="button" class="secondary logged-edit" data-entry="${e.id}" data-action="edit" aria-label="Edit ${e.a}">Edit</button><button type="button" class="secondary logged-remove" data-entry="${e.id}" data-action="remove" aria-label="Remove ${e.a}">Remove</button></div></li>`)}`,
     );
   }
 

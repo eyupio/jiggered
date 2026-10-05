@@ -59,13 +59,16 @@ problems. I substituted the nearest honest equivalents:
   chooses which day you are planning. The same strip also cuts the fourth chip
   mid-letter ("Th", "No") with a thin always-visible scrollbar, so it reads as broken
   rather than scrollable. Each chip is 100 px tall to say three things.
-- **Fix (verified in the browser):** edit the existing mobile block in place:
+- **Status: fixed** in `web/dashboard.css` (the same block, edited in place), with a
+  regression assertion in `test/browser-planner.cjs`.
+- **Fix (verified in the browser):**
 
   ```css
   @media (max-width: 700px) {
     .plan-days {
       display: flex;
       overflow-x: auto;
+      margin-inline: -8px;        /* cancels the padding, so days stay aligned with the text above */
       padding: 6px 8px;           /* was 4px: room for the 3px ring */
       scroll-padding-inline: 8px; /* snap leaves the padding visible */
       scroll-snap-type: x proximity;
@@ -73,10 +76,12 @@ problems. I substituted the nearest honest equivalents:
   }
   ```
 
-  Measured after: `scrollLeft 4 → 0`, clipped ring `3 px → 0`, full border visible.
-  Add a regression assertion to `test/browser-planner.cjs` (375 px): the pressed chip's
-  `left - 3` must be `>=` the container's left, and `scrollLeft === 0` on load.
-  Optional: an end-edge fade (`mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent)`)
+  Measured after: `scrollLeft 4 → 0`, clipped ring `3 px → 0`, full border visible, and no
+  page overflow at 320, 360, 375, 414 or 700 px. The negative margin was added after
+  checking the first version: padding alone left the days 8 px to the right of the heading
+  and text above them (chip at x=49, text at x=41); with it they line up (41 = 41 at 375 px).
+  The regression test fails without the fix (`scrollLeft` is 4, not 0) and passes with it.
+  Optional, not done: an end-edge fade (`mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent)`)
   so the cut-off fourth chip reads as "more this way".
 - **Tested and rejected:** turning the strip into a 7-column grid *inside the current
   card padding*. The container is 293 px, so chips are 37 px: "Today" overflows its chip
@@ -269,9 +274,15 @@ problems. I substituted the nearest honest equivalents:
   "Used −0 / Recovered +0", Plan "Work still planned −0 / Planned recovery +0".
 - **Problem:** A minus sign in front of zero reads as a defect on the first screen, in a
   tool whose entire premise is trust in the numbers.
-- **Fix:** use the existing `signed()` helper (`planner.js:13`, which already returns
-  `"0"` for zero) in both places; move it to `util.js` so both files share it. Five-minute
-  change.
+- **Status: fixed.** One shared `signed()` now lives in `web/util.js` and is used by
+  `planner.js`, `energy-flow.js` and `today.js` (which had its own identical `costLabel`).
+  Zero now reads `0` on Today ("Used 0", "Recovered 0") and Plan ("Work still planned 0",
+  "Planned recovery 0"). A unit test covers `signed(-0)`, and `test/browser-planner.cjs`
+  asserts the empty-account text. Reverting the fix makes that test fail with
+  `Used−0Recovered+0`. The same rule is still written inline in `history.js:346` and
+  `history-matrix.js:115`; those were already correct and were left alone.
+- **Original fix:** use the existing `signed()` helper (`planner.js:13`, which already returns
+  `"0"` for zero) in both places; move it to `util.js` so both files share it.
 
 ### H7. Plan vs actual is a sentence, and the planned start time is destroyed
 
@@ -462,7 +473,7 @@ template is blocked.** Set geometry from JS after render with the CSSOM
 
 ### A8. Suggested order
 
-1. C1 CSS fix, H6 `−0`, C5 empty states (small, independent).
+1. C1 CSS fix and H6 `−0` (**done**), then C5 empty states (small, independent).
 2. `dur` + validation + sorted rows + List/Calendar toggle.
 3. Plan Week/Day board with drag, resize and keyboard.
 4. Today Day timeline with one-tap Done (C3).
