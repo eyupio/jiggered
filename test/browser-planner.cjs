@@ -6,6 +6,36 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "../web");
 const defaults = JSON.parse(fs.readFileSync(path.join(root, "defaults.json"), "utf8"));
 const date = new Date().toISOString().slice(0, 10);
+
+async function waitForPersistedDraft(page, date) {
+  await page.evaluate(async (date) => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open("jiggered-device");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      const key = `jiggered:drafts:1:alex:plan:${date}`;
+      const deadline = Date.now() + 5000;
+      while (Date.now() < deadline) {
+        const value = await new Promise((resolve, reject) => {
+          const request = db.transaction("items").objectStore("items").get(key);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        if (value) {
+          const draft = JSON.parse(value);
+          if (draft.value?.a === "Rest after travel" && draft.value?.c === "-2") return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      throw new Error("Planner draft was not persisted before reload");
+    } finally {
+      db.close();
+    }
+  }, date);
+}
+
 const yesterday = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
 // The fixture saves asynchronously; wait for a condition on it rather than racing a particular response.
 const until = async (done, what) => {
@@ -222,6 +252,10 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     await page.locator("#plan-add").click();
     await page.locator("#plan-name").fill("Rest after travel");
     await page.locator("#plan-cost").fill("-2");
+    const selectedDate = await page
+      .locator("[data-plan-day][aria-pressed='true']")
+      .getAttribute("data-plan-day");
+    await waitForPersistedDraft(page, selectedDate);
     await page.reload();
     await page.locator("#plan-form:not([hidden])").waitFor();
     assert.equal(await page.locator("#plan-name").inputValue(), "Rest after travel");
