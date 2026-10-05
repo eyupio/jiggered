@@ -42,6 +42,21 @@ function initAuth() {
   };
   const msg = msgs[Object.hasOwn(msgs, e) ? e : ""];
   if (msg) document.getElementById("err").textContent = msg;
+  // A failed sign-in reloads the page; keep the typed username (never the password) for this tab only.
+  const signin = document.getElementById("signin-form");
+  signin.addEventListener("submit", () => {
+    try {
+      sessionStorage.setItem("jiggered:u", signin.elements.username?.value || "");
+    } catch {}
+  });
+  try {
+    const kept = sessionStorage.getItem("jiggered:u");
+    sessionStorage.removeItem("jiggered:u");
+    if ((e === "bad" || e === "busy") && kept && signin.elements.username) {
+      signin.elements.username.value = kept;
+      signin.elements.password?.focus();
+    }
+  } catch {}
 
   const $ = (id) => document.getElementById(id);
   const forms = ["signin", "register", "forgot", "reset", "verify", "two-step"];
@@ -163,7 +178,7 @@ function initAuth() {
         if (which === "register" || which === "forgot") {
           button.textContent = "Send another link";
           message.textContent +=
-            " Check spam folders. To request another link, submit this form again; a newer link replaces the previous one.";
+            " To request another link, press the button again; a newer link replaces the previous one.";
         }
         success?.();
         if (which === "verify" || which === "reset") {
@@ -177,7 +192,9 @@ function initAuth() {
           message.after(next);
           next.focus();
         }
-        form.querySelectorAll("input[type=password]").forEach((el) => (el.value = ""));
+        // After a sent link the person may need "Send another link", so keep what they typed for that.
+        if (which !== "register" && which !== "forgot")
+          form.querySelectorAll("input[type=password]").forEach((el) => (el.value = ""));
       }
     } catch {
       message.textContent = "Could not connect. Check your connection and try again.";

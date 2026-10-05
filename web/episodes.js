@@ -298,6 +298,7 @@ export function init(ctx) {
   });
   form.addEventListener("input", (e) => {
     if (e.target.type === "search") return;
+    $("eptoast").classList.remove("err");
     if (ticket && ctx.store.outcome(ticket.n) === "failed") ticket = submitted = null;
     dirty = true;
     remember();
@@ -321,17 +322,28 @@ export function init(ctx) {
   });
   form.addEventListener("submit", (e) => {
     e.preventDefault();
-    if (ticket || (!editing && !dirty)) return;
+    const note = (text, bad = true) => {
+      $("eptoast").textContent = text;
+      $("eptoast").classList.toggle("err", bad);
+    };
+    $("eptoast").classList.remove("err");
+    if (ticket) return;
+    if (!editing && !dirty)
+      return note("Nothing to save yet. Tick what you noticed or add a note.");
     const value = body();
+    if (!editing && !value.symptoms.length && !value.notes.trim())
+      return note(
+        "Tick at least one symptom or write a note, so this episode means something later.",
+      );
     if (!value.duration) {
-      $("eptoast").textContent = "Choose how long it lasted, or Still going if it hasn't stopped.";
+      note("Choose how long it lasted, or Still going if it hasn't stopped.");
       $("ep-dur").focus();
       return;
     }
     if (value.duration === "Still going") value.endedAt = "";
     const timeError = validateEpisodeTimes(value, original);
     if (timeError) {
-      $("eptoast").textContent = timeError[1];
+      note(timeError[1]);
       $(timeError[0]).focus();
       return;
     }
@@ -358,7 +370,7 @@ export function init(ctx) {
         )
       : value;
     if (editing && !Object.keys(patch).length) {
-      $("eptoast").textContent = "No changes to save.";
+      note("No changes to save.", false);
       return;
     }
     // onChange runs during dispatch; ticket is available once dispatch returns.

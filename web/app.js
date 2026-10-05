@@ -614,10 +614,10 @@ function fatal(text) {
                 ? `${st.failed} refused ${st.failed === 1 ? "change needs" : "changes need"} recovery below.`
                 : n
                   ? !st.durable
-                    ? `${n} changes are only in memory while device storage finishes. Keep this page open.`
+                    ? `${n} ${n === 1 ? "change is" : "changes are"} only in memory while device storage finishes. Keep this page open.`
                     : st.offline
-                      ? `${n} changes queued on this device. Will retry when connected.`
-                      : `${n} changes queued on this device. Sending…`
+                      ? `${n} ${n === 1 ? "change" : "changes"} queued on this device. Will retry when connected.`
+                      : `${n} ${n === 1 ? "change" : "changes"} queued on this device. Sending…`
                   : st.offline
                     ? "Offline. Showing this device's copy."
                     : st.loaded

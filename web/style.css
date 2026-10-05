@@ -61,6 +61,7 @@
   --accent: #2f6f62;
   --accent-soft: #e1efea;
   --green: #2e8a57;
+  --green-text: #26774a;
   --amber: #c78512;
   --red: #c2412f;
   --spent: #cfd8d4;
@@ -77,6 +78,7 @@
     --accent: #6cc0ab;
     --accent-soft: #213531;
     --green: #58c487;
+    --green-text: #58c487;
     --amber: #e8a93a;
     --red: #ef7461;
     --spent: #34403d;
@@ -92,6 +94,7 @@
   --accent: #6cc0ab;
   --accent-soft: #213531;
   --green: #58c487;
+  --green-text: #58c487;
   --amber: #e8a93a;
   --red: #ef7461;
   --spent: #34403d;
@@ -569,7 +572,7 @@ textarea {
   font-size: 0.9rem;
 }
 .toast {
-  color: var(--green);
+  color: var(--green-text);
   font-weight: 700;
   min-height: 1.2em;
   margin: 0;
@@ -821,7 +824,7 @@ textarea:focus-visible {
   margin: 0;
   min-height: 1.2em;
   font-weight: 700;
-  color: var(--green);
+  color: var(--green-text);
 }
 .msg.err {
   color: var(--red);
@@ -1176,7 +1179,7 @@ ul.audit li {
   clip-path: inset(50%);
   white-space: nowrap;
 }
-.recovery {
+.panel.recovery {
   border: 2px solid var(--red);
 }
 .recovery-item {

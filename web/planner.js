@@ -189,7 +189,7 @@ function rowsMarkup(ctx, f, date, todayOnly = false) {
 // Done on Today logs the planned activity right there, as tapping an activity tile does, instead of sending the
 // person to Plan and a form. Undo takes it back; tapping it among the day's logged activities corrects it.
 // It started at its planned time if that has passed, otherwise now (see loggedStart), and keeps its planned length.
-export function completePlanned(ctx, day, id) {
+export function completePlanned(ctx, day, id, { focus = true } = {}) {
   if (!writable(ctx)) return;
   const f = forecast(ctx.store.all(), day, ctx.settings()),
     row = f.pending.find((r) => r.id === id);
@@ -225,6 +225,7 @@ export function completePlanned(ctx, day, id) {
       }),
   });
   // The row that held focus is gone; keep keyboard focus on the next one (or the card's own button).
+  if (!focus) return;
   const card = $("today-plan");
   (
     card.querySelector("[data-plan-action='complete']") || card.querySelector("[data-open-plan]")
@@ -402,7 +403,7 @@ export function init(ctx) {
       date,
       "patch",
       { date, allowance: n },
-      { date: f.plan.date, allowance: f.plan.allowance },
+      f.plan.date ? { date: f.plan.date, allowance: f.plan.allowance } : undefined,
     );
   });
   form.addEventListener("submit", (e) => {

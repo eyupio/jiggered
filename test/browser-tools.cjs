@@ -31,6 +31,12 @@ runBrowser({ name: "tools", portEnv: "JIGGERED_TOOLS_PORT" }, async (harness) =>
   assert.match(await page.locator("#tool-title").textContent(), /Fretboard/);
   await harness.screenshot(page, "tools-empty.png");
 
+  // A real mouse click on the empty state's button loads the example (the canvas must not swallow it).
+  await page.locator('[data-fb="example"]').click();
+  await page.waitForFunction(() => document.querySelectorAll(".fb-item").length > 1);
+  await page.locator('[data-fb="undo"]').click();
+  await page.waitForFunction(() => document.querySelectorAll(".fb-item").length === 0);
+
   // Double-click adds a card where the mouse is and starts typing straight away.
   await page.locator("#fb-canvas").scrollIntoViewIfNeeded();
   const canvas = await page.locator("#fb-canvas").boundingBox();

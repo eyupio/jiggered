@@ -268,6 +268,7 @@
 
 .fb-canvas {
   position: relative;
+  isolation: isolate; /* cards keep their stacking among themselves, below the tab bar, toast and menu */
   aspect-ratio: 4 / 3;
   min-height: 420px;
   border: 1px solid var(--line);

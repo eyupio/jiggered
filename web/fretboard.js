@@ -495,7 +495,7 @@ export function mount(ctx, root) {
   function renderSummary() {
     const s = summarise(board);
     const parts = [];
-    if (!s.cards && !s.notes) parts.push("An empty board is a fine place to start.");
+    if (!s.cards && !s.notes) parts.push("An empty board is a fine place to start");
     else {
       parts.push(plural(s.cards, "card"));
       if (s.yoursHigh + s.yoursLow)
@@ -773,6 +773,7 @@ export function mount(ctx, root) {
   // ---- pointer handling on the canvas ----
   canvas.addEventListener("pointerdown", (e) => {
     closeMenu();
+    if (e.target.closest("button, input, textarea")) return; // let the empty-state button receive its click
     if (e.button !== 0 && e.pointerType === "mouse") return; // right button is the menu, middle is left alone
     const el = e.target.closest(".fb-item");
     lastPointer = toFraction(e.clientX, e.clientY);
@@ -961,6 +962,7 @@ export function mount(ctx, root) {
   });
   canvas.addEventListener("keydown", (e) => {
     if (editing) return;
+    if (e.target.closest("button, input, textarea")) return; // Enter/Space belong to the focused control
     const el = e.target.closest(".fb-item");
     const picks = selectedIds();
     const mod = e.ctrlKey || e.metaKey;
