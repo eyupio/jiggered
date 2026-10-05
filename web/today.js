@@ -5,6 +5,7 @@ import { renderTodayPlan } from "./planner.js";
 import { forecast } from "./planner-model.js";
 import { energyWords, energyAmount, energyCopy, themeOf, SPOON_PATH } from "./energy-theme.js";
 import { $, html, setHTML, uid, fmtLongDay, signed } from "./util.js";
+import { DAY, slotText, toMinutes, validDur } from "./calendar-model.js";
 import { normaliseProfile } from "./profile.js";
 import { historyInsights } from "./history-model.js";
 import { renderOngoing } from "./episodes.js";
@@ -241,6 +242,7 @@ export function init(ctx) {
     $("entry-name").value = entry?.a || "";
     $("entry-cost").value = entry?.c ?? 1;
     $("entry-time").value = entry?.t ?? (key() === ctx.today() ? hhmm(new Date()) : "");
+    $("entry-dur").value = entry?.dur ?? "";
     $("entry-msg").textContent = "";
     $("entry-save-choice-row").hidden = !!entry;
     $("entry-save-choice").checked = false;
@@ -256,6 +258,7 @@ export function init(ctx) {
     $("entry-name").value = draft.a;
     $("entry-cost").value = draft.c;
     $("entry-time").value = draft.t;
+    $("entry-dur").value = draft.dur ?? "";
     $("entry-save-choice").checked = draft.saveChoice === true;
     $("entry-group").value = draft.group || "";
     $("entry-group-row").hidden = !$("entry-save-choice").checked;
@@ -274,6 +277,7 @@ export function init(ctx) {
       a: $("entry-name").value,
       c: $("entry-cost").value,
       t: $("entry-time").value,
+      dur: $("entry-dur").value,
       saveChoice: $("entry-save-choice").checked,
       group: $("entry-group").value,
     }),
@@ -303,6 +307,19 @@ export function init(ctx) {
       );
       return;
     }
+    const durText = $("entry-dur").value.trim(),
+      dur = durText === "" ? null : Number(durText);
+    if (dur !== null && !validDur(dur)) {
+      $("entry-msg").textContent =
+        "Use a whole number of minutes from 5 to 1440, or leave the duration empty.";
+      return;
+    }
+    if (dur !== null && toMinutes(changes.t) !== null && toMinutes(changes.t) + dur > DAY) {
+      $("entry-msg").textContent =
+        "That would run past midnight. Start earlier or shorten the duration.";
+      return;
+    }
+    if (dur !== null || editing?.dur != null) changes.dur = dur;
     const saveChoice = !editing && $("entry-save-choice").checked;
     const group = $("entry-group").value.trim();
     const settings = ctx.store.view("settings"),
@@ -343,7 +360,12 @@ export function init(ctx) {
                 type: "editEntry",
                 arg: {
                   id: previous.id,
-                  changes: Object.fromEntries(Object.keys(changed).map((k) => [k, previous[k]])),
+                  changes: Object.fromEntries(
+                    Object.keys(changed).map((k) => [
+                      k,
+                      previous[k] === undefined && k === "dur" ? null : previous[k],
+                    ]),
+                  ),
                 },
                 before: changes,
                 original,
@@ -607,12 +629,12 @@ export function init(ctx) {
       pillsKey = nextPillsKey;
       setHTML(
         $("energy-activity-pills"),
-        html`${d.entries.map((e) => html`<li class="energy-activity-pill${e.c < 0 ? " recovery" : ""}"><button type="button" class="energy-activity-edit" data-entry="${e.id}" data-action="edit" aria-label="Edit ${e.a}${e.t ? ` at ${e.t}` : ""}" title="Edit ${e.a}"><span class="energy-activity-name">${e.a}</span><span class="energy-activity-detail">${e.t ? html`<time>${e.t}</time>` : ""}<b>${signed(e.c)}<span class="sr-only"> ${energyWords(themeOf(ctx)).plural}</span></b></span></button><button type="button" class="energy-activity-remove" data-entry="${e.id}" data-action="remove" aria-label="Remove ${e.a}${e.t ? ` at ${e.t}` : ""}" title="Remove ${e.a}"><span aria-hidden="true">×</span></button></li>`)}`,
+        html`${d.entries.map((e) => html`<li class="energy-activity-pill${e.c < 0 ? " recovery" : ""}"><button type="button" class="energy-activity-edit" data-entry="${e.id}" data-action="edit" aria-label="Edit ${e.a}${e.t ? ` at ${e.t}` : ""}" title="Edit ${e.a}"><span class="energy-activity-name">${e.a}</span><span class="energy-activity-detail">${slotText(e) ? html`<time>${slotText(e)}</time>` : ""}<b>${signed(e.c)}<span class="sr-only"> ${energyWords(themeOf(ctx)).plural}</span></b></span></button><button type="button" class="energy-activity-remove" data-entry="${e.id}" data-action="remove" aria-label="Remove ${e.a}${e.t ? ` at ${e.t}` : ""}" title="Remove ${e.a}"><span aria-hidden="true">×</span></button></li>`)}`,
       );
     }
     setHTML(
       $("entries"),
-      html`${d.entries.map((e, i) => html`<li><div class="logged-activity"><span class="meta logged-time">${e.t || "Time not set"}</span><span class="logged-name">${e.a}</span><b class="logged-cost">${signed(e.c)}<span class="sr-only"> ${energyWords(themeOf(ctx)).plural}</span></b></div><div class="logged-actions"><button type="button" class="secondary logged-edit" data-entry="${e.id}" data-action="edit" aria-label="Edit ${e.a}">Edit</button><button type="button" class="secondary logged-remove" data-entry="${e.id}" data-action="remove" aria-label="Remove ${e.a}">Remove</button></div></li>`)}`,
+      html`${d.entries.map((e, i) => html`<li><div class="logged-activity"><span class="meta logged-time">${slotText(e) || "Time not set"}</span><span class="logged-name">${e.a}</span><b class="logged-cost">${signed(e.c)}<span class="sr-only"> ${energyWords(themeOf(ctx)).plural}</span></b></div><div class="logged-actions"><button type="button" class="secondary logged-edit" data-entry="${e.id}" data-action="edit" aria-label="Edit ${e.a}">Edit</button><button type="button" class="secondary logged-remove" data-entry="${e.id}" data-action="remove" aria-label="Remove ${e.a}">Remove</button></div></li>`)}`,
     );
   }
 

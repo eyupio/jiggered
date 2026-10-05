@@ -1,5 +1,6 @@
 import { $, html, setHTML, uid, fmtDay, signed } from "./util.js";
 import { addDays, dayId, hhmm } from "./model.js";
+import { DAY, slotText, suggestDuration, toMinutes, validDur } from "./calendar-model.js";
 import { validDate } from "./history-model.js";
 import { energyAmount, themeOf } from "./energy-theme.js";
 import { forecast, planId, plannedEntryId } from "./planner-model.js";
@@ -11,6 +12,19 @@ function setStable(el, markup) {
   setHTML(el, markup);
 }
 const amount = (ctx, n) => energyAmount(n, themeOf(ctx));
+// When a planned activity is logged as done it started at its planned time if that has already passed, otherwise now.
+// On a past day "now" would be wrong, so only the planned time (or none) is used.
+function loggedStart(ctx, row, day) {
+  if (day !== ctx.today()) return row.t || "";
+  const now = hhmm(new Date());
+  return row.t && row.t <= now ? row.t : now;
+}
+// Its planned length carries over, trimmed so the logged activity still ends by midnight.
+function loggedLength(row, start) {
+  const from = toMinutes(start),
+    dur = from === null ? row.dur : Math.min(row.dur, DAY - from);
+  return validDur(dur) ? { dur } : {};
+}
 const writable = (ctx) => !ctx.store.status().readOnly && !ctx.store.status().restoring;
 const dispatch = (ctx, date, type, arg, before) =>
   ctx.store.dispatch({
@@ -26,7 +40,7 @@ function rowsMarkup(ctx, f, date, todayOnly = false) {
     const done = f.done.includes(e);
     const actual = done ? f.day.entries.find((a) => a.id === plannedEntryId(date, e.id)) : null;
     return html`<li class="plan-activity ${done ? "is-done" : ""} ${e.c < 0 ? "is-recovery" : ""}">
-      <div class="plan-activity-info"><b>${e.a}</b><span class="meta">${done ? `Logged · planned ${signed(e.c)}` : e.c < 0 ? "Recovery planned" : "Planned"}${e.t ? ` · ${e.t}` : ""}</span></div>
+      <div class="plan-activity-info"><b>${e.a}</b><span class="meta">${done ? `Logged · planned ${signed(e.c)}` : e.c < 0 ? "Recovery planned" : "Planned"}${slotText(e) ? ` · ${slotText(e)}` : ""}</span></div>
       <strong class="plan-cost">${signed(actual?.c ?? e.c)}<span class="sr-only"> ${amount(ctx, Math.abs(e.c)).split(" ").slice(1).join(" ")}</span></strong>
       <div class="plan-actions">${done ? html`<span class="plan-done">✓ Done</span>` : html`${date <= ctx.today() ? html`<button type="button" class="primary small" data-plan-action="complete" data-date="${date}" data-id="${e.id}" aria-label="Log ${e.a} as done">Done</button>` : ""}${todayOnly ? "" : html`<button type="button" class="secondary small" data-plan-action="edit" data-id="${e.id}" aria-label="Edit planned ${e.a}">Edit</button><button type="button" class="secondary small" data-plan-action="remove" data-id="${e.id}" aria-label="Remove planned ${e.a}">Remove</button>`}`}</div></li>`;
   })}</ul>`;
@@ -64,7 +78,8 @@ export function init(ctx) {
         : "Add to your plan";
     $("plan-name").value = entry?.a || "";
     $("plan-cost").value = entry?.c ?? 1;
-    $("plan-time").value = complete ? hhmm(new Date()) : entry?.t || "";
+    $("plan-time").value = complete ? loggedStart(ctx, entry, date) : entry?.t || "";
+    $("plan-dur").value = entry?.dur ?? "";
     $("plan-repeat-row").hidden = !!entry || date < ctx.today();
     $("plan-repeat").value = 1;
     $("plan-repeat").max = Math.max(
@@ -93,6 +108,7 @@ export function init(ctx) {
       a: $("plan-name").value,
       c: $("plan-cost").value,
       t: $("plan-time").value,
+      dur: $("plan-dur").value,
       repeat: $("plan-repeat").value,
     });
   }
@@ -104,6 +120,7 @@ export function init(ctx) {
     $("plan-name").value = draft.a;
     $("plan-cost").value = draft.c;
     $("plan-time").value = draft.t;
+    $("plan-dur").value = draft.dur ?? "";
     $("plan-repeat").value = Math.min(Number(draft.repeat) || 1, Number($("plan-repeat").max));
     $("plan-form-error").textContent = "Unfinished planning draft restored.";
   }
@@ -114,6 +131,7 @@ export function init(ctx) {
     const entry = ctx.settings().activities[Number(e.target.value)];
     $("plan-name").value = entry.a;
     $("plan-cost").value = entry.c;
+    if (!$("plan-dur").value) $("plan-dur").value = suggestDuration(entry.a) ?? "";
   });
   $("plan-cancel").addEventListener("click", () => {
     ctx.drafts?.remove(`plan:${date}`);
@@ -162,6 +180,18 @@ export function init(ctx) {
         "Use a name of 1–60 characters, a whole-number cost from −10 to 10 and a valid number of days.";
       return;
     }
+    const durText = $("plan-dur").value.trim(),
+      dur = durText === "" ? null : Number(durText);
+    if (dur !== null && !validDur(dur)) {
+      $("plan-form-error").textContent =
+        "Use a whole number of minutes from 5 to 1440, or leave the duration empty.";
+      return;
+    }
+    if (dur !== null && toMinutes(t) !== null && toMinutes(t) + dur > DAY) {
+      $("plan-form-error").textContent =
+        "That would run past midnight. Start earlier or shorten the duration.";
+      return;
+    }
     if (!writable(ctx)) return;
     const f = model();
     if (editing && !f.pending.some((row) => row.id === editing.id)) {
@@ -169,7 +199,7 @@ export function init(ctx) {
         "This activity changed on another device. Close this form and review the plan.";
       return;
     }
-    const entry = { a, c, t, id: editing?.id || uid() };
+    const entry = { a, c, t, id: editing?.id || uid(), ...(dur !== null ? { dur } : {}) };
     if (completing) {
       ctx.store.dispatch({
         id: dayId(date),
@@ -182,7 +212,16 @@ export function init(ctx) {
         original: ctx.store.view(dayId(date)),
       });
     } else if (editing)
-      dispatch(ctx, date, "editEntry", { id: editing.id, changes: { a, c, t } }, editing);
+      dispatch(
+        ctx,
+        date,
+        "editEntry",
+        {
+          id: editing.id,
+          changes: { a, c, t, ...(dur !== null || editing.dur != null ? { dur } : {}) },
+        },
+        editing,
+      );
     else {
       for (let i = 0; i < repeat; i++) {
         if (forecast(ctx.store.all(), addDays(date, i), ctx.settings()).rows.length >= 200) {
@@ -218,6 +257,7 @@ export function init(ctx) {
         openForm();
         $("plan-name").value = preset.a;
         $("plan-cost").value = preset.c;
+        $("plan-dur").value = suggestDuration(preset.a) ?? "";
       }
       return;
     }
@@ -246,18 +286,20 @@ export function init(ctx) {
   });
   // Done on Today logs the planned activity right there, as tapping an activity tile does, instead of sending the
   // person to Plan and a form. Undo takes it back; tapping it among the day's logged activities corrects it.
-  // Today's own time is now; on a past day "now" would be wrong, so the planned time (if any) is kept.
+  // It started at its planned time if that has passed, otherwise now (see loggedStart), and keeps its planned length.
   function completePlanned(day, id) {
     if (!writable(ctx)) return;
     const f = forecast(ctx.store.all(), day, ctx.settings()),
       row = f.pending.find((r) => r.id === id);
     if (!row) return;
     const target = dayId(day),
+      start = loggedStart(ctx, row, day),
       entry = {
         id: plannedEntryId(day, row.id),
         a: row.a,
         c: row.c,
-        t: day === ctx.today() ? hhmm(new Date()) : row.t || "",
+        t: start,
+        ...loggedLength(row, start),
       };
     ctx.store.dispatch({
       id: target,

@@ -109,6 +109,16 @@ problems. I substituted the nearest honest equivalents:
   - You plan seven days by tapping a chip, then a list, then a form. Nothing lets you
     see Tuesday's heavy afternoon next to Wednesday's empty one, which is the whole
     reason to plan ahead.
+- **Status: in progress.** Shipped so far: the optional `dur` field (whole minutes, 5-1440,
+  validated on the server for plan rows and logged entries, and it must finish by midnight);
+  a Duration input on the Plan form and Today's activity form; ranges such as `09:30–11:00`
+  in the plan list, Today's logged activities and History's day detail; plan rows sorted by
+  start time with untimed ones last; and a length suggested from a saved activity's name
+  ("Deep focus (2 hours)" gives 120) without replacing one that was typed. The pure logic is
+  in `web/calendar-model.js`. Logging a planned activity now places it at its planned start if
+  that has passed (otherwise now) and carries its length. Not yet: the calendar views.
+  CSV and print exports do not include the length yet; that is a public format change and
+  is left for a decision.
 - **Fix:** build the calendar described in **Appendix A**. First slice that ships value
   on its own: add optional `dur` (minutes), sort rows by `(t, id)` with untimed rows
   under "Anytime", and render a Week board in a new `web/calendar.js`. Keep the current

@@ -25,6 +25,7 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
           activities: [
             { id: "focus", a: "Deep focus", c: 7 },
             { id: "rest", a: "Quiet break", c: -2 },
+            { id: "walk", a: "Walk (45 min)", c: -1 },
           ],
         },
       },
@@ -234,6 +235,65 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     assert.match(recoveryOnly, /Work still planned\s*0/);
     assert.match(recoveryOnly, /Planned recovery\s*\+2/);
     assert.doesNotMatch(recoveryOnly, /−0(?!\d)/);
+    // A planned activity can have a length: it shows as a range, sorts by start time, and may not pass midnight.
+    await page.locator("[data-plan-day]").nth(4).click();
+    await page.locator("#plan-add").click();
+    await page.locator("#plan-name").fill("Late call");
+    await page.locator("#plan-cost").fill("2");
+    await page.locator("#plan-time").fill("16:00");
+    await page.locator("#plan-dur").fill("90");
+    await page.locator("#plan-submit").click();
+    await page.locator("#plan-add").click();
+    await page.locator("#plan-name").fill("Early walk");
+    await page.locator("#plan-cost").fill("-1");
+    await page.locator("#plan-time").fill("08:30");
+    await page.locator("#plan-submit").click();
+    const planned = await page.locator(".plan-activity .plan-activity-info").allTextContents();
+    assert.match(
+      planned[0],
+      /Early walk.*08:30$/,
+      "earlier start sorts first, with no length shown",
+    );
+    assert.match(planned[1], /Late call.*16:00–17:30/);
+    await page.locator("#plan-add").click();
+    await page.locator("#plan-name").fill("Night shift");
+    await page.locator("#plan-time").fill("23:00");
+    await page.locator("#plan-dur").fill("120");
+    await page.locator("#plan-submit").click();
+    assert.match(await page.locator("#plan-form-error").textContent(), /past midnight/);
+    // The browser itself refuses a length under 5 minutes, so the form is not even submitted.
+    await page.locator("#plan-dur").fill("3");
+    await page.locator("#plan-submit").click();
+    assert.equal(await page.locator("#plan-dur").evaluate((el) => el.validity.valid), false);
+    assert.equal(await page.locator("#plan-form").isVisible(), true);
+    await page.locator("#plan-cancel").click();
+    // A saved activity suggests the length in its name, but never replaces one that was typed.
+    await page.locator("#plan-add").click();
+    await page.locator("#plan-presets").selectOption("2");
+    assert.equal(await page.locator("#plan-dur").inputValue(), "45");
+    await page.locator("#plan-dur").fill("20");
+    await page.locator("#plan-presets").selectOption("2");
+    assert.equal(await page.locator("#plan-dur").inputValue(), "20");
+    await page.locator("#plan-cancel").click();
+    // Today's activity form takes a length too, and clearing it leaves just the start.
+    await page.locator("#t-today").click();
+    await page.locator("#other-activity").click();
+    await page.locator("#entry-name").fill("Midmorning walk");
+    await page.locator("#entry-cost").fill("1");
+    await page.locator("#entry-time").fill("10:00");
+    await page.locator("#entry-dur").fill("45");
+    await page.locator("#entry-form button[type=submit]").click();
+    const walk = page.locator("#energy-activity-pills li", { hasText: "Midmorning walk" });
+    assert.match(await walk.textContent(), /10:00–10:45/);
+    await walk.locator("[data-action=edit]").click();
+    assert.equal(await page.locator("#entry-dur").inputValue(), "45");
+    await page.locator("#entry-dur").fill("");
+    await page.locator("#entry-form button[type=submit]").click();
+    assert.doesNotMatch(await walk.textContent(), /10:00–/);
+    await until(
+      () => docs["d-" + date].body.entries.find((x) => x.a === "Midmorning walk")?.dur === null,
+      "clearing the length is saved as null",
+    );
     // On a past day Done keeps the planned time rather than stamping "now".
     docs["p-" + yesterday] = {
       rev: 1,

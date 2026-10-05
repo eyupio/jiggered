@@ -19,6 +19,7 @@ const SHELL = [
   "/today.js",
   "/planner.js",
   "/planner-model.js",
+  "/calendar-model.js",
   "/energy-flow.js",
   "/episodes.js",
   "/history.js",

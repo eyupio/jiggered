@@ -389,6 +389,15 @@
                 ><input type="number" id="entry-cost" min="-10" max="10" step="1" required /></label
               ><label class="field">Time (optional)<input type="time" id="entry-time" /></label>
             </div>
+            <label class="field"
+              >Duration, minutes (optional)<input
+                type="number"
+                id="entry-dur"
+                min="5"
+                max="1440"
+                step="5"
+                inputmode="numeric"
+            /></label>
             <p class="hint">
               <span
                 data-energy-copy="Negative points record recovery. Zero only records the activity."
@@ -576,6 +585,14 @@
                   required
                   aria-describedby="plan-cost-hint" /></label
               ><label>Time (optional)<input type="time" id="plan-time" /></label
+              ><label
+                >Duration, minutes (optional)<input
+                  type="number"
+                  id="plan-dur"
+                  min="5"
+                  max="1440"
+                  step="5"
+                  inputmode="numeric" /></label
               ><label id="plan-repeat-row"
                 >Add on consecutive days<input
                   type="number"

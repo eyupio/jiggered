@@ -96,6 +96,9 @@ func validateDoc(id string, raw json.RawMessage) error {
 					if id, ok := e["id"].(string); !ok || id == "" || len(id) > 200 {
 						return fmt.Errorf("planned activity needs an id of 1–200 characters")
 					}
+					if err := validDuration(e); err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -155,7 +158,34 @@ func validateDoc(id string, raw json.RawMessage) error {
 						}
 					}
 				}
+				if err := validDuration(e); err != nil {
+					return err
+				}
 			}
+		}
+	}
+	return nil
+}
+
+// validDuration checks the optional length of a planned or logged activity: a whole number of minutes from 5 to 1440
+// (null clears it, as the app does when a length is removed). With a start time the activity must also finish by
+// midnight, so a day's calendar never has a block hanging off its end.
+func validDuration(e map[string]any) error {
+	v, ok := e["dur"]
+	if !ok || v == nil {
+		return nil
+	}
+	n, ok := v.(float64)
+	if !ok || n != float64(int(n)) || n < 5 || n > 1440 {
+		return fmt.Errorf("activity length must be a whole number of minutes from 5 to 1440")
+	}
+	if t, ok := e["t"].(string); ok && t != "" {
+		start, err := time.Parse("15:04", t)
+		if err != nil {
+			return fmt.Errorf("activity time must be HH:MM or empty")
+		}
+		if start.Hour()*60+start.Minute()+int(n) > 1440 {
+			return fmt.Errorf("activity must finish by midnight")
 		}
 	}
 	return nil
