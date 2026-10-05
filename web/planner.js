@@ -242,15 +242,49 @@ export function init(ctx) {
       render();
     }
     const done = e.target.closest("#today-plan [data-plan-action='complete']");
-    if (done) {
-      date = done.dataset.date;
-      ctx.go("plan");
-      openForm(
-        model().pending.find((row) => row.id === done.dataset.id),
-        true,
-      );
-    }
+    if (done) completePlanned(done.dataset.date, done.dataset.id);
   });
+  // Done on Today logs the planned activity right there, as tapping an activity tile does, instead of sending the
+  // person to Plan and a form. Undo takes it back; tapping it among the day's logged activities corrects it.
+  // Today's own time is now; on a past day "now" would be wrong, so the planned time (if any) is kept.
+  function completePlanned(day, id) {
+    if (!writable(ctx)) return;
+    const f = forecast(ctx.store.all(), day, ctx.settings()),
+      row = f.pending.find((r) => r.id === id);
+    if (!row) return;
+    const target = dayId(day),
+      entry = {
+        id: plannedEntryId(day, row.id),
+        a: row.a,
+        c: row.c,
+        t: day === ctx.today() ? hhmm(new Date()) : row.t || "",
+      };
+    ctx.store.dispatch({
+      id: target,
+      type: "addEntry",
+      arg: entry,
+      stamp: {
+        budget: f.logged ? f.day.budget : f.allowance,
+        sleepPenalty: ctx.settings().sleepPenalty,
+      },
+      original: ctx.store.view(target),
+    });
+    ctx.toast(`Logged ${row.a}.`, {
+      label: "Undo",
+      fn: () =>
+        ctx.store.dispatch({
+          id: target,
+          type: "removeEntry",
+          arg: entry,
+          original: ctx.store.view(target),
+        }),
+    });
+    // The row that held focus is gone; keep keyboard focus on the next one (or the card's own button).
+    const card = $("today-plan");
+    (
+      card.querySelector("[data-plan-action='complete']") || card.querySelector("[data-open-plan]")
+    )?.focus();
+  }
   function render() {
     if (!validDate(date) || date > addDays(ctx.today(), 6)) date = ctx.today();
     $("plan-span").value = span;

@@ -133,7 +133,22 @@ problems. I substituted the nearest honest equivalents:
   Backfilling is no better: the time field exists only on past days
   (`today.js:517`), and a tile tap today always stamps *now* (`today.js:200`), so you
   cannot say "the call was at 09:30" without the "Other activity" form.
-- **Fix:** replace the `#today-plan` list with a **Day timeline** (Appendix A3): a
+- **Status: the Done half is fixed; the timeline and backfilling are not.**
+  - **Shipped:** Done on Today now logs the planned activity in place (its planned name and
+    cost), with no tab change and no form. Today's time is *now*, as with an activity tile; on
+    a past day it keeps the planned time, or none, since "now" would be wrong. The toast offers
+    Undo, keyboard focus moves to the next planned item, and the logged activity can be
+    corrected by tapping it among the day's logged activities. Plan's own Done is unchanged and
+    still opens the form, so the actual cost or time can be set there.
+  - **Differs from the proposal below:** the toast supports one action, so it is Undo, not
+    "Undo / Adjust"; Adjust is tapping the logged activity.
+  - **Not done:** the Day timeline, tapping an empty slot to add (backfilling), and carrying the
+    planned time onto the log for plan-vs-actual (H7). Those need the `dur` field and the
+    calendar (Appendix A).
+  - Test: `test/browser-planner.cjs` (stays on Today, Undo, correcting from the logged
+    activity, Plan's form path, and a past day keeping `21:30`). It fails with the old flow at
+    `Done stays on Today`.
+- **Fix (original proposal):** replace the `#today-plan` list with a **Day timeline** (Appendix A3): a
   vertical hour rail with a now-line, logged activities solid, planned ones dashed.
   Tapping a planned block's check logs it **in place** with the planned values and shows
   the existing Undo toast ("Logged. Adjust"), where Adjust opens the edit form. Never
@@ -494,7 +509,7 @@ template is blocked.** Set geometry from JS after render with the CSSOM
 1. C1 CSS fix, H6 `−0` and C5 empty states (**done**; see each finding for what remains).
 2. `dur` + validation + sorted rows + List/Calendar toggle.
 3. Plan Week/Day board with drag, resize and keyboard.
-4. Today Day timeline with one-tap Done (C3).
+4. Today Day timeline (C3; the one-tap Done part of it is **done**).
 5. History grid with plan-vs-actual and episode bars; Month heatmap resized (C4).
 
 ---

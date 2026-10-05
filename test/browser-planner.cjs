@@ -6,6 +6,12 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "../web");
 const defaults = JSON.parse(fs.readFileSync(path.join(root, "defaults.json"), "utf8"));
 const date = new Date().toISOString().slice(0, 10);
+const yesterday = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+// The fixture saves asynchronously; wait for a condition on it rather than racing a particular response.
+const until = async (done, what) => {
+  for (let i = 0; i < 100 && !done(); i++) await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.ok(done(), what);
+};
 runBrowser({ name: "planner", startServer: false }, async (harness) => {
   for (const width of [1440, 375]) {
     const browser = await harness.launchBrowser();
@@ -132,21 +138,41 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     await page.locator("#t-today").click();
     assert.match(await page.locator("#left").textContent(), /10/);
     assert.equal(await page.locator("#cells .reserved").count(), 7);
+    // Done on Today logs the planned activity in place: no tab change, no form, and Undo takes it back.
     await page.locator("#today-plan [data-plan-action=complete]").first().click();
-    await page.locator("#plan-cost").fill("3");
-    const loggedEntrySaved = page.waitForResponse(
-      (response) =>
-        response.request().method() === "PUT" && docs["d-" + date]?.body.entries.length === 1,
+    assert.equal(await page.locator("#today-panel").isVisible(), true, "Done stays on Today");
+    assert.equal(await page.locator("#plan-form").isVisible(), false);
+    assert.match(await page.locator("#toastbar").textContent(), /Logged Deep focus/);
+    assert.match((await page.locator("#left").textContent()).trim(), /^3\s/);
+    assert.equal(await page.locator("#today-plan [data-plan-action=complete]").count(), 1);
+    assert.equal(
+      await page.evaluate(() => !!document.activeElement.closest("#today-plan")),
+      true,
+      "focus stays in the plan card",
     );
-    await page.locator("#plan-submit").click();
-    await loggedEntrySaved;
-    assert.equal(docs["d-" + date].body.entries.length, 1);
-    assert.equal(docs["d-" + date].body.entries[0].c, 3);
+    await page.locator("#toastbar button").click();
+    assert.equal(await page.locator("#today-plan [data-plan-action=complete]").count(), 2);
+    assert.match((await page.locator("#left").textContent()).trim(), /^10\s/);
+    // Done again, then correct what actually happened from the day's logged activities.
+    await page.locator("#today-plan [data-plan-action=complete]").first().click();
+    await page.locator("#energy-activity-pills [data-action=edit]").first().click();
+    await page.locator("#entry-cost").fill("3");
+    await page.locator("#entry-form button[type=submit]").click();
+    await until(
+      () =>
+        docs["d-" + date]?.body.entries.length === 1 && docs["d-" + date].body.entries[0].c === 3,
+      "corrected entry saved",
+    );
+    assert.match(docs["d-" + date].body.entries[0].id, /^planned:/);
+    await page.locator("#t-plan").click();
     assert.match(await page.locator("#plan-forecast").textContent(), /Available now\s*7/);
     await page.locator("#t-today").click();
     assert.match(await page.locator("#left").textContent(), /7/);
     assert.match(await page.locator("#energy-breakdown").textContent(), /Used\s*−3/);
-    await page.locator("#today-plan [data-plan-action=complete]").click();
+    // Plan keeps its own Done, which opens the form so the actual cost or time can be set as it is logged.
+    await page.locator("#t-plan").click();
+    await page.locator("#plan-list [data-plan-action=complete]").click();
+    assert.equal(await page.locator("#plan-form").isVisible(), true);
     await page.locator("#plan-submit").click();
     await page.locator("#t-today").click();
     assert.match(await page.locator("#left").textContent(), /9/);
@@ -208,6 +234,18 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     assert.match(recoveryOnly, /Work still planned\s*0/);
     assert.match(recoveryOnly, /Planned recovery\s*\+2/);
     assert.doesNotMatch(recoveryOnly, /−0(?!\d)/);
+    // On a past day Done keeps the planned time rather than stamping "now".
+    docs["p-" + yesterday] = {
+      rev: 1,
+      body: { entries: [{ id: "late", a: "Quiet break", c: -2, t: "21:30" }] },
+    };
+    await page.reload();
+    await page.locator("#t-today").click();
+    await page.locator("#day-prev").click();
+    await page.locator("#today-plan [data-plan-action=complete]").click();
+    await until(() => docs["d-" + yesterday]?.body.entries.length === 1, "past day logged");
+    assert.equal(docs["d-" + yesterday].body.entries[0].a, "Quiet break");
+    assert.equal(docs["d-" + yesterday].body.entries[0].t, "21:30");
     assert.deepEqual(errors, []);
     await context.close();
   }
