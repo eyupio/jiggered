@@ -82,21 +82,58 @@ runBrowser({ name: "tools", portEnv: "JIGGERED_TOOLS_PORT" }, async (harness) =>
   await saved(page);
   assert.ok(await page.locator("#fb-three li.is-done").count(), "a ticked thing shows as done");
 
-  // Typed things join the list; the keyboard sets status and deletes, and Undo brings the card back.
+  // A typed thing joins the list and gets its own card in the top right; typing it again reuses that card.
   await page.locator("#fb-three-input").fill("Ten minutes outside");
   await page.locator("#fb-three-form button").click();
   await saved(page);
   assert.equal(await page.locator("#fb-three li").count(), 2);
+  const outside = page.locator(".fb-item", { hasText: "Ten minutes outside" });
+  assert.equal(await outside.count(), 1, "the typed thing is placed on the board");
+  assert.match(await outside.getAttribute("aria-label"), /In your hands, matters most/);
+  assert.equal(await page.locator("#fb-three [data-three-card]").count(), 2);
+  await page.locator("#fb-three-input").fill("ten minutes outside");
+  await page.locator("#fb-three-form button").click();
+  await saved(page);
+  assert.equal(await outside.count(), 1, "no second card for the same words");
+  await page.locator("#fb-three li").nth(2).locator("[data-three-remove]").click();
+  await saved(page);
+  assert.equal(await page.locator("#fb-three li").count(), 2);
+
+  // Choosing a status again clears it: "Not my problem" is a toggle, from the menu and from the keyboard.
+  await sleep.click({ button: "right" });
+  await page.locator("#fb-menu button", { hasText: "Not my problem" }).click();
+  await saved(page);
+  assert.ok(await sleep.evaluate((el) => el.classList.contains("fb-s-external")));
+  await sleep.click({ button: "right" });
+  assert.match(
+    await page.locator("#fb-menu button", { hasText: "Not my problem" }).textContent(),
+    /✓/,
+  );
+  await page.locator("#fb-menu button", { hasText: "Not my problem" }).click();
+  await saved(page);
+  assert.ok(
+    await sleep.evaluate((el) => el.classList.contains("fb-s-todo")),
+    "chosen again, it clears",
+  );
+  await sleep.click();
+  await page.keyboard.press("4");
+  await saved(page);
+  assert.ok(await sleep.evaluate((el) => el.classList.contains("fb-s-external")));
+  await page.keyboard.press("4");
+  await saved(page);
+  assert.ok(await sleep.evaluate((el) => el.classList.contains("fb-s-todo")), "4 again clears it");
+
+  // The keyboard sets status and deletes, and Undo brings the card back.
   await sleep.click();
   await page.keyboard.press("3");
   await saved(page);
   assert.ok(await sleep.evaluate((el) => el.classList.contains("fb-s-done")));
   await page.keyboard.press("Delete");
   await saved(page);
-  assert.equal(await page.locator(".fb-item").count(), 0);
+  assert.equal(await page.locator(".fb-item").count(), 1);
   await page.locator("#toastbar button", { hasText: "Undo" }).click();
   await saved(page);
-  assert.equal(await page.locator(".fb-item").count(), 1, "Undo restores the deleted card");
+  assert.equal(await page.locator(".fb-item").count(), 2, "Undo restores the deleted card");
 
   // Toolbar buttons add more; a marquee over empty space selects everything it touches and arrows nudge them together.
   for (const name of ["Decking", "Weight"]) {
@@ -106,14 +143,14 @@ runBrowser({ name: "tools", portEnv: "JIGGERED_TOOLS_PORT" }, async (harness) =>
     await page.keyboard.press("Enter");
     await saved(page);
   }
-  assert.equal(await page.locator(".fb-item").count(), 3);
+  assert.equal(await page.locator(".fb-item").count(), 4);
   await page.mouse.move(canvas.x + 4, canvas.y + 4);
   await page.mouse.down();
   await page.mouse.move(canvas.x + canvas.width - 4, canvas.y + canvas.height - 4, { steps: 8 });
   await page.mouse.up();
   assert.equal(
     await page.locator(".fb-item.is-selected").count(),
-    3,
+    4,
     "the marquee selected every card",
   );
   const before = await page.locator(".fb-item").evaluateAll((els) => els.map((e) => e.offsetTop));
@@ -134,7 +171,7 @@ runBrowser({ name: "tools", portEnv: "JIGGERED_TOOLS_PORT" }, async (harness) =>
   await saved(page);
   assert.equal(await page.locator('[data-axis="right"]').textContent(), "Controlled");
   await page.locator('#fb-legend [data-status="todo"]').click();
-  assert.equal(await page.locator(".fb-item.is-dimmed").count(), 2);
+  assert.equal(await page.locator(".fb-item.is-dimmed").count(), 3);
   await page.locator('#fb-legend [data-status="todo"]').click();
   await harness.screenshot(page, "tools-board.png");
 
@@ -142,10 +179,10 @@ runBrowser({ name: "tools", portEnv: "JIGGERED_TOOLS_PORT" }, async (harness) =>
   await page.reload();
   await page.locator("#fb-canvas").waitFor();
   await saved(page);
-  assert.equal(await page.locator(".fb-item").count(), 3);
+  assert.equal(await page.locator(".fb-item").count(), 4);
   assert.equal(await page.locator("#fb-three li").count(), 2);
   assert.equal(await page.locator('[data-axis="right"]').textContent(), "Controlled");
-  assert.match(await page.locator("#fb-summary").textContent(), /3 cards/);
+  assert.match(await page.locator("#fb-summary").textContent(), /4 cards/);
 
   // Back to the launcher, and the phone layout stacks the tray under the board.
   await page.locator("#tool-back").click();

@@ -250,10 +250,39 @@ export function mount(ctx, root) {
     for (const id of gone) selected.delete(id);
     render();
   }
+  // Choosing the status a card already has takes it back to "not started", so a colour (above all "not my
+  // problem") is a toggle rather than a one-way door.
   function setStatus(list, s) {
-    const cards = list.filter((id) => item(id)?.k === "card" && item(id).s !== s);
+    const cards = list.filter((id) => item(id)?.k === "card");
     if (!cards.length) return;
-    commit({ items: Object.fromEntries(cards.map((id) => [id, { ...item(id), s }])) });
+    const next = cards.every((id) => item(id).s === s) && s !== "todo" ? "todo" : s;
+    const changed = cards.filter((id) => item(id).s !== next);
+    if (!changed.length) return;
+    commit({ items: Object.fromEntries(changed.map((id) => [id, { ...item(id), s: next }])) });
+  }
+  // A thing typed into today's three also gets a card in the top right, unless a card already says the same.
+  function cardFor(text, extra = {}) {
+    const wanted = text.trim().toLocaleLowerCase();
+    const existing = ids().find(
+      (id) => item(id).k === "card" && item(id).t.trim().toLocaleLowerCase() === wanted,
+    );
+    if (existing) return { id: existing, items: {} };
+    if (ids().length >= 400) return { id: null, items: {} };
+    const n = Object.keys(extra).length + ids().length;
+    const id = uid();
+    return {
+      id,
+      items: {
+        [id]: {
+          k: "card",
+          t: text.trim(),
+          x: round3(0.56 + (n % 4) * 0.05),
+          y: round3(0.12 + ((n * 7) % 5) * 0.06),
+          z: nextZ(board) + Object.keys(extra).length,
+          s: "todo",
+        },
+      },
+    };
   }
   function duplicate(list) {
     const copies = {};
@@ -651,11 +680,12 @@ export function mount(ctx, root) {
       if (one) add("Edit text", () => startEdit(picks[0]), { key: "Enter" });
       if (picks.some((id) => item(id).k === "card")) {
         entries.push({ heading: "Status" });
-        for (const s of STATUS_ORDER)
-          add(STATUSES[s].label, () => setStatus(picks, s), {
-            key: STATUSES[s].key,
-            disabled: one?.k === "card" && one.s === s,
+        for (const s of STATUS_ORDER) {
+          const current = one?.k === "card" && one.s === s;
+          add(current ? `${STATUSES[s].label} ✓` : STATUSES[s].label, () => setStatus(picks, s), {
+            key: current && s !== "todo" ? "clear" : STATUSES[s].key,
           });
+        }
         sep();
       }
       if (one && one.k === "card" && one.s !== "external")
@@ -1118,9 +1148,14 @@ export function mount(ctx, root) {
       ctx.toast(`The list holds ${THREE_LIMIT}. Tick a few off first.`);
       return;
     }
+    const card = cardFor(value);
     if (
       commit({
-        three: [...board.three, { id: uid(), t: value, done: false }],
+        ...(Object.keys(card.items).length ? { items: card.items } : {}),
+        three: [
+          ...board.three,
+          { id: uid(), t: value, done: false, ...(card.id ? { card: card.id } : {}) },
+        ],
         threeDate: board.threeDate || ctx.today(),
       })
     )
