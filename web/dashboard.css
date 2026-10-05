@@ -1754,3 +1754,364 @@
 .app-shell .app-footer a:hover {
   color: var(--accent);
 }
+
+/* ---- The planning calendar (calendar.js). Geometry comes from custom properties the script sets. ---- */
+.cal {
+  --hour: 56px;
+  --rail: 46px;
+  --min: calc(var(--hour) / 60);
+  font-size: 0.85rem;
+  min-width: 0;
+}
+@media (pointer: coarse) {
+  .cal {
+    --hour: 72px;
+  }
+}
+.cal-inner {
+  --cols: 7;
+  min-width: 0;
+}
+.cal-top {
+  /* The day headers and the "Any time" row stay in view while the hours scroll. */
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: var(--surface);
+}
+.cal-head,
+.cal-tray-row,
+.cal-body {
+  display: grid;
+  grid-template-columns: var(--rail) repeat(var(--cols), minmax(0, 1fr));
+}
+.cal-corner {
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+.cal-day-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  padding: 6px 4px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 8px 8px 0 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+}
+.cal-day-head b,
+.cal-rail span,
+.cal-meta,
+.cal-drop {
+  /* The body face draws a slashed zero, which reads as "Ø8:ØØ" on a time axis. */
+  font-family: var(--display);
+}
+.cal-day-head b {
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+.cal-day-head.is-today span {
+  color: var(--accent);
+  font-weight: 700;
+}
+.cal-day-head.is-selected {
+  border-bottom-color: var(--accent);
+  background: var(--accent-soft);
+}
+.cal-day-head.is-warn b {
+  color: var(--red);
+}
+.cal-tray-row {
+  margin-block: 6px;
+}
+.cal-tray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-inline: 2px;
+}
+.cal-scroll {
+  position: relative;
+  max-height: min(70vh, 620px);
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.cal-body {
+  position: relative;
+}
+.cal-rail,
+.cal-col {
+  height: calc(var(--hours) * var(--hour));
+}
+.cal-rail span {
+  display: block;
+  height: var(--hour);
+  box-sizing: border-box;
+  padding: 2px 6px 0 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.cal-col {
+  position: relative;
+  border-left: 1px solid var(--line);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--line) 0,
+    var(--line) 1px,
+    transparent 1px,
+    transparent var(--hour)
+  );
+}
+.cal-col.is-today {
+  background-color: color-mix(in srgb, var(--accent-soft) 45%, transparent);
+}
+.cal-block {
+  position: absolute;
+  top: calc(var(--start) * var(--min));
+  left: calc(var(--lane) * 100% / var(--lanes) + 2px);
+  width: calc(100% / var(--lanes) - 4px);
+  height: max(calc(var(--span) * var(--min) - 2px), 22px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 3px 6px;
+  overflow: hidden;
+  border: 1px dashed var(--accent);
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--fg);
+  font: inherit;
+  line-height: 1.2;
+  text-align: left;
+  user-select: none;
+}
+.cal-block.is-spend {
+  border-color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 16%, var(--surface));
+}
+.cal-block.is-recovery {
+  border-color: var(--green);
+  background: color-mix(in srgb, var(--green) 15%, var(--surface));
+}
+.cal-block.is-done {
+  border-style: solid;
+  opacity: 0.72;
+}
+.cal-block.is-editable {
+  cursor: grab;
+}
+.cal-block.is-dragging {
+  opacity: 0.4;
+}
+.cal-block.is-short {
+  flex-direction: row;
+  align-items: center;
+  padding-block: 1px;
+}
+.cal-block.is-short .cal-meta {
+  display: none;
+}
+.cal-block:focus-visible,
+.cal-chip:focus-visible,
+.cal-day-head:focus-visible {
+  z-index: 5;
+  outline: 3px solid var(--accent);
+  outline-offset: 1px;
+}
+.cal-title {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-meta {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-resize {
+  position: absolute;
+  inset-inline: 0;
+  height: 10px;
+  cursor: ns-resize;
+  touch-action: none;
+  z-index: 2;
+}
+.cal-resize[data-edge="top"] {
+  top: -3px;
+}
+.cal-resize[data-edge="bottom"] {
+  bottom: -3px;
+}
+.cal-resize::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 4px;
+  width: 22px;
+  height: 3px;
+  margin-left: -11px;
+  border-radius: 2px;
+  background: var(--accent);
+  opacity: 0;
+}
+.cal-block:hover .cal-resize::after,
+.cal-block:focus-visible .cal-resize::after {
+  opacity: 0.7;
+}
+.cal-grip {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background-image: radial-gradient(circle, currentColor 1.3px, transparent 1.7px);
+  background-size: 6px 6px;
+  color: var(--muted);
+  cursor: grab;
+  opacity: 0;
+  touch-action: none;
+  z-index: 3; /* above the resize handles, so the corner always moves the block */
+}
+.cal-block:hover .cal-grip,
+.cal-block:focus-visible .cal-grip {
+  opacity: 0.6;
+}
+@media (pointer: coarse) {
+  /* A finger needs something to hold: always show the grip, keep every block big enough to hit, and keep the resize
+     handles clear of the grip so a short block can still be moved. */
+  .cal-block {
+    min-height: 44px;
+  }
+  .cal-grip {
+    width: 36px;
+    height: 36px;
+    opacity: 0.6;
+  }
+  .cal-resize {
+    right: 40px;
+    height: 24px;
+  }
+  .cal-resize[data-edge="top"] {
+    top: -10px;
+  }
+  .cal-resize[data-edge="bottom"] {
+    bottom: -10px;
+  }
+}
+.cal-drop {
+  position: absolute;
+  top: calc(var(--start) * var(--min));
+  height: calc(var(--span) * var(--min));
+  inset-inline: 2px;
+  box-sizing: border-box;
+  padding: 2px 6px;
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--fg);
+  font-size: 0.75rem;
+  font-weight: 700;
+  pointer-events: none;
+  z-index: 4;
+}
+.cal-now {
+  position: absolute;
+  top: calc(var(--start) * var(--min));
+  inset-inline: 0;
+  border-top: 2px solid var(--red);
+  pointer-events: none;
+  z-index: 3;
+}
+.cal-now::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+}
+.cal-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px dashed var(--accent);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.8rem;
+  text-align: left;
+}
+.cal-chip.is-editable,
+.cal-preset {
+  cursor: grab;
+}
+.cal-chip.is-done {
+  border-style: solid;
+  opacity: 0.72;
+}
+.cal-preset span {
+  margin-left: auto;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.cal-preset.is-recovery {
+  border-color: var(--green);
+}
+.plan-board-layout {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  margin-top: 14px;
+}
+.cal-palette {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: min(70vh, 620px);
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.cal-palette h3 {
+  margin: 0 0 2px;
+}
+@media (max-width: 1000px) {
+  /* Not enough width for a side column and seven days: the activities wrap above the timeline instead. */
+  .plan-board-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cal-palette {
+    flex-flow: row wrap;
+    max-height: 112px;
+  }
+  .cal-palette h3 {
+    flex-basis: 100%;
+  }
+}
+@media (max-width: 700px) {
+  /* A phone shows one day at a time, and its activities are added through the form. */
+  .plan-board-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cal-palette {
+    display: none;
+  }
+}

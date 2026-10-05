@@ -1,6 +1,15 @@
 import { $, html, setHTML, uid, fmtDay, signed } from "./util.js";
 import { addDays, dayId, hhmm } from "./model.js";
-import { DAY, slotText, suggestDuration, toMinutes, validDur } from "./calendar-model.js";
+import {
+  DAY,
+  NEW_DUR,
+  fromMinutes,
+  slotText,
+  suggestDuration,
+  toMinutes,
+  validDur,
+} from "./calendar-model.js";
+import { createTimeGrid } from "./calendar.js";
 import { validDate } from "./history-model.js";
 import { energyAmount, themeOf } from "./energy-theme.js";
 import { forecast, planId, plannedEntryId } from "./planner-model.js";
@@ -327,6 +336,112 @@ export function init(ctx) {
       card.querySelector("[data-plan-action='complete']") || card.querySelector("[data-open-plan]")
     )?.focus();
   }
+  // ---- the timeline: what each gesture on the calendar means for the plan ----
+  const narrow = matchMedia("(max-width: 700px)"); // a phone shows one day at a time
+  narrow.addEventListener("change", () => render());
+  const dayLabel = (d) =>
+    d === ctx.today()
+      ? "Today"
+      : `${fmtDay(d, ctx.settings().locale).split(",")[0]} ${Number(d.slice(8))}`;
+  let burst = null; // the last change to a block, so a run of arrow-key moves undoes as one
+  const grid = createTimeGrid($("plan-board"), {
+    editable: () => writable(ctx),
+    onSelectDay(d) {
+      date = d;
+      closeForm();
+      render();
+    },
+    onOpen({ date: d, id }) {
+      const row = forecast(ctx.store.all(), d, ctx.settings()).pending.find((r) => r.id === id);
+      if (!row) return;
+      date = d;
+      closeForm();
+      render();
+      openForm(row);
+    },
+    onCreate({ date: d, start }) {
+      date = d;
+      closeForm();
+      render();
+      openForm();
+      $("plan-time").value = fromMinutes(start);
+      $("plan-dur").value = String(Math.min(NEW_DUR, DAY - start));
+    },
+    onChange: (change) => moveBlock(change),
+    onDrop: (payload, at) => addPreset(payload.preset, at),
+  });
+  function moveBlock(c) {
+    if (!writable(ctx)) return;
+    const row = forecast(ctx.store.all(), c.fromDate, ctx.settings()).pending.find(
+      (r) => r.id === c.id,
+    );
+    if (!row) return;
+    const t = fromMinutes(c.start);
+    let moved = { ...row, t, dur: c.dur };
+    if (c.fromDate === c.toDate)
+      dispatch(ctx, c.toDate, "editEntry", { id: row.id, changes: { t, dur: c.dur } }, row);
+    else {
+      const target = forecast(ctx.store.all(), c.toDate, ctx.settings());
+      if (target.rows.length >= 200)
+        return ctx.toast("That day already has 200 planned activities.");
+      if (target.rows.some((r) => r.id === row.id)) moved = { ...moved, id: uid() };
+      // Add to the new day before removing from the old one: if the second step fails you see a copy, not a loss.
+      dispatch(ctx, c.toDate, "addEntry", moved);
+      dispatch(ctx, c.fromDate, "removeEntry", row);
+    }
+    const again = burst?.id === moved.id && c.source === "keyboard" && Date.now() - burst.at < 1500,
+      origin = again ? burst.origin : { date: c.fromDate, row };
+    burst = { id: moved.id, origin, at: Date.now() };
+    ctx.toast(`Moved ${row.a} to ${dayLabel(c.toDate)}, ${slotText(moved)}.`, {
+      label: "Undo",
+      fn: () => restoreBlock(origin, c.toDate, moved),
+    });
+  }
+  function restoreBlock(origin, nowDate, moved) {
+    if (!writable(ctx)) return;
+    burst = null;
+    if (origin.date === nowDate)
+      dispatch(
+        ctx,
+        nowDate,
+        "editEntry",
+        { id: moved.id, changes: { t: origin.row.t ?? "", dur: origin.row.dur ?? null } },
+        moved,
+      );
+    else {
+      dispatch(ctx, origin.date, "addEntry", origin.row);
+      dispatch(ctx, nowDate, "removeEntry", moved);
+    }
+  }
+  function addPreset(preset, at) {
+    if (!writable(ctx)) return;
+    if (forecast(ctx.store.all(), at.date, ctx.settings()).rows.length >= 200)
+      return ctx.toast("That day already has 200 planned activities.");
+    const entry = { id: uid(), a: preset.a, c: preset.c, t: fromMinutes(at.start), dur: at.dur };
+    dispatch(ctx, at.date, "addEntry", entry);
+    ctx.toast(`Added ${preset.a} at ${entry.t}.`, {
+      label: "Undo",
+      fn: () => dispatch(ctx, at.date, "removeEntry", entry),
+    });
+  }
+  // Saved activities can be dragged onto the timeline with a mouse or pen; a click or tap fills the form instead.
+  const palette = $("plan-palette");
+  const presetOf = (e) =>
+    ctx.settings().activities[Number(e.target.closest("[data-preset]")?.dataset.preset)];
+  palette.addEventListener("pointerdown", (e) => {
+    const preset = e.pointerType === "touch" || e.button > 0 ? null : presetOf(e);
+    if (preset) grid.beginExternalDrag(e, { preset, dur: suggestDuration(preset.a) ?? NEW_DUR });
+  });
+  palette.addEventListener("click", (e) => {
+    const preset = presetOf(e);
+    if (!preset || grid.justDropped() || !writable(ctx)) return;
+    closeForm();
+    openForm();
+    $("plan-name").value = preset.a;
+    $("plan-cost").value = preset.c;
+    $("plan-dur").value = suggestDuration(preset.a) ?? "";
+  });
+
   function render() {
     if (!validDate(date) || date > addDays(ctx.today(), 6)) date = ctx.today();
     $("plan-span").value = span;
@@ -377,6 +492,40 @@ export function init(ctx) {
         : html``,
     );
     $("plan-add").disabled = !writable(ctx) || f.rows.length >= 200;
+    // The timeline: every planned activity of the days in view (just the chosen day on a phone).
+    const forecastOf = (d) =>
+      forecasts[dates.indexOf(d)] ?? forecast(ctx.store.all(), d, ctx.settings());
+    grid.render({
+      editable: writable(ctx),
+      days: (narrow.matches ? [date] : dates).map((d) => {
+        const m = forecastOf(d);
+        return {
+          date: d,
+          label: dayLabel(d),
+          value: m.rows.length || m.logged ? String(m.projected) : "—",
+          today: d === ctx.today(),
+          selected: d === date,
+          warn: m.afterWork < 0,
+          blocks: m.rows.map((e) => ({
+            id: e.id,
+            title: e.a,
+            cost: e.c,
+            t: e.t,
+            dur: e.dur,
+            kind: "plan",
+            done: m.done.includes(e),
+            editable: !m.done.includes(e),
+          })),
+        };
+      }),
+    });
+    const acts = ctx.settings().activities;
+    setStable(
+      $("plan-palette"),
+      acts.length
+        ? html`<h3 class="label">Drag onto the timeline</h3>${acts.map((e, i) => html`<button type="button" class="cal-chip cal-preset${e.c < 0 ? " is-recovery" : ""}" data-preset="${i}">${e.a}<span>${signed(e.c)}</span></button>`)}`
+        : html``,
+    );
     root
       .querySelectorAll("[data-plan-action],[data-plan-recovery]")
       .forEach((b) => (b.disabled = !writable(ctx)));

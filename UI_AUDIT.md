@@ -109,16 +109,29 @@ problems. I substituted the nearest honest equivalents:
   - You plan seven days by tapping a chip, then a list, then a form. Nothing lets you
     see Tuesday's heavy afternoon next to Wednesday's empty one, which is the whole
     reason to plan ahead.
-- **Status: in progress.** Shipped so far: the optional `dur` field (whole minutes, 5-1440,
-  validated on the server for plan rows and logged entries, and it must finish by midnight);
-  a Duration input on the Plan form and Today's activity form; ranges such as `09:30–11:00`
-  in the plan list, Today's logged activities and History's day detail; plan rows sorted by
-  start time with untimed ones last; and a length suggested from a saved activity's name
-  ("Deep focus (2 hours)" gives 120) without replacing one that was typed. The pure logic is
-  in `web/calendar-model.js`. Logging a planned activity now places it at its planned start if
-  that has passed (otherwise now) and carries its length. Not yet: the calendar views.
-  CSV and print exports do not include the length yet; that is a public format change and
-  is left for a decision.
+- **Status: Plan timeline shipped; Today and History views not yet.**
+  - **`dur`:** optional length in whole minutes (5-1440), validated on the server for plan rows
+    and logged entries, and it must finish by midnight. Duration inputs on the Plan form and
+    Today's activity form; ranges such as `09:30–11:00` in the plan list, Today's logged
+    activities and History's day detail; plan rows sorted by start time with untimed ones last;
+    a length suggested from a saved activity's name ("Deep focus (2 hours)" gives 120) without
+    replacing one that was typed. Logging a planned activity places it at its planned start if
+    that has passed (otherwise now) and carries its length.
+  - **Plan timeline** (`web/calendar.js`, with the rules in `web/calendar-model.js`): day
+    columns on an hour rail with a "now" line, overlapping blocks side by side, an "Any time"
+    row for untimed items, and a palette of saved activities. Drag a block to move it (including
+    to another day), drag its top or bottom edge to change its length, drop a saved activity from
+    the palette, click an empty space to add. With the keyboard, arrows move a focused block,
+    Shift+Up/Down changes its length and Left/Right changes day; each move has one Undo (a run
+    of arrow presses undoes as one). Escape cancels a drag. A phone shows one day, and blocks
+    are moved by their grip so the page still scrolls. A cross-day move adds to the new day
+    before removing from the old one, so a failure shows a copy rather than losing it.
+  - Tests: `test/calendar-model.test.mjs`, Go tests for `dur`, and `test/browser-calendar.cjs`
+    (real mouse, keyboard and touch). Assertions were checked by breaking the behaviour and
+    watching them fail.
+  - **Not yet:** the Today day timeline and History grid (below), editing a block's length from
+    a phone other than through the form, and `dur` in the CSV and print exports (a public
+    format change, left for a decision).
 - **Fix:** build the calendar described in **Appendix A**. First slice that ships value
   on its own: add optional `dur` (minutes), sort rows by `(t, id)` with untimed rows
   under "Anytime", and render a Week board in a new `web/calendar.js`. Keep the current
@@ -518,7 +531,7 @@ template is blocked.** Set geometry from JS after render with the CSSOM
 
 1. C1 CSS fix, H6 `−0` and C5 empty states (**done**; see each finding for what remains).
 2. `dur` + validation + sorted rows + List/Calendar toggle.
-3. Plan Week/Day board with drag, resize and keyboard.
+3. Plan Week/Day board with drag, resize and keyboard (**done**).
 4. Today Day timeline (C3; the one-tap Done part of it is **done**).
 5. History grid with plan-vs-actual and episode bars; Month heatmap resized (C4).
 
