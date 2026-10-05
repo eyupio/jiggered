@@ -339,6 +339,9 @@ runBrowser({ name: "walkthrough", username: "auditadmin" }, async (harness) => {
   await phone.locator("#ep-save").click();
   assert.match(await phone.locator("#eptoast").textContent(), /can't be in the future/);
   assert.equal(await phone.evaluate(() => document.activeElement.id), "ep-when");
+  // Correcting the form takes the complaint away; it must not stay on screen in the success colour.
+  await phone.locator("#ep-notes").fill("Started later than I thought");
+  assert.equal(await phone.locator("#eptoast").textContent(), "");
   phone.once("dialog", (dialog) => dialog.accept()); // "Delete this draft?"
   await phone.locator("#ep-discard").click();
   await phone.locator("#t-history").click();

@@ -380,6 +380,8 @@ export function init(ctx) {
   });
   form.addEventListener("input", (e) => {
     if (e.target.type === "search") return;
+    // A complaint is about the form as it was: once it is being corrected it goes, rather than turning green.
+    if ($("eptoast").classList.contains("err")) $("eptoast").textContent = "";
     $("eptoast").classList.remove("err");
     if (ticket && ctx.store.outcome(ticket.n) === "failed") ticket = submitted = null;
     dirty = true;
