@@ -2200,23 +2200,6 @@
 .today-timeline-panel .history-section-body > .meta {
   margin: 0;
 }
-/* History: the week on a timeline. */
-.history-week .week-nav {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-.history-week .week-nav .meta {
-  flex: 1 1 auto;
-  min-width: 0;
-  text-align: center;
-}
-.history-week .week-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
 /* Today: activities to place on the timeline sit above it, as a wrapped row, so a drag has somewhere to start. */
 #today-palette {
   display: flex;
