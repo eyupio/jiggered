@@ -337,6 +337,45 @@ runBrowser({ name: "today", portEnv: "JIGGERED_TODAY_PORT" }, async (harness) =>
   await page.reload();
   await saved(page);
   assert.equal(await pills.count(), 3, "pills survive reload and sync");
+  // An episode that is still going can be ended with one tap, and the length is worked out from when it started.
+  const ongoing = await page.evaluate(async () => {
+    const started = new Date(Date.now() - 2 * 3600_000);
+    const p = (n) => String(n).padStart(2, "0");
+    const when = `${started.getFullYear()}-${p(started.getMonth() + 1)}-${p(started.getDate())}T${p(started.getHours())}:${p(started.getMinutes())}`;
+    const r = await fetch("/api/docs/e-1700000000001", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "jiggered",
+        "If-None-Match": "*",
+      },
+      body: JSON.stringify({
+        when,
+        symptoms: ["Headache"],
+        onset: "Sudden",
+        duration: "Still going",
+        before: [],
+        notes: "",
+      }),
+    });
+    return r.status;
+  });
+  assert.equal(ongoing, 200, "the ongoing episode was accepted");
+  await page.reload();
+  await saved(page);
+  const banner = page.locator("#today-ongoing");
+  await banner.waitFor();
+  await banner.locator("[data-end-episode-now]").click();
+  for (let i = 0, ended = false; !ended; i++) {
+    assert.ok(i < 100, "the ended episode reaches the server");
+    ended = await page.evaluate(async () => {
+      const r = await fetch("/api/docs", { credentials: "same-origin" });
+      const doc = (await r.json())["e-1700000000001"]?.body;
+      return doc?.duration === "1–4 hours" && !!doc?.endedAt;
+    });
+    if (!ended) await page.waitForTimeout(100);
+  }
+  await banner.waitFor({ state: "hidden" }); // the banner goes once the episode has ended
   await page.locator("#t-history").click();
   assert.equal(await page.locator("#view-heading").textContent(), "History");
   await page.reload();

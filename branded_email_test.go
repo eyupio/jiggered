@@ -63,3 +63,33 @@ func TestEveryEmailUsesBrandedAlternatives(t *testing.T) {
 		}
 	}
 }
+
+// The inbox list shows the first words of a message, and filters expect a Message-ID: the first visible text is the
+// message itself, not the wordmark, and the headers are complete.
+func TestEmailHasAPreheaderAndCompleteHeaders(t *testing.T) {
+	encoded, err := brandedEmail(emailSettings{From: "server@example.com", To: []string{"person@example.com"}}, "Verify your Jiggered account", "Confirm your email to start using Jiggered. The link works once.\n\nDidn't ask for this? Ignore this email.", "https://jiggered.example/login#verify=abc", "Verify email")
+	if err != nil {
+		t.Fatal(err)
+	}
+	message, err := mail.ReadMessage(bytes.NewReader(encoded))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id := message.Header.Get("Message-ID"); !strings.HasPrefix(id, "<") || !strings.HasSuffix(id, "@example.com>") {
+		t.Fatalf("Message-ID = %q", id)
+	}
+	if message.Header.Get("Auto-Submitted") != "auto-generated" {
+		t.Fatal("missing Auto-Submitted")
+	}
+	_, params, _ := mime.ParseMediaType(message.Header.Get("Content-Type"))
+	reader := multipart.NewReader(message.Body, params["boundary"])
+	reader.NextPart() // plain text
+	part, _ := reader.NextPart()
+	html, _ := io.ReadAll(part)
+	body := string(html)
+	pre := strings.Index(body, "Confirm your email to start using Jiggered. The link works once.")
+	wordmark := strings.Index(body, "jiggered<span")
+	if pre < 0 || wordmark < 0 || pre > wordmark || !strings.Contains(body[:pre], "display:none") {
+		t.Fatalf("the first text in the message should be a hidden preheader (pre=%d wordmark=%d)", pre, wordmark)
+	}
+}

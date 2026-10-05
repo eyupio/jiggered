@@ -41,11 +41,15 @@ runBrowser({ name: "tools", portEnv: "JIGGERED_TOOLS_PORT" }, async (harness) =>
   await page.locator('[data-fb="undo"]').click();
   await page.waitForFunction(() => document.querySelectorAll(".fb-item").length === 0);
   // The server copy must be empty again before the next step reads it.
-  await page.waitForFunction(async () => {
-    const r = await fetch("/api/docs", { credentials: "same-origin" });
-    const body = (await r.json())["t-fretboard"]?.body;
-    return !body || Object.keys(body.items || {}).length === 0;
-  });
+  for (let i = 0, empty = false; !empty; i++) {
+    assert.ok(i < 100, "the undone example reaches the server");
+    empty = await page.evaluate(async () => {
+      const r = await fetch("/api/docs", { credentials: "same-origin" });
+      const body = (await r.json())["t-fretboard"]?.body;
+      return !body || Object.keys(body.items || {}).length === 0;
+    });
+    if (!empty) await page.waitForTimeout(100);
+  }
 
   // Double-click adds a card where the mouse is and starts typing straight away.
   await page.locator("#fb-canvas").scrollIntoViewIfNeeded();

@@ -142,6 +142,13 @@
               autocomplete="new-password"
               required
           /></label>
+          <div class="sent-box" id="register-sent" role="status" tabindex="-1" hidden>
+            <h2>Check your inbox</h2>
+            <p>
+              We sent a link to <b data-sent-to></b>. It works once and expires in 30 minutes. If it
+              has not arrived in a minute, look in spam, or press the button again.
+            </p>
+          </div>
           <button class="primary" type="submit">Send verification email</button>
           <p class="msg" role="status" id="register-msg"></p>
           <button class="secondary" type="button" data-signin>Back to sign in</button>
@@ -153,12 +160,16 @@
             minutes.
           </p>
           <label
-            >Email address<input
-              id="forgot-email"
-              type="email"
-              autocomplete="email"
-              required /></label
-          ><button class="primary" type="submit">Request reset link</button>
+            >Email address<input id="forgot-email" type="email" autocomplete="email" required
+          /></label>
+          <div class="sent-box" id="forgot-sent" role="status" tabindex="-1" hidden>
+            <h2>Check your inbox</h2>
+            <p>
+              If that address belongs to an account, a link is on its way to <b data-sent-to></b>.
+              It works once and expires in 30 minutes. Look in spam if it does not arrive.
+            </p>
+          </div>
+          <button class="primary" type="submit">Request reset link</button>
           <p class="msg" role="status" id="forgot-msg"></p>
           <button class="secondary" type="button" data-signin>Back to sign in</button>
         </form>

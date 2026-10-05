@@ -289,7 +289,15 @@ runBrowser(
       false,
     );
     await join.locator("#register-form [type=submit]").click();
-    await join.locator("#register-msg").filter({ hasText: "an email will arrive" }).waitFor();
+    // The form says where the link went (a masked address) instead of leaving a hedged sentence under the button.
+    const sent = join.locator("#register-sent");
+    await sent.waitFor();
+    assert.match(await sent.textContent(), /Check your inbox/);
+    assert.match(await sent.textContent(), /•••@/);
+    assert.match(
+      await join.locator("#register-form [type=submit]").textContent(),
+      /Send another link \(\d+s\)/,
+    );
     const verify = await waitMail("verify");
     await join.goto(base + "/login#verify=" + verify);
     await join.locator("#verify-form").waitFor();

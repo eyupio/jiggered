@@ -478,7 +478,9 @@ function fatal(text) {
       return;
     }
     const settings = e.target.closest("[data-settings]"),
-      finish = e.target.closest("[data-finish-episode]");
+      finish = e.target.closest("[data-finish-episode]"),
+      endNow = e.target.closest("[data-end-episode-now]");
+    if (endNow) episodesView.endEpisodeNow(ctx, endNow.dataset.endEpisodeNow); // read-only tabs never get here
     if (settings) ctx.editSettings(settings.dataset.settings);
     if (finish) views.episode.edit(finish.dataset.finishEpisode, null, true);
   });

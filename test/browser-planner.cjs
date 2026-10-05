@@ -256,6 +256,8 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     await page.waitForFunction(() => document.querySelector("#plan-allowance").value === "4");
     await page.locator('#plan-daytype [data-daytype="green"]').click();
     await page.waitForFunction(() => document.querySelector("#plan-allowance").value === "7");
+    // Let the saves from those choices finish: a re-render when one lands would reset a number typed meanwhile.
+    await page.waitForFunction(() => document.querySelector("#sync")?.dataset.state === "saved");
     await page.locator("#plan-allowance").fill("4");
     await page.locator("#plan-allowance").dispatchEvent("change");
     await page.locator("[data-plan-recovery]").first().waitFor();

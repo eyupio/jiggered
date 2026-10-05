@@ -411,6 +411,7 @@ export function init(ctx) {
     const n = Number(e.target.value),
       f = model();
     if (!Number.isInteger(n) || n < 1 || n > 30 || f.logged || !writable(ctx)) {
+      e.target.value = f.allowance; // the field has focus, so render() would leave a rejected number in it
       render();
       return;
     }
@@ -792,7 +793,8 @@ export function init(ctx) {
       })}`,
     );
     $("plan-date-label").textContent = fmtDay(date, ctx.settings().locale);
-    $("plan-allowance").value = f.allowance;
+    // A save landing while the number is being typed must not put the old value back under the cursor.
+    if (document.activeElement !== $("plan-allowance")) $("plan-allowance").value = f.allowance;
     $("plan-allowance").disabled = f.logged || !writable(ctx);
     $("plan-allowance-hint").textContent = f.logged
       ? "Uses this day’s logged allowance. Adjust check-in and sleep in Today."

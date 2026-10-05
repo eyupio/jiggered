@@ -311,7 +311,7 @@ runBrowser({ name: "walkthrough", username: "auditadmin" }, async (harness) => {
   await phone.locator("#ep-save").click();
   await phone.locator("#eptoast").filter({ hasText: "Saved." }).waitFor();
   await phone.locator("#t-today").click();
-  await phone.locator("#today-ongoing button").click();
+  await phone.locator("#today-ongoing [data-finish-episode]").click(); // "Ended earlier…" opens the form
   await phone.locator("#ep-dur").selectOption("Ended (duration unknown)");
   await phone.locator("#ep-save").click();
   await phone.locator("#eptoast").filter({ hasText: "Saved." }).waitFor();

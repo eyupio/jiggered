@@ -143,6 +143,27 @@ function initAuth() {
   }
   readFragment();
   window.addEventListener("hashchange", readFragment);
+  // "ada@example.com" -> "a•••@example.com": enough to spot a typo, not the whole address on screen.
+  const maskEmail = (value) => {
+    const [name = "", domain = ""] = value.trim().split("@");
+    return domain ? `${name.slice(0, 1)}•••@${domain}` : value.trim();
+  };
+  // A link just went out: hold the button for a few seconds, with the time left on it, so it is not pressed twice.
+  function cooldown(button, seconds) {
+    let left = seconds;
+    button.disabled = true;
+    button.textContent = `Send another link (${left}s)`;
+    const tick = setInterval(() => {
+      left -= 1;
+      if (left > 0) {
+        button.textContent = `Send another link (${left}s)`;
+        return;
+      }
+      clearInterval(tick);
+      button.disabled = false;
+      button.textContent = "Send another link";
+    }, 1000);
+  }
   async function submit(which, path, body, success) {
     const form = $(which + "-form"),
       button = form.querySelector("[type=submit]"),
@@ -185,9 +206,13 @@ function initAuth() {
       }
       if (r.ok) {
         if (which === "register" || which === "forgot") {
-          button.textContent = "Send another link";
-          message.textContent +=
-            " To request another link, press the button again; a newer link replaces the previous one.";
+          // Say what happened where the eye is: who it went to, and when to try again.
+          const box = $(which + "-sent");
+          box.querySelector("[data-sent-to]").textContent = maskEmail($(which + "-email").value);
+          box.hidden = false;
+          box.focus();
+          message.textContent = "";
+          setTimeout(() => cooldown(button, 30), 0); // after `finally` re-enables the button
         }
         success?.();
         if (which === "verify" && value.username) {

@@ -628,8 +628,19 @@ export const csvCell = (v) => {
 const csv = (rows) => rows.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
 
 export function daysCsv(docs, S) {
+  // One convention in every export: a cost is the energy spent (positive) or recovered (negative, written as
+  // "recovered"). points_used is spent minus recovered; the two columns after "activities" give each side.
   const rows = [
-    ["date", "check_in", "poor_sleep", "points_used", "points_available", "activities"],
+    [
+      "date",
+      "check_in",
+      "poor_sleep",
+      "points_used",
+      "points_available",
+      "activities",
+      "points_spent",
+      "points_recovered",
+    ],
   ];
   for (const d of listDays(docs).reverse()) {
     rows.push([
@@ -639,8 +650,13 @@ export function daysCsv(docs, S) {
       used(d),
       capOf(d, S),
       (d.entries || [])
-        .map((e) => `${e.t ? e.t + " " : ""}${e.a} (${e.c > 0 ? "-" : "+"}${Math.abs(e.c)})`)
+        .map(
+          (e) =>
+            `${e.t ? e.t + " " : ""}${e.a} (${e.c > 0 ? "spent " + e.c : e.c < 0 ? "recovered " + -e.c : "no change"})`,
+        )
         .join("; "),
+      (d.entries || []).reduce((n, e) => n + Math.max(0, e.c), 0),
+      (d.entries || []).reduce((n, e) => n + Math.max(0, -e.c), 0),
     ]);
   }
   return csv(rows);

@@ -1,5 +1,5 @@
 // New captures and edits have separate device drafts; a server acknowledgement completes a save.
-import { $, html, setHTML, saveFeedback } from "./util.js";
+import { $, html, setHTML, saveFeedback, fmtWhen } from "./util.js";
 import { PICKER, usage, favourites, matches } from "./picker.js";
 import {
   ONSET,
@@ -15,8 +15,60 @@ export function renderOngoing(ctx, el) {
   el.hidden = !items.length;
   setHTML(
     el,
-    html`<h2>Still going (${items.length})</h2>${items.slice(0, 10).map(([id, e]) => html`<p>${e.when.replace("T", " ")} · ${e.symptoms.join(", ") || "Episode"} <button class="secondary" data-finish-episode="${id}">Record when it ended</button></p>`)}${items.length > 10 ? html`<p>More ongoing episodes are in History.</p>` : ""}`,
+    html`<h2>Still going (${items.length})</h2>${items.slice(0, 10).map(([id, e]) => html`<p>${fmtWhen(e.when, ctx.settings().locale)} · ${e.symptoms.join(", ") || "Episode"} <button class="secondary" data-end-episode-now="${id}">Ended just now</button> <button class="secondary" data-finish-episode="${id}">Ended earlier…</button></p>`)}${items.length > 10 ? html`<p>More ongoing episodes are in History.</p>` : ""}`,
   );
+}
+
+// The usual way an episode ends is "it just stopped": one tap, with the length worked out from when it started.
+// Anything more exact goes through the form ("Ended earlier…").
+export function endEpisodeNow(ctx, id) {
+  const e = ctx.store.view(id);
+  if (!e) return;
+  const now = new Date(),
+    start = Number.isFinite(e.whenOffset)
+      ? Date.parse(e.when + "Z") - e.whenOffset * 60000
+      : new Date(e.when).getTime(),
+    minutes = (now.getTime() - start) / 60000;
+  if (!Number.isFinite(minutes) || minutes < 0) return;
+  const duration =
+    minutes < 15
+      ? "Under 15 min"
+      : minutes < 60
+        ? "15–60 min"
+        : minutes < 240
+          ? "1–4 hours"
+          : minutes < 720
+            ? "4–12 hours"
+            : minutes < 1440
+              ? "Most of a day"
+              : "Over a day";
+  const patch = {
+    duration,
+    endedAt: nowLocal(),
+    endZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    endOffset: -now.getTimezoneOffset(),
+  };
+  // What the server copy has now, for conflict checks (missing stays missing), and what an Undo writes back.
+  const was = {
+    duration: e.duration,
+    endedAt: e.endedAt,
+    endZone: e.endZone,
+    endOffset: e.endOffset,
+  };
+  const undo = { duration: "Still going", endedAt: "", endZone: "", endOffset: null };
+  const change = (arg, from) =>
+    ctx.store.dispatch({
+      id,
+      type: "patch",
+      arg,
+      original: ctx.store.view(id),
+      before: Object.fromEntries(Object.keys(arg).map((k) => [k, from[k]])),
+    });
+  change(patch, was);
+  ctx.toast(`Episode ended (${duration.toLowerCase()}).`, {
+    label: "Undo",
+    fn: () => change(undo, patch),
+  });
 }
 
 // "Still going" is only a sensible default for something that started just now; for anything older the person chooses.

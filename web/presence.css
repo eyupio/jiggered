@@ -1270,3 +1270,20 @@
   font-size: 13px;
   color: var(--muted);
 }
+
+/* The "check your inbox" state after asking for a link. */
+.sent-box {
+  padding: 14px 16px;
+  border: 1px solid #b9d2bf;
+  border-radius: 10px;
+  background: #eef5ee;
+}
+.sent-box h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+.sent-box p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+}

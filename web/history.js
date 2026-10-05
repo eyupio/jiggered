@@ -1,6 +1,6 @@
 // History: a calendar and one selected day, with records, patterns and sharing available when wanted.
 
-import { energyWords, themeOf } from "./energy-theme.js";
+import { energyAmount, energyWords, themeOf } from "./energy-theme.js";
 import { $, html, setHTML, fmtDay, fmtWhen, fmtLongDay } from "./util.js";
 import {
   listDays,
@@ -343,8 +343,8 @@ export function init(ctx) {
         </tbody></table>`
           : html`<p>No days logged in this period.</p>`
       }
-      ${$("sum-activities").checked ? html`<h2>Activities</h2><table><thead><tr><th>Day</th><th>Local time</th><th>Activity</th><th>Cost</th></tr></thead><tbody>${sm.days.flatMap((d) => d.entries.map((e) => html`<tr><td>${fmtDay(d.date, L)}</td><td>${e.t || "Not recorded"}</td><td>${e.a}</td><td>${e.c > 0 ? `−${e.c}` : e.c < 0 ? `+${-e.c}` : "0"} ${words().plural}</td></tr>`))}</tbody></table>` : ""}
-      <p class="small-print">Times are local as recorded; CSV includes any recorded time-zone offsets. Older records may have none. This is a personal log kept by the person it belongs to. It is not a medical record or a medical device.</p>`,
+      ${$("sum-activities").checked ? html`<h2>Activities</h2><table><thead><tr><th>Day</th><th>Local time</th><th>Activity</th><th>Effect on your balance</th></tr></thead><tbody>${sm.days.flatMap((d) => d.entries.map((e) => html`<tr><td>${fmtDay(d.date, L)}</td><td>${e.t || "Not recorded"}</td><td>${e.a}</td><td>${e.c > 0 ? `Used ${energyAmount(e.c, themeOf(ctx))}` : e.c < 0 ? `Recovered ${energyAmount(-e.c, themeOf(ctx))}` : "No change"}</td></tr>`))}</tbody></table>` : ""}
+      <p class="small-print">Green, amber and red are the person's own rating of their energy at the start of the day (green is good, red is low). ${words().title} are the person's own daily energy budget, not a medical measure; net used is the energy spent minus the energy recovered. Times are local as recorded; CSV includes any recorded time-zone offsets. Older records may have none. This is a personal log kept by the person it belongs to. It is not a medical record or a medical device.</p>`,
     );
   }
 

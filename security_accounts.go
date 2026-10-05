@@ -146,7 +146,7 @@ func (s *server) registerAccount(w http.ResponseWriter, r *http.Request) {
 			serverError(w, r, err)
 			return
 		}
-		s.queueAccountMail(cfg, email, "Verify your Jiggered account", "Confirm your email to create your account. This link expires in 30 minutes.", "verify", token)
+		s.queueAccountMail(cfg, email, "Verify your Jiggered account", "Confirm your email to start using Jiggered. The link works once and expires in 30 minutes.\n\nDidn't ask for this? Ignore this email; no account will be created.", "verify", token)
 	}
 	genericEmailResponse(w)
 }
@@ -193,7 +193,7 @@ func (s *server) forgotPassword(w http.ResponseWriter, r *http.Request) {
 				serverError(w, r, e)
 				return
 			}
-			s.queueAccountMail(cfg, email, "Reset your Jiggered password", "A password reset was requested. If it wasn't you, ignore this email. This link expires in 30 minutes. If two-step verification is enabled, you will also need an authenticator or recovery code.", "reset", token)
+			s.queueAccountMail(cfg, email, "Reset your Jiggered password", "A password reset was requested for your Jiggered account. The link works once and expires in 30 minutes. If two-step verification is on, you will also need your authenticator or a recovery code.\n\nDidn't ask for this? Ignore this email: your password has not changed.", "reset", token)
 		}
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		serverError(w, r, err)
@@ -429,6 +429,6 @@ func (s *server) requestRecoveryEmail(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
-	s.queueAccountMail(cfg, email, "Verify your Jiggered recovery email", "Confirm this email address for your account. It will replace your previous verified address. This link expires in 30 minutes.", "verify", token)
+	s.queueAccountMail(cfg, email, "Verify your Jiggered recovery email", "Confirm this email address as the recovery address for your Jiggered account. It replaces any address you verified before. The link works once and expires in 30 minutes.\n\nDidn't ask for this? Ignore this email.", "verify", token)
 	writeJSON(w, 200, map[string]string{"message": "Verification email requested. Your current address stays active until the new one is verified."})
 }
