@@ -32,6 +32,100 @@ export const TONES = [
   { id: "plum", label: "Plum" },
   { id: "slate", label: "Slate" },
 ];
+// A copy of an activity for the same day: beside the original if there is room after it, otherwise at the same time.
+export function copyOf(row) {
+  const span = spanOf(row),
+    t = span && span.start + span.dur * 2 <= DAY ? fromMinutes(span.start + span.dur) : row.t;
+  return { ...row, id: uid(), ...(t === undefined ? {} : { t }) };
+}
+
+// The right-click menu shared by the plan and Today timelines. `actions` does the work on the page's own document:
+// edit(), duplicate(), patch(changes, message) for colour and points, remove().
+let menu = null;
+function closeBlockMenu() {
+  if (!menu) return;
+  const { el, away, node } = menu;
+  node.remove();
+  document.removeEventListener("pointerdown", away, true);
+  menu = null;
+  if (el?.isConnected) el.focus({ preventScroll: true });
+}
+export function showEntryMenu({ x, y, el, row, ...actions }) {
+  closeBlockMenu();
+  const span = spanOf(row),
+    entries = [];
+  const add = (label, action, { key = "", danger = false, disabled = false } = {}) =>
+    entries.push({ label, action, key, danger, disabled });
+  add(actions.editLabel || "Edit", actions.edit, { key: "Enter" });
+  add("Duplicate", actions.duplicate);
+  entries.push({ heading: "Colour" }, { swatches: true });
+  entries.push({
+    heading: span
+      ? `Points for ${formatDur(span.dur)}: ${signed(row.c)}`
+      : `Points: ${signed(row.c)}`,
+  });
+  const step = (by) => () =>
+    actions.patch({ c: row.c + by }, `${row.a} now ${signed(row.c + by)}.`);
+  add("More points (+1)", step(1), { disabled: row.c >= 10 });
+  add("Fewer points (−1)", step(-1), { disabled: row.c <= -10 });
+  entries.push(null);
+  add("Remove", actions.remove, { danger: true, key: "Del" });
+  const node = document.createElement("div");
+  node.className = "fb-menu";
+  node.setAttribute("role", "menu");
+  setHTML(
+    node,
+    html`${entries.map((e, i) =>
+      e === null
+        ? html`<hr />`
+        : e.heading
+          ? html`<p class="fb-menu-heading">${e.heading}</p>`
+          : e.swatches
+            ? html`<div class="fb-swatches" role="group" aria-label="Colour">${[{ id: "", label: "Automatic" }, ...TONES].map((t) => html`<button type="button" role="menuitemradio" class="fb-swatch cal-tone-${t.id || "auto"}" data-tone="${t.id}" aria-checked="${(row.col || "") === t.id ? "true" : "false"}" aria-label="${t.label}" title="${t.label}"></button>`)}</div>`
+            : html`<button type="button" role="menuitem" class="${e.danger ? "is-danger" : ""}" data-menu="${i}" ${e.disabled ? "disabled" : ""}><span>${e.label}</span>${e.key ? html`<kbd>${e.key}</kbd>` : ""}</button>`,
+    )}`,
+  );
+  document.body.append(node);
+  const w = node.offsetWidth,
+    h = node.offsetHeight;
+  node.style.left = `${Math.max(8, Math.min(x, innerWidth - w - 8))}px`;
+  node.style.top = `${Math.max(8, Math.min(y, innerHeight - h - 8))}px`;
+  node.onclick = (e) => {
+    const tone = e.target.closest("[data-tone]");
+    const b = e.target.closest("[data-menu]");
+    if (!tone && !b) return;
+    closeBlockMenu();
+    if (tone) {
+      const col = tone.dataset.tone;
+      if ((row.col || "") !== col)
+        actions.patch({ col: col || null }, col ? `${row.a} coloured ${col}.` : "Colour cleared.");
+    } else entries[Number(b.dataset.menu)].action();
+  };
+  node.onkeydown = (e) => {
+    const buttons = [...node.querySelectorAll("button:not([disabled])")];
+    const i = buttons.indexOf(document.activeElement);
+    if (
+      e.key === "ArrowDown" ||
+      e.key === "ArrowUp" ||
+      e.key === "ArrowRight" ||
+      e.key === "ArrowLeft"
+    ) {
+      e.preventDefault();
+      const dir = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : -1;
+      buttons[(i + dir + buttons.length) % buttons.length]?.focus();
+    } else if (e.key === "Escape" || e.key === "Tab") {
+      e.preventDefault();
+      closeBlockMenu();
+    }
+  };
+  const away = (e) => {
+    if (!node.contains(e.target)) closeBlockMenu();
+  };
+  document.addEventListener("pointerdown", away, true);
+  menu = { node, away, el };
+  node.querySelector("button:not([disabled])")?.focus();
+}
+
 const amount = (ctx, n) => energyAmount(n, themeOf(ctx));
 // In a form, an activity's points follow its length once that is changed, until the points are typed over. It starts
 // from an activity that already has a length (or a saved one whose name gives it); `set(cost, length)` says which.
@@ -108,6 +202,7 @@ export function completePlanned(ctx, day, id) {
       c: row.c,
       t: start,
       ...loggedLength(row, start),
+      ...(row.col ? { col: row.col } : {}),
     };
   ctx.store.dispatch({
     id: target,
@@ -473,17 +568,7 @@ export function init(ctx) {
     onMenu: (at) => openBlockMenu(at),
     onDrop: (payload, at) => addPreset(payload.preset, at),
   });
-  // ---- the right-click menu on a block: edit, duplicate, colour, points per length, remove ----
-  let menu = null;
-  function closeBlockMenu() {
-    if (!menu) return;
-    const { el, owner } = menu;
-    menu.node.remove();
-    document.removeEventListener("pointerdown", menu.away, true);
-    menu = null;
-    if (owner?.isConnected) owner.focus({ preventScroll: true });
-    else el?.focus?.();
-  }
+  // ---- the right-click menu on a block: edit, duplicate, colour, points, remove ----
   function patchBlock(d, row, changes, message) {
     const undo = Object.fromEntries(Object.keys(changes).map((k) => [k, row[k] ?? null]));
     dispatch(ctx, d, "editEntry", { id: row.id, changes }, row);
@@ -496,10 +581,7 @@ export function init(ctx) {
   function duplicateBlock(d, row) {
     const f = forecast(ctx.store.all(), d, ctx.settings());
     if (f.rows.length >= 200) return ctx.toast("That day already has 200 planned activities.");
-    const span = spanOf(row),
-      // Beside the original if there is room after it, otherwise at the same time.
-      t = span && span.start + span.dur * 2 <= DAY ? fromMinutes(span.start + span.dur) : row.t,
-      copy = { ...row, id: uid(), ...(t === undefined ? {} : { t }) };
+    const copy = copyOf(row);
     dispatch(ctx, d, "addEntry", copy);
     ctx.toast(`Duplicated ${row.a}.`, {
       label: "Undo",
@@ -507,97 +589,23 @@ export function init(ctx) {
     });
   }
   function openBlockMenu({ date: d, id, x, y, el }) {
-    closeBlockMenu();
     const row = forecast(ctx.store.all(), d, ctx.settings()).pending.find((r) => r.id === id);
     if (!row || !writable(ctx)) return;
-    const span = spanOf(row),
-      entries = [];
-    const add = (label, action, { key = "", danger = false, disabled = false } = {}) =>
-      entries.push({ label, action, key, danger, disabled });
-    add(
-      "Edit",
-      () => {
+    showEntryMenu({
+      x,
+      y,
+      el,
+      row,
+      edit() {
         date = d;
         closeForm();
         render();
         openForm(row);
       },
-      { key: "Enter" },
-    );
-    add("Duplicate", () => duplicateBlock(d, row));
-    entries.push({ heading: "Colour" });
-    entries.push({ swatches: true });
-    entries.push({
-      heading: span
-        ? `Points for ${formatDur(span.dur)}: ${signed(row.c)}`
-        : `Points: ${signed(row.c)}`,
+      duplicate: () => duplicateBlock(d, row),
+      patch: (changes, message) => patchBlock(d, row, changes, message),
+      remove: () => removePlanned(ctx, d, id),
     });
-    const step = (by) => () =>
-      patchBlock(d, row, { c: row.c + by }, `${row.a} now ${signed(row.c + by)}.`);
-    add("More points (+1)", step(1), { disabled: row.c >= 10 });
-    add("Fewer points (−1)", step(-1), { disabled: row.c <= -10 });
-    entries.push(null);
-    add("Remove", () => removePlanned(ctx, d, id), { danger: true, key: "Del" });
-
-    const node = document.createElement("div");
-    node.className = "fb-menu";
-    node.setAttribute("role", "menu");
-    setHTML(
-      node,
-      html`${entries.map((e, i) =>
-        e === null
-          ? html`<hr />`
-          : e.heading
-            ? html`<p class="fb-menu-heading">${e.heading}</p>`
-            : e.swatches
-              ? html`<div class="fb-swatches" role="group" aria-label="Colour">${[{ id: "", label: "Automatic" }, ...TONES].map((t) => html`<button type="button" role="menuitemradio" class="fb-swatch cal-tone-${t.id || "auto"}" data-tone="${t.id}" aria-checked="${(row.col || "") === t.id ? "true" : "false"}" aria-label="${t.label}" title="${t.label}"></button>`)}</div>`
-              : html`<button type="button" role="menuitem" class="${e.danger ? "is-danger" : ""}" data-menu="${i}" ${e.disabled ? "disabled" : ""}><span>${e.label}</span>${e.key ? html`<kbd>${e.key}</kbd>` : ""}</button>`,
-      )}`,
-    );
-    document.body.append(node);
-    const w = node.offsetWidth,
-      h = node.offsetHeight;
-    node.style.left = `${Math.max(8, Math.min(x, innerWidth - w - 8))}px`;
-    node.style.top = `${Math.max(8, Math.min(y, innerHeight - h - 8))}px`;
-    node.onclick = (e) => {
-      const tone = e.target.closest("[data-tone]");
-      const b = e.target.closest("[data-menu]");
-      if (!tone && !b) return;
-      closeBlockMenu();
-      if (tone) {
-        const col = tone.dataset.tone;
-        if ((row.col || "") !== col)
-          patchBlock(
-            d,
-            row,
-            { col: col || null },
-            col ? `${row.a} coloured ${col}.` : "Colour cleared.",
-          );
-      } else entries[Number(b.dataset.menu)].action();
-    };
-    node.onkeydown = (e) => {
-      const buttons = [...node.querySelectorAll("button:not([disabled])")];
-      const i = buttons.indexOf(document.activeElement);
-      if (
-        e.key === "ArrowDown" ||
-        e.key === "ArrowUp" ||
-        e.key === "ArrowRight" ||
-        e.key === "ArrowLeft"
-      ) {
-        e.preventDefault();
-        const dir = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : -1;
-        buttons[(i + dir + buttons.length) % buttons.length]?.focus();
-      } else if (e.key === "Escape" || e.key === "Tab") {
-        e.preventDefault();
-        closeBlockMenu();
-      }
-    };
-    const away = (e) => {
-      if (!node.contains(e.target)) closeBlockMenu();
-    };
-    document.addEventListener("pointerdown", away, true);
-    menu = { node, away, el, owner: el };
-    node.querySelector("button:not([disabled])")?.focus();
   }
   function moveBlock(c) {
     if (!writable(ctx)) return;

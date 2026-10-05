@@ -9,9 +9,12 @@ import {
   followLength,
   lengthToast,
   setStable,
+  showEntryMenu,
+  copyOf,
+  TONES,
 } from "./planner.js";
 import { createTimeGrid } from "./calendar.js";
-import { forecast } from "./planner-model.js";
+import { forecast, planId } from "./planner-model.js";
 import { energyWords, energyAmount, energyCopy, themeOf, SPOON_PATH } from "./energy-theme.js";
 import { $, html, setHTML, uid, fmtLongDay, signed, confirmDialog } from "./util.js";
 import {
@@ -274,6 +277,19 @@ export function init(ctx) {
       },
     });
   }
+  async function removeBlock(blockId) {
+    if (blockId.startsWith("plan:")) return removePlanned(ctx, key(), blockId.slice(5));
+    const entry = day().entries.find((e) => e.id === blockId.slice(4));
+    if (!entry) return;
+    const when = slotText(entry);
+    const yes = await confirmDialog({
+      title: "Remove this activity?",
+      body: `${entry.a} (${signed(entry.c)}${when ? `, ${when}` : ""}) will be taken off ${key() === ctx.today() ? "today" : "this day"} and its points returned. You can undo this straight afterwards.`,
+    });
+    // It may have been changed or removed elsewhere while the question was open.
+    const current = yes && day().entries.find((e) => e.id === entry.id);
+    if (current && writable()) removeEntry(current);
+  }
   const board = createTimeGrid($("today-board"), {
     editable: writable,
     onSelectDay() {},
@@ -298,18 +314,55 @@ export function init(ctx) {
       const entry = day().entries.find((e) => e.id === c.id.slice(4));
       if (entry) moveLogged(entry, fromMinutes(c.start), c.dur, c.source === "keyboard", c.cost);
     },
-    async onRemove({ id: blockId }) {
-      if (blockId.startsWith("plan:")) return removePlanned(ctx, key(), blockId.slice(5));
-      const entry = day().entries.find((e) => e.id === blockId.slice(4));
-      if (!entry) return;
-      const when = slotText(entry);
-      const yes = await confirmDialog({
-        title: "Remove this activity?",
-        body: `${entry.a} (${signed(entry.c)}${when ? `, ${when}` : ""}) will be taken off ${key() === ctx.today() ? "today" : "this day"} and its points returned. You can undo this straight afterwards.`,
+    onRemove: ({ id: blockId }) => removeBlock(blockId),
+    // Right-click: the same menu as on the plan, for a logged block or a planned one.
+    onMenu({ id: blockId, x, y, el }) {
+      if (!writable()) return;
+      const planned = blockId.startsWith("plan:"),
+        rid = blockId.slice(planned ? 5 : 4),
+        find = () =>
+          planned
+            ? forecast(ctx.store.all(), key(), ctx.settings()).pending.find((r) => r.id === rid)
+            : day().entries.find((e) => e.id === rid),
+        row = find();
+      if (!row) return;
+      const target = id(),
+        // A planned row lives in the day's plan document, a logged one in the day itself.
+        change = (type, arg, before) =>
+          planned
+            ? ctx.store.dispatch({
+                id: planId(key()),
+                type,
+                arg,
+                before,
+                original: ctx.store.view(planId(key())),
+              })
+            : op(type, arg, before, target);
+      showEntryMenu({
+        x,
+        y,
+        el,
+        row,
+        editLabel: planned ? "Mark as done" : "Edit",
+        edit: () => (planned ? completePlanned(ctx, key(), rid) : fromTimeline(() => edit(row))),
+        duplicate() {
+          const copy = copyOf(row);
+          change("addEntry", copy);
+          ctx.toast(`Duplicated ${row.a}.`, {
+            label: "Undo",
+            fn: () => change("removeEntry", copy),
+          });
+        },
+        patch(changes, message) {
+          const undo = Object.fromEntries(Object.keys(changes).map((k) => [k, row[k] ?? null]));
+          change("editEntry", { id: row.id, changes }, row);
+          ctx.toast(message, {
+            label: "Undo",
+            fn: () => change("editEntry", { id: row.id, changes: undo }, { ...row, ...changes }),
+          });
+        },
+        remove: () => removeBlock(blockId),
       });
-      // It may have been changed or removed elsewhere while the question was open.
-      const current = yes && day().entries.find((e) => e.id === entry.id);
-      if (current && writable()) removeEntry(current);
     },
     // An activity dragged here from the list is logged at the time it is dropped on.
     onDrop: (payload, at) => logAt(payload.preset, at.start, at.dur),
@@ -432,6 +485,7 @@ export function init(ctx) {
               t: e.t,
               dur: e.dur,
               kind: "logged",
+              tone: TONES.some((t) => t.id === e.col) ? e.col : undefined,
               editable: true,
               removable: true,
             })),
@@ -442,6 +496,7 @@ export function init(ctx) {
               t: r.t,
               dur: r.dur,
               kind: "plan",
+              tone: TONES.some((t) => t.id === r.col) ? r.col : undefined,
               editable: true,
               removable: true,
               hint: "tap to finish",
