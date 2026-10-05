@@ -791,7 +791,9 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
       () => docs["d-" + today].body.entries.find((e) => e.id === "l1").t === "10:30",
       "the grip moves it an hour",
     );
-    // Tap an activity, then tap a time: it is logged there with the length its name gives.
+    // Tap an activity, then tap a time: it is logged there with the length its name gives. (A click straight after a
+    // drag is ignored for a moment, so the tap waits for the drag to be over, as a person would.)
+    await page.waitForTimeout(300);
     await page.locator("#today-palette .cal-preset", { hasText: "Deep focus (2 hours)" }).tap();
     assert.equal(await page.locator("#today-placing").isVisible(), true);
     await place();
