@@ -17,7 +17,6 @@ import { historyRange, historyInsights, HISTORY_RANGES } from "./history-model.j
 import { chartMarkup, connectCharts } from "./history-charts.js";
 import { normaliseProfile } from "./profile.js";
 import { initMatrix } from "./history-matrix.js";
-import { initWeek } from "./history-week.js";
 import { savedCount, savedText } from "./view-state.js";
 
 const PAGE = 30;
@@ -82,32 +81,26 @@ export function init(ctx) {
     render();
     window.scrollTo(0, prior.scroll || 0);
   });
-  const week = initWeek($("history-week"), ctx);
-  const matrix = initMatrix(
-    $("history-matrix"),
-    ctx,
-    (date, share = false) => {
-      if (!previousSelection)
-        previousSelection = {
-          rangeMode,
-          filters: filters(),
-          shown,
-          episodesShown,
-          matrix: matrix.snapshot(),
-          scroll: window.scrollY,
-        };
-      $("hist-from").value = $("hist-to").value = date;
-      rangeMode = "custom";
-      shown = episodesShown = PAGE;
-      openFilters();
-      render();
-      $("history-records").open = true;
-      $("eps").scrollIntoView({ block: "start" });
-      $("hist-from").focus({ preventScroll: true });
-      if (share) $("history-prepare").click();
-    },
-    (date) => week.show(date),
-  );
+  const matrix = initMatrix($("history-matrix"), ctx, (date, share = false) => {
+    if (!previousSelection)
+      previousSelection = {
+        rangeMode,
+        filters: filters(),
+        shown,
+        episodesShown,
+        matrix: matrix.snapshot(),
+        scroll: window.scrollY,
+      };
+    $("hist-from").value = $("hist-to").value = date;
+    rangeMode = "custom";
+    shown = episodesShown = PAGE;
+    openFilters();
+    render();
+    $("history-records").open = true;
+    $("eps").scrollIntoView({ block: "start" });
+    $("hist-from").focus({ preventScroll: true });
+    if (share) $("history-prepare").click();
+  });
   const openFilters = () => {
     $("history-filter-panel").open = true;
   };
@@ -396,7 +389,6 @@ export function init(ctx) {
     restoredSymptom = "";
     const data = historyInsights(docs, S, today, filters());
     currentData = data;
-    week.render();
     const days = data.days || [],
       eps = data.episodes || [];
     const active = [...activeFilters(), ...(rangeMode === "custom" ? ["custom dates"] : [])];
@@ -600,7 +592,6 @@ export function init(ctx) {
       ]),
       previousSelection,
       matrix: matrix.snapshot(),
-      week: week.snapshot(),
       summary: {
         activities: $("sum-activities").checked,
         notes: $("sum-notes").checked,

@@ -60,7 +60,7 @@ export function calendarPaint(c, mode) {
     c.net < 0 ? "−" : c.net,
   ];
 }
-export function initMatrix(root, ctx, explore, showWeek = () => {}) {
+export function initMatrix(root, ctx, explore) {
   const saved = ctx.ui?.get("history").matrix || {};
   let data,
     S,
@@ -116,7 +116,7 @@ export function initMatrix(root, ctx, explore, showWeek = () => {}) {
       ${entries.length ? html`<div><h4>Activities</h4><ul class="matrix-activities">${entries.slice(0, expanded ? entries.length : 5).map((e) => html`<li><span>${e.a}${slotText(e) ? html`<time class="meta">${slotText(e)}</time>` : ""}</span><b class="${e.c < 0 ? "recovery" : ""}">${e.c > 0 ? "−" + e.c : e.c < 0 ? "+" + Math.abs(e.c) : "0"}<span class="sr-only"> ${words.plural} ${e.c < 0 ? "recovered" : "used"}</span></b></li>`)}</ul>${!expanded && entries.length > 5 ? html`<p class="hint">Showing 5 of ${entries.length} activities. Choose Show all records below for the full log.</p>` : ""}</div>` : ""}
       ${c.episodes ? html`<div><h4>Episodes</h4><ul class="matrix-episodes">${c.episodeRecords.slice(0, expanded ? c.episodes : 3).map(([id, e]) => html`<li><button class="x" data-matrix-edit="${id}"><span>${e.symptoms.join(", ") || "No symptoms ticked"}<span class="meta">${fmtWhen(e.when, S.locale)}${e.duration === "Still going" && !e.endedAt ? " · ongoing" : ""}</span></span><span aria-hidden="true">→</span></button></li>`)}</ul>${!expanded && c.episodes > 3 ? html`<button class="x" data-matrix-episodes>View all ${c.episodes} episodes</button>` : ""}</div>` : ""}
       ${comparison ? html`<div class="plan-history"><h4>Plan and actual</h4><p>${comparison.completed} of ${comparison.total} planned activities logged · ${comparison.estimated} net ${words.plural} estimated for completed activities · ${comparison.actual} actually used.</p><p class="hint">Unfinished plans are excluded from reported usage.</p><button type="button" class="secondary" data-open-plan="${c.date}">Review this plan</button></div>` : ""}
-      ${day || c.episodes ? html`<div class="row"><button class="secondary" data-matrix-week>See in the week view</button><button class="secondary" data-matrix-open>Edit day</button><button class="secondary" data-matrix-all>${expanded ? "Show fewer records" : "Show all records for this day"}</button><button class="primary" data-matrix-share>Share this day</button></div>` : html`<div class="row"><button class="primary" data-matrix-open>${c.date === ctx.today() ? "Log today" : "Log this day"}</button><button class="secondary" data-matrix-week>See in the week view</button></div>`}`,
+      ${day || c.episodes ? html`<div class="row"><button class="secondary" data-matrix-open>Edit day</button><button class="secondary" data-matrix-all>${expanded ? "Show fewer records" : "Show all records for this day"}</button><button class="primary" data-matrix-share>Share this day</button></div>` : html`<div class="row"><button class="primary" data-matrix-open>${c.date === ctx.today() ? "Log today" : "Log this day"}</button></div>`}`,
     );
   }
   function paint() {
@@ -253,7 +253,6 @@ export function initMatrix(root, ctx, explore, showWeek = () => {}) {
     }
     if (e.target.closest("[data-matrix-share]")) explore(win.cells[cursor].date, true);
     if (e.target.closest("[data-matrix-open]")) ctx.openDay(win.cells[cursor].date);
-    if (e.target.closest("[data-matrix-week]")) showWeek(win.cells[cursor].date);
     if (e.target.closest("[data-matrix-episodes]")) explore(win.cells[cursor].date);
   });
   compact.addEventListener("change", () => {
