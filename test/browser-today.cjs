@@ -113,6 +113,27 @@ runBrowser({ name: "today", portEnv: "JIGGERED_TODAY_PORT" }, async (harness) =>
     0,
     "the plain button became the logged card",
   );
+  // The keyboard's place follows the tile: it lands on the card's "+", and Ctrl+Z takes the log back while the
+  // toast with Undo is on screen.
+  assert.equal(
+    await card.locator('[data-step="1"]').evaluate((el) => el === document.activeElement),
+    true,
+    "focus follows the tile to its + button",
+  );
+  await page.keyboard.press("Control+z");
+  await page.locator("#entries li").first().waitFor({ state: "detached" });
+  assert.equal(await page.locator("#acts .act.on").count(), 0, "Ctrl+Z took the activity back");
+  // Log it again from the keyboard: Enter on the tile, focus lands on the card's +.
+  const again = page.locator("#acts details.act-group[open] button.act", { hasText: name }).first();
+  await again.focus();
+  await page.keyboard.press("Enter");
+  await saved(page);
+  await card.waitFor();
+  assert.equal(
+    await card.locator('[data-step="1"]').evaluate((el) => el === document.activeElement),
+    true,
+    "Enter on a tile leaves focus on the logged card, not the page",
+  );
   const green = await page.evaluate(() =>
     getComputedStyle(document.documentElement).getPropertyValue("--green").trim(),
   );
@@ -273,7 +294,18 @@ runBrowser({ name: "today", portEnv: "JIGGERED_TODAY_PORT" }, async (harness) =>
     "keyboard edit opens the correct duplicate",
   );
   await page.locator("#entry-name").fill("A gentle recovery break");
+  // The form says what the number will look like everywhere else: a cost of 2 shows as −2, a recovery of 2 as +2.
+  await page.locator("#entry-cost").fill("2");
+  assert.match(await page.locator("#entry-effect").textContent(), /Uses 2 points\. Shown as −2\./);
+  await page.locator("#entry-cost").fill("-1");
+  assert.match(
+    await page.locator("#entry-effect").textContent(),
+    /Gives back 1 point\. Shown as \+1\./,
+  );
+  await page.locator("#entry-cost").fill("0");
+  assert.match(await page.locator("#entry-effect").textContent(), /Only records the activity/);
   await page.locator("#entry-cost").fill("-2");
+  assert.match(await page.locator("#entry-effect").textContent(), /Shown as \+2\./);
   await page.locator('#entry-form button[type="submit"]').click();
   await saved(page);
   assert.match(await pills.first().textContent(), /A gentle recovery break/);

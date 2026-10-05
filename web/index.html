@@ -125,7 +125,7 @@
           tabindex="-1"
           aria-selected="false"
           data-tab="episode"
-          data-heading="A moment to notice."
+          data-heading="Log a symptom episode."
           data-description="Record what happened, how it felt, and anything you’d like to remember."
         >
           Episode
@@ -221,6 +221,7 @@
           </ol>
         </div>
         <div class="panel" id="today-ongoing" hidden></div>
+        <section class="panel" id="weekly-review" hidden aria-label="Weekly review"></section>
         <p class="notice" id="day-notice" hidden>
           You're looking at a past day. Changes here are saved to that day.
           <button class="x" id="day-back">Back to today</button>
@@ -275,7 +276,7 @@
                 class="help-tip"
                 data-energy-label="Help with energy points"
                 aria-label="Help with energy points"
-                data-energy-tooltip="Points are personal estimates. Positive activity costs spend points; negative costs record recovery. Your balance can go below zero or above your starting budget. The ring shows the balance within your starting allowance; the number always shows the full balance."
+                data-energy-tooltip="Points are personal estimates. An activity that uses energy shows as −2; one that gives energy back shows as +2. Your balance can go below zero or above your starting budget. The ring shows the balance within your starting allowance; the number always shows the full balance."
               >
                 ?
               </button>
@@ -431,6 +432,7 @@
                 ><input type="number" id="entry-cost" min="-10" max="10" step="1" required /></label
               ><label class="field">Time (optional)<input type="time" id="entry-time" /></label>
             </div>
+            <p class="hint" id="entry-effect" role="status"></p>
             <label class="field"
               >Duration, minutes (optional)<input
                 type="number"
@@ -443,8 +445,9 @@
             <p class="hint" id="entry-length-hint" role="status"></p>
             <p class="hint">
               <span
-                data-energy-copy="Negative points record recovery. Zero only records the activity."
-                >Negative points record recovery. Zero only records the activity.</span
+                data-energy-copy="Type what it costs: 2 uses 2 points, −1 gives 1 back, 0 only records the activity."
+                >Type what it costs: 2 uses 2 points, −1 gives 1 back, 0 only records the
+                activity.</span
               >
             </p>
             <div class="row">
@@ -454,7 +457,6 @@
             <p id="entry-msg" class="msg" role="status"></p>
           </form>
         </div>
-        <section class="panel" id="weekly-review" hidden aria-label="Weekly review"></section>
       </section>
 
       <section role="tabpanel" aria-labelledby="t-episode" id="episode-panel" hidden>
@@ -477,7 +479,7 @@
             <h2 id="ep-title">Log an episode</h2>
             <button class="help-link x" data-settings="set-sym">Edit lists</button>
           </div>
-          <form id="epform">
+          <form id="epform" novalidate>
             <div class="field-block">
               <label class="legend" for="ep-when">When it started</label
               ><input type="datetime-local" id="ep-when" required />
@@ -507,12 +509,15 @@
               <button type="button" class="secondary small" id="ep-sym-more" hidden></button>
             </fieldset>
             <fieldset>
-              <legend>How it came on</legend>
+              <legend>
+                How it came on <span class="meta">(optional; tap again to clear)</span>
+              </legend>
               <div class="chips" id="ep-onset"></div>
             </fieldset>
             <div class="field-block">
-              <label class="legend" for="ep-dur">How long it lasted</label
-              ><select id="ep-dur"></select>
+              <label class="legend" for="ep-dur">How long it lasted (required)</label
+              ><select id="ep-dur" aria-describedby="ep-dur-hint"></select>
+              <p class="hint" id="ep-dur-hint" role="status"></p>
             </div>
             <label class="field" id="ep-ended-row" hidden
               >When it ended (optional)<input type="datetime-local" id="ep-ended"
@@ -606,6 +611,9 @@
             <span id="plan-placing-text"></span>
             <button type="button" class="x" id="plan-placing-cancel">Cancel</button>
           </p>
+          <button type="button" class="skip-inline" id="plan-skip-palette">
+            Skip the activity list, go to the timeline
+          </button>
           <div class="plan-board-layout">
             <div id="plan-palette" class="cal-palette" aria-label="Your saved activities"></div>
             <div id="plan-board" class="cal"></div>
@@ -645,7 +653,7 @@
           <div id="plan-forecast" aria-live="polite" aria-atomic="true"></div>
           <div id="plan-list"></div>
           <div id="plan-recovery-options"></div>
-          <form id="plan-form" class="plan-form" hidden>
+          <form id="plan-form" class="plan-form" novalidate hidden>
             <h3 id="plan-form-title">Add to your plan</h3>
             <label id="plan-presets-row"
               >Use a saved activity<select id="plan-presets"></select
@@ -661,7 +669,7 @@
                   max="10"
                   step="1"
                   required
-                  aria-describedby="plan-cost-hint" /></label
+                  aria-describedby="plan-cost-hint plan-effect" /></label
               ><label>Time (optional)<input type="time" id="plan-time" /></label
               ><label
                 >Duration, minutes (optional)<input
@@ -672,25 +680,20 @@
                   step="5"
                   inputmode="numeric"
               /></label>
+              <p class="hint" id="plan-effect" role="status"></p>
               <p class="hint" id="plan-length-hint" role="status"></p>
               <label id="plan-repeat-row"
-                >Add on consecutive days<input
-                  type="number"
-                  id="plan-repeat"
-                  min="1"
-                  max="7"
-                  step="1"
-                  value="1"
-                  required
+                ><span id="plan-repeat-label">Add on consecutive days</span
+                ><input type="number" id="plan-repeat" min="1" max="7" step="1" value="1" required
               /></label>
             </div>
             <p
               class="hint"
               id="plan-cost-hint"
-              data-energy-copy="Positive points spend energy. Negative points estimate recovery. Zero records the activity without changing your balance."
+              data-energy-copy="Type what it costs: 2 uses 2 points, −1 gives 1 back, 0 only records the activity. It then shows as −2 or +1 everywhere else."
             >
-              Positive points spend energy. Negative points estimate recovery. Zero records the
-              activity without changing your balance.
+              Type what it costs: 2 uses 2 points, −1 gives 1 back, 0 only records the activity. It
+              then shows as −2 or +1 everywhere else.
             </p>
             <p id="plan-form-error" class="msg err" role="alert"></p>
             <div class="row">
@@ -716,7 +719,10 @@
               </select></label
             >
             <p class="meta" id="history-period" role="status"></p>
-            <button class="secondary" id="history-prepare">Prepare summary</button>
+            <button class="secondary" id="history-prepare" aria-describedby="history-prepare-why">
+              Prepare summary
+            </button>
+            <p class="meta" id="history-prepare-why"></p>
           </div>
         </div>
         <details class="panel history-filter-panel" id="history-filter-panel">
@@ -786,7 +792,13 @@
             >
               Preview summary
             </button>
-            <div id="summary-preview" hidden></div>
+            <div
+              id="summary-preview"
+              hidden
+              tabindex="0"
+              role="region"
+              aria-label="Summary preview"
+            ></div>
             <div class="row">
               <button class="primary" id="sum-print">Print or save as PDF</button>
             </div>
@@ -1056,7 +1068,10 @@
               ><input id="profile-weekly-review" type="checkbox" /> Offer a gentle weekly review on
               Today</label
             >
-            <p class="hint">Optional, in-app only. No reminders, streaks or emails.</p>
+            <p class="hint">
+              Optional, in-app only. No reminders, streaks or emails. It appears on Today once you
+              have three check-ins in the past week.
+            </p>
             <fieldset class="energy-theme-picker" aria-describedby="energy-theme-hint">
               <legend>Energy language</legend>
               <p class="hint" id="energy-theme-hint">

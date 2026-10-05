@@ -315,6 +315,32 @@ runBrowser({ name: "walkthrough", username: "auditadmin" }, async (harness) => {
   await phone.locator("#ep-dur").selectOption("Ended (duration unknown)");
   await phone.locator("#ep-save").click();
   await phone.locator("#eptoast").filter({ hasText: "Saved." }).waitFor();
+  // An edit that began on Today offers the way back to Today.
+  assert.equal((await phone.locator("#ep-cancel").textContent()).trim(), "Back to Today");
+  await phone.locator("#ep-cancel").click();
+  await phone.locator("#today-panel:not([hidden])").waitFor();
+  // Moving the start back clears "Still going"; the form says so beside the field instead of failing silently.
+  await phone.locator("#t-episode").click();
+  await phone.locator("#ep-sym input").first().check();
+  await phone.locator("#ep-when").evaluate((el) => {
+    const t = new Date(Date.now() - 3 * 3600_000 - new Date().getTimezoneOffset() * 60000);
+    el.value = t.toISOString().slice(0, 16);
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  assert.match(await phone.locator("#ep-dur-hint").textContent(), /choose how long it lasted/);
+  assert.equal(await phone.locator("#ep-dur").getAttribute("aria-invalid"), "true");
+  await phone.locator("#ep-dur").selectOption("1–4 hours");
+  assert.equal(await phone.locator("#ep-dur-hint").textContent(), "");
+  // A start time in the future gets our own sentence, not the browser's bubble.
+  await phone.locator("#ep-when").evaluate((el) => {
+    const t = new Date(Date.now() + 26 * 3600_000 - new Date().getTimezoneOffset() * 60000);
+    el.value = t.toISOString().slice(0, 16);
+  });
+  await phone.locator("#ep-save").click();
+  assert.match(await phone.locator("#eptoast").textContent(), /can't be in the future/);
+  assert.equal(await phone.evaluate(() => document.activeElement.id), "ep-when");
+  phone.once("dialog", (dialog) => dialog.accept()); // "Delete this draft?"
+  await phone.locator("#ep-discard").click();
   await phone.locator("#t-history").click();
   await phone.evaluate(() => {
     document.getElementById("history-filter-panel").open = true;

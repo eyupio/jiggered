@@ -199,10 +199,14 @@ runBrowser({ name: "view-state", startServer: false }, async (harness) => {
   await page.locator('[data-matrix-grid] [data-date="' + dayAt(4) + '"]').click();
   assert.match(
     await page.locator("[data-matrix-reading]").textContent(),
-    /No matching day log.*Headache/s,
+    /Nothing logged for this day.*Headache/s,
   );
   await page.locator("[data-matrix-edit]").click();
   assert.equal(await page.locator("#ep-title").textContent(), "Edit episode");
+  // An edit that began in History ends there: the back button says so and goes there.
+  assert.equal((await page.locator("#ep-cancel").textContent()).trim(), "Back to History");
+  await page.locator("#ep-cancel").click();
+  await page.locator("#history-panel:not([hidden])").waitFor();
   await page.locator("#t-history").click();
   await page.locator('[data-matrix-grid] [data-date="' + today + '"]').click();
   await page.locator("[data-matrix-mode]").selectOption("checkin");
@@ -542,7 +546,7 @@ runBrowser({ name: "view-state", startServer: false }, async (harness) => {
   assert.equal(await page.locator("[data-matrix-grid]").isVisible(), true);
   assert.match(
     await page.locator("[data-matrix-reading]").textContent(),
-    /No matching check-in.*No matching day log/,
+    /No check-in for this day.*Nothing logged for this day/,
   );
   assert.equal(
     await page.locator(".matrix-facts").textContent(),

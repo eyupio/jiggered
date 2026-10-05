@@ -212,6 +212,37 @@ runBrowser({ name: "history", portEnv: "JIGGERED_HISTORY_PORT" }, async (harness
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
       `no horizontal overflow at ${width}px`,
     );
+    // On a phone the chart is drawn narrower so its labels are not shrunk to a few pixels.
+    const axis = await page.evaluate(() => {
+      const svg = document.querySelector('[data-chart="energy"] svg.history-chart'),
+        label = svg.querySelector("text.chart-axis");
+      return {
+        viewBox: svg.getAttribute("viewBox"),
+        px:
+          (svg.getBoundingClientRect().width / svg.viewBox.baseVal.width) *
+          parseFloat(getComputedStyle(label).fontSize),
+      };
+    });
+    assert.match(axis.viewBox, /^0 0 320 /, `phone chart uses the narrow drawing at ${width}px`);
+    assert.ok(axis.px >= 10, `chart labels render at ${axis.px.toFixed(1)}px at ${width}px`);
+    // "Prepare summary" says why it is unavailable, or nothing; the preview is read as cards, not a wide table.
+    await page.locator("#history-prepare").click();
+    const cards = await page.evaluate(() => {
+      const row = document.querySelector("#summary-preview tbody tr");
+      return row
+        ? {
+            display: getComputedStyle(row).display,
+            wider:
+              document.getElementById("summary-preview").scrollWidth >
+              document.getElementById("summary-preview").clientWidth,
+            label: getComputedStyle(row.querySelector("td"), "::before").content,
+          }
+        : null;
+    });
+    assert.ok(cards, "the preview has rows");
+    assert.equal(cards.display, "block", `preview rows are cards at ${width}px`);
+    assert.equal(cards.wider, false, `the preview needs no sideways scrolling at ${width}px`);
+    assert.match(cards.label, /\w/, "each cell carries its label");
   }
   await page.setViewportSize({ width: 800, height: 900 });
   await page.locator('[data-chart="combined"] .chart-data').evaluate((el) => {

@@ -76,6 +76,8 @@ export function fmtBytes(n) {
 
 // A cost as it reads on screen: spending is −n, recovery is +n, and nothing is a plain 0 (never "−0" or "+0").
 export const signed = (c) => (c > 0 ? `−${c}` : c < 0 ? `+${-c}` : "0");
+// A balance, with a real minus sign when it is below zero.
+export const minus = (n) => String(n).replace("-", "−");
 
 // "Firefox on Linux", for the list of signed-in devices.
 export function describeUA(ua = "") {

@@ -23,6 +23,7 @@ import {
 } from "./calendar-model.js";
 
 const MOVE_SLOP = 4; // pixels before a press becomes a drag; a smaller movement is still a click
+const TOUCH_SLOP = 8; // a fingertip is less exact than a mouse, so it needs more room before a press becomes a drag
 const EDGE = 40; // pixels from the top or bottom of the scroller where dragging starts to scroll it, faster the closer
 const PAGE_EDGE = 70; // the same for the window itself, while something is carried in from elsewhere on the page
 let grids = 0;
@@ -96,10 +97,9 @@ export function createTimeGrid(root, hooks) {
       html`<button type="button" class="cal-block cal-${b.kind}${b.side ? " cal-side" : ""}${b.done ? " is-done" : ""}${b.dur <= 30 ? " is-short" : ""}${b.cost < 0 ? " is-recovery" : b.cost > 0 ? " is-spend" : ""}${b.tone ? ` cal-tone cal-tone-${b.tone}` : ""}${editable && b.editable ? " is-editable" : ""}${removable(b)}" data-key="${d.date}|${b.id}" data-date="${d.date}" data-id="${b.id}" data-s="${b.start - win[0]}" data-d="${b.dur}" data-lane="${b.lane}" data-lanes="${b.lanes}" data-cost="${b.cost ?? ""}" aria-label="${label(b)}" title="${label(b)}" aria-describedby="${helpId}">${editable && b.editable ? html`<span class="cal-resize" data-edge="top" aria-hidden="true"></span><span class="cal-grip" aria-hidden="true"></span>` : ""}${remove(b)}<span class="cal-title">${b.done ? "✓ " : ""}${b.title}</span>${b.cost === undefined ? "" : html`<b class="cal-cost-badge" aria-hidden="true">${signed(b.cost)}</b>`}<span class="cal-meta">${meta(b)}</span>${editable && b.editable ? html`<span class="cal-resize" data-edge="bottom" aria-hidden="true"></span>` : ""}</button>`;
     setHTML(
       inner,
-      html`<p class="sr-only" id="${helpId}">${(editable && m.help) || (editable ? "Enter opens a block to edit it. Up and down arrows move it by 15 minutes, Left and Right move it to another day, and Shift with Up or Down changes how long it lasts." + (hooks.onRemove ? " Delete removes it, after asking you to confirm." : "") : "Enter opens a block.")}</p>
-      <div class="cal-scroll" data-cal-scroll><div class="cal-top"><div class="cal-head"><span class="cal-corner"></span>${days.map((d) => html`<button type="button" class="cal-day-head${d.today ? " is-today" : ""}${d.selected ? " is-selected" : ""}${d.warn ? " is-warn" : ""}" data-cal-day="${d.date}" aria-pressed="${!!d.selected}"><span>${d.label}</span><b>${d.value}</b></button>`)}</div>
+      html`      <div class="cal-scroll" data-cal-scroll><div class="cal-top"><div class="cal-head"><span class="cal-corner"></span>${days.map((d) => html`<button type="button" class="cal-day-head${d.today ? " is-today" : ""}${d.selected ? " is-selected" : ""}${d.warn ? " is-warn" : ""}" data-cal-day="${d.date}" aria-pressed="${!!d.selected}" ${d.aria ? html`aria-label="${d.aria}"` : ""}><span>${d.label}</span><b>${d.value}</b>${d.warn ? html`<i class="cal-warn" aria-hidden="true">!</i>` : ""}</button>`)}</div>
       ${days.some((d) => d.tray.length) ? html`<div class="cal-tray-row"><span class="cal-corner">Any time</span>${days.map((d) => html`<div class="cal-tray" data-date="${d.date}">${d.tray.map((b) => html`<button type="button" class="cal-chip cal-${b.kind}${b.done ? " is-done" : ""}${b.tone ? ` cal-tone cal-tone-${b.tone}` : ""}${editable && b.editable ? " is-editable" : ""}${removable(b)}" data-key="${d.date}|${b.id}" data-date="${d.date}" data-id="${b.id}" aria-label="${label(b)}" title="${label(b)}">${b.done ? "✓ " : ""}${b.title}${b.cost === undefined ? "" : html` <b class="cal-chip-cost" aria-hidden="true">${signed(b.cost)}</b>`}${remove(b)}</button>`)}</div>`)}</div>` : ""}
-      </div><div class="cal-body" data-cal-body><div class="cal-rail" aria-hidden="true">${hours.map((h) => html`<span>${fromMinutes(h)}</span>`)}</div>${days.map((d) => html`<div class="cal-col${d.today ? " is-today" : ""}${m.strip ? " has-side" : ""}" data-cal-col data-date="${d.date}" role="group" aria-label="${d.label}">${d.laid.map((b) => block(d, b))}${d.today ? html`<span class="cal-now" aria-hidden="true"></span>` : ""}</div>`)}</div></div>`,
+      </div><div class="cal-body" data-cal-body><div class="cal-rail" aria-hidden="true">${hours.map((h) => html`<span>${fromMinutes(h)}</span>`)}</div>${days.map((d) => html`<div class="cal-col${d.today ? " is-today" : ""}${m.strip ? " has-side" : ""}" data-cal-col data-date="${d.date}" role="group" aria-label="${d.label}">${d.laid.map((b) => block(d, b))}${d.today ? html`<span class="cal-now" aria-hidden="true"></span>` : ""}</div>`)}</div></div><p class="cal-help" id="${helpId}">${(editable && m.help) || (editable ? "Enter opens a block to edit it. Up and down arrows move it by 15 minutes, Left and Right move it to another day, and Shift with Up or Down changes how long it lasts." + (hooks.onRemove ? " Delete removes it, after asking you to confirm." : "") : "Enter opens a block.")}</p>`,
     );
     const body = q("[data-cal-body]");
     inner.style.setProperty("--cols", String(days.length));
@@ -182,6 +182,7 @@ export function createTimeGrid(root, hooks) {
     session = {
       ...s,
       pointerId: e.pointerId,
+      slop: e.pointerType === "mouse" ? MOVE_SLOP : TOUCH_SLOP,
       x0: e.clientX,
       y0: e.clientY,
       moved: false,
@@ -228,7 +229,7 @@ export function createTimeGrid(root, hooks) {
     s.last = e;
     const sc = q("[data-cal-scroll]"),
       area = sc.getBoundingClientRect();
-    if (!s.moved && Math.hypot(e.clientX - s.x0, e.clientY - s.y0) < MOVE_SLOP) return;
+    if (!s.moved && Math.hypot(e.clientX - s.x0, e.clientY - s.y0) < s.slop) return;
     if (!s.moved) {
       s.moved = true;
       s.el?.classList.add("is-dragging");

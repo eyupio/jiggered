@@ -61,6 +61,12 @@ export function init(ctx) {
   returnButton.textContent = "Return to previous period";
   $("history-matrix").before(returnButton);
   returnButton.hidden = !previousSelection;
+  // The same way back where the person is working: the Prepare panel can be far below the first copy.
+  const returnCopy = returnButton.cloneNode(true);
+  returnCopy.id = "history-return-period-2";
+  returnCopy.hidden = !previousSelection;
+  $("history-share").querySelector("summary")?.after(returnCopy);
+  returnCopy.addEventListener("click", () => returnButton.click());
   returnButton.addEventListener("click", () => {
     if (!previousSelection) return;
     const prior = previousSelection;
@@ -313,6 +319,14 @@ export function init(ctx) {
     const active = activeFilters();
     const list = (pairs) =>
       pairs.length ? pairs.map(([n, c]) => `${n} (${c})`).join(", ") : "none recorded";
+    // "Most often" only means something for things that happened more than once.
+    const often = (pairs) => pairs.filter(([, c]) => c >= 2);
+    const oftenLine = (pairs, label, once) =>
+      often(pairs).length
+        ? `${label} ${list(often(pairs))}.`
+        : pairs.length
+          ? `${once} ${list(pairs)}.`
+          : `${label} none recorded.`;
     setHTML(
       $("print-view"),
       html`
@@ -328,10 +342,10 @@ export function init(ctx) {
       ${
         sm.episodes.length
           ? html`
-        <p>Most often noticed: ${list(sm.topSymptoms)}.</p>
-        <p>Most often in the day or two before: ${list(sm.topTriggers)}.</p>
+        <p>${oftenLine(sm.topSymptoms, "Most often noticed:", "Each noticed once:")}</p>
+        <p>${oftenLine(sm.topTriggers, "Most often in the day or two before:", "Each recorded once in the day or two before:")}</p>
         <table><thead><tr><th>Started</th><th>What was noticed</th><th>How it came on</th><th>Approximate duration</th><th>Ended (local)</th><th>Before</th><th>Notes</th></tr></thead><tbody>
-        ${sm.episodes.map((e) => html`<tr><td>${fmtWhen(e.when, L)}</td><td>${(e.symptoms || []).join(", ")}</td><td>${e.onset || ""}</td><td>${e.duration || ""}</td><td>${e.endedAt ? fmtWhen(e.endedAt, L) : "Not recorded"}</td><td>${(e.before || []).join(", ")}</td><td>${$("sum-notes").checked ? e.notes || "" : "Omitted"}</td></tr>`)}
+        ${sm.episodes.map((e) => html`<tr><td data-label="Started">${fmtWhen(e.when, L)}</td><td data-label="What was noticed">${(e.symptoms || []).join(", ")}</td><td data-label="How it came on">${e.onset || ""}</td><td data-label="Approximate duration">${e.duration || ""}</td><td data-label="Ended (local)">${e.endedAt ? fmtWhen(e.endedAt, L) : "Not recorded"}</td><td data-label="Before">${(e.before || []).join(", ")}</td><td data-label="Notes">${$("sum-notes").checked ? e.notes || "" : "Omitted"}</td></tr>`)}
         </tbody></table>`
           : html`<p>None logged in this period.</p>`
       }
@@ -339,11 +353,11 @@ export function init(ctx) {
       ${
         sm.days.length
           ? html`<table><thead><tr><th>Day</th><th>Check-in</th><th>Net ${words().plural} used</th><th>Poor sleep</th></tr></thead><tbody>
-        ${sm.days.map((d) => html`<tr><td>${fmtDay(d.date, L)}</td><td>${d.status ? d.status[0].toUpperCase() + d.status.slice(1) : "none"}</td><td>${d.entries.length ? `${used(d)} of ${capOf(d, S)}` : "No activity log"}</td><td>${d.poorSleep ? "yes" : ""}</td></tr>`)}
+        ${sm.days.map((d) => html`<tr><td data-label="Day">${fmtDay(d.date, L)}</td><td data-label="Check-in">${d.status ? d.status[0].toUpperCase() + d.status.slice(1) : "none"}</td><td data-label="Net ${words().plural} used">${d.entries.length ? `${used(d)} of ${capOf(d, S)}` : "No activity log"}</td><td data-label="Poor sleep">${d.poorSleep ? "yes" : ""}</td></tr>`)}
         </tbody></table>`
           : html`<p>No days logged in this period.</p>`
       }
-      ${$("sum-activities").checked ? html`<h2>Activities</h2><table><thead><tr><th>Day</th><th>Local time</th><th>Activity</th><th>Effect on your balance</th></tr></thead><tbody>${sm.days.flatMap((d) => d.entries.map((e) => html`<tr><td>${fmtDay(d.date, L)}</td><td>${e.t || "Not recorded"}</td><td>${e.a}</td><td>${e.c > 0 ? `Used ${energyAmount(e.c, themeOf(ctx))}` : e.c < 0 ? `Recovered ${energyAmount(-e.c, themeOf(ctx))}` : "No change"}</td></tr>`))}</tbody></table>` : ""}
+      ${$("sum-activities").checked ? html`<h2>Activities</h2><table><thead><tr><th>Day</th><th>Local time</th><th>Activity</th><th>Effect on your balance</th></tr></thead><tbody>${sm.days.flatMap((d) => d.entries.map((e) => html`<tr><td data-label="Day">${fmtDay(d.date, L)}</td><td data-label="Local time">${e.t || "Not recorded"}</td><td data-label="Activity">${e.a}</td><td data-label="Effect on your balance">${e.c > 0 ? `Used ${energyAmount(e.c, themeOf(ctx))}` : e.c < 0 ? `Recovered ${energyAmount(-e.c, themeOf(ctx))}` : "No change"}</td></tr>`))}</tbody></table>` : ""}
       <p class="small-print">Green, amber and red are the person's own rating of their energy at the start of the day (green is good, red is low). ${words().title} are the person's own daily energy budget, not a medical measure; net used is the energy spent minus the energy recovered. Times are local as recorded; CSV includes any recorded time-zone offsets. Older records may have none. This is a personal log kept by the person it belongs to. It is not a medical record or a medical device.</p>`,
     );
   }
@@ -358,8 +372,13 @@ export function init(ctx) {
       filters().query.trim() && `“${filters().query.trim()}”`,
     ].filter(Boolean);
 
+  // Charts are drawn narrower on a phone so their labels keep a readable size; turning the phone redraws them.
+  const narrowCharts = matchMedia("(max-width:700px)");
+  narrowCharts.addEventListener("change", () => {
+    if (!$("history-panel").hidden) render();
+  });
   function render() {
-    returnButton.hidden = !previousSelection;
+    returnButton.hidden = returnCopy.hidden = !previousSelection;
     const S = ctx.settings(),
       L = S.locale,
       docs = ctx.store.all(),
@@ -393,7 +412,9 @@ export function init(ctx) {
       eps = data.episodes || [];
     const active = [...activeFilters(), ...(rangeMode === "custom" ? ["custom dates"] : [])];
     $("history-filter-summary").textContent = active.length ? active.join(" · ") : "None";
-    if (active.join() !== lastActive && active.length) $("history-filter-panel").open = true; // a newly applied filter is never hidden
+    // A newly applied filter is never hidden. Dates alone are shown by the Period selector, so they don't open the panel.
+    if (active.join() !== lastActive && activeFilters().length)
+      $("history-filter-panel").open = true;
     lastActive = active.join();
     $("history-count").textContent =
       filters().from && filters().to && filters().from > filters().to
@@ -416,6 +437,14 @@ export function init(ctx) {
             : id === "csv-activities"
               ? !days.some((d) => d.entries.length)
               : !days.length && !eps.length);
+    // A disabled button that does not say why reads as broken.
+    $("history-prepare-why").textContent = data.error
+      ? "Fix the dates first."
+      : !days.length && !eps.length
+        ? active.length
+          ? "Nothing matches these filters yet."
+          : "Nothing to summarise yet. Log a check-in first."
+        : "";
     $("sharing-counts").textContent =
       `${plural(days.length, "day")} · ${plural(eps.length, "episode")} · private notes ${$("sum-notes").checked ? "included" : "omitted"}. ${!days.length && !eps.length ? "No matching records: clear search and filters or change the period above." : "Empty record types cannot be exported."}`;
     $("summary-period").textContent =
@@ -464,7 +493,7 @@ export function init(ctx) {
       <div class="checkin-summary"><h3>Morning check-ins</h3><svg class="checkin-composition" viewBox="0 0 600 18" preserveAspectRatio="none" role="img" aria-label="${m.green} green, ${m.amber} amber, ${m.red} red, ${data.span - m.checked} days without a matching check-in"><rect class="composition-empty" width="600" height="18" rx="7"></rect>${["green", "amber", "red"].map((key, i, keys) => html`<rect class="composition-${key}" x="${(keys.slice(0, i).reduce((n, k) => n + m[k], 0) / data.span) * 600}" width="${(m[key] / data.span) * 600}" height="18"></rect>`)}</svg><div class="chart-legend">${["green", "amber", "red"].map((key) => html`<span><i class="legend-${key}"></i>${m[key]} ${key}</span>`)}<span>${data.span - m.checked} ${hasFilters ? "without a matching check-in" : "without a check-in"}</span></div></div>
       <p class="hint comparison-note">${comparison} Previous period: ${fmtDay(data.previousFrom, L)} – ${fmtDay(data.previousTo, L)}. Counts reflect your logging, including any filters.</p>`,
       );
-      matrix.render(data, S);
+      matrix.render({ ...data, filtered: hasFilters }, S);
       const nextChartWindow = `${data.from}:${data.to}`;
       const remembered =
         chartWindow === nextChartWindow
@@ -480,7 +509,7 @@ export function init(ctx) {
       ctx.ui?.details($("history-charts"));
       setHTML(
         $("history-charts"),
-        html`${chartMarkup(data, "energy", L, themeOf(ctx))}${chartMarkup(data, "episodes", L, themeOf(ctx))}${chartMarkup(data, "combined", L, themeOf(ctx))}`,
+        html`${chartMarkup(data, "energy", L, themeOf(ctx), narrowCharts.matches)}${chartMarkup(data, "episodes", L, themeOf(ctx), narrowCharts.matches)}${chartMarkup(data, "combined", L, themeOf(ctx), narrowCharts.matches)}`,
       );
       connectCharts(
         $("history-charts"),
@@ -551,16 +580,17 @@ export function init(ctx) {
       );
       return;
     }
-    const enoughSleep = sleep.poor.n >= 3 && sleep.other.n >= 3;
-    const sampleWeekdays = weekdays
-      .filter((w) => w.checked >= 3)
-      .sort((a, b) => b.bad / b.checked - a.bad / a.checked || b.checked - a.checked);
-    const weekday = sampleWeekdays[0],
-      dayName = (w) =>
-        new Date(Date.UTC(2024, 0, 7 + w.index)).toLocaleDateString(locale || undefined, {
-          weekday: "long",
-          timeZone: "UTC",
-        });
+    // Small groups make big-looking percentages out of chance, so the cards wait for more days and lead with the counts.
+    const enoughSleep = sleep.poor.n >= 5 && sleep.other.n >= 5;
+    const allWeekdays = weekdays.length === 7 && weekdays.every((w) => w.checked >= 4);
+    const enoughWeekdays = weekdays.filter((w) => w.checked >= 4).length;
+    const dayName = (w) =>
+      new Date(Date.UTC(2024, 0, 7 + w.index)).toLocaleDateString(locale || undefined, {
+        weekday: "long",
+        timeZone: "UTC",
+      });
+    const noticed = data.topSymptoms.filter(([, count]) => count >= 2),
+      beforehand = data.topTriggers.filter(([, count]) => count >= 2);
     const ranking = (pairs, type) =>
       pairs.length
         ? html`<ul class="pattern-ranking">${pairs.map(([name, count]) => html`<li><button class="pattern-link" ${type === "symptom" ? html`data-symptom="${name}"` : html`data-query="${name}"`} data-tooltip="Filter history by ${name}"><span>${name}</span><b>${count}</b></button><meter min="0" max="${Math.max(1, m.episodes)}" value="${count}" aria-label="${name}: recorded in ${count} of ${m.episodes} episodes"></meter></li>`)}</ul>`
@@ -568,10 +598,10 @@ export function init(ctx) {
     setHTML(
       $("history-insights"),
       html`<p class="hint insights-note">Descriptions of your log, rather than explanations of why symptoms happen. Missing days and changes in logging affect the picture.</p><div class="patterns-grid">
-      <article class="insight-card"><span class="label">Sleep &amp; check-ins</span><h3>${enoughSleep ? `${sleep.poor.percent}% after poor sleep` : "Build a clearer sleep picture"}</h3><p class="meta">${enoughSleep ? `Amber or red on ${sleep.poor.bad} of ${sleep.poor.n} checked-in days marked poor sleep, compared with ${sleep.other.percent}% (${sleep.other.bad} of ${sleep.other.n}) when sleep wasn't marked poor.` : `This comparison needs at least 3 checked-in days in each group. You have ${sleep.poor.n} marked poor sleep and ${sleep.other.n} not marked poor sleep.`}</p><p class="hint">A missing poor-sleep flag doesn't necessarily mean good sleep.</p></article>
-      <article class="insight-card"><span class="label">Day of the week</span><h3>${weekday ? dayName(weekday) : "A little more history helps"}</h3><p class="meta">${weekday ? `Highest recorded share of amber/red check-ins among weekdays with at least 3 check-ins: ${weekday.bad} of ${weekday.checked} (${Math.round((weekday.bad / weekday.checked) * 100)}%).` : "Log at least 3 check-ins on a weekday to see its pattern here."}</p>${sampleWeekdays.length === 1 ? html`<p class="hint">Only one weekday has enough entries to compare so far.</p>` : ""}</article>
-      <article class="insight-card"><span class="label">Most noticed</span><h3>Symptoms in your episodes</h3>${ranking(data.topSymptoms, "symptom")}<p class="hint">Each symptom counts once per episode. Tap to filter.</p></article>
-      <article class="insight-card"><span class="label">Recorded beforehand</span><h3>In the day or two before</h3>${ranking(data.topTriggers, "query")}<p class="hint">What you recorded before episodes; this doesn't establish a cause.</p></article>
+      <article class="insight-card"><span class="label">Sleep &amp; check-ins</span><h3>${enoughSleep ? `${sleep.poor.bad} of ${sleep.poor.n} poor-sleep days were amber or red` : "Build a clearer sleep picture"}</h3><p class="meta">${enoughSleep ? `Compared with ${sleep.other.bad} of ${sleep.other.n} checked-in days when sleep wasn't marked poor (${sleep.poor.percent}% against ${sleep.other.percent}%).` : `This comparison needs at least 5 checked-in days in each group. You have ${sleep.poor.n} marked poor sleep and ${sleep.other.n} not marked poor sleep.`}</p><p class="hint">A missing poor-sleep flag doesn't necessarily mean good sleep.</p></article>
+      <article class="insight-card"><span class="label">Day of the week</span><h3>${allWeekdays ? "Amber or red days, by weekday" : "A little more history helps"}</h3>${allWeekdays ? html`<ul class="pattern-ranking">${weekdays.map((w) => html`<li><span class="pattern-row"><span>${dayName(w)}</span><b>${w.bad} of ${w.checked}</b></span><meter min="0" max="${w.checked}" value="${w.bad}" aria-label="${dayName(w)}: amber or red on ${w.bad} of ${w.checked} checked-in days"></meter></li>`)}</ul><p class="hint">With this few days each, a higher weekday is often chance.</p>` : html`<p class="meta">Weekdays are compared once each has at least 4 check-ins (${enoughWeekdays} of 7 so far).</p>`}</article>
+      <article class="insight-card"><span class="label">Most noticed</span><h3>${noticed.length || !data.topSymptoms.length ? "Symptoms in your episodes" : "Recorded once"}</h3>${ranking(noticed.length ? noticed : data.topSymptoms, "symptom")}<p class="hint">Each symptom counts once per episode. Tap to filter.</p></article>
+      <article class="insight-card"><span class="label">Recorded beforehand</span><h3>${beforehand.length || !data.topTriggers.length ? "In the day or two before" : "Recorded once, in the day or two before"}</h3>${ranking(beforehand.length ? beforehand : data.topTriggers, "query")}<p class="hint">What you recorded before episodes; this doesn't establish a cause.</p></article>
       <article class="insight-card activity-patterns"><span class="label">Your everyday rhythm</span><h3>Most logged activities</h3>${activities.length ? html`<ul class="pattern-ranking">${activities.map((a) => html`<li><button class="pattern-link" data-query="${a.name}" data-tooltip="Find records containing ${a.name}"><span>${a.name}</span><b>${a.count}×</b></button><span class="meta">${a.spent} ${words().plural} spent · ${a.recovery} recovery ${words().plural}</span></li>`)}</ul>` : html`<p class="empty">Activities you log will appear here. Historical costs stay as recorded.</p>`}</article>
       <article class="insight-card"><span class="label">Activity balance</span><h3>${m.recovery} recovery ${words().plural} recorded</h3><p class="meta">${m.spent} ${words().plural} spent on activities; ${m.recovery} recorded through negative-cost recovery entries.</p><p class="hint">These are your planning estimates. They don't measure physical recovery or tell you to do more.</p></article>
     </div>`,
@@ -608,6 +638,7 @@ export function init(ctx) {
       initialised = true;
       shown = episodesShown = PAGE;
       render();
+      $("history-matrix").scrollIntoView({ block: "start" }); // the calendar, not a form of date boxes
     },
     show() {
       ctx.measure("history_viewed");

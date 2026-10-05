@@ -331,6 +331,7 @@ function fatal(text) {
     },
     toast,
     go,
+    tab: () => active, // the tab on screen, for a form that wants to say where "back" goes
     back() {
       go(views[beforeHelp] && beforeHelp !== "help" ? beforeHelp : "today");
     },
@@ -651,14 +652,35 @@ function fatal(text) {
 
   // ---- toast, with an optional Undo ----
   let toastTimer;
+  let lastUndo = null; // the Undo of the toast on screen, for the keyboard
   const hideToast = () => {
     $("toastbar").hidden = true;
+    lastUndo = null;
   };
+  document.addEventListener("keydown", (e) => {
+    if (
+      !lastUndo ||
+      e.key.toLowerCase() !== "z" ||
+      !(e.ctrlKey || e.metaKey) ||
+      e.shiftKey ||
+      e.altKey
+    )
+      return;
+    if (e.target.closest?.("input,textarea,select,[contenteditable]")) return; // fields keep their own undo
+    e.preventDefault();
+    const { fn } = lastUndo;
+    hideToast();
+    fn();
+  });
   function toast(message, undo) {
     const bar = $("toastbar");
     bar.replaceChildren(Object.assign(document.createElement("span"), { textContent: message }));
+    lastUndo = undo ? { fn: undo.fn } : null;
     if (undo) {
-      const b = Object.assign(document.createElement("button"), { textContent: undo.label });
+      const b = Object.assign(document.createElement("button"), {
+        textContent: undo.label,
+        title: `${undo.label} (Ctrl or ⌘ + Z)`,
+      });
       b.addEventListener("click", () => {
         undo.fn();
         hideToast();

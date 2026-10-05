@@ -269,6 +269,10 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
       await page.locator("#plan-forecast").textContent(),
       /1 (point|spoon) still uncovered/,
     );
+    // A keyboard can skip the long list of saved activities and land on the timeline.
+    await page.locator("#plan-skip-palette").focus();
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() => !!document.activeElement.closest("#plan-board"));
     // Unfinished input survives navigation and refresh without becoming actual usage.
     await page.locator("#plan-add").click();
     await page.locator("#plan-name").fill("Rest after travel");
@@ -316,6 +320,26 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     await page.locator("#plan-dur").fill("120");
     await page.locator("#plan-submit").click();
     assert.match(await page.locator("#plan-form-error").textContent(), /past midnight/);
+    // The message belongs to one field: it is marked, holds the cursor, and clears when it is corrected.
+    assert.equal(await page.locator("#plan-dur").getAttribute("aria-invalid"), "true");
+    assert.equal(
+      await page.evaluate(() => document.activeElement.id),
+      "plan-dur",
+      "focus goes to the field the message is about",
+    );
+    await page.locator("#plan-dur").fill("30");
+    assert.equal(await page.locator("#plan-dur").getAttribute("aria-invalid"), null);
+    assert.equal(await page.locator("#plan-form-error").textContent(), "");
+    // The form says which day it is for, and how many days "consecutive" can reach.
+    assert.match(await page.locator("#plan-form-title").textContent(), /^Add to .*\d{4}$/);
+    await page.locator("#plan-name").fill("");
+    await page.locator("#plan-submit").click();
+    assert.equal(await page.evaluate(() => document.activeElement.id), "plan-name");
+    assert.match(await page.locator("#plan-form-error").textContent(), /name of 1–60 characters/);
+    await page.locator("#plan-name").fill("Night shift");
+    await page.locator("#plan-time").fill("23:00");
+    await page.locator("#plan-dur").fill("120");
+    await page.locator("#plan-submit").click();
     // The browser itself refuses a length under 5 minutes, so the form is not even submitted.
     await page.locator("#plan-dur").fill("3");
     await page.locator("#plan-submit").click();

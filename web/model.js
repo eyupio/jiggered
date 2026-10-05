@@ -863,13 +863,15 @@ export function validateEpisodeTimes(value, original = {}, now = new Date()) {
     value.endedAt === original.endedAt && Number.isFinite(original.endOffset)
       ? recordedInstant(value.endedAt, original.endOffset)
       : localInstant(value.endedAt);
-  if (!value.when || !Number.isFinite(start) || start > now.getTime())
-    return ["ep-when", "Choose a valid start time that isn't in the future."];
-  if (value.endedAt && (!Number.isFinite(end) || end < start || end > now.getTime()))
-    return [
-      "ep-ended",
-      "End time must be between the start time and now, including the recorded time-zone offset.",
-    ];
+  if (!value.when || !Number.isFinite(start)) return ["ep-when", "Choose when it started."];
+  if (start > now.getTime())
+    return ["ep-when", "Start time can't be in the future. Choose a time before now."];
+  if (value.endedAt && !Number.isFinite(end))
+    return ["ep-ended", "Choose when it ended, or leave it empty."];
+  if (value.endedAt && end < start)
+    return ["ep-ended", "It can't have ended before it started. Choose a later end time."];
+  if (value.endedAt && end > now.getTime())
+    return ["ep-ended", "End time can't be in the future. Choose a time before now."];
   return null;
 }
 

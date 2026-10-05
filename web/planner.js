@@ -1,4 +1,4 @@
-import { $, html, setHTML, uid, fmtDay, signed, confirmDialog, sheetMode } from "./util.js";
+import { $, html, setHTML, uid, fmtDay, signed, minus, confirmDialog, sheetMode } from "./util.js";
 import { addDays, dayId, hhmm } from "./model.js";
 import {
   DAY,
@@ -129,12 +129,28 @@ export function showEntryMenu({ x, y, el, row, ...actions }) {
 const amount = (ctx, n) => energyAmount(n, themeOf(ctx));
 // In a form, an activity's points follow its length once that is changed, until the points are typed over. It starts
 // from an activity that already has a length (or a saved one whose name gives it); `set(cost, length)` says which.
-export function followLength(ctx, durInput, costInput, hint) {
+// What the number typed in a form will look like everywhere else: the sign shown on tiles, blocks and in the exports
+// is the effect on points left, so a cost of 2 appears as −2 and a recovery of 1 as +1.
+export function effectWords(ctx, c) {
+  if (!Number.isInteger(c)) return "";
+  if (c === 0) return "Only records the activity; your balance does not change.";
+  const theme = themeOf(ctx);
+  return c > 0
+    ? `Uses ${energyAmount(c, theme)}. Shown as ${signed(c)}.`
+    : `Gives back ${energyAmount(-c, theme)}. Shown as ${signed(c)}.`;
+}
+export function followLength(ctx, durInput, costInput, hint, effect = null) {
   let base = null,
     touched = false;
+  const show = () => {
+    if (effect)
+      effect.textContent =
+        costInput.value.trim() === "" ? "" : effectWords(ctx, Number(costInput.value));
+  };
   costInput.addEventListener("input", () => {
     touched = true;
     hint.textContent = "";
+    show();
   });
   durInput.addEventListener("change", () => {
     const dur = Number(durInput.value),
@@ -142,6 +158,7 @@ export function followLength(ctx, durInput, costInput, hint) {
     if (next === null || next === Number(costInput.value)) return;
     costInput.value = String(next);
     hint.textContent = `Points follow the length: ${signed(base.cost)} for ${formatDur(base.dur)}, so ${signed(next)} for ${formatDur(dur)}. Change them if you like.`;
+    show();
   });
   return {
     set(cost, length) {
@@ -149,7 +166,9 @@ export function followLength(ctx, durInput, costInput, hint) {
         Number.isInteger(cost) && cost !== 0 && validDur(length) ? { cost, dur: length } : null;
       touched = false;
       hint.textContent = "";
+      show();
     },
+    refresh: show, // after the value is assigned from a saved draft or a palette choice
   };
 }
 // When a planned activity is logged as done it started at its planned time if that has already passed, otherwise now.
@@ -308,7 +327,13 @@ export function init(ctx) {
     editing = null,
     completing = false;
   const model = () => forecast(ctx.store.all(), date, ctx.settings());
-  const lengthPoints = followLength(ctx, $("plan-dur"), $("plan-cost"), $("plan-length-hint"));
+  const lengthPoints = followLength(
+    ctx,
+    $("plan-dur"),
+    $("plan-cost"),
+    $("plan-length-hint"),
+    $("plan-effect"),
+  );
   const days = () => Array.from({ length: span }, (_, i) => addDays(ctx.today(), i));
   // Opened from the timeline, the form floats over it as a sheet; from the buttons and the list it stays where it is.
   const sheet = sheetMode(form, {
@@ -322,11 +347,14 @@ export function init(ctx) {
     if (floating) sheet.on();
     else sheet.off();
     form.hidden = false;
+    // Say which day this is for: the form can open far from the board it belongs to.
+    const dayName = fmtDay(date, ctx.settings().locale);
     $("plan-form-title").textContent = complete
-      ? "Log what actually happened"
+      ? `Log what actually happened on ${dayName}`
       : entry
-        ? "Edit planned activity"
-        : "Add to your plan";
+        ? `Edit planned activity on ${dayName}`
+        : `Add to ${dayName}`;
+    for (const el of form.querySelectorAll("[aria-invalid]")) el.removeAttribute("aria-invalid");
     $("plan-name").value = entry?.a || "";
     $("plan-cost").value = entry?.c ?? 1;
     $("plan-time").value = complete ? loggedStart(ctx, entry, date) : entry?.t || "";
@@ -338,6 +366,10 @@ export function init(ctx) {
       1,
       Math.min(7, days().at(-1) >= date ? days().filter((d) => d >= date).length : 1),
     );
+    $("plan-repeat-label").textContent =
+      $("plan-repeat").max === "1"
+        ? "Add on consecutive days"
+        : `Add on consecutive days (up to ${$("plan-repeat").max})`;
     $("plan-submit").textContent = complete ? "Log activity" : "Save plan";
     $("plan-form-error").textContent = "";
     setStable(
@@ -373,12 +405,14 @@ export function init(ctx) {
     $("plan-cost").value = draft.c;
     $("plan-time").value = draft.t;
     $("plan-dur").value = draft.dur ?? "";
+    lengthPoints.refresh();
     $("plan-repeat").value = Math.min(Number(draft.repeat) || 1, Number($("plan-repeat").max));
     $("plan-form-error").textContent = "Unfinished planning draft restored.";
   }
-  form.addEventListener("input", () => {
+  form.addEventListener("input", (e) => {
     rememberDraft();
     $("plan-form-error").textContent = ""; // a message about what was wrong should not outlive the fix
+    e.target.removeAttribute?.("aria-invalid");
   });
   form.addEventListener("change", rememberDraft);
   $("plan-presets").addEventListener("change", (e) => {
@@ -392,6 +426,11 @@ export function init(ctx) {
   $("plan-cancel").addEventListener("click", () => {
     ctx.drafts?.remove(`plan:${date}`);
     closeForm();
+  });
+  // A keyboard has to pass every saved activity (two dozen stops) to reach the timeline; this goes straight there.
+  $("plan-skip-palette").addEventListener("click", () => {
+    // After the key press has finished: the same Enter must not also activate the control it lands on.
+    setTimeout(() => $("plan-board").querySelector(".cal-day-head, .cal-block")?.focus(), 0);
   });
   $("plan-add").addEventListener("click", () => openForm());
   $("plan-start-add").addEventListener("click", () => openForm(null, false, { floating: true }));
@@ -455,32 +494,31 @@ export function init(ctx) {
       c = Number($("plan-cost").value),
       t = $("plan-time").value;
     const repeat = Number($("plan-repeat").value);
-    if (
-      !a ||
-      [...a].length > 60 ||
-      !Number.isInteger(c) ||
-      c < -10 ||
-      c > 10 ||
-      !Number.isInteger(repeat) ||
-      repeat < 1 ||
-      repeat > Number($("plan-repeat").max)
-    ) {
-      $("plan-form-error").textContent =
-        "Use a name of 1–60 characters, a whole-number cost from −10 to 10 and a valid number of days.";
-      return;
-    }
+    // One message, about one field: mark it and put the cursor there.
+    const problem = (field, message) => {
+      for (const el of form.querySelectorAll("[aria-invalid]")) el.removeAttribute("aria-invalid");
+      field.setAttribute("aria-invalid", "true");
+      $("plan-form-error").textContent = message;
+      field.focus();
+    };
+    if (!a || [...a].length > 60)
+      return problem($("plan-name"), "Give it a name of 1–60 characters.");
+    if (!Number.isInteger(c) || c < -10 || c > 10)
+      return problem($("plan-cost"), "Points must be a whole number from −10 to 10.");
+    if (!Number.isInteger(repeat) || repeat < 1 || repeat > Number($("plan-repeat").max))
+      return problem($("plan-repeat"), `Choose between 1 and ${$("plan-repeat").max} days.`);
     const durText = $("plan-dur").value.trim(),
       dur = durText === "" ? null : Number(durText);
-    if (dur !== null && !validDur(dur)) {
-      $("plan-form-error").textContent =
-        "Use a whole number of minutes from 5 to 1440, or leave the duration empty.";
-      return;
-    }
-    if (dur !== null && toMinutes(t) !== null && toMinutes(t) + dur > DAY) {
-      $("plan-form-error").textContent =
-        "That would run past midnight. Start earlier or shorten the duration.";
-      return;
-    }
+    if (dur !== null && !validDur(dur))
+      return problem(
+        $("plan-dur"),
+        "Use a whole number of minutes from 5 to 1440, or leave the duration empty.",
+      );
+    if (dur !== null && toMinutes(t) !== null && toMinutes(t) + dur > DAY)
+      return problem(
+        $("plan-dur"),
+        "That would run past midnight. Start earlier or shorten the duration.",
+      );
     if (!writable(ctx)) return;
     const f = model();
     if (editing && !f.pending.some((row) => row.id === editing.id)) {
@@ -854,7 +892,11 @@ export function init(ctx) {
         return {
           date: d,
           label: dayLabel(d),
-          value: m.rows.length || m.logged ? String(m.projected) : "—",
+          value: m.rows.length || m.logged ? `${minus(m.projected)} left` : "—",
+          aria:
+            m.rows.length || m.logged
+              ? `${fmtDay(d, ctx.settings().locale)}: ${amount(ctx, m.projected)} left after planned recovery${m.afterWork < 0 ? `, ${amount(ctx, -m.afterWork)} over before recovery` : ""}`
+              : `${fmtDay(d, ctx.settings().locale)}: nothing planned`,
           today: d === ctx.today(),
           selected: d === date,
           warn: m.afterWork < 0,

@@ -15,7 +15,7 @@ export function renderOngoing(ctx, el) {
   el.hidden = !items.length;
   setHTML(
     el,
-    html`<h2>Still going (${items.length})</h2>${items.slice(0, 10).map(([id, e]) => html`<p>${fmtWhen(e.when, ctx.settings().locale)} · ${e.symptoms.join(", ") || "Episode"} <button class="secondary" data-end-episode-now="${id}">Ended just now</button> <button class="secondary" data-finish-episode="${id}">Ended earlier…</button></p>`)}${items.length > 10 ? html`<p>More ongoing episodes are in History.</p>` : ""}`,
+    html`<h2>Still going (${items.length})</h2>${items.slice(0, 10).map(([id, e]) => html`<div class="ongoing-item"><p>${fmtWhen(e.when, ctx.settings().locale)} · ${e.symptoms.join(", ") || "Episode"}</p><div class="row"><button class="secondary" data-end-episode-now="${id}">Ended just now</button><button class="secondary" data-finish-episode="${id}">Ended earlier…</button></div></div>`)}${items.length > 10 ? html`<p>More ongoing episodes are in History.</p>` : ""}`,
   );
 }
 
@@ -88,7 +88,15 @@ export function init(ctx) {
     chipsKey = "",
     ticket = null,
     original = {},
-    submitted = null;
+    submitted = null,
+    origin = ""; // the tab an edit was started from; its back button returns there
+  // Drafts are dropped seven days after the last change (see createDrafts in device.js).
+  const keepUntil = (at) =>
+    new Date(at + 7 * 24 * 60 * 60 * 1000).toLocaleDateString(ctx.settings().locale || undefined, {
+      day: "numeric",
+      month: "short",
+    });
+  const TAB_NAMES = { history: "History", today: "Today", plan: "Plan", account: "Account" };
   const form = $("epform"),
     drafts = ctx.drafts;
   const slot = () => (editing ? `episode-edit:${editing}` : "episode-new");
@@ -259,13 +267,18 @@ export function init(ctx) {
     dirty = !!draft;
     form.reset();
     fill(draft?.body || original);
+    durProblem("");
     submitted = draft?.submitted || null;
     if (submitted) ticket = { n: submitted.n };
+    const savedAt = drafts?.list().find((d) => d.name === slot())?.at;
     $("eptoast").textContent =
-      draft && !submitted ? "Unfinished draft restored from this device." : "";
+      draft && !submitted
+        ? `Unfinished draft restored from this device.${savedAt ? ` It stays until ${keepUntil(savedAt)}, seven days after your last change.` : ""}`
+        : "";
     render();
   }
   function edit(id, recovered = null, finish = false) {
+    const from = ctx.tab();
     remember();
     if (!ctx.store.view(id) && !recovered && !drafts?.get(`episode-edit:${id}`)) return;
     restore(id);
@@ -275,6 +288,7 @@ export function init(ctx) {
       submitted = ticket = null;
       remember();
     }
+    origin = from !== "episode" && TAB_NAMES[from] ? from : "";
     ctx.go("episode");
     if (finish) {
       $("ep-dur").focus();
@@ -345,12 +359,22 @@ export function init(ctx) {
   $("ep-dur").addEventListener("change", () => {
     durChosen = true;
   });
+  const durProblem = (text) => {
+    $("ep-dur-hint").textContent = text;
+    if (text) $("ep-dur").setAttribute("aria-invalid", "true");
+    else $("ep-dur").removeAttribute("aria-invalid");
+  };
   $("ep-when").addEventListener("change", () => {
     if (!editing && !durChosen) {
+      const had = $("ep-dur").value;
       $("ep-dur").value = defaultDuration($("ep-when").value);
+      // Moving the start back clears "Still going"; say so, or Save looks as if it does nothing.
+      if (had && !$("ep-dur").value)
+        durProblem("You changed the start time, so choose how long it lasted.");
       renderEnd();
     }
   });
+  $("ep-dur").addEventListener("change", () => durProblem(""));
   form.addEventListener("change", (e) => {
     if (e.target.name === "sym" || e.target.name === "trig") narrow(e.target.name);
   });
@@ -368,9 +392,38 @@ export function init(ctx) {
     remember();
     restore(b.dataset.draft === "episode-new" ? null : b.dataset.draft.slice(13));
   });
+  // Single-answer chips can be cleared: pressing the one that is already ticked unticks it.
+  const onset = $("ep-onset");
+  const onsetInput = (e) => e.target.closest("input[name=onset]");
+  let wasTicked = null;
+  onset.addEventListener("pointerdown", (e) => {
+    const i = onsetInput(e) || e.target.closest("label")?.querySelector("input[name=onset]");
+    wasTicked = i?.checked ? i : null;
+  });
+  onset.addEventListener("click", (e) => {
+    const i = onsetInput(e);
+    if (i && i === wasTicked) {
+      i.checked = false;
+      i.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    wasTicked = null;
+  });
+  onset.addEventListener("keydown", (e) => {
+    const i = onsetInput(e);
+    if (e.key === " " && i?.checked) {
+      e.preventDefault();
+      i.checked = false;
+      i.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  });
   $("ep-cancel").addEventListener("click", () => {
     remember();
     restore(null);
+    if (origin) {
+      const back = origin;
+      origin = "";
+      ctx.go(back); // an edit that began in History or Today ends there
+    }
   });
   $("ep-discard").addEventListener("click", () => {
     if (dirty && !confirm("Delete this draft? It has not been saved to your account yet.")) return;
@@ -394,6 +447,7 @@ export function init(ctx) {
       );
     if (!value.duration) {
       note("Choose how long it lasted, or Still going if it hasn't stopped.");
+      durProblem("Choose how long it lasted, or Still going.");
       $("ep-dur").focus();
       return;
     }
@@ -452,9 +506,12 @@ export function init(ctx) {
     renderEnd();
     $("ep-when").max = !editing || !Number.isFinite(original.whenOffset) ? nowLocal() : "";
     $("ep-ended").max = !editing || !Number.isFinite(original.endOffset) ? nowLocal() : "";
+    // The page heading already says "Log a symptom episode"; this one only appears to say it is an edit.
     $("ep-title").textContent = editing ? "Edit episode" : "Log an episode";
+    $("ep-title").hidden = !editing;
     $("ep-save").textContent = editing ? "Save changes" : "Save episode";
     $("ep-cancel").hidden = !editing;
+    $("ep-cancel").textContent = origin ? `Back to ${TAB_NAMES[origin]}` : "Back to new episode";
     $("ep-discard").hidden = !dirty;
     finishSave();
     const waiting = ticket && ctx.store.outcome(ticket.n) === "pending";
@@ -467,7 +524,7 @@ export function init(ctx) {
     $("episode-drafts").hidden = !unfinished.length;
     setHTML(
       $("episode-draft-list"),
-      html`${unfinished.map((d) => html`<p><button class="secondary" data-draft="${d.name}">${d.name === "episode-new" ? "Continue new episode" : "Continue edit"}</button> <span class="meta">${new Date(d.at).toLocaleString(ctx.settings().locale || undefined)}</span></p>`)}`,
+      html`${unfinished.map((d) => html`<p><button class="secondary" data-draft="${d.name}">${d.name === "episode-new" ? "Continue new episode" : "Continue edit"}</button> <span class="meta">${new Date(d.at).toLocaleString(ctx.settings().locale || undefined)} · kept until ${keepUntil(d.at)}</span></p>`)}`,
     );
     renderOngoing(ctx, $("episode-ongoing"));
   }
