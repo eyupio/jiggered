@@ -32,7 +32,8 @@ const nowMinute = () => {
 };
 
 // hooks: { editable(), onSelectDay(date), onOpen({date,id}), onCreate({date,start}),
-//          onChange({id, fromDate, toDate, start, dur, source}), onDrop(payload, {date,start,dur}) }
+//          onChange({id, fromDate, toDate, start, dur, source}), onDrop(payload, {date,start,dur}),
+//          onRemove({date,id}) (optional: blocks marked `removable` then carry a remove control) }
 export function createTimeGrid(root, hooks) {
   let model = null,
     win = [6 * 60, 22 * 60],
@@ -84,13 +85,19 @@ export function createTimeGrid(root, hooks) {
     win = hourWindow(days.flatMap((d) => d.laid));
     const hours = Array.from({ length: (win[1] - win[0]) / 60 }, (_, i) => win[0] + i * 60);
     const editable = m.editable && hooks.editable();
+    // A remove control is a span, not a button: it sits inside the block's own button. Keyboard users press Delete.
+    const remove = (b) =>
+      editable && hooks.onRemove && b.removable
+        ? html`<span class="cal-remove" role="button" tabindex="-1" data-remove aria-label="Remove ${b.title}" title="Remove ${b.title}">×</span>`
+        : "";
+    const removable = (b) => (editable && hooks.onRemove && b.removable ? " is-removable" : "");
     const block = (d, b) =>
-      html`<button type="button" class="cal-block cal-${b.kind}${b.side ? " cal-side" : ""}${b.done ? " is-done" : ""}${b.dur <= 30 ? " is-short" : ""}${b.cost < 0 ? " is-recovery" : b.cost > 0 ? " is-spend" : ""}${editable && b.editable ? " is-editable" : ""}" data-key="${d.date}|${b.id}" data-date="${d.date}" data-id="${b.id}" data-s="${b.start - win[0]}" data-d="${b.dur}" data-lane="${b.lane}" data-lanes="${b.lanes}" data-cost="${b.cost ?? ""}" aria-label="${label(b)}" title="${label(b)}" aria-describedby="${helpId}">${editable && b.editable ? html`<span class="cal-resize" data-edge="top" aria-hidden="true"></span><span class="cal-grip" aria-hidden="true"></span>` : ""}<span class="cal-title">${b.done ? "✓ " : ""}${b.title}</span><span class="cal-meta">${meta(b)}</span>${editable && b.editable ? html`<span class="cal-resize" data-edge="bottom" aria-hidden="true"></span>` : ""}</button>`;
+      html`<button type="button" class="cal-block cal-${b.kind}${b.side ? " cal-side" : ""}${b.done ? " is-done" : ""}${b.dur <= 30 ? " is-short" : ""}${b.cost < 0 ? " is-recovery" : b.cost > 0 ? " is-spend" : ""}${editable && b.editable ? " is-editable" : ""}${removable(b)}" data-key="${d.date}|${b.id}" data-date="${d.date}" data-id="${b.id}" data-s="${b.start - win[0]}" data-d="${b.dur}" data-lane="${b.lane}" data-lanes="${b.lanes}" data-cost="${b.cost ?? ""}" aria-label="${label(b)}" title="${label(b)}" aria-describedby="${helpId}">${editable && b.editable ? html`<span class="cal-resize" data-edge="top" aria-hidden="true"></span><span class="cal-grip" aria-hidden="true"></span>` : ""}${remove(b)}<span class="cal-title">${b.done ? "✓ " : ""}${b.title}</span><span class="cal-meta">${meta(b)}</span>${editable && b.editable ? html`<span class="cal-resize" data-edge="bottom" aria-hidden="true"></span>` : ""}</button>`;
     setHTML(
       inner,
-      html`<p class="sr-only" id="${helpId}">${(editable && m.help) || (editable ? "Enter opens a block to edit it. Up and down arrows move it by 15 minutes, Left and Right move it to another day, and Shift with Up or Down changes how long it lasts." : "Enter opens a block.")}</p>
+      html`<p class="sr-only" id="${helpId}">${(editable && m.help) || (editable ? "Enter opens a block to edit it. Up and down arrows move it by 15 minutes, Left and Right move it to another day, and Shift with Up or Down changes how long it lasts." + (hooks.onRemove ? " Delete removes it, after asking you to confirm." : "") : "Enter opens a block.")}</p>
       <div class="cal-scroll" data-cal-scroll><div class="cal-top"><div class="cal-head"><span class="cal-corner"></span>${days.map((d) => html`<button type="button" class="cal-day-head${d.today ? " is-today" : ""}${d.selected ? " is-selected" : ""}${d.warn ? " is-warn" : ""}" data-cal-day="${d.date}" aria-pressed="${!!d.selected}"><span>${d.label}</span><b>${d.value}</b></button>`)}</div>
-      ${days.some((d) => d.tray.length) ? html`<div class="cal-tray-row"><span class="cal-corner">Any time</span>${days.map((d) => html`<div class="cal-tray" data-date="${d.date}">${d.tray.map((b) => html`<button type="button" class="cal-chip cal-${b.kind}${b.done ? " is-done" : ""}${editable && b.editable ? " is-editable" : ""}" data-key="${d.date}|${b.id}" data-date="${d.date}" data-id="${b.id}" aria-label="${label(b)}" title="${label(b)}">${b.done ? "✓ " : ""}${b.title}</button>`)}</div>`)}</div>` : ""}
+      ${days.some((d) => d.tray.length) ? html`<div class="cal-tray-row"><span class="cal-corner">Any time</span>${days.map((d) => html`<div class="cal-tray" data-date="${d.date}">${d.tray.map((b) => html`<button type="button" class="cal-chip cal-${b.kind}${b.done ? " is-done" : ""}${editable && b.editable ? " is-editable" : ""}${removable(b)}" data-key="${d.date}|${b.id}" data-date="${d.date}" data-id="${b.id}" aria-label="${label(b)}" title="${label(b)}">${b.done ? "✓ " : ""}${b.title}${remove(b)}</button>`)}</div>`)}</div>` : ""}
       </div><div class="cal-body" data-cal-body><div class="cal-rail" aria-hidden="true">${hours.map((h) => html`<span>${fromMinutes(h)}</span>`)}</div>${days.map((d) => html`<div class="cal-col${d.today ? " is-today" : ""}${m.strip ? " has-side" : ""}" data-cal-col data-date="${d.date}" role="group" aria-label="${d.label}">${d.laid.map((b) => block(d, b))}${d.today ? html`<span class="cal-now" aria-hidden="true"></span>` : ""}</div>`)}</div></div>`,
     );
     const body = q("[data-cal-body]");
@@ -359,7 +366,7 @@ export function createTimeGrid(root, hooks) {
     if ((e.pointerType === "mouse" && e.button !== 0) || session || !model || !hooks.editable())
       return;
     const el = e.target.closest(".cal-block.is-editable, .cal-chip.is-editable");
-    if (!el) return;
+    if (!el || e.target.closest(".cal-remove")) return;
     const resize = e.target.closest(".cal-resize"),
       date = el.dataset.date,
       untimed = el.classList.contains("cal-chip");
@@ -399,6 +406,10 @@ export function createTimeGrid(root, hooks) {
     const head = e.target.closest("[data-cal-day]");
     if (head) return hooks.onSelectDay(head.dataset.calDay);
     const el = e.target.closest(".cal-block, .cal-chip");
+    if (el && e.target.closest(".cal-remove")) {
+      if (hooks.editable()) hooks.onRemove?.({ date: el.dataset.date, id: el.dataset.id });
+      return;
+    }
     if (el) return hooks.onOpen({ date: el.dataset.date, id: el.dataset.id });
     const col = e.target.closest("[data-cal-col]");
     if (col && hooks.editable() && model?.editable)
@@ -413,8 +424,14 @@ export function createTimeGrid(root, hooks) {
 
   // ---- the keyboard: arrows move a focused block, Shift with Up or Down changes its length ----
   root.addEventListener("keydown", (e) => {
-    const el = e.target.closest?.(".cal-block.is-editable");
+    const el = e.target.closest?.(".cal-block.is-editable, .cal-chip.is-removable");
     if (!el || session || !hooks.editable()) return;
+    if (e.key === "Delete" && el.classList.contains("is-removable")) {
+      e.preventDefault();
+      hooks.onRemove({ date: el.dataset.date, id: el.dataset.id });
+      return;
+    }
+    if (!el.classList.contains("cal-block")) return;
     if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return;
     if (e.altKey || e.ctrlKey || e.metaKey) return;
     e.preventDefault();
