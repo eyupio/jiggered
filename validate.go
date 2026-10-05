@@ -103,6 +103,11 @@ func validateDoc(id string, raw json.RawMessage) error {
 					if err := validDuration(e); err != nil {
 						return err
 					}
+					if v, ok := e["col"]; ok && v != nil {
+						if col, ok := v.(string); !ok || len(col) > 20 {
+							return fmt.Errorf("planned activity colour must be short text")
+						}
+					}
 				}
 			}
 		}

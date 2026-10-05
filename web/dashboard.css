@@ -1917,6 +1917,55 @@
 .cal-block.is-editable {
   cursor: grab;
 }
+/* Colours chosen from a planned block's right-click menu. */
+.cal-tone-sand {
+  --tone: #c9a46b;
+}
+.cal-tone-sage {
+  --tone: #6f9a73;
+}
+.cal-tone-sky {
+  --tone: #5b8fb9;
+}
+.cal-tone-rose {
+  --tone: #c4707f;
+}
+.cal-tone-plum {
+  --tone: #8f6ab0;
+}
+.cal-tone-slate {
+  --tone: #6b7685;
+}
+.cal-block.cal-tone,
+.cal-chip.cal-tone {
+  border-color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 24%, var(--surface));
+}
+.fb-swatches {
+  display: flex;
+  gap: 8px;
+  padding: 4px 10px 6px;
+}
+.fb-menu .fb-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: color-mix(in srgb, var(--tone, var(--surface)) 70%, var(--surface));
+}
+.fb-menu .fb-swatch.cal-tone-auto {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--surface),
+    var(--surface) 3px,
+    var(--line) 3px,
+    var(--line) 5px
+  );
+}
+.fb-menu .fb-swatch[aria-checked="true"] {
+  border-color: var(--fg);
+}
 .cal-block.is-dragging {
   opacity: 0.4;
 }
