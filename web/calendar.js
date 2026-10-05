@@ -19,10 +19,12 @@ import {
   resizeStart,
   slotText,
   spanOf,
+  scaleCost,
 } from "./calendar-model.js";
 
 const MOVE_SLOP = 4; // pixels before a press becomes a drag; a smaller movement is still a click
 const EDGE = 40; // pixels from the top or bottom of the scroller where dragging starts to scroll it, faster the closer
+const PAGE_EDGE = 70; // the same for the window itself, while something is carried in from elsewhere on the page
 let grids = 0;
 const nowMinute = () => {
   const d = new Date();
@@ -83,7 +85,7 @@ export function createTimeGrid(root, hooks) {
     const hours = Array.from({ length: (win[1] - win[0]) / 60 }, (_, i) => win[0] + i * 60);
     const editable = m.editable && hooks.editable();
     const block = (d, b) =>
-      html`<button type="button" class="cal-block cal-${b.kind}${b.side ? " cal-side" : ""}${b.done ? " is-done" : ""}${b.dur <= 30 ? " is-short" : ""}${b.cost < 0 ? " is-recovery" : b.cost > 0 ? " is-spend" : ""}${editable && b.editable ? " is-editable" : ""}" data-key="${d.date}|${b.id}" data-date="${d.date}" data-id="${b.id}" data-s="${b.start - win[0]}" data-d="${b.dur}" data-lane="${b.lane}" data-lanes="${b.lanes}" aria-label="${label(b)}" title="${label(b)}" aria-describedby="${helpId}">${editable && b.editable ? html`<span class="cal-resize" data-edge="top" aria-hidden="true"></span><span class="cal-grip" aria-hidden="true"></span>` : ""}<span class="cal-title">${b.done ? "✓ " : ""}${b.title}</span><span class="cal-meta">${meta(b)}</span>${editable && b.editable ? html`<span class="cal-resize" data-edge="bottom" aria-hidden="true"></span>` : ""}</button>`;
+      html`<button type="button" class="cal-block cal-${b.kind}${b.side ? " cal-side" : ""}${b.done ? " is-done" : ""}${b.dur <= 30 ? " is-short" : ""}${b.cost < 0 ? " is-recovery" : b.cost > 0 ? " is-spend" : ""}${editable && b.editable ? " is-editable" : ""}" data-key="${d.date}|${b.id}" data-date="${d.date}" data-id="${b.id}" data-s="${b.start - win[0]}" data-d="${b.dur}" data-lane="${b.lane}" data-lanes="${b.lanes}" data-cost="${b.cost ?? ""}" aria-label="${label(b)}" title="${label(b)}" aria-describedby="${helpId}">${editable && b.editable ? html`<span class="cal-resize" data-edge="top" aria-hidden="true"></span><span class="cal-grip" aria-hidden="true"></span>` : ""}<span class="cal-title">${b.done ? "✓ " : ""}${b.title}</span><span class="cal-meta">${meta(b)}</span>${editable && b.editable ? html`<span class="cal-resize" data-edge="bottom" aria-hidden="true"></span>` : ""}</button>`;
     setHTML(
       inner,
       html`<p class="sr-only" id="${helpId}">${(editable && m.help) || (editable ? "Enter opens a block to edit it. Up and down arrows move it by 15 minutes, Left and Right move it to another day, and Shift with Up or Down changes how long it lasts." : "Enter opens a block.")}</p>
@@ -158,14 +160,14 @@ export function createTimeGrid(root, hooks) {
   const drop = document.createElement("div");
   drop.className = "cal-drop";
   drop.hidden = true;
-  const preview = (date, start, dur) => {
+  const preview = (date, start, dur, name) => {
     const col = cols().find((c) => c.dataset.date === date);
     if (!col) return;
     col.append(drop);
     drop.hidden = false;
     drop.style.setProperty("--start", String(start - win[0]));
     drop.style.setProperty("--span", String(dur));
-    drop.textContent = `${fromMinutes(start)}–${fromMinutes(Math.min(start + dur, DAY))}`;
+    drop.textContent = `${fromMinutes(start)}–${fromMinutes(Math.min(start + dur, DAY))}${name ? ` · ${name}` : ""}`;
   };
 
   function begin(e, s) {
@@ -178,6 +180,8 @@ export function createTimeGrid(root, hooks) {
       last: e,
       armed: s.kind !== "external",
     };
+    // Pulling an activity in from a list must not also select text or scroll the page by itself (browsers do both).
+    if (s.kind === "external") document.body.style.setProperty("user-select", "none");
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onCancel);
@@ -189,6 +193,8 @@ export function createTimeGrid(root, hooks) {
     window.removeEventListener("pointercancel", onCancel);
     window.removeEventListener("keydown", onEscape, true);
     cancelAnimationFrame(session?.raf);
+    cancelAnimationFrame(session?.pageRaf);
+    document.body.style.removeProperty("user-select");
     drop.hidden = true;
     drop.remove();
     const s = session;
@@ -196,6 +202,8 @@ export function createTimeGrid(root, hooks) {
     if (s?.kind.startsWith("resize") && s.el) {
       s.el.style.setProperty("--start", s.el.dataset.s);
       s.el.style.setProperty("--span", s.el.dataset.d);
+      const meta = s.el.querySelector(".cal-meta");
+      if (meta && s.meta !== undefined) meta.textContent = s.meta;
     }
     session = null;
     if (pending) {
@@ -229,10 +237,18 @@ export function createTimeGrid(root, hooks) {
         at = minuteAt(col, e.clientY);
       s.target = s.kind === "resize-top" ? resizeStart(s.origin, at) : resizeEnd(s.origin, at);
       s.target = { ...s.target, date: s.origin.date };
+      s.target.cost = scaleCost(s.cost, s.origin.dur, s.target.dur);
       s.el.style.setProperty("--start", String(s.target.start - win[0]));
       s.el.style.setProperty("--span", String(s.target.dur));
+      // The points are shown as the length changes, on the block and to a screen reader.
+      const meta = s.el.querySelector(".cal-meta"),
+        points = Number.isInteger(s.cost) ? signed(s.target.cost) : "";
+      if (meta)
+        meta.textContent = [slotText({ t: fromMinutes(s.target.start), dur: s.target.dur }), points]
+          .filter(Boolean)
+          .join(" · ");
       announce(
-        `${fromMinutes(s.target.start)} to ${fromMinutes(Math.min(s.target.start + s.target.dur, DAY))}`,
+        `${fromMinutes(s.target.start)} to ${fromMinutes(Math.min(s.target.start + s.target.dur, DAY))}${points ? `, ${points} points` : ""}`,
       );
     } else {
       const col = over ? colAt(e.clientX) : null;
@@ -243,7 +259,7 @@ export function createTimeGrid(root, hooks) {
         const at = minuteAt(col, e.clientY),
           next = moveTo({ start: 0, dur: s.origin.dur }, at - s.grab);
         s.target = { start: next.start, dur: next.dur, date: col.dataset.date };
-        preview(s.target.date, s.target.start, s.target.dur);
+        preview(s.target.date, s.target.start, s.target.dur, s.payload?.preset?.a);
       }
     }
     // Near the top or bottom of the scroller, keep scrolling so the rest of the day can be reached.
@@ -255,6 +271,27 @@ export function createTimeGrid(root, hooks) {
     const dir =
         !over || !s.armed ? 0 : e.clientY < r.top + EDGE ? -1 : e.clientY > r.bottom - EDGE ? 1 : 0,
       speed = Math.max(2, Math.round((1 - Math.max(0, near) / EDGE) * 12));
+    // Something picked up from a list elsewhere on the page: near the top or bottom of the window, the page scrolls so
+    // the list and the timeline can both be reached.
+    cancelAnimationFrame(s.pageRaf);
+    const pageDir =
+      s.kind === "external" && s.moved
+        ? e.clientY < PAGE_EDGE
+          ? -1
+          : e.clientY > innerHeight - PAGE_EDGE
+            ? 1
+            : 0
+        : 0;
+    if (pageDir) {
+      const near = pageDir < 0 ? e.clientY : innerHeight - e.clientY,
+        by = Math.max(4, Math.round((1 - Math.max(0, near) / PAGE_EDGE) * 22));
+      const scrollPage = () => {
+        scrollBy(0, pageDir * by);
+        update(s.last);
+        s.pageRaf = requestAnimationFrame(scrollPage);
+      };
+      s.pageRaf = requestAnimationFrame(scrollPage);
+    }
     cancelAnimationFrame(s.raf);
     if (dir && !s.kind.startsWith("resize")) {
       const step = () => {
@@ -301,6 +338,7 @@ export function createTimeGrid(root, hooks) {
         toDate: t.date,
         start: t.start,
         dur: t.dur,
+        cost: t.cost,
         source: "pointer",
       });
   }
@@ -337,6 +375,8 @@ export function createTimeGrid(root, hooks) {
       id: el.dataset.id,
       el,
       origin,
+      cost: Number(el.dataset.cost),
+      meta: el.querySelector(".cal-meta")?.textContent,
       grab: untimed || !col ? 0 : minuteAt(col, e.clientY) - origin.start,
     });
     try {
@@ -398,9 +438,11 @@ export function createTimeGrid(root, hooks) {
         );
     }
     focusKey = `${to}|${el.dataset.id}`;
-    const day = model.days.find((d) => d.date === to);
+    const day = model.days.find((d) => d.date === to),
+      cost = Number(el.dataset.cost),
+      scaled = next.dur === from.dur ? undefined : scaleCost(cost, from.dur, next.dur);
     announce(
-      `${title}, ${day?.label ?? to}, ${fromMinutes(next.start)} to ${fromMinutes(Math.min(next.start + next.dur, DAY))}`,
+      `${title}, ${day?.label ?? to}, ${fromMinutes(next.start)} to ${fromMinutes(Math.min(next.start + next.dur, DAY))}${Number.isInteger(scaled) ? `, ${signed(scaled)} points` : ""}`,
     );
     hooks.onChange({
       id: el.dataset.id,
@@ -408,6 +450,7 @@ export function createTimeGrid(root, hooks) {
       toDate: to,
       start: next.start,
       dur: next.dur,
+      cost: scaled,
       source: "keyboard",
     });
   });
