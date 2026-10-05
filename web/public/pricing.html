@@ -1,4 +1,3 @@
-<p class="eyebrow">PRICING &amp; ACCESS</p>
 <h1>Free to use.</h1>
 <p class="public-lead">
   Jiggered is a personal energy and symptom log. There is no paid plan offered in this app.
@@ -6,7 +5,6 @@
 <section class="public-example" aria-labelledby="access-title">
   {{if .Registration}}
   <h2 id="access-title">Create an account</h2>
-  <p class="choice-status">{{.Status}}</p>
   <p>{{.Availability}}</p>
   <p>
     Choose a username and password, supply your email address, and follow the verification link.
@@ -21,7 +19,7 @@
     licensed.
   </p>
   {{end}}
-  <p><a href="{{.CTA}}">{{.CTALabel}}</a></p>
+  <p><a class="p-button" href="{{.CTA}}">{{.CTALabel}}</a></p>
 </section>
 <h2>What you can record</h2>
 <p>
@@ -43,8 +41,9 @@
 <h2>MIT-licensed self-hosting</h2>
 <p>
   Run Jiggered on your own server using the
-  <a href="https://github.com/eyupio/jiggered">source and Docker setup instructions</a>. The
-  application uses the MIT License; bundled fonts retain their own licence notices.
+  <a href="https://github.com/eyupio/jiggered" target="_blank" rel="noopener"
+    >source and Docker setup instructions<span class="sr-only"> (opens in a new tab)</span></a
+  >. The application uses the MIT License; bundled fonts retain their own licence notices.
 </p>
 <p>
   Existing operators may have hosting or infrastructure costs. “Free to use” does not mean that

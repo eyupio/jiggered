@@ -6,8 +6,10 @@ const authOptions = fetch("/api/auth/options", {
   if (!r.ok) throw new Error("Options unavailable");
   return r.json();
 });
+const signedIn = document.body.hasAttribute("data-signed-in"); // the page already offers the app
 authOptions
   .then((options) => {
+    if (signedIn) return;
     const open = options.registration === true;
     const status = document.getElementById("registration-status");
     if (status) status.textContent = open ? "OPEN FOR REGISTRATION" : "REGISTRATION CLOSED";
@@ -16,11 +18,13 @@ authOptions
     });
     document.querySelectorAll("[data-register-link]").forEach((link) => {
       if (link.closest(".nav-actions")) link.hidden = !open;
-      link.href = open ? "/register" : "/login";
+      const here = link.getAttribute("href") || "";
+      link.href = open ? (here.startsWith("/register") ? here : "/register") : "/login"; // keep ?w=spoons
       link.firstChild.textContent = open ? "Create your free account " : "Log in ";
     });
   })
   .catch(() => {
+    if (signedIn) return;
     const status = document.getElementById("registration-status");
     if (status) status.textContent = "SIGNUP AVAILABILITY UNKNOWN";
     document.querySelectorAll("[data-registration-copy]").forEach((el) => {
@@ -118,17 +122,27 @@ function initAuth() {
       if (registrationRoute) show("signin", false);
     });
   document.querySelectorAll("input[type=password]").forEach((input) => {
+    // The button sits inside the field's right edge (44px high), so it takes no row of its own.
+    const label = input.closest("label"),
+      hadFocus = document.activeElement === input; // moving a focused node drops its focus
+    const wrap = document.createElement("div");
+    wrap.className = "password-field";
+    label.replaceWith(wrap);
+    wrap.append(label);
+    if (hadFocus) input.focus();
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "password-toggle";
-    toggle.textContent = "Show password";
+    toggle.textContent = "Show";
+    toggle.setAttribute("aria-label", "Show password");
     toggle.setAttribute("aria-controls", input.id);
     toggle.setAttribute("aria-pressed", "false");
-    input.closest("label").after(toggle);
+    wrap.append(toggle);
     toggle.addEventListener("click", () => {
       const visible = input.type === "password";
       input.type = visible ? "text" : "password";
-      toggle.textContent = visible ? "Hide password" : "Show password";
+      toggle.textContent = visible ? "Hide" : "Show";
+      toggle.setAttribute("aria-label", visible ? "Hide password" : "Show password");
       toggle.setAttribute("aria-pressed", String(visible));
     });
   });
@@ -224,7 +238,7 @@ function initAuth() {
         }
         if (which === "verify" || which === "reset") {
           button.hidden = true;
-          form.querySelectorAll("label,.password-toggle").forEach((el) => (el.hidden = true));
+          form.querySelectorAll("label,.password-field").forEach((el) => (el.hidden = true));
           // The instructions that led here are done: say what happened, and offer the one next step.
           const heading = form.querySelector("h1");
           if (heading)
@@ -259,12 +273,12 @@ function initAuth() {
   }
   $("register-form").addEventListener("submit", (ev) => {
     ev.preventDefault();
-    if (passwordsMatch("register"))
-      submit("register", "register", {
-        username: $("register-name").value,
-        email: $("register-email").value,
-        password: $("register-password").value,
-      });
+    // No confirm box: "Show" lets the person check what they typed, and a wrong one is fixed by email recovery.
+    submit("register", "register", {
+      username: $("register-name").value,
+      email: $("register-email").value,
+      password: $("register-password").value,
+    });
   });
   $("forgot-form").addEventListener("submit", (ev) => {
     ev.preventDefault();

@@ -23,7 +23,8 @@
   name="twitter:image:alt"
   content="Jiggered brand mark"
 />{{end}}
-<meta name="theme-color" content="#edf2e7" />
+<meta name="theme-color" content="#f8f9f4" />
+<meta name="theme-color" content="#17221c" media="(prefers-color-scheme: dark)" />
 <link rel="icon" href="/icon.svg" type="image/svg+xml" />
 <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -35,16 +36,19 @@
 {{end}} {{define "header"}}
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="site-header shell public-header">
-  <a class="wordmark" href="/welcome" aria-label="Jiggered home"
+  <a class="wordmark" href="{{if .SignedIn}}/{{else}}/welcome{{end}}" aria-label="Jiggered home"
     ><img src="/icon.svg" width="34" height="34" alt="" />jiggered<span class="brand-dot"
       >.</span
     ></a
   >
   <nav class="site-nav public-nav" aria-label="Main navigation">
-    <a href="/features/energy-tracking">Energy</a><a href="/features/symptom-tracking">Symptoms</a
-    ><a href="/guides/spoon-theory">Spoon Theory</a><a href="/pricing">Pricing &amp; access</a>
+    {{range .Nav}}<a href="{{.Path}}" {{if eq .Path $.Path}}aria-current="page" {{end}}>{{.Nav}}</a
+    >{{end}}
   </nav>
   <div class="nav-actions">
+    {{if .SignedIn}}
+    <a class="p-button small" href="/">Open Jiggered</a>
+    {{else}}
     <a class="p-button small secondary" href="/login">Log in</a>
     <a
       class="p-button small"
@@ -53,33 +57,45 @@
       {{if
       not
       .Registration}}hidden{{end}}
-      >{{.CTALabel}}</a
+      ><span class="cta-long">{{.CTALabel}}</span
+      ><span class="cta-short" aria-hidden="true">Join free</span></a
     >
+    {{end}}
   </div>
 </header>
 {{end}} {{define "footer"}}
 <footer class="site-footer shell public-footer">
-  <a class="wordmark" href="/welcome"
+  <a class="wordmark" href="{{if .SignedIn}}/{{else}}/welcome{{end}}"
     ><img src="/icon.svg" width="28" height="28" alt="" />jiggered.</a
   >
   <p>A personal energy and symptom log.</p>
-  <nav aria-label="Guides and information">
-    {{range .Pages}}{{if ne .Path "/welcome"}}<a href="{{.Path}}">{{.Label}}</a>{{end}}{{end}}<a
-      href="/login"
-      >Log in</a
-    >
+  <nav class="footer-groups" aria-label="Guides and information">
+    {{range .FooterGroups}}
+    <div class="footer-group">
+      <span class="footer-title">{{.Title}}</span>
+      {{range .Pages}}<a href="{{.Path}}" {{if eq .Path $.Path}}aria-current="page" {{end}}
+        >{{.Label}}</a
+      >{{end}}
+    </div>
+    {{end}}
+    <div class="footer-group">
+      <span class="footer-title">Account</span>
+      {{if .SignedIn}}<a href="/">Open Jiggered</a>{{else}}<a href="/login">Log in</a>{{end}}
+    </div>
   </nav>
   <small
     >A personal log, not a medical device. Developed by <a href="https://eyup.io">EyUp.io</a> ·
-    <a href="https://github.com/eyupio/jiggered">Source on GitHub</a></small
+    <a href="https://github.com/eyupio/jiggered" target="_blank" rel="noopener"
+      >Source on GitHub<span class="sr-only"> (opens in a new tab)</span></a
+    ></small
   >
 </footer>
 {{end}} {{define "page"}}<!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en">
   <head>
     {{template "head" .}}
   </head>
-  <body class="presence public-page">
+  <body class="presence public-page" {{if .SignedIn}}data-signed-in{{end}}>
     {{template "header" .}}
     <main id="main" class="shell public-main">
       <nav
@@ -103,8 +119,8 @@
       <article class="public-article">{{.Content}}</article>
       <aside class="public-next" aria-label="Account availability">
         <h2>
-          {{if .Registration}}Make a little space for today.{{else}}This Jiggered is
-          invite-only.{{end}}
+          {{if .SignedIn}}Pick up where you left off.{{else if .Registration}}Start with one
+          check-in.{{else}}This Jiggered is invite-only.{{end}}
         </h2>
         <p>{{.Availability}}</p>
         <a class="p-button" href="{{.CTA}}">{{.CTALabel}}</a>

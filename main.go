@@ -420,7 +420,7 @@ func (s *server) routes() http.Handler {
 				return
 			}
 			if !knownPrivateFile(static, r.URL.Path) {
-				http.NotFound(w, r)
+				public.notFound(w, r)
 				return
 			}
 			s.requireAuth(files).ServeHTTP(w, r)

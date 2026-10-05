@@ -18,6 +18,19 @@
 .public-header .p-button.secondary:hover {
   background: var(--accent-soft);
 }
+.public-header .p-button span {
+  font-size: inherit;
+  font-weight: inherit;
+}
+.cta-short {
+  display: none;
+}
+.public-nav a[aria-current="page"],
+.footer-group a[aria-current="page"] {
+  text-decoration: underline;
+  text-underline-offset: 6px;
+  text-decoration-thickness: 2px;
+}
 .public-footer small a,
 .hero-copy .quiet-note a {
   text-decoration: underline;
@@ -34,15 +47,29 @@
   min-height: 44px;
 }
 .public-footer nav {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px 22px;
   grid-column: 1 / -1;
+}
+.footer-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.footer-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-block: 8px 2px;
 }
 .public-footer nav a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
+  font-size: 14px;
 }
 .public-main {
   max-width: 920px;
@@ -89,11 +116,16 @@
   text-decoration: underline;
   text-underline-offset: 4px;
 }
+.public-article a.p-button,
+.public-next a.p-button {
+  text-decoration: none;
+}
 .public-lead {
   font-size: 21px !important;
   color: var(--muted);
 }
 .public-example {
+  display: block;
   padding: 24px;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -107,6 +139,7 @@
   margin-bottom: 0;
 }
 .public-next {
+  max-width: 760px;
   margin-top: 48px;
   padding: 28px;
   border-radius: 12px;
@@ -122,6 +155,34 @@
 }
 .public-next .p-button {
   max-width: 100%;
+}
+.public-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 4px 24px;
+  padding: 0;
+  list-style: none;
+}
+.public-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@media (min-width: 761px) {
+  /* The preview sits beside the headline here, so "Take a look" would point at what is already on screen. */
+  .landing-page .demo-link {
+    display: none;
+  }
 }
 .feature-link {
   display: inline-block;
@@ -158,22 +219,48 @@
   max-width: 490px;
   line-height: 1.6;
 }
-@media (max-width: 760px) {
+@media (max-width: 900px) {
+  .public-header {
+    padding-block: 12px;
+    gap: 4px 12px;
+  }
+  .public-header .wordmark {
+    order: 1;
+  }
+  .public-header .nav-actions {
+    order: 2;
+    flex-basis: auto;
+    margin-left: auto;
+    gap: 8px;
+  }
   .public-header .public-nav {
     display: flex;
     order: 3;
     flex-basis: 100%;
     justify-content: flex-start;
+    gap: 0 22px;
+    font-size: 14px;
+  }
+  /* The short label keeps the buttons on the logo's row; the long one stays for screen readers. */
+  .public-header .cta-long {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .public-header .cta-short {
+    display: inline;
+  }
+}
+@media (max-width: 360px) {
+  .public-header .public-nav {
+    gap: 0 14px;
     font-size: 13px;
   }
-  .public-header .nav-actions {
-    flex-basis: 100%;
-    justify-content: flex-start;
-  }
-  .public-header .p-button.small {
-    white-space: normal;
-    text-align: center;
-  }
+}
+@media (max-width: 760px) {
   .landing-page .hero {
     padding-top: 22px;
   }
@@ -192,6 +279,7 @@
     padding: 20px;
   }
   .public-footer nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px 16px;
   }
 }

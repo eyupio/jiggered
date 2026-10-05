@@ -259,7 +259,7 @@ runBrowser(
       .waitFor();
     assert.equal(
       (await join.locator("[data-registration-copy]").first().textContent()).trim(),
-      "Email verification is required.",
+      "No card needed. We’ll email you a link to confirm your address, then you’re on Today in about a minute.",
     );
     assert.equal(
       await join.locator("[data-register-link]").last().getAttribute("href"),
@@ -276,13 +276,17 @@ runBrowser(
     await join.locator("#register-name").fill("newmember");
     await join.locator("#register-email").fill("member@example.com");
     await join.locator("#register-password").fill("member-password1");
-    await join.locator("#register-confirm").fill("different-password1");
-    await join.locator("#register-form [type=submit]").click();
-    await join.locator("#register-msg").filter({ hasText: "passwords do not match" }).waitFor();
+    // One password box with a Show button inside it, not a second box to retype into.
+    assert.equal(await join.locator("#register-confirm").count(), 0);
     await join.locator("[aria-controls=register-password]").click();
     assert.equal(await join.locator("#register-password").getAttribute("type"), "text");
+    assert.equal(
+      await join.locator("[aria-controls=register-password]").getAttribute("aria-pressed"),
+      "true",
+    );
+    const toggleBox = await join.locator("[aria-controls=register-password]").boundingBox();
+    assert.ok(toggleBox.height >= 44, "the Show button is a full-size target");
     await join.locator("[aria-controls=register-password]").click();
-    await join.locator("#register-confirm").fill("member-password1");
     await screenshot(join, "registration-mobile.png");
     assert.equal(
       await join.evaluate(() => document.documentElement.scrollWidth > innerWidth),

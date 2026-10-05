@@ -134,6 +134,47 @@ process.on("exit", () => server.kill());
         await context.close();
       }
     }
+    // The public pages and the sign-in page follow the visitor's light or dark setting, and print stays light.
+    const luminance = (rgb) => {
+      const [r, g, b] = rgb
+        .match(/\d+(\.\d+)?/g)
+        .slice(0, 3)
+        .map(Number);
+      return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    };
+    for (const scheme of ["light", "dark"]) {
+      const themed = await browser.newContext({
+        colorScheme: scheme,
+        viewport: { width: 375, height: 800 },
+      });
+      const themedPage = await themed.newPage();
+      for (const route of ["/welcome", "/features/energy-tracking", "/login"]) {
+        await themedPage.goto(base + route);
+        const { back, ink } = await themedPage.evaluate(() => ({
+          back: getComputedStyle(document.body).backgroundColor,
+          ink: getComputedStyle(document.querySelector("h1")).color,
+        }));
+        assert.equal(luminance(back) < 0.4, scheme === "dark", `${route} background in ${scheme}`);
+        assert.ok(
+          Math.abs(luminance(back) - luminance(ink)) > 0.5,
+          `${route} text is readable in ${scheme}`,
+        );
+        if (route !== "/login") {
+          // One compact header on a phone: the logo row and one row of links.
+          const header = await themedPage.locator("header.site-header").boundingBox();
+          assert.ok(header.height <= 130, `${route} header is ${header.height}px tall`);
+        }
+        if (scheme === "dark") {
+          await themedPage.emulateMedia({ media: "print" });
+          const printed = await themedPage.evaluate(
+            () => getComputedStyle(document.body).backgroundColor,
+          );
+          assert.ok(luminance(printed) > 0.9, `${route} prints on a light page`);
+          await themedPage.emulateMedia({ media: "screen" });
+        }
+      }
+      await themed.close();
+    }
     // Browser enhancement must track changes in availability in either direction.
     const context = await browser.newContext({ viewport: { width: 320, height: 900 } });
     const page = await context.newPage();
@@ -152,7 +193,7 @@ process.on("exit", () => server.kill());
       await page.locator(".hero-actions [data-register-link]").getAttribute("href"),
       "/register",
     );
-    assert.match(await page.locator(".hero-availability").innerText(), /Email verification/);
+    assert.match(await page.locator(".hero-availability").innerText(), /confirm your address/);
     assert.ok(await page.locator('.nav-actions .secondary[href="/login"]').isVisible());
     assert.ok(await page.locator('.nav-actions a[href="/register"]').isVisible());
     assert.equal(
