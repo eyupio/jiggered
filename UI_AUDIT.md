@@ -176,6 +176,22 @@ problems. I substituted the nearest honest equivalents:
     screen uses the grip on a block and the tap-to-add form instead, since a finger drag scrolls.
     The timeline sits above the tiles in the right-hand column, because the left column is sticky
     and a tall block in it could not be reached.
+  - **Revised after trying it as a user:** on a 900 px laptop the activity tiles were below the fold
+    while the timeline was above it, so a drag from a tile to the timeline could not be done; on a
+    phone the timeline started closed and had no way to place an activity. Today's timeline now has
+    the activities in a list directly above it, so both are on screen together; a drag from that list
+    shows what it is carrying and scrolls the page when it reaches the window edge; tapping an
+    activity and then a time places it (also the way to do it with a finger, and an alternative to
+    dragging for anyone who cannot); the timeline starts open on a phone with a shorter window; and
+    the form for a time chosen on the timeline returns you to the timeline when you finish.
+  - **Points follow the time slot:** stretching or shrinking a block, with the mouse, a finger or
+    Shift with the arrow keys, rescales its points in proportion to its length (2 points for an
+    hour is 4 for two hours), in whole points, never to zero and never past 10. The new value shows on
+    the block while it is dragged, is said aloud, appears in the Undo message and is restored by
+    Undo. A run of arrow-key presses is scaled from where it began so rounding does not add up. In
+    the Duration field of the Add and Edit forms the points follow too, until they are typed over.
+    An entry with no recorded length is scaled from the half hour it is drawn at. Plan's blocks
+    behave the same way, and on a phone Plan has the same tap-an-activity-then-a-time placement.
   - **Not done:** carrying the planned time onto the log for plan-vs-actual (H7).
   - Test: `test/browser-planner.cjs` (stays on Today, Undo, correcting from the logged
     activity, Plan's form path, and a past day keeping `21:30`). It fails with the old flow at

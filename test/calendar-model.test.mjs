@@ -16,6 +16,7 @@ import {
   layoutDay,
   hourWindow,
   suggestDuration,
+  scaleCost,
 } from "../web/calendar-model.js";
 
 test("times convert both ways and reject anything that is not a clock time", () => {
@@ -131,4 +132,26 @@ test("a length is suggested from a name only when it clearly states one", () => 
   assert.equal(suggestDuration("Team standup (5 meetings)"), null);
   assert.equal(suggestDuration("Marathon (500 hours)"), null);
   assert.equal(suggestDuration(undefined), null);
+});
+
+test("points follow the length: in proportion, whole, never zero, never past the largest cost", () => {
+  // Twice as long costs twice as much, half as long half as much, in either direction (recovery too).
+  assert.equal(scaleCost(2, 30, 60), 4);
+  assert.equal(scaleCost(4, 60, 30), 2);
+  assert.equal(scaleCost(-2, 30, 90), -6);
+  assert.equal(scaleCost(3, 90, 90), 3, "the same length changes nothing");
+  // Whole points: halves round up away from zero, and what cost something never becomes free.
+  assert.equal(scaleCost(1, 60, 90), 2);
+  assert.equal(scaleCost(1, 120, 30), 1);
+  assert.equal(scaleCost(-1, 120, 15), -1);
+  assert.equal(scaleCost(3, 60, 20), 1);
+  // There is a largest cost, in both directions.
+  assert.equal(scaleCost(6, 30, 120), 10);
+  assert.equal(scaleCost(-6, 30, 120), -10);
+  // Nothing to scale from: a free activity, or a length that is not a length, keeps its cost.
+  assert.equal(scaleCost(0, 30, 90), 0);
+  assert.equal(scaleCost(2, undefined, 90), 2);
+  assert.equal(scaleCost(2, 30, 3), 2);
+  assert.equal(scaleCost(2, 30, 2000), 2);
+  assert.equal(scaleCost(1.5, 30, 60), 1.5);
 });

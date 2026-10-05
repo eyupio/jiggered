@@ -1,7 +1,14 @@
 // The Today tab: morning check-in, the points gauge, tapping activities. It can also show and edit a past day.
 
 import { renderEnergyFlow } from "./energy-flow.js";
-import { renderTodayPlan, completePlanned, reschedulePlanned } from "./planner.js";
+import {
+  renderTodayPlan,
+  completePlanned,
+  reschedulePlanned,
+  followLength,
+  lengthToast,
+  setStable,
+} from "./planner.js";
 import { createTimeGrid } from "./calendar.js";
 import { forecast } from "./planner-model.js";
 import { energyWords, energyAmount, energyCopy, themeOf, SPOON_PATH } from "./energy-theme.js";
@@ -10,7 +17,9 @@ import {
   DAY,
   NEW_DUR,
   fromMinutes,
+  scaleCost,
   slotText,
+  spanOf,
   suggestDuration,
   toMinutes,
   validDur,
@@ -235,20 +244,30 @@ export function init(ctx) {
   // ---- the day on a timeline: what each gesture on it means for the day ----
   const writable = () => !ctx.store.status().readOnly && !ctx.store.status().restoring;
   let burst = null; // the last change to a logged block, so a run of arrow-key moves undoes as one
-  function moveLogged(entry, t, dur, keyboard) {
+  function moveLogged(entry, t, dur, keyboard, scaled) {
     const target = id(),
       again = keyboard && burst?.id === entry.id && Date.now() - burst.at < 1500,
-      origin = again ? burst.origin : { t: entry.t, dur: entry.dur };
-    op("editEntry", { id: entry.id, changes: { t, dur } }, entry);
+      origin = again ? burst.origin : { t: entry.t, dur: entry.dur, c: entry.c },
+      // A run of arrow-key presses is scaled from where it began, so the rounding of each step does not add up.
+      fresh = again ? scaleCost(origin.c, spanOf(origin)?.dur, dur) : scaled,
+      cost = fresh !== undefined && fresh !== entry.c ? fresh : undefined;
+    op(
+      "editEntry",
+      { id: entry.id, changes: { t, dur, ...(cost === undefined ? {} : { c: cost }) } },
+      entry,
+    );
     burst = { id: entry.id, origin, at: Date.now() };
-    ctx.toast(`Moved ${entry.a} to ${slotText({ t, dur })}.`, {
+    ctx.toast(lengthToast(ctx, entry, { t, dur }, cost), {
       label: "Undo",
       fn: () => {
         burst = null;
         op(
           "editEntry",
-          { id: entry.id, changes: { t: origin.t ?? "", dur: origin.dur ?? null } },
-          { ...entry, t, dur },
+          {
+            id: entry.id,
+            changes: { t: origin.t ?? "", dur: origin.dur ?? null, c: origin.c },
+          },
+          { ...entry, t, dur, ...(cost === undefined ? {} : { c: cost }) },
           target,
         );
       },
@@ -260,36 +279,92 @@ export function init(ctx) {
     onOpen({ id: blockId }) {
       if (blockId.startsWith("plan:")) return completePlanned(ctx, key(), blockId.slice(5));
       const entry = day().entries.find((e) => e.id === blockId.slice(4));
-      if (entry) edit(entry);
+      if (entry) fromTimeline(() => edit(entry));
     },
-    // Clicking an empty space logs something at that time (the way to record what already happened).
+    // Clicking an empty space logs something at that time (the way to record what already happened): the activity
+    // picked from the list above the timeline if there is one, otherwise a form.
     onCreate({ start }) {
-      edit();
-      $("entry-time").value = fromMinutes(start);
-      $("entry-dur").value = String(Math.min(NEW_DUR, DAY - start));
+      if (placing !== null) return place(placing, start);
+      fromTimeline(() => {
+        edit();
+        $("entry-time").value = fromMinutes(start);
+        $("entry-dur").value = String(Math.min(NEW_DUR, DAY - start));
+      });
     },
     onChange(c) {
       if (c.id.startsWith("plan:"))
-        return reschedulePlanned(ctx, key(), c.id.slice(5), c.start, c.dur);
+        return reschedulePlanned(ctx, key(), c.id.slice(5), c.start, c.dur, c.cost);
       const entry = day().entries.find((e) => e.id === c.id.slice(4));
-      if (entry) moveLogged(entry, fromMinutes(c.start), c.dur, c.source === "keyboard");
+      if (entry) moveLogged(entry, fromMinutes(c.start), c.dur, c.source === "keyboard", c.cost);
     },
     // An activity dragged here from the list is logged at the time it is dropped on.
-    onDrop(payload, at) {
-      const target = id(),
-        entry = {
-          id: uid(),
-          a: payload.preset.a,
-          c: payload.preset.c,
-          t: fromMinutes(at.start),
-          dur: at.dur,
-        };
-      op("addEntry", entry);
-      ctx.toast(`Logged ${entry.a} at ${entry.t}.`, {
-        label: "Undo",
-        fn: () => op("removeEntry", entry, undefined, target),
-      });
-    },
+    onDrop: (payload, at) => logAt(payload.preset, at.start, at.dur),
+  });
+  function logAt(preset, start, dur) {
+    const target = id(),
+      entry = { id: uid(), a: preset.a, c: preset.c, t: fromMinutes(start), dur };
+    op("addEntry", entry);
+    ctx.toast(`Logged ${entry.a} at ${entry.t}.`, {
+      label: "Undo",
+      fn: () => op("removeEntry", entry, undefined, target),
+    });
+  }
+  // Open the form for something done from the timeline and, when it is finished, come back to the timeline.
+  let returnTo = null;
+  function fromTimeline(open) {
+    const y = window.scrollY;
+    open();
+    returnTo = y;
+  }
+  function backToTimeline() {
+    if (returnTo === null) return;
+    window.scrollTo({ top: returnTo });
+    returnTo = null;
+  }
+
+  // ---- placing an activity: pick it from the list above the timeline, then pick a time ----
+  let placing = null; // the index of the picked activity in the person's list
+  const palette = $("today-palette");
+  const indexAt = (target) => {
+    const i = target.closest("[data-preset]")?.dataset.preset;
+    return i === undefined ? null : Number(i);
+  };
+  const activity = (i) => ctx.settings().activities[i];
+  const lengthOf = (preset, start) => Math.min(suggestDuration(preset.a) ?? NEW_DUR, DAY - start);
+  function setPlacing(i) {
+    placing = i;
+    $("today-placing").hidden = i === null;
+    $("today-board").toggleAttribute("data-placing", i !== null);
+    $("today-placing-text").textContent =
+      i === null ? "" : `Choose a time on the timeline for ${activity(i)?.a}.`;
+    renderTimeline(...timelineArgs);
+  }
+  function place(i, start) {
+    const preset = activity(i);
+    setPlacing(null);
+    if (preset) logAt(preset, start, lengthOf(preset, start));
+  }
+  palette.addEventListener("pointerdown", (e) => {
+    const preset = e.pointerType === "touch" || e.button > 0 ? null : activity(indexAt(e.target));
+    if (preset) board.beginExternalDrag(e, { preset, dur: suggestDuration(preset.a) ?? NEW_DUR });
+  });
+  palette.addEventListener("click", (e) => {
+    const i = indexAt(e.target);
+    if (i === null || board.justDropped() || !writable()) return;
+    setPlacing(placing === i ? null : i);
+    if (placing !== null) $("today-board").scrollIntoView({ block: "nearest" });
+  });
+  $("today-placing-cancel").addEventListener("click", () => setPlacing(null));
+  $("today-placing-now").addEventListener("click", () => {
+    const preset = activity(placing);
+    setPlacing(null);
+    if (!preset) return;
+    const nowAt = new Date();
+    const start = Math.min(nowAt.getHours() * 60 + nowAt.getMinutes(), DAY - NEW_DUR);
+    logAt(preset, start, lengthOf(preset, start));
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && placing !== null && !$("today-panel").hidden) setPlacing(null);
   });
   // A mouse or pen can pick an activity up from the list; a tap still records it now.
   $("acts").addEventListener("pointerdown", (e) => {
@@ -300,11 +375,9 @@ export function init(ctx) {
         : null;
     if (preset) board.beginExternalDrag(e, { preset, dur: suggestDuration(preset.a) ?? NEW_DUR });
   });
-  // On a phone the timeline starts closed so it does not push the activity tiles a screen further down. A closed
-  // grid cannot be measured, so it is drawn again when opened.
+  // A grid inside a closed disclosure cannot be measured, so it is drawn again when the disclosure is opened.
   const timeline = $("today-timeline-panel");
   let timelineArgs = null;
-  if (matchMedia("(max-width: 959px)").matches) timeline.open = false;
   timeline.addEventListener("toggle", () => {
     if (timeline.open && timelineArgs) renderTimeline(...timelineArgs);
   });
@@ -313,6 +386,16 @@ export function init(ctx) {
     const k = key(),
       past = k !== ctx.today(),
       pending = forecast(ctx.store.all(), k, S).pending;
+    const coarse = matchMedia("(pointer: coarse)").matches;
+    $("today-timeline-help").textContent = coarse
+      ? "What you have logged is solid; what is still planned is dashed. Tap an activity, then a time. Use the handle on a block to move it, and drag its bottom edge to change how long it took: the points follow."
+      : "What you have logged is solid; what is still planned is dashed. Drag an activity onto the timeline, or click one and then a time. Drag a block to move it, or its edge to change how long it took: the points follow.";
+    setStable(
+      palette,
+      S.activities.length
+        ? html`<h3 class="label">Your activities</h3>${S.activities.map((a, i) => html`<button type="button" class="cal-chip cal-preset${a.c < 0 ? " is-recovery" : ""}" data-preset="${i}" aria-pressed="${placing === i ? "true" : "false"}">${a.a}<span>${signed(a.c)}</span></button>`)}`
+        : html``,
+    );
     $("today-timeline-summary").textContent = pending.length
       ? `${d.entries.length} logged · ${pending.length} to do`
       : `${d.entries.length} logged`;
@@ -364,6 +447,7 @@ export function init(ctx) {
     "change",
     () => ($("entry-group-row").hidden = !$("entry-save-choice").checked),
   );
+  const lengthPoints = followLength(ctx, $("entry-dur"), $("entry-cost"), $("entry-length-hint"));
   function edit(entry = null) {
     editing = entry;
     editingDate = key();
@@ -373,6 +457,7 @@ export function init(ctx) {
     $("entry-cost").value = entry?.c ?? 1;
     $("entry-time").value = entry?.t ?? (key() === ctx.today() ? hhmm(new Date()) : "");
     $("entry-dur").value = entry?.dur ?? "";
+    lengthPoints.set(entry?.c, entry?.dur);
     $("entry-msg").textContent = "";
     $("entry-save-choice-row").hidden = !!entry;
     $("entry-save-choice").checked = false;
@@ -400,6 +485,7 @@ export function init(ctx) {
     ctx.drafts?.remove(`activity:${id()}`);
     editing = null;
     entryForm.hidden = true;
+    backToTimeline();
   });
   entryForm.addEventListener("input", () =>
     ctx.drafts?.put(`activity:${id()}`, {
@@ -479,6 +565,7 @@ export function init(ctx) {
     ctx.drafts?.remove(`activity:${target}`);
     editing = null;
     entryForm.hidden = true;
+    backToTimeline();
     ctx.toast(
       previous ? "Activity correction queued." : "Activity queued.",
       previous

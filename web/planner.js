@@ -4,23 +4,51 @@ import {
   DAY,
   NEW_DUR,
   fromMinutes,
+  formatDur,
+  scaleCost,
   slotText,
+  spanOf,
   suggestDuration,
   toMinutes,
   validDur,
 } from "./calendar-model.js";
 import { createTimeGrid } from "./calendar.js";
 import { validDate } from "./history-model.js";
-import { energyAmount, themeOf } from "./energy-theme.js";
+import { energyAmount, energyWords, themeOf } from "./energy-theme.js";
 import { forecast, planId, plannedEntryId } from "./planner-model.js";
 
 const markupCache = new WeakMap();
-function setStable(el, markup) {
+export function setStable(el, markup) {
   if (markupCache.get(el) === markup.s) return;
   markupCache.set(el, markup.s);
   setHTML(el, markup);
 }
 const amount = (ctx, n) => energyAmount(n, themeOf(ctx));
+// In a form, an activity's points follow its length once that is changed, until the points are typed over. It starts
+// from an activity that already has a length (or a saved one whose name gives it); `set(cost, length)` says which.
+export function followLength(ctx, durInput, costInput, hint) {
+  let base = null,
+    touched = false;
+  costInput.addEventListener("input", () => {
+    touched = true;
+    hint.textContent = "";
+  });
+  durInput.addEventListener("change", () => {
+    const dur = Number(durInput.value),
+      next = base && !touched ? scaleCost(base.cost, base.dur, dur) : null;
+    if (next === null || next === Number(costInput.value)) return;
+    costInput.value = String(next);
+    hint.textContent = `Points follow the length: ${signed(base.cost)} for ${formatDur(base.dur)}, so ${signed(next)} for ${formatDur(dur)}. Change them if you like.`;
+  });
+  return {
+    set(cost, length) {
+      base =
+        Number.isInteger(cost) && cost !== 0 && validDur(length) ? { cost, dur: length } : null;
+      touched = false;
+      hint.textContent = "";
+    },
+  };
+}
 // When a planned activity is logged as done it started at its planned time if that has already passed, otherwise now.
 // On a past day "now" would be wrong, so only the planned time (or none) is used.
 function loggedStart(ctx, row, day) {
@@ -100,23 +128,39 @@ export function completePlanned(ctx, day, id) {
 }
 
 // Moving a planned activity on its own day (from the timeline on Today). Undo puts its time and length back.
-export function reschedulePlanned(ctx, day, id, start, dur) {
+export function reschedulePlanned(ctx, day, id, start, dur, scaled) {
   if (!writable(ctx)) return;
   const row = forecast(ctx.store.all(), day, ctx.settings()).pending.find((r) => r.id === id);
   if (!row) return;
-  const t = fromMinutes(start);
-  dispatch(ctx, day, "editEntry", { id, changes: { t, dur } }, row);
-  ctx.toast(`Moved ${row.a} to ${slotText({ t, dur })}.`, {
+  const t = fromMinutes(start),
+    cost = scaled !== undefined && scaled !== row.c ? scaled : undefined,
+    changes = { t, dur, ...(cost === undefined ? {} : { c: cost }) };
+  dispatch(ctx, day, "editEntry", { id, changes }, row);
+  ctx.toast(lengthToast(ctx, row, { t, dur }, cost), {
     label: "Undo",
     fn: () =>
       dispatch(
         ctx,
         day,
         "editEntry",
-        { id, changes: { t: row.t ?? "", dur: row.dur ?? null } },
-        { ...row, t, dur },
+        {
+          id,
+          changes: {
+            t: row.t ?? "",
+            dur: row.dur ?? null,
+            ...(cost === undefined ? {} : { c: row.c }),
+          },
+        },
+        { ...row, ...changes },
       ),
   });
+}
+// What a change to an activity's time slot says, including what happened to its points when its length changed.
+export function lengthToast(ctx, row, next, cost) {
+  const words = energyWords(themeOf(ctx)).plural;
+  return spanOf(row)?.dur === next.dur
+    ? `Moved ${row.a} to ${slotText(next)}.`
+    : `${row.a} now ${slotText(next)}${cost === undefined ? "" : `, ${signed(row.c)} to ${signed(cost)} ${words}`}.`;
 }
 
 export function renderTodayPlan(ctx, date) {
@@ -138,6 +182,7 @@ export function init(ctx) {
     editing = null,
     completing = false;
   const model = () => forecast(ctx.store.all(), date, ctx.settings());
+  const lengthPoints = followLength(ctx, $("plan-dur"), $("plan-cost"), $("plan-length-hint"));
   const days = () => Array.from({ length: span }, (_, i) => addDays(ctx.today(), i));
   function openForm(entry = null, complete = false) {
     if (!writable(ctx)) return;
@@ -153,6 +198,7 @@ export function init(ctx) {
     $("plan-cost").value = entry?.c ?? 1;
     $("plan-time").value = complete ? loggedStart(ctx, entry, date) : entry?.t || "";
     $("plan-dur").value = entry?.dur ?? "";
+    lengthPoints.set(entry?.c, entry?.dur);
     $("plan-repeat-row").hidden = !!entry || date < ctx.today();
     $("plan-repeat").value = 1;
     $("plan-repeat").max = Math.max(
@@ -205,6 +251,7 @@ export function init(ctx) {
     $("plan-name").value = entry.a;
     $("plan-cost").value = entry.c;
     if (!$("plan-dur").value) $("plan-dur").value = suggestDuration(entry.a) ?? "";
+    lengthPoints.set(entry.c, suggestDuration(entry.a));
   });
   $("plan-cancel").addEventListener("click", () => {
     ctx.drafts?.remove(`plan:${date}`);
@@ -331,6 +378,7 @@ export function init(ctx) {
         $("plan-name").value = preset.a;
         $("plan-cost").value = preset.c;
         $("plan-dur").value = suggestDuration(preset.a) ?? "";
+        lengthPoints.set(preset.c, suggestDuration(preset.a));
       }
       return;
     }
@@ -360,7 +408,7 @@ export function init(ctx) {
   });
   // ---- the timeline: what each gesture on the calendar means for the plan ----
   const narrow = matchMedia("(max-width: 700px)"); // a phone shows one day at a time
-  narrow.addEventListener("change", () => render());
+  narrow.addEventListener("change", () => (placing === null ? render() : setPlacing(null)));
   const dayLabel = (d) =>
     d === ctx.today()
       ? "Today"
@@ -382,6 +430,7 @@ export function init(ctx) {
       openForm(row);
     },
     onCreate({ date: d, start }) {
+      if (placing !== null) return place(placing, d, start);
       date = d;
       closeForm();
       render();
@@ -398,10 +447,20 @@ export function init(ctx) {
       (r) => r.id === c.id,
     );
     if (!row) return;
-    const t = fromMinutes(c.start);
-    let moved = { ...row, t, dur: c.dur };
+    const t = fromMinutes(c.start),
+      again = burst?.id === row.id && c.source === "keyboard" && Date.now() - burst.at < 1500,
+      // A run of arrow-key presses is scaled from where it began, so the rounding of each step does not add up.
+      fresh = again ? scaleCost(burst.origin.row.c, spanOf(burst.origin.row)?.dur, c.dur) : c.cost,
+      cost = fresh !== undefined && fresh !== row.c ? fresh : undefined;
+    let moved = { ...row, t, dur: c.dur, ...(cost === undefined ? {} : { c: cost }) };
     if (c.fromDate === c.toDate)
-      dispatch(ctx, c.toDate, "editEntry", { id: row.id, changes: { t, dur: c.dur } }, row);
+      dispatch(
+        ctx,
+        c.toDate,
+        "editEntry",
+        { id: row.id, changes: { t, dur: c.dur, ...(cost === undefined ? {} : { c: cost }) } },
+        row,
+      );
     else {
       const target = forecast(ctx.store.all(), c.toDate, ctx.settings());
       if (target.rows.length >= 200)
@@ -411,13 +470,17 @@ export function init(ctx) {
       dispatch(ctx, c.toDate, "addEntry", moved);
       dispatch(ctx, c.fromDate, "removeEntry", row);
     }
-    const again = burst?.id === moved.id && c.source === "keyboard" && Date.now() - burst.at < 1500,
-      origin = again ? burst.origin : { date: c.fromDate, row };
+    const origin = again ? burst.origin : { date: c.fromDate, row };
     burst = { id: moved.id, origin, at: Date.now() };
-    ctx.toast(`Moved ${row.a} to ${dayLabel(c.toDate)}, ${slotText(moved)}.`, {
-      label: "Undo",
-      fn: () => restoreBlock(origin, c.toDate, moved),
-    });
+    ctx.toast(
+      c.fromDate === c.toDate
+        ? lengthToast(ctx, row, moved, cost)
+        : `Moved ${row.a} to ${dayLabel(c.toDate)}, ${slotText(moved)}.`,
+      {
+        label: "Undo",
+        fn: () => restoreBlock(origin, c.toDate, moved),
+      },
+    );
   }
   function restoreBlock(origin, nowDate, moved) {
     if (!writable(ctx)) return;
@@ -427,7 +490,14 @@ export function init(ctx) {
         ctx,
         nowDate,
         "editEntry",
-        { id: moved.id, changes: { t: origin.row.t ?? "", dur: origin.row.dur ?? null } },
+        {
+          id: moved.id,
+          changes: {
+            t: origin.row.t ?? "",
+            dur: origin.row.dur ?? null,
+            ...(origin.row.c === moved.c ? {} : { c: origin.row.c }),
+          },
+        },
         moved,
       );
     else {
@@ -446,10 +516,37 @@ export function init(ctx) {
       fn: () => dispatch(ctx, at.date, "removeEntry", entry),
     });
   }
-  // Saved activities can be dragged onto the timeline with a mouse or pen; a click or tap fills the form instead.
+  // Saved activities can be dragged onto the timeline with a mouse or pen. A click fills the form; on a phone, where a
+  // finger scrolls rather than drags, a tap picks the activity and the next tap on the timeline places it.
+  let placing = null; // the index of the picked activity in the person's list
   const palette = $("plan-palette");
-  const presetOf = (e) =>
-    ctx.settings().activities[Number(e.target.closest("[data-preset]")?.dataset.preset)];
+  const indexOf = (target) => {
+    const i = target.closest("[data-preset]")?.dataset.preset;
+    return i === undefined ? null : Number(i);
+  };
+  const presetOf = (e) => ctx.settings().activities[indexOf(e.target)];
+  function setPlacing(i) {
+    placing = i;
+    $("plan-placing").hidden = i === null;
+    $("plan-board").toggleAttribute("data-placing", i !== null);
+    $("plan-placing-text").textContent =
+      i === null ? "" : `Choose a time on the timeline for ${ctx.settings().activities[i]?.a}.`;
+    render();
+  }
+  function place(i, day, start) {
+    const preset = ctx.settings().activities[i];
+    setPlacing(null);
+    if (preset)
+      addPreset(preset, {
+        date: day,
+        start,
+        dur: Math.min(suggestDuration(preset.a) ?? NEW_DUR, DAY - start),
+      });
+  }
+  $("plan-placing-cancel").addEventListener("click", () => setPlacing(null));
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && placing !== null && !root.hidden) setPlacing(null);
+  });
   palette.addEventListener("pointerdown", (e) => {
     const preset = e.pointerType === "touch" || e.button > 0 ? null : presetOf(e);
     if (preset) grid.beginExternalDrag(e, { preset, dur: suggestDuration(preset.a) ?? NEW_DUR });
@@ -457,11 +554,19 @@ export function init(ctx) {
   palette.addEventListener("click", (e) => {
     const preset = presetOf(e);
     if (!preset || grid.justDropped() || !writable(ctx)) return;
+    if (narrow.matches) {
+      const i = indexOf(e.target);
+      closeForm();
+      setPlacing(placing === i ? null : i);
+      if (placing !== null) $("plan-board").scrollIntoView({ block: "nearest" });
+      return;
+    }
     closeForm();
     openForm();
     $("plan-name").value = preset.a;
     $("plan-cost").value = preset.c;
     $("plan-dur").value = suggestDuration(preset.a) ?? "";
+    lengthPoints.set(preset.c, suggestDuration(preset.a));
   });
 
   function render() {
@@ -542,10 +647,13 @@ export function init(ctx) {
       }),
     });
     const acts = ctx.settings().activities;
+    $("plan-board-help").textContent = narrow.matches
+      ? "Tap an activity, then a time to add it. Use the handle on a block to move it, and drag its bottom edge to change how long it takes: the points follow."
+      : "Drag an activity to move it, or drag its edge to change how long it takes: the points follow. Click an empty space to add one.";
     setStable(
       $("plan-palette"),
       acts.length
-        ? html`<h3 class="label">Drag onto the timeline</h3>${acts.map((e, i) => html`<button type="button" class="cal-chip cal-preset${e.c < 0 ? " is-recovery" : ""}" data-preset="${i}">${e.a}<span>${signed(e.c)}</span></button>`)}`
+        ? html`<h3 class="label">${narrow.matches ? "Tap one, then a time" : "Drag onto the timeline"}</h3>${acts.map((e, i) => html`<button type="button" class="cal-chip cal-preset${e.c < 0 ? " is-recovery" : ""}" data-preset="${i}"${narrow.matches ? html` aria-pressed="${placing === i ? "true" : "false"}"` : ""}>${e.a}<span>${signed(e.c)}</span></button>`)}`
         : html``,
     );
     root
