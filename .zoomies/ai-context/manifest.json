@@ -2,8 +2,8 @@
   "manager": "zoomies",
   "template_version": 1,
   "generator": "repomix@1.18.1",
-  "source_commit": "625aeb40e11de5a068f5e57afc149de2d82f191f",
+  "source_commit": "8b77b2370dde9faccd4aefaa20fa3ad31bac28c8",
   "config_hash": "f209370d31d1445232296a766078185001cc7bf8cc86b030dbbcf24d3261de4d",
-  "snapshot_sha256": "d0894f34927d3399d47aaf0587ad3c89ca0b875b43c89b6f114a130856a353ff",
+  "snapshot_sha256": "d486a37657e37d4c96f4818d7f5173bde3d07288cc3e109942148ce1c26bac1e",
   "token_count_method": "not measured"
 }
