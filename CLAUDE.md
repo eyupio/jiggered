@@ -102,6 +102,9 @@ Pushes to `main` publish `dev` plus a short SHA tag; a `v*` tag publishes
 requests build the image but do not push. The README's tag table is the source
 of truth and must change with `image.yml`.
 
+`cleanup-packages.yml` prunes untagged GHCR versions daily with `.github/scripts/ghcr-prune.sh`. It keeps
+anything tagged, recent, or a child of a kept index, so multi-platform tags keep pulling.
+
 ## Git
 
 The repository documents no branch or commit conventions beyond the above. Its
