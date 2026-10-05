@@ -2528,7 +2528,30 @@ input[type="search"] {
   min-width: 0;
   align-self: start;
 }
+/* A dot in the corner of a day that has an episode, whatever the calendar is coloured by. */
+.matrix-ep {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--fg);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.matrix-ep-key {
+  position: static;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  box-shadow: none;
+}
+.matrix-dense .matrix-cell .matrix-ep {
+  display: none;
+}
 .matrix-cell {
+  position: relative;
   --tone-bg: var(--spent);
   --tone-ink: var(--fg);
   min-width: 0;

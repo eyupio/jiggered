@@ -74,7 +74,7 @@
   font-size: 22px;
   margin: 0 0 12px;
 }
-.public-article p,
+.public-article p:not(.eyebrow):not(.choice-status),
 .public-article li {
   font-size: 18px;
   line-height: 1.75;

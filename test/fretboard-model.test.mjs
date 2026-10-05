@@ -162,3 +162,22 @@ test("the example board is drawable and nextZ stacks above everything", () => {
   assert.equal(m.nextZ(b), Math.max(...Object.values(b.items).map((i) => i.z)) + 1);
   assert.equal(m.nextZ(m.emptyBoard()), 1);
 });
+
+test("field patches merge with another device's change to the same card and never bring back a deleted one", () => {
+  const server = m.normaliseBoard({
+    items: {
+      a: { k: "card", t: "Pay bill", x: 0.6, y: 0.2, z: 1, s: "done" },
+      b: { k: "card", t: "Call", x: 0.7, y: 0.3, z: 2, s: "todo" },
+    },
+  });
+  // A stale device moved card a (it still thinks the card is "todo"); only x and y travel.
+  const moved = m.applyBoardPatch({ fields: { a: { x: 0.9, y: 0.1 } } }, server);
+  assert.equal(moved.items.a.s, "done", "the other device's status survives");
+  assert.equal(moved.items.a.x, 0.9);
+  // Either order gives the same card.
+  const both = m.applyBoardPatch({ fields: { a: { s: "doing" } } }, moved);
+  assert.deepEqual([both.items.a.x, both.items.a.s], [0.9, "doing"]);
+  // A late edit to a card deleted elsewhere is dropped.
+  const gone = m.applyBoardPatch({ items: { b: null } }, server);
+  assert.equal(m.applyBoardPatch({ fields: { b: { x: 0.2 } } }, gone).items.b, undefined);
+});

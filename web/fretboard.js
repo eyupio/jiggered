@@ -174,6 +174,28 @@ export function mount(ctx, root) {
     if (patch.threeDate !== undefined) back.threeDate = board.threeDate;
     return back;
   }
+  // fieldPatch sends a change to an existing card as just the fields that differ, so replaying it on another device's
+  // newer copy of that card cannot undo that device's other changes. New and removed cards go whole.
+  function fieldPatch(patch) {
+    if (!patch.items) return patch;
+    const items = {},
+      fields = {};
+    for (const [id, value] of Object.entries(patch.items)) {
+      const now = board.items[id];
+      if (value === null || !now) {
+        items[id] = value;
+        continue;
+      }
+      const diff = {};
+      for (const key of Object.keys(value))
+        if (JSON.stringify(value[key]) !== JSON.stringify(now[key])) diff[key] = value[key];
+      if (Object.keys(diff).length) fields[id] = diff;
+    }
+    const wire = { ...patch, items };
+    if (!Object.keys(items).length) delete wire.items;
+    if (Object.keys(fields).length) wire.fields = fields;
+    return wire;
+  }
   // commit queues a change. With a label, a toast offers Undo; Ctrl+Z works either way.
   function commit(patch, label, { track = true } = {}) {
     if (!writable()) return refuse();
@@ -183,7 +205,7 @@ export function mount(ctx, root) {
       if (undoStack.length > 100) undoStack.shift();
       redoStack.length = 0;
     }
-    ctx.store.dispatch({ id: BOARD_ID, type: "boardPatch", arg: patch });
+    ctx.store.dispatch({ id: BOARD_ID, type: "boardPatch", arg: fieldPatch(patch) });
     if (label) ctx.toast(label, { label: "Undo", fn: () => undoLast() });
     ctx.measure("tool_edited");
     render();
@@ -792,6 +814,17 @@ export function mount(ctx, root) {
   }
 
   // ---- pointer handling on the canvas ----
+  // A tap (not a scroll, which ends in pointercancel) on empty board clears the selection.
+  let touchTap = null;
+  canvas.addEventListener("pointerup", (e) => {
+    if (
+      e.pointerType === "touch" &&
+      touchTap &&
+      Math.hypot(e.clientX - touchTap.x, e.clientY - touchTap.y) < 8
+    )
+      clearSelection();
+    touchTap = null;
+  });
   canvas.addEventListener("pointerdown", (e) => {
     closeMenu();
     if (e.target.closest("button, input, textarea")) return; // let the empty-state button receive its click
@@ -832,7 +865,13 @@ export function mount(ctx, root) {
       e.preventDefault();
       return;
     }
-    // Empty canvas: a press starts a marquee; a plain click clears the selection.
+    // Empty canvas: a press starts a marquee; a plain click clears the selection. A finger on empty
+    // board is a scroll, not a selection rectangle.
+    if (e.pointerType === "touch") {
+      if (editing) finishEdit();
+      touchTap = { x: e.clientX, y: e.clientY };
+      return;
+    }
     if (editing) finishEdit();
     const b = bounds();
     marquee = {

@@ -58,7 +58,7 @@ export function createTimeGrid(root, hooks) {
 
   // Blocks with no cost (an episode) leave the cost out of what is said and shown.
   const label = (b) =>
-    `${b.title}${b.slot ? ", " + b.slot : ""}${b.cost === undefined ? "" : `, ${signed(b.cost)} ${b.cost < 0 ? "recovery" : "cost"}`}${b.done ? ", done" : ""}${b.hint ? ". " + b.hint : ""}`;
+    `${b.title}${b.slot ? ", " + b.slot : ""}${b.cost === undefined ? "" : `, ${b.cost < 0 ? `recovers ${-b.cost}` : b.cost === 0 ? "costs nothing" : `uses ${b.cost}`}`}${b.done ? ", done" : ""}${b.hint ? ". " + b.hint : ""}`;
   const meta = (b) =>
     [b.slot, b.cost === undefined ? "" : signed(b.cost), b.hint].filter(Boolean).join(" · ");
 

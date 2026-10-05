@@ -169,6 +169,7 @@
 }
 .fb-board {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px;
   min-width: 0;
 }
@@ -294,7 +295,32 @@
 @media (max-width: 600px) {
   .fb-canvas {
     aspect-ratio: 3 / 4;
-    min-height: 360px;
+    min-height: 0;
+    min-width: 0;
+    /* A swipe that starts on empty board scrolls the page; only a card drag is captured. */
+    touch-action: pan-y;
+  }
+  .fb-item {
+    touch-action: none;
+    max-width: 62%;
+  }
+  .fb-item:not(.is-selected):not(.is-editing) .fb-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .fb-axis-x {
+    margin-left: 0;
+  }
+  .fb-axis-x .fb-arrow {
+    display: none;
+  }
+  .fb-axis-label {
+    font-size: 0.68rem;
+    letter-spacing: 0;
+    padding: 2px 4px;
+    max-width: 100%;
   }
 }
 .fb-line {

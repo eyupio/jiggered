@@ -831,7 +831,24 @@ function fatal(text) {
 
   await syncAdmin();
   accountView.identity(ctx);
-  await go(startTab());
+  // A recovery-email link opened in the browser you are signed in to: finish it here instead of dropping it.
+  let linkTab = null,
+    linkToast = "";
+  {
+    const link = new URLSearchParams(location.hash.slice(1));
+    if (link.get("verify")) {
+      history.replaceState(null, "", "/#account");
+      const r = await api("POST", "/api/auth/verify", { token: link.get("verify") });
+      linkTab = "account";
+      linkToast = r.ok ? r.data.message : r.error;
+    } else if (link.get("reset")) {
+      history.replaceState(null, "", "/#account");
+      linkTab = "account";
+      linkToast = "That is a password-reset link. Sign out, then open it again.";
+    }
+  }
+  await go(linkTab || startTab());
+  if (linkToast) toast(linkToast);
   notice.update();
   tick();
   document.body.classList.remove("app-loading");

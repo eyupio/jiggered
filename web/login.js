@@ -50,9 +50,11 @@ function initAuth() {
     } catch {}
   });
   try {
-    const kept = sessionStorage.getItem("jiggered:u");
+    const kept = sessionStorage.getItem("jiggered:u"),
+      verified = sessionStorage.getItem("jiggered:v") === "1";
     sessionStorage.removeItem("jiggered:u");
-    if ((e === "bad" || e === "busy") && kept && signin.elements.username) {
+    sessionStorage.removeItem("jiggered:v");
+    if ((e === "bad" || e === "busy" || verified) && kept && signin.elements.username) {
       signin.elements.username.value = kept;
       signin.elements.password?.focus();
     }
@@ -181,6 +183,13 @@ function initAuth() {
             " To request another link, press the button again; a newer link replaces the previous one.";
         }
         success?.();
+        if (which === "verify" && value.username) {
+          // The next page is sign-in: have the username waiting and the cursor in the password box.
+          try {
+            sessionStorage.setItem("jiggered:u", value.username);
+            sessionStorage.setItem("jiggered:v", "1");
+          } catch {}
+        }
         if (which === "verify" || which === "reset") {
           button.hidden = true;
           form.querySelectorAll("label,.password-toggle").forEach((el) => (el.hidden = true));

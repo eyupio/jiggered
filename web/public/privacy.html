@@ -5,6 +5,31 @@
   is an app access control; it does not stop the server operator from accessing the database and
   backups.
 </p>
+<h2>Who can see what</h2>
+<ul>
+  <li><strong>You:</strong> everything you log.</li>
+  <li>
+    <strong>Administrators:</strong> account names and record counts. They can reset your password
+    and sign in with the temporary one, and download a full backup.
+  </li>
+  <li>
+    <strong>Whoever runs the server:</strong> the database and backups, in plain text. This is not
+    end-to-end encryption.
+  </li>
+  <li>
+    <strong>The audit trail:</strong> usernames, sign-in times and IP addresses are kept for 180
+    days, even after you delete your account.
+  </li>
+  <li>
+    <strong>Your email address:</strong> if you register or add a recovery email, it is stored for
+    verification and recovery, in the database and in backups.
+  </li>
+</ul>
+<p>
+  Optional usage counts are off by default. If you allow them in Account, Jiggered stores coarse
+  weekly task counts for up to 90 days, with no symptoms, notes, activity names, dates or IP
+  addresses.
+</p>
 <h2>Accounts and administrators</h2>
 <p>
   Admin screens manage accounts and show account details and record counts, rather than other
@@ -28,8 +53,9 @@
 <h2>Deleting your account</h2>
 <p>
   Account deletion removes your account's records from the active server database. It does not erase
-  copies already exported, shared or held in earlier operator backups. Download what you need first,
-  and ask the operator about backup retention and deletion practices.
+  the audit trail described above or copies already exported, shared or held in earlier operator
+  backups. Download what you need first, and ask the operator about backup retention and deletion
+  practices.
 </p>
 <h2>External services and links</h2>
 <p>

@@ -273,7 +273,12 @@ func (s *server) verifyEmailToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.audit(r.Context(), "system", "email_verified", "", "email ownership verified", s.clientIP(r))
-	writeJSON(w, 200, map[string]string{"message": "Email verified. You can now sign in."})
+	// A new account is told its own username, so the sign-in page can be ready for it; an email change is not a sign-up.
+	if purpose == "register" {
+		writeJSON(w, 200, map[string]string{"message": "Email verified. You can now sign in.", "username": strings.Split(payload, "\n")[0]})
+		return
+	}
+	writeJSON(w, 200, map[string]string{"message": "Recovery email verified."})
 }
 func (s *server) resetPasswordToken(w http.ResponseWriter, r *http.Request) {
 	if !s.authPublic(w, r) {

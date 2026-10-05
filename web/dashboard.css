@@ -781,6 +781,11 @@
     height: 110px;
   }
 }
+@media (max-width: 700px) {
+  html {
+    scroll-padding-bottom: 220px; /* focus() and scrollIntoView keep fields clear of the fixed tab bar and save bar */
+  }
+}
 @media (max-width: 600px) {
   .app-shell .wrap {
     padding: 21px 20px calc(105px + env(safe-area-inset-bottom, 0px));

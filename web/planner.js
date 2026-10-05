@@ -66,8 +66,8 @@ export function showEntryMenu({ x, y, el, row, ...actions }) {
   });
   const step = (by) => () =>
     actions.patch({ c: row.c + by }, `${row.a} now ${signed(row.c + by)}.`);
-  add("More points (+1)", step(1), { disabled: row.c >= 10 });
-  add("Fewer points (−1)", step(-1), { disabled: row.c <= -10 });
+  add("Costs 1 more (−1 left)", step(1), { disabled: row.c >= 10 });
+  add("Costs 1 less (+1 left)", step(-1), { disabled: row.c <= -10 });
   entries.push(null);
   add("Remove", actions.remove, { danger: true, key: "Del" });
   const node = document.createElement("div");
