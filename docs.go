@@ -56,12 +56,13 @@ func readBody(w http.ResponseWriter, r *http.Request, limit int64, tooBig string
 var (
 	dayDocID     = regexp.MustCompile(`^[dp]-\d{4}-\d{2}-\d{2}$`)
 	episodeDocID = regexp.MustCompile(`^e-\d{1,20}$`)
+	toolDocID    = regexp.MustCompile(`^t-[a-z][a-z0-9-]{0,30}$`) // one document per tool in the Tools tab, e.g. t-fretboard
 )
 
-// validDocID is everything a client may store: one check-in and plan per day, episodes, and settings.
+// validDocID is everything a client may store: one check-in and plan per day, episodes, settings, and one document per tool.
 func validDocID(id string) bool {
 	switch {
-	case id == "settings":
+	case id == "settings", toolDocID.MatchString(id):
 		return true
 	case dayDocID.MatchString(id):
 		_, err := time.Parse("2006-01-02", id[2:])

@@ -249,7 +249,7 @@ func (s *server) recordUsage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch in.Event {
-	case "capture_saved", "history_viewed", "export_created", "settings_saved", "save_failed", "print_requested", "recovery_saved":
+	case "capture_saved", "history_viewed", "export_created", "settings_saved", "save_failed", "print_requested", "recovery_saved", "tool_opened", "tool_edited":
 	default:
 		jsonError(w, 400, "Unknown task event.")
 		return

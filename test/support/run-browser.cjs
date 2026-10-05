@@ -19,6 +19,7 @@ try {
     "browser-today",
     "browser-planner",
     "browser-calendar",
+    "browser-tools",
     "browser-energy-theme",
     "browser-product-improvements",
     "browser-view-state",

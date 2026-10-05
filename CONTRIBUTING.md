@@ -66,6 +66,7 @@ archives outside the checkout.
 | Frontend boot and tab selection                     | `web/app.js`                                                                          |
 | Data rules, queued operations and device storage    | `web/model.js`, `web/sync.js`, `web/device.js`                                        |
 | Today, Episode, History, Account and Admin views    | `web/today.js`, `web/episodes.js`, `web/history.js`, `web/account.js`, `web/admin.js` |
+| Tools tab, Fretboard and its rules                  | `web/tools.js`, `web/fretboard.js`, `web/fretboard-model.js`, `web/tools.css`         |
 | Shared editors, picking, help and escaped HTML      | `web/editor.js`, `web/picker.js`, `web/help.js`, `web/tooltips.js`, `web/util.js`     |
 | Shared styling and dashboard/public page styling    | `web/style.css`, `web/dashboard.css`, `web/presence.css`                              |
 | Server, frontend logic and browser tests            | `*_test.go`, `test/*.test.mjs`, `test/browser*.cjs`                                   |
@@ -106,6 +107,7 @@ The browser runner compiles once, then runs all shared scenarios:
 | `test/browser-planner.cjs`              | Seven-day planning, repeat activities, actual cost correction, History comparisons, refresh and mobile overflow                                                                      |
 | `test/browser-calendar.cjs`             | Plan and Today timelines with a real mouse, keyboard and touch (move, resize, palette, click-to-add, Undo, one-day phone view) and the read-only History week with its episode strip |
 | `test/browser-today.cjs`                | Activity picker, logging, adjustments and Undo                                                                                                                                       |
+| `test/browser-tools.cjs`                | Tools launcher and Fretboard: double-click to add, real-mouse drag, right-click menu, today's three, keyboard, marquee, reload and phone layout                                      |
 | `test/browser-history.cjs`              | Large-account History, search, filters and mobile calendar                                                                                                                           |
 | `test/browser-mobile.cjs`               | Phone-width Account editors and History navigation                                                                                                                                   |
 | `test/browser-security.cjs`             | Password confirmation, revocation and reader-tab cleanup                                                                                                                             |

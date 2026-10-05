@@ -16,7 +16,7 @@ admin to manage them; password login. It ships as one container image on GHCR.
 [CONTRIBUTING.md](CONTRIBUTING.md) owns the local setup, code map, checks and
 browser-scenario list. Use `npm ci --prefix test` for the locked development
 tools, `npm --prefix test run check` for formatting/lint/logic tests, and
-`npm --prefix test run browser` for all nine scenarios with one fixture build.
+`npm --prefix test run browser` for all the browser scenarios with one fixture build.
 `node test/browser-public.cjs` checks public pages with the same prebuilt fixture.
 Keep those instructions current when changing the workflow or tooling.
 
@@ -26,7 +26,8 @@ Keep those instructions current when changing the workflow or tooling.
   `sessions(.., user_id, ..)`, `audit_log`, `instance_settings`, `doc_revs(user_id, id, rev)` (the last revision of a
   deleted doc, so recreating it never reuses a revision; a DELETE with `If-Match` of an older revision gets a 409). Docs are opaque
   JSON objects per person; the server does not interpret them, the frontend owns
-  their shape. Ids are allow-listed: `d-YYYY-MM-DD`, `e-<digits>`, `settings`.
+  their shape. Ids are allow-listed: `d-YYYY-MM-DD`, `p-YYYY-MM-DD`, `e-<digits>`, `settings`,
+  and `t-<slug>` (one document per tool in the Tools tab; `validateToolDoc` only bounds it).
 - **Sync**: the frontend queues _operations_ ("add this entry"), shows the server
   copy with them applied, and saves with `If-Match: "<rev>"`. A 409 returns the
   current doc and the operations are replayed on it, so two devices merge. `GET /api/docs` is always the whole account (never a
@@ -82,6 +83,10 @@ Keep those instructions current when changing the workflow or tooling.
 - **Admin endpoints do not expose personal doc bodies.** There is a test
   (`TestAdminCannotReadAnyonesLogs`); a new admin endpoint must not weaken it. The
   backup download is the one documented exception (it is the whole database).
+- **Tools are self-contained modules** (`web/tools.js` is the launcher; a tool exports `meta` and `mount(ctx, root)`
+  and keeps its own `t-<slug>` document). Fretboard (`web/fretboard.js`, rules in `web/fretboard-model.js`) edits its
+  board with `boardPatch` operations, which merge item by item so two devices never overwrite each other's cards.
+  Add a new tool to `TOOLS` in `tools.js`, `SHELL` in `sw.js`, and its stylesheet to `versionedFiles` if it has one.
 - **The Admin tab does not exist for non-admins**: `app.js` imports `admin.js` and
   `mount()`s it only while `/api/me` says admin. Keep it out of `index.html`.
 - **Build HTML with the `html` tag in `web/util.js`**, which escapes by default.
