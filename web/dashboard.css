@@ -781,6 +781,11 @@
     height: 110px;
   }
 }
+@media (max-width: 700px) {
+  html {
+    scroll-padding-bottom: 220px; /* focus() and scrollIntoView keep fields clear of the fixed tab bar and save bar */
+  }
+}
 @media (max-width: 600px) {
   .app-shell .wrap {
     padding: 21px 20px calc(105px + env(safe-area-inset-bottom, 0px));
@@ -813,6 +818,14 @@
   }
   .dashboard-eyebrow {
     font-size: 10px;
+  }
+  /* On a phone the check-in is the first thing on Today; the brand copy above it is not. */
+  .app-shell[data-view="today"] .dashboard-eyebrow,
+  .app-shell[data-view="today"] #view-description {
+    display: none;
+  }
+  .app-shell[data-view="today"] .dashboard-masthead h1 {
+    font-size: 28px;
   }
   .dashboard-emblem {
     display: none;
@@ -1840,6 +1853,22 @@
   flex-wrap: wrap;
   gap: 4px;
   padding-inline: 2px;
+  max-height: 76px; /* many untimed items must not push the hours off the screen */
+  overflow-y: auto;
+}
+.cal-chip:hover {
+  background: color-mix(in srgb, var(--accent) 14%, var(--accent-soft));
+}
+@media (pointer: coarse) {
+  .cal-chip {
+    min-height: 44px;
+  }
+}
+/* Palette chips are things to place, not planned blocks: solid, so the legend's "dashed = planned" holds. */
+.cal-chip.cal-preset {
+  border-style: solid;
+  border-color: var(--line);
+  background: var(--surface);
 }
 .cal-scroll {
   position: relative;
@@ -1949,8 +1978,8 @@
   height: 22px;
   padding: 0;
   border-radius: 50%;
-  border: 2px solid var(--line);
-  background: color-mix(in srgb, var(--tone, var(--surface)) 70%, var(--surface));
+  border: 3px solid var(--tone, var(--line));
+  background: color-mix(in srgb, var(--tone, var(--surface)) 38%, var(--surface));
 }
 .fb-menu .fb-swatch.cal-tone-auto {
   background: repeating-linear-gradient(
@@ -1975,6 +2004,11 @@
 }
 .cal-block.cal-logged.is-recovery {
   background: color-mix(in srgb, var(--green) 28%, var(--surface));
+}
+/* A chosen colour replaces the cost tint on logged blocks too (kept after the rules above, same specificity). */
+.cal-block.cal-logged.cal-tone {
+  border-color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 38%, var(--surface));
 }
 /* Episodes: a strip down the right of each day, so a symptom sits beside the activity that came before it. */
 .cal-col.has-side {
@@ -2015,7 +2049,8 @@
 }
 .cal-meta {
   overflow: hidden;
-  color: var(--muted);
+  color: var(--fg);
+  opacity: 0.82;
   font-size: 0.72rem;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2132,7 +2167,8 @@
   min-height: 32px;
   padding: 4px 10px;
   border: 1px dashed var(--accent);
-  border-radius: 999px;
+  border-radius: 16px;
+  overflow-wrap: anywhere;
   background: var(--accent-soft);
   color: var(--fg);
   font: inherit;

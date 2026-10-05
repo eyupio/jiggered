@@ -75,20 +75,20 @@ export function mount(ctx, root) {
       </div>
       <div class="fb-stage">
         <div class="fb-board">
-          <div class="fb-axis fb-axis-x" aria-hidden="true">
-            <span class="fb-arrow">◀</span>
+          <div class="fb-axis fb-axis-x">
+            <span class="fb-arrow" aria-hidden="true">◀</span>
             <button type="button" class="fb-axis-label" data-axis="left"></button>
-            <span class="fb-axis-rule"></span>
+            <span class="fb-axis-rule" aria-hidden="true"></span>
             <button type="button" class="fb-axis-label" data-axis="right"></button>
-            <span class="fb-arrow">▶</span>
+            <span class="fb-arrow" aria-hidden="true">▶</span>
           </div>
           <div class="fb-row">
-            <div class="fb-axis fb-axis-y" aria-hidden="true">
-              <span class="fb-arrow">▲</span>
+            <div class="fb-axis fb-axis-y">
+              <span class="fb-arrow" aria-hidden="true">▲</span>
               <button type="button" class="fb-axis-label" data-axis="top"></button>
-              <span class="fb-axis-rule"></span>
+              <span class="fb-axis-rule" aria-hidden="true"></span>
               <button type="button" class="fb-axis-label" data-axis="bottom"></button>
-              <span class="fb-arrow">▼</span>
+              <span class="fb-arrow" aria-hidden="true">▼</span>
             </div>
             <div
               class="fb-canvas"
@@ -174,6 +174,28 @@ export function mount(ctx, root) {
     if (patch.threeDate !== undefined) back.threeDate = board.threeDate;
     return back;
   }
+  // fieldPatch sends a change to an existing card as just the fields that differ, so replaying it on another device's
+  // newer copy of that card cannot undo that device's other changes. New and removed cards go whole.
+  function fieldPatch(patch) {
+    if (!patch.items) return patch;
+    const items = {},
+      fields = {};
+    for (const [id, value] of Object.entries(patch.items)) {
+      const now = board.items[id];
+      if (value === null || !now) {
+        items[id] = value;
+        continue;
+      }
+      const diff = {};
+      for (const key of Object.keys(value))
+        if (JSON.stringify(value[key]) !== JSON.stringify(now[key])) diff[key] = value[key];
+      if (Object.keys(diff).length) fields[id] = diff;
+    }
+    const wire = { ...patch, items };
+    if (!Object.keys(items).length) delete wire.items;
+    if (Object.keys(fields).length) wire.fields = fields;
+    return wire;
+  }
   // commit queues a change. With a label, a toast offers Undo; Ctrl+Z works either way.
   function commit(patch, label, { track = true } = {}) {
     if (!writable()) return refuse();
@@ -183,7 +205,7 @@ export function mount(ctx, root) {
       if (undoStack.length > 100) undoStack.shift();
       redoStack.length = 0;
     }
-    ctx.store.dispatch({ id: BOARD_ID, type: "boardPatch", arg: patch });
+    ctx.store.dispatch({ id: BOARD_ID, type: "boardPatch", arg: fieldPatch(patch) });
     if (label) ctx.toast(label, { label: "Undo", fn: () => undoLast() });
     ctx.measure("tool_edited");
     render();
@@ -261,6 +283,27 @@ export function mount(ctx, root) {
     commit({ items: Object.fromEntries(changed.map((id) => [id, { ...item(id), s: next }])) });
   }
   // A thing typed into today's three also gets a card in the top right, unless a card already says the same.
+  // The first spot in "in my hands, matters now" where a new card (about 0.17 x 0.07) overlaps nothing, then
+  // anywhere on the board; if it is crowded, the spot with the fewest overlaps. "extra" are cards added in the same step.
+  function freeSpot(extra = []) {
+    const taken = [...ids().map((id) => item(id)), ...extra].filter(Boolean);
+    const W = 0.17,
+      H = 0.07;
+    let best = { x: 0.56, y: 0.12, hits: Infinity };
+    const tryArea = (x0, x1, y0, y1) => {
+      for (let y = y0; y <= y1; y += 0.08)
+        for (let x = x0; x <= x1; x += 0.06) {
+          const hits = taken.filter(
+            (o) => o.x < x + W && o.x + W > x && o.y < y + H && o.y + H > y,
+          ).length;
+          if (hits < best.hits) best = { x, y, hits };
+          if (!hits) return true;
+        }
+      return false;
+    };
+    if (!tryArea(0.56, 0.8, 0.12, 0.44)) tryArea(0.02, 0.8, 0.02, 0.9);
+    return best;
+  }
   function cardFor(text, extra = {}) {
     const wanted = text.trim().toLocaleLowerCase();
     const existing = ids().find(
@@ -268,7 +311,7 @@ export function mount(ctx, root) {
     );
     if (existing) return { id: existing, items: {} };
     if (ids().length >= 400) return { id: null, items: {} };
-    const n = Object.keys(extra).length + ids().length;
+    const spot = freeSpot(Object.values(extra));
     const id = uid();
     return {
       id,
@@ -276,8 +319,8 @@ export function mount(ctx, root) {
         [id]: {
           k: "card",
           t: text.trim(),
-          x: round3(0.56 + (n % 4) * 0.05),
-          y: round3(0.12 + ((n * 7) % 5) * 0.06),
+          x: round3(spot.x),
+          y: round3(spot.y),
           z: nextZ(board) + Object.keys(extra).length,
           s: "todo",
         },
@@ -450,6 +493,7 @@ export function mount(ctx, root) {
       if (b.querySelector("input")) continue;
       b.textContent = board.axes[side];
       b.title = "Click to rename";
+      b.setAttribute("aria-label", `Rename the ${side} label: ${board.axes[side]}`);
     }
   }
   function renderLegend() {
@@ -495,7 +539,7 @@ export function mount(ctx, root) {
   function renderSummary() {
     const s = summarise(board);
     const parts = [];
-    if (!s.cards && !s.notes) parts.push("An empty board is a fine place to start.");
+    if (!s.cards && !s.notes) parts.push("An empty board is a fine place to start");
     else {
       parts.push(plural(s.cards, "card"));
       if (s.yoursHigh + s.yoursLow)
@@ -771,8 +815,20 @@ export function mount(ctx, root) {
   }
 
   // ---- pointer handling on the canvas ----
+  // A tap (not a scroll, which ends in pointercancel) on empty board clears the selection.
+  let touchTap = null;
+  canvas.addEventListener("pointerup", (e) => {
+    if (
+      e.pointerType === "touch" &&
+      touchTap &&
+      Math.hypot(e.clientX - touchTap.x, e.clientY - touchTap.y) < 8
+    )
+      clearSelection();
+    touchTap = null;
+  });
   canvas.addEventListener("pointerdown", (e) => {
     closeMenu();
+    if (e.target.closest("button, input, textarea")) return; // let the empty-state button receive its click
     if (e.button !== 0 && e.pointerType === "mouse") return; // right button is the menu, middle is left alone
     const el = e.target.closest(".fb-item");
     lastPointer = toFraction(e.clientX, e.clientY);
@@ -810,7 +866,13 @@ export function mount(ctx, root) {
       e.preventDefault();
       return;
     }
-    // Empty canvas: a press starts a marquee; a plain click clears the selection.
+    // Empty canvas: a press starts a marquee; a plain click clears the selection. A finger on empty
+    // board is a scroll, not a selection rectangle.
+    if (e.pointerType === "touch") {
+      if (editing) finishEdit();
+      touchTap = { x: e.clientX, y: e.clientY };
+      return;
+    }
     if (editing) finishEdit();
     const b = bounds();
     marquee = {
@@ -961,6 +1023,7 @@ export function mount(ctx, root) {
   });
   canvas.addEventListener("keydown", (e) => {
     if (editing) return;
+    if (e.target.closest("button, input, textarea")) return; // Enter/Space belong to the focused control
     const el = e.target.closest(".fb-item");
     const picks = selectedIds();
     const mod = e.ctrlKey || e.metaKey;
@@ -1052,12 +1115,8 @@ export function mount(ctx, root) {
       const what = b.dataset.fb;
       if (what === "add-card" || what === "add-note") {
         // New things land near the middle of the "in my hands, matters" quadrant, a little apart from the last one.
-        const n = ids().length;
-        addItem(
-          what === "add-card" ? "card" : "note",
-          0.56 + (n % 4) * 0.05,
-          0.12 + ((n * 7) % 5) * 0.06,
-        );
+        const spot = freeSpot();
+        addItem(what === "add-card" ? "card" : "note", spot.x, spot.y);
       } else if (what === "undo") undoLast();
       else if (what === "redo") redoLast();
       else if (what === "example") loadExample();

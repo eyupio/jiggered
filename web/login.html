@@ -41,7 +41,7 @@
     <div class="auth-layout shell">
       <aside class="auth-story">
         <p class="eyebrow"><span class="status-dot"></span> A LITTLE SPACE FOR YOU</p>
-        <h1>Your day.<br />Your story.<br />Your own pace.</h1>
+        <p class="auth-story-title">Your day.<br />Your story.<br />Your own pace.</p>
         <p>A quiet place to check in, notice patterns and get to know your energy.</p>
         <div class="auth-art" aria-hidden="true">
           <svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
@@ -133,7 +133,7 @@
               aria-describedby="register-password-hint"
           /></label>
           <p id="register-password-hint" class="meta">
-            Use at least 8 characters. A longer, unique passphrase is better.
+            Use 8 to 72 characters. A longer, unique passphrase is better.
           </p>
           <label
             >Confirm password<input
@@ -186,6 +186,9 @@
               autocomplete="one-time-code"
               autocapitalize="none"
               spellcheck="false"
+              enterkeyhint="done"
+              autocapitalize="none"
+              spellcheck="false"
               aria-describedby="reset-code-hint"
           /></label>
           <p id="reset-code-hint" class="meta">
@@ -215,6 +218,9 @@
             >Authenticator or recovery code<input
               id="two-step-code"
               autocomplete="one-time-code"
+              autocapitalize="none"
+              spellcheck="false"
+              enterkeyhint="done"
               autocapitalize="none"
               spellcheck="false"
               required /></label

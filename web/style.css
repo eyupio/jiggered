@@ -61,6 +61,7 @@
   --accent: #2f6f62;
   --accent-soft: #e1efea;
   --green: #2e8a57;
+  --green-text: #26774a;
   --amber: #c78512;
   --red: #c2412f;
   --spent: #cfd8d4;
@@ -77,6 +78,7 @@
     --accent: #6cc0ab;
     --accent-soft: #213531;
     --green: #58c487;
+    --green-text: #58c487;
     --amber: #e8a93a;
     --red: #ef7461;
     --spent: #34403d;
@@ -92,6 +94,7 @@
   --accent: #6cc0ab;
   --accent-soft: #213531;
   --green: #58c487;
+  --green-text: #58c487;
   --amber: #e8a93a;
   --red: #ef7461;
   --spent: #34403d;
@@ -526,6 +529,13 @@ legend {
   font-size: 0.9rem;
   cursor: pointer;
 }
+@media (max-width: 700px) {
+  .chip span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px; /* a touch-sized target on a phone */
+  }
+}
 .chip input:checked + span {
   background: var(--accent-soft);
   border-color: var(--accent);
@@ -569,7 +579,7 @@ textarea {
   font-size: 0.9rem;
 }
 .toast {
-  color: var(--green);
+  color: var(--green-text);
   font-weight: 700;
   min-height: 1.2em;
   margin: 0;
@@ -821,7 +831,7 @@ textarea:focus-visible {
   margin: 0;
   min-height: 1.2em;
   font-weight: 700;
-  color: var(--green);
+  color: var(--green-text);
 }
 .msg.err {
   color: var(--red);
@@ -1176,7 +1186,7 @@ ul.audit li {
   clip-path: inset(50%);
   white-space: nowrap;
 }
-.recovery {
+.panel.recovery {
   border: 2px solid var(--red);
 }
 .recovery-item {
@@ -2525,7 +2535,30 @@ input[type="search"] {
   min-width: 0;
   align-self: start;
 }
+/* A dot in the corner of a day that has an episode, whatever the calendar is coloured by. */
+.matrix-ep {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--fg);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.matrix-ep-key {
+  position: static;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  box-shadow: none;
+}
+.matrix-dense .matrix-cell .matrix-ep {
+  display: none;
+}
 .matrix-cell {
+  position: relative;
   --tone-bg: var(--spent);
   --tone-ink: var(--fg);
   min-width: 0;
@@ -2564,7 +2597,7 @@ input[type="search"] {
 }
 .matrix-cell.level-3,
 .matrix-key.level-3 {
-  --tone-bg: color-mix(in srgb, var(--accent) 70%, var(--surface));
+  --tone-bg: color-mix(in srgb, var(--accent) 85%, var(--surface));
   --tone-ink: var(--bg);
 }
 .matrix-cell.level-4,
@@ -3098,6 +3131,9 @@ input[type="search"] {
     grid-row: span 2;
     position: sticky;
     top: 76px;
+    max-height: calc(100vh - 92px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 }
 

@@ -74,7 +74,7 @@
   font-size: 22px;
   margin: 0 0 12px;
 }
-.public-article p,
+.public-article p:not(.eyebrow):not(.choice-status),
 .public-article li {
   font-size: 18px;
   line-height: 1.75;
@@ -193,5 +193,31 @@
   }
   .public-footer nav {
     gap: 6px 16px;
+  }
+}
+
+.public-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 18px;
+  margin: 8px 0 28px;
+}
+.public-cta span {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+/* Printing an article: the page itself, without the header, calls to action and footer. */
+@media print {
+  .skip-link,
+  .site-header,
+  .public-cta,
+  .public-next,
+  .site-footer nav {
+    display: none !important;
+  }
+  .public-article {
+    max-width: none;
   }
 }

@@ -214,13 +214,17 @@ export function init(ctx) {
     true,
   );
   $("sleep").addEventListener("change", (e) => op("setPoorSleep", e.target.checked));
-  const logOne = (x) =>
-    op("addEntry", {
+  const logOne = (x) => {
+    const entry = {
       id: uid(),
       a: x.a,
       c: x.c,
       t: key() !== ctx.today() ? $("act-time").value : hhmm(new Date()),
-    });
+    };
+    op("addEntry", entry);
+    // The balance can be screens away on a phone, so say what happened where the finger is.
+    ctx.toast(`Logged ${x.a}.`, { label: "Undo", fn: () => removeEntry(entry) });
+  };
   // Takes the latest entry of that name off the day (what "−" does), with the same Undo as the entries list.
   function removeEntry(entry) {
     const index = day().entries.findIndex((x) => x.id === entry.id),
@@ -294,7 +298,8 @@ export function init(ctx) {
     editable: writable,
     onSelectDay() {},
     onOpen({ id: blockId }) {
-      if (blockId.startsWith("plan:")) return completePlanned(ctx, key(), blockId.slice(5));
+      if (blockId.startsWith("plan:"))
+        return completePlanned(ctx, key(), blockId.slice(5), { focus: false });
       const entry = day().entries.find((e) => e.id === blockId.slice(4));
       if (entry) fromTimeline(() => edit(entry));
     },
@@ -370,6 +375,27 @@ export function init(ctx) {
   function logAt(preset, start, dur) {
     const target = id(),
       entry = { id: uid(), a: preset.a, c: preset.c, t: fromMinutes(start), dur };
+    const nowAt = new Date();
+    if (key() === ctx.today() && start > nowAt.getHours() * 60 + nowAt.getMinutes()) {
+      // A time that has not happened yet is a plan, not a record: it spends nothing until it is finished.
+      ctx.store.dispatch({
+        id: planId(key()),
+        type: "addEntry",
+        arg: entry,
+        original: ctx.store.view(planId(key())),
+      });
+      ctx.toast(`Planned ${entry.a} for ${entry.t}. Tap it when it's done.`, {
+        label: "Undo",
+        fn: () =>
+          ctx.store.dispatch({
+            id: planId(key()),
+            type: "removeEntry",
+            arg: entry,
+            original: ctx.store.view(planId(key())),
+          }),
+      });
+      return;
+    }
     op("addEntry", entry);
     ctx.toast(`Logged ${entry.a} at ${entry.t}.`, {
       label: "Undo",
@@ -445,14 +471,21 @@ export function init(ctx) {
   // A grid inside a closed disclosure cannot be measured, so it is drawn again when the disclosure is opened.
   const timeline = $("today-timeline-panel");
   let timelineArgs = null;
+  // It starts closed so the activity tiles follow the check-in; it opens by itself once there is something to draw.
+  let timelineTouched = false;
   timeline.addEventListener("toggle", () => {
     if (timeline.open && timelineArgs) renderTimeline(...timelineArgs);
   });
+  timeline.querySelector("summary")?.addEventListener("click", () => (timelineTouched = true));
   function renderTimeline(d, S, left) {
     timelineArgs = [d, S, left];
     const k = key(),
       past = k !== ctx.today(),
       pending = forecast(ctx.store.all(), k, S).pending;
+    if (!timeline.open && !timelineTouched && (d.entries.length || pending.length)) {
+      timeline.open = true;
+      return; // the toggle event draws it
+    }
     const coarse = matchMedia("(pointer: coarse)").matches;
     $("today-timeline-help").textContent = coarse
       ? "What you have logged is solid; what is still planned is dashed. Tap an activity, then a time. Use the handle on a block to move it, and drag its bottom edge to change how long it took: the points follow."

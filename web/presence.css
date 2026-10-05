@@ -29,6 +29,9 @@
 .presence input {
   font: inherit;
 }
+.presence h1[tabindex="-1"]:focus-visible {
+  outline: none;
+}
 .presence :focus-visible {
   outline: 3px solid #b66a32;
   outline-offset: 5px;
@@ -99,7 +102,8 @@
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  gap: 35px;
+  gap: 14px;
+  white-space: nowrap;
   min-height: 56px;
   padding: 16px 25px;
   border-radius: 8px;
@@ -162,7 +166,8 @@
   margin: 27px 0 26px;
   line-height: 0.98;
   font-weight: 700;
-  letter-spacing: -0.065em;
+  letter-spacing: -0.045em;
+  word-spacing: 0.12em;
 }
 .hero h1 > span {
   color: #64825a;
@@ -247,6 +252,8 @@
   font-weight: 700;
 }
 .preview-badge {
+  position: relative;
+  z-index: 3; /* the floating notes must not cover the "Example" label */
   padding: 5px 8px;
   background: #eff3e9;
   border-radius: 5px;
@@ -505,6 +512,7 @@
 .mini-checkin,
 .mini-budget,
 .mini-chart {
+  display: block;
   height: 65px;
   width: 100%;
   margin: 5px 0 28px;
@@ -633,6 +641,7 @@
   padding-top: 0;
 }
 .faq-list summary {
+  min-height: 44px;
   cursor: pointer;
   font-weight: 700;
   list-style: none;
@@ -707,7 +716,7 @@
   grid-column: 1/-1;
   padding-top: 20px;
   border-top: 1px solid var(--line);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .auth-page .site-header {
@@ -726,11 +735,15 @@
   top: 50px;
   padding-top: 25px;
 }
-.auth-story h1 {
+.auth-story .auth-story-title {
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 1.06;
   font-size: clamp(44px, 5vw, 65px);
   margin: 23px 0;
 }
-.auth-story > p:not(.eyebrow) {
+.auth-story > p:not(.eyebrow):not(.auth-story-title) {
   font-size: 18px;
   line-height: 1.7;
   max-width: 370px;
@@ -1195,17 +1208,9 @@
     gap: 30px;
     padding-block: 28px;
   }
+  /* The form is why someone is here: on a phone it comes first, without a second pitch above it. */
   .auth-story {
-    position: static;
-    padding: 0;
-  }
-  .auth-story h1 {
-    font-size: 39px;
-    margin: 15px 0;
-  }
-  .auth-story > p:not(.eyebrow) {
-    font-size: 16px;
-    max-width: none;
+    display: none;
   }
   .auth-art {
     display: none;

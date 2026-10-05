@@ -4,11 +4,17 @@
   Jiggered is a personal energy and symptom tracker for people whose energy varies from day to day.
   Record a daily check-in, activities and rest, then look back at your own observations.
 </p>
+{{if .Registration}}
+<p class="public-cta">
+  <a class="p-button" href="{{.CTA}}">{{.CTALabel}}</a>
+  <span>Free. One email link to confirm.</span>
+</p>
+{{end}}
 <h2>A check-in that meets you where you are</h2>
 <p>
-  Choose green for your normal plan, amber for a reduced plan, or red for essentials only. Your
-  check-in adjusts that day's starting points budget using your chosen settings. You can also record
-  poor sleep and its effect on your planned budget.
+  Choose Green (feeling good), Amber (in between, which takes off a few points) or Red (low energy,
+  which takes off more). Your check-in adjusts that day's starting points budget using your chosen
+  settings. You can also record poor sleep and its effect on your planned budget.
 </p>
 <p>
   Points are estimates you set for yourself. They are not calories, a medical measurement, or advice

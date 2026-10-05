@@ -135,7 +135,7 @@ function fatal(text) {
     $("banner").hidden = false;
     $("banner").classList.add("welcome");
     $("banner").textContent =
-      "Welcome to Jiggered. Choose a new password to continue (the one you were given was only temporary), then you'll do a ten-second morning check-in.";
+      "Welcome to Jiggered. Choose a new password to continue (the one you were given was temporary). Then one tap checks you in.";
     $("account-panel").hidden = false;
     accountView.init({
       me,
@@ -143,6 +143,12 @@ function fatal(text) {
       store: null,
       today: () => dkey(new Date()),
     });
+    // The account view adds its own panels (such as Sign-in security) while starting; none of them can work yet.
+    document.querySelectorAll("#account-panel > .panel:not(#pw-panel)").forEach((p) => {
+      p.hidden = true;
+    });
+    $("pw-cur-label").textContent = "Temporary password (the one you were given)";
+    $("pw-hint").textContent = "At least 8 characters.";
     $("pw-cur").focus();
     return;
   }
@@ -215,6 +221,8 @@ function fatal(text) {
     if (e.key === PURGE_KEY) toSignIn();
   });
   // Read-only tabs can browse and download. They never edit drafts or send writes.
+  const readOnlyMessage =
+    "This tab is read-only because another Jiggered tab is editing. Close it, then reload this one to edit here.";
   for (const type of ["click", "submit", "input", "change", "pointerdown", "keydown"])
     document.addEventListener(
       type,
@@ -228,6 +236,7 @@ function fatal(text) {
         if (target.closest?.("button,input,textarea,select,form,.drag-handle")) {
           e.preventDefault();
           e.stopImmediatePropagation();
+          if (type === "click" || type === "submit" || type === "change") toast(readOnlyMessage);
         }
       },
       true,
@@ -356,7 +365,12 @@ function fatal(text) {
   // Constructors also restore drafts and selected records, so give them the final
   // initial snapshot instead of letting a late network response replace defaults.
   store.hydrate(me.id, me.username);
-  await Promise.all([loadDefaults(), store.load()]);
+  // Do not hold the first paint hostage to a hung connection: after 3s show this device's copy;
+  // the load keeps going in the background and updates the screen when it arrives.
+  await Promise.race([
+    Promise.all([loadDefaults(), store.load()]),
+    new Promise((resolve) => setTimeout(resolve, 3000)),
+  ]);
   if (leaving) return;
   const notice = initDefaultsNotice(ctx, {
     canWrite: () => coordination.writable && !store.status().restoring,
@@ -614,10 +628,10 @@ function fatal(text) {
                 ? `${st.failed} refused ${st.failed === 1 ? "change needs" : "changes need"} recovery below.`
                 : n
                   ? !st.durable
-                    ? `${n} changes are only in memory while device storage finishes. Keep this page open.`
+                    ? `${n} ${n === 1 ? "change is" : "changes are"} only in memory while device storage finishes. Keep this page open.`
                     : st.offline
-                      ? `${n} changes queued on this device. Will retry when connected.`
-                      : `${n} changes queued on this device. Sending…`
+                      ? `${n} ${n === 1 ? "change" : "changes"} queued on this device. Will retry when connected.`
+                      : `${n} ${n === 1 ? "change" : "changes"} queued on this device. Sending…`
                   : st.offline
                     ? "Offline. Showing this device's copy."
                     : st.loaded
@@ -650,8 +664,15 @@ function fatal(text) {
       bar.append(b);
     }
     bar.hidden = false;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(hideToast, 8000);
+    // A toast with Undo stays longer, and waits while the pointer or keyboard focus is on it.
+    const wait = undo ? 12000 : 8000;
+    const arm = () => {
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(hideToast, wait);
+    };
+    bar.onpointerenter = bar.onfocusin = () => clearTimeout(toastTimer);
+    bar.onpointerleave = bar.onfocusout = arm;
+    arm();
   }
 
   // ---- the date moves on by itself, even if the app was left open overnight ----
@@ -816,7 +837,24 @@ function fatal(text) {
 
   await syncAdmin();
   accountView.identity(ctx);
-  await go(startTab());
+  // A recovery-email link opened in the browser you are signed in to: finish it here instead of dropping it.
+  let linkTab = null,
+    linkToast = "";
+  {
+    const link = new URLSearchParams(location.hash.slice(1));
+    if (link.get("verify")) {
+      history.replaceState(null, "", "/#account");
+      const r = await api("POST", "/api/auth/verify", { token: link.get("verify") });
+      linkTab = "account";
+      linkToast = r.ok ? r.data.message : r.error;
+    } else if (link.get("reset")) {
+      history.replaceState(null, "", "/#account");
+      linkTab = "account";
+      linkToast = "That is a password-reset link. Sign out, then open it again.";
+    }
+  }
+  await go(linkTab || startTab());
+  if (linkToast) toast(linkToast);
   notice.update();
   tick();
   document.body.classList.remove("app-loading");

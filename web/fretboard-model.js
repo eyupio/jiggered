@@ -101,6 +101,14 @@ export function applyBoardPatch(arg, body) {
         if (item) board.items[id] = item;
       }
     }
+  // "fields" change only the named fields of cards that still exist, so a status set on one device and a move made on
+  // another both survive; a card deleted elsewhere is not brought back by a late edit.
+  if (arg.fields && typeof arg.fields === "object")
+    for (const [id, change] of Object.entries(arg.fields)) {
+      if (!validId(id) || !board.items[id] || !change || typeof change !== "object") continue;
+      const item = normaliseItem({ ...board.items[id], ...change });
+      if (item) board.items[id] = item;
+    }
   if (arg.axes && typeof arg.axes === "object")
     for (const side of Object.keys(DEFAULT_AXES))
       if (typeof arg.axes[side] === "string")

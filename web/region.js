@@ -21,4 +21,6 @@ export function emergencyCall(region) {
 export function applyRegion(region, root = document) {
   for (const el of root.querySelectorAll("[data-emergency-call]"))
     el.textContent = emergencyCall(region);
+  for (const el of root.querySelectorAll("[data-region-hint]"))
+    el.hidden = normaliseRegion(region) !== "";
 }

@@ -71,10 +71,11 @@ export function initSecurity(ctx) {
       return;
     await withBusy(button, "Working…", async () => {
       const code = $("security-code").value;
-      $("security-password").value = "";
       $("security-code").value = "";
       const r = await api("POST", "/api/me/security/two-factor", { action, password, code });
       if (!r.ok) return say("security-msg", r.error, true);
+      // Setup needs the password again to confirm, so keep it until the change is finished.
+      if (action !== "setup") $("security-password").value = "";
       say("security-msg", r.data.message);
       if (action === "setup") {
         pending = true;

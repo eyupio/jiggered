@@ -191,7 +191,7 @@ export function initMatrix(root, ctx, explore) {
         (c, i) => {
           const [tone, mark] = calendarPaint(c, mode),
             description = describeCalendarDay(c, S.locale, theme);
-          return html`<button type="button" class="matrix-cell ${tone}" data-cell="${i}" data-date="${c.date}" tabindex="${i === cursor ? 0 : -1}" aria-pressed="${c.date === chosen}" aria-label="${description}" ${layout === "list" ? "" : html`data-tooltip="${description}"`}>${dayLabel(c, i)}<span class="matrix-mark" aria-hidden="true">${mark}</span>${layout === "list" ? html`<span class="matrix-note" aria-hidden="true">${summariseCalendarDay(c, theme)}</span>` : ""}</button>`;
+          return html`<button type="button" class="matrix-cell ${tone}" data-cell="${i}" data-date="${c.date}" tabindex="${i === cursor ? 0 : -1}" aria-pressed="${c.date === chosen}" aria-label="${description}" ${layout === "list" ? "" : html`data-tooltip="${description}"`}>${dayLabel(c, i)}<span class="matrix-mark" aria-hidden="true">${mark}</span>${c.episodes && mode !== "episodes" ? html`<i class="matrix-ep" aria-hidden="true"></i>` : ""}${layout === "list" ? html`<span class="matrix-note" aria-hidden="true">${summariseCalendarDay(c, theme)}</span>` : ""}</button>`;
         },
       )}${padded ? Array.from({ length: win.weeks * 7 - win.offset - win.cells.length }, () => blank) : ""}`,
     );
@@ -230,7 +230,7 @@ export function initMatrix(root, ctx, explore) {
             : html`<span>Less</span>${[1, 2, 3, 4].map((level) => html`<i class="matrix-key level-${level}" aria-hidden="true"></i>`)}<span>More ${mode === "episodes" ? "recorded episodes" : `${mode === "used" ? "activity" : "net"} ${energyWords(themeOf(ctx)).plural} used`}</span>${mode === "points" ? html`<span><i class="legend-green"></i>− · Negative net ${energyWords(themeOf(ctx)).plural} / recovery</span>` : ""}`;
     setHTML(
       get("[data-matrix-legend]"),
-      html`${legend}<span><i></i>No matching record / unmarked</span>`,
+      html`${legend}${mode === "episodes" ? "" : html`<span><i class="matrix-ep matrix-ep-key"></i>Episode recorded</span>`}<span><i></i>No matching record / unmarked</span>`,
     );
     setHTML(
       get("[data-matrix-day]"),

@@ -4,6 +4,12 @@
   Record when symptoms started, what you noticed, how they came on and how long they lasted.
   Jiggered keeps those observations alongside your daily energy and activity log.
 </p>
+{{if .Registration}}
+<p class="public-cta">
+  <a class="p-button" href="{{.CTA}}">{{.CTALabel}}</a>
+  <span>Free. One email link to confirm.</span>
+</p>
+{{end}}
 <h2>Capture an episode at your own pace</h2>
 <p>
   In Episode, enter a start time, symptoms, onset, duration and any relevant circumstances from the
