@@ -337,6 +337,9 @@ function fatal(text) {
       go("today");
       views.today.open(date);
     },
+    openPlan(date) {
+      views.plan.openDay(date);
+    },
     editEpisode(id) {
       views.episode.edit(id);
     },

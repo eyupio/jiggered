@@ -1,5 +1,15 @@
-import { $, html, setHTML, uid, fmtDay } from "./util.js";
+import { $, html, setHTML, uid, fmtDay, signed } from "./util.js";
 import { addDays, dayId, hhmm } from "./model.js";
+import {
+  DAY,
+  NEW_DUR,
+  fromMinutes,
+  slotText,
+  suggestDuration,
+  toMinutes,
+  validDur,
+} from "./calendar-model.js";
+import { createTimeGrid } from "./calendar.js";
 import { validDate } from "./history-model.js";
 import { energyAmount, themeOf } from "./energy-theme.js";
 import { forecast, planId, plannedEntryId } from "./planner-model.js";
@@ -10,8 +20,20 @@ function setStable(el, markup) {
   markupCache.set(el, markup.s);
   setHTML(el, markup);
 }
-const signed = (c) => (c > 0 ? `−${c}` : c < 0 ? `+${-c}` : "0");
 const amount = (ctx, n) => energyAmount(n, themeOf(ctx));
+// When a planned activity is logged as done it started at its planned time if that has already passed, otherwise now.
+// On a past day "now" would be wrong, so only the planned time (or none) is used.
+function loggedStart(ctx, row, day) {
+  if (day !== ctx.today()) return row.t || "";
+  const now = hhmm(new Date());
+  return row.t && row.t <= now ? row.t : now;
+}
+// Its planned length carries over, trimmed so the logged activity still ends by midnight.
+function loggedLength(row, start) {
+  const from = toMinutes(start),
+    dur = from === null ? row.dur : Math.min(row.dur, DAY - from);
+  return validDur(dur) ? { dur } : {};
+}
 const writable = (ctx) => !ctx.store.status().readOnly && !ctx.store.status().restoring;
 const dispatch = (ctx, date, type, arg, before) =>
   ctx.store.dispatch({
@@ -27,10 +49,74 @@ function rowsMarkup(ctx, f, date, todayOnly = false) {
     const done = f.done.includes(e);
     const actual = done ? f.day.entries.find((a) => a.id === plannedEntryId(date, e.id)) : null;
     return html`<li class="plan-activity ${done ? "is-done" : ""} ${e.c < 0 ? "is-recovery" : ""}">
-      <div class="plan-activity-info"><b>${e.a}</b><span class="meta">${done ? `Logged · planned ${signed(e.c)}` : e.c < 0 ? "Recovery planned" : "Planned"}${e.t ? ` · ${e.t}` : ""}</span></div>
+      <div class="plan-activity-info"><b>${e.a}</b><span class="meta">${done ? `Logged · planned ${signed(e.c)}` : e.c < 0 ? "Recovery planned" : "Planned"}${slotText(e) ? ` · ${slotText(e)}` : ""}</span></div>
       <strong class="plan-cost">${signed(actual?.c ?? e.c)}<span class="sr-only"> ${amount(ctx, Math.abs(e.c)).split(" ").slice(1).join(" ")}</span></strong>
       <div class="plan-actions">${done ? html`<span class="plan-done">✓ Done</span>` : html`${date <= ctx.today() ? html`<button type="button" class="primary small" data-plan-action="complete" data-date="${date}" data-id="${e.id}" aria-label="Log ${e.a} as done">Done</button>` : ""}${todayOnly ? "" : html`<button type="button" class="secondary small" data-plan-action="edit" data-id="${e.id}" aria-label="Edit planned ${e.a}">Edit</button><button type="button" class="secondary small" data-plan-action="remove" data-id="${e.id}" aria-label="Remove planned ${e.a}">Remove</button>`}`}</div></li>`;
   })}</ul>`;
+}
+
+// Done on Today logs the planned activity right there, as tapping an activity tile does, instead of sending the
+// person to Plan and a form. Undo takes it back; tapping it among the day's logged activities corrects it.
+// It started at its planned time if that has passed, otherwise now (see loggedStart), and keeps its planned length.
+export function completePlanned(ctx, day, id) {
+  if (!writable(ctx)) return;
+  const f = forecast(ctx.store.all(), day, ctx.settings()),
+    row = f.pending.find((r) => r.id === id);
+  if (!row) return;
+  const target = dayId(day),
+    start = loggedStart(ctx, row, day),
+    entry = {
+      id: plannedEntryId(day, row.id),
+      a: row.a,
+      c: row.c,
+      t: start,
+      ...loggedLength(row, start),
+    };
+  ctx.store.dispatch({
+    id: target,
+    type: "addEntry",
+    arg: entry,
+    stamp: {
+      budget: f.logged ? f.day.budget : f.allowance,
+      sleepPenalty: ctx.settings().sleepPenalty,
+    },
+    original: ctx.store.view(target),
+  });
+  ctx.toast(`Logged ${row.a}.`, {
+    label: "Undo",
+    fn: () =>
+      ctx.store.dispatch({
+        id: target,
+        type: "removeEntry",
+        arg: entry,
+        original: ctx.store.view(target),
+      }),
+  });
+  // The row that held focus is gone; keep keyboard focus on the next one (or the card's own button).
+  const card = $("today-plan");
+  (
+    card.querySelector("[data-plan-action='complete']") || card.querySelector("[data-open-plan]")
+  )?.focus();
+}
+
+// Moving a planned activity on its own day (from the timeline on Today). Undo puts its time and length back.
+export function reschedulePlanned(ctx, day, id, start, dur) {
+  if (!writable(ctx)) return;
+  const row = forecast(ctx.store.all(), day, ctx.settings()).pending.find((r) => r.id === id);
+  if (!row) return;
+  const t = fromMinutes(start);
+  dispatch(ctx, day, "editEntry", { id, changes: { t, dur } }, row);
+  ctx.toast(`Moved ${row.a} to ${slotText({ t, dur })}.`, {
+    label: "Undo",
+    fn: () =>
+      dispatch(
+        ctx,
+        day,
+        "editEntry",
+        { id, changes: { t: row.t ?? "", dur: row.dur ?? null } },
+        { ...row, t, dur },
+      ),
+  });
 }
 
 export function renderTodayPlan(ctx, date) {
@@ -65,7 +151,8 @@ export function init(ctx) {
         : "Add to your plan";
     $("plan-name").value = entry?.a || "";
     $("plan-cost").value = entry?.c ?? 1;
-    $("plan-time").value = complete ? hhmm(new Date()) : entry?.t || "";
+    $("plan-time").value = complete ? loggedStart(ctx, entry, date) : entry?.t || "";
+    $("plan-dur").value = entry?.dur ?? "";
     $("plan-repeat-row").hidden = !!entry || date < ctx.today();
     $("plan-repeat").value = 1;
     $("plan-repeat").max = Math.max(
@@ -94,6 +181,7 @@ export function init(ctx) {
       a: $("plan-name").value,
       c: $("plan-cost").value,
       t: $("plan-time").value,
+      dur: $("plan-dur").value,
       repeat: $("plan-repeat").value,
     });
   }
@@ -105,6 +193,7 @@ export function init(ctx) {
     $("plan-name").value = draft.a;
     $("plan-cost").value = draft.c;
     $("plan-time").value = draft.t;
+    $("plan-dur").value = draft.dur ?? "";
     $("plan-repeat").value = Math.min(Number(draft.repeat) || 1, Number($("plan-repeat").max));
     $("plan-form-error").textContent = "Unfinished planning draft restored.";
   }
@@ -115,12 +204,14 @@ export function init(ctx) {
     const entry = ctx.settings().activities[Number(e.target.value)];
     $("plan-name").value = entry.a;
     $("plan-cost").value = entry.c;
+    if (!$("plan-dur").value) $("plan-dur").value = suggestDuration(entry.a) ?? "";
   });
   $("plan-cancel").addEventListener("click", () => {
     ctx.drafts?.remove(`plan:${date}`);
     closeForm();
   });
   $("plan-add").addEventListener("click", () => openForm());
+  $("plan-start-add").addEventListener("click", () => openForm());
   $("plan-span").addEventListener("change", (e) => {
     span = Number(e.target.value);
     date = ctx.today();
@@ -162,6 +253,18 @@ export function init(ctx) {
         "Use a name of 1–60 characters, a whole-number cost from −10 to 10 and a valid number of days.";
       return;
     }
+    const durText = $("plan-dur").value.trim(),
+      dur = durText === "" ? null : Number(durText);
+    if (dur !== null && !validDur(dur)) {
+      $("plan-form-error").textContent =
+        "Use a whole number of minutes from 5 to 1440, or leave the duration empty.";
+      return;
+    }
+    if (dur !== null && toMinutes(t) !== null && toMinutes(t) + dur > DAY) {
+      $("plan-form-error").textContent =
+        "That would run past midnight. Start earlier or shorten the duration.";
+      return;
+    }
     if (!writable(ctx)) return;
     const f = model();
     if (editing && !f.pending.some((row) => row.id === editing.id)) {
@@ -169,7 +272,7 @@ export function init(ctx) {
         "This activity changed on another device. Close this form and review the plan.";
       return;
     }
-    const entry = { a, c, t, id: editing?.id || uid() };
+    const entry = { a, c, t, id: editing?.id || uid(), ...(dur !== null ? { dur } : {}) };
     if (completing) {
       ctx.store.dispatch({
         id: dayId(date),
@@ -182,7 +285,16 @@ export function init(ctx) {
         original: ctx.store.view(dayId(date)),
       });
     } else if (editing)
-      dispatch(ctx, date, "editEntry", { id: editing.id, changes: { a, c, t } }, editing);
+      dispatch(
+        ctx,
+        date,
+        "editEntry",
+        {
+          id: editing.id,
+          changes: { a, c, t, ...(dur !== null || editing.dur != null ? { dur } : {}) },
+        },
+        editing,
+      );
     else {
       for (let i = 0; i < repeat; i++) {
         if (forecast(ctx.store.all(), addDays(date, i), ctx.settings()).rows.length >= 200) {
@@ -218,6 +330,7 @@ export function init(ctx) {
         openForm();
         $("plan-name").value = preset.a;
         $("plan-cost").value = preset.c;
+        $("plan-dur").value = suggestDuration(preset.a) ?? "";
       }
       return;
     }
@@ -233,33 +346,137 @@ export function init(ctx) {
       });
     } else openForm(entry, button.dataset.planAction === "complete");
   });
+  function openDay(day) {
+    date = day;
+    closeForm();
+    ctx.go("plan");
+    render();
+  }
   document.addEventListener("click", (e) => {
     const open = e.target.closest("[data-open-plan]");
-    if (open) {
-      date = open.dataset.openPlan;
-      closeForm();
-      ctx.go("plan");
-      render();
-    }
+    if (open) openDay(open.dataset.openPlan);
     const done = e.target.closest("#today-plan [data-plan-action='complete']");
-    if (done) {
-      date = done.dataset.date;
-      ctx.go("plan");
-      openForm(
-        model().pending.find((row) => row.id === done.dataset.id),
-        true,
-      );
-    }
+    if (done) completePlanned(ctx, done.dataset.date, done.dataset.id);
   });
+  // ---- the timeline: what each gesture on the calendar means for the plan ----
+  const narrow = matchMedia("(max-width: 700px)"); // a phone shows one day at a time
+  narrow.addEventListener("change", () => render());
+  const dayLabel = (d) =>
+    d === ctx.today()
+      ? "Today"
+      : `${fmtDay(d, ctx.settings().locale).split(",")[0]} ${Number(d.slice(8))}`;
+  let burst = null; // the last change to a block, so a run of arrow-key moves undoes as one
+  const grid = createTimeGrid($("plan-board"), {
+    editable: () => writable(ctx),
+    onSelectDay(d) {
+      date = d;
+      closeForm();
+      render();
+    },
+    onOpen({ date: d, id }) {
+      const row = forecast(ctx.store.all(), d, ctx.settings()).pending.find((r) => r.id === id);
+      if (!row) return;
+      date = d;
+      closeForm();
+      render();
+      openForm(row);
+    },
+    onCreate({ date: d, start }) {
+      date = d;
+      closeForm();
+      render();
+      openForm();
+      $("plan-time").value = fromMinutes(start);
+      $("plan-dur").value = String(Math.min(NEW_DUR, DAY - start));
+    },
+    onChange: (change) => moveBlock(change),
+    onDrop: (payload, at) => addPreset(payload.preset, at),
+  });
+  function moveBlock(c) {
+    if (!writable(ctx)) return;
+    const row = forecast(ctx.store.all(), c.fromDate, ctx.settings()).pending.find(
+      (r) => r.id === c.id,
+    );
+    if (!row) return;
+    const t = fromMinutes(c.start);
+    let moved = { ...row, t, dur: c.dur };
+    if (c.fromDate === c.toDate)
+      dispatch(ctx, c.toDate, "editEntry", { id: row.id, changes: { t, dur: c.dur } }, row);
+    else {
+      const target = forecast(ctx.store.all(), c.toDate, ctx.settings());
+      if (target.rows.length >= 200)
+        return ctx.toast("That day already has 200 planned activities.");
+      if (target.rows.some((r) => r.id === row.id)) moved = { ...moved, id: uid() };
+      // Add to the new day before removing from the old one: if the second step fails you see a copy, not a loss.
+      dispatch(ctx, c.toDate, "addEntry", moved);
+      dispatch(ctx, c.fromDate, "removeEntry", row);
+    }
+    const again = burst?.id === moved.id && c.source === "keyboard" && Date.now() - burst.at < 1500,
+      origin = again ? burst.origin : { date: c.fromDate, row };
+    burst = { id: moved.id, origin, at: Date.now() };
+    ctx.toast(`Moved ${row.a} to ${dayLabel(c.toDate)}, ${slotText(moved)}.`, {
+      label: "Undo",
+      fn: () => restoreBlock(origin, c.toDate, moved),
+    });
+  }
+  function restoreBlock(origin, nowDate, moved) {
+    if (!writable(ctx)) return;
+    burst = null;
+    if (origin.date === nowDate)
+      dispatch(
+        ctx,
+        nowDate,
+        "editEntry",
+        { id: moved.id, changes: { t: origin.row.t ?? "", dur: origin.row.dur ?? null } },
+        moved,
+      );
+    else {
+      dispatch(ctx, origin.date, "addEntry", origin.row);
+      dispatch(ctx, nowDate, "removeEntry", moved);
+    }
+  }
+  function addPreset(preset, at) {
+    if (!writable(ctx)) return;
+    if (forecast(ctx.store.all(), at.date, ctx.settings()).rows.length >= 200)
+      return ctx.toast("That day already has 200 planned activities.");
+    const entry = { id: uid(), a: preset.a, c: preset.c, t: fromMinutes(at.start), dur: at.dur };
+    dispatch(ctx, at.date, "addEntry", entry);
+    ctx.toast(`Added ${preset.a} at ${entry.t}.`, {
+      label: "Undo",
+      fn: () => dispatch(ctx, at.date, "removeEntry", entry),
+    });
+  }
+  // Saved activities can be dragged onto the timeline with a mouse or pen; a click or tap fills the form instead.
+  const palette = $("plan-palette");
+  const presetOf = (e) =>
+    ctx.settings().activities[Number(e.target.closest("[data-preset]")?.dataset.preset)];
+  palette.addEventListener("pointerdown", (e) => {
+    const preset = e.pointerType === "touch" || e.button > 0 ? null : presetOf(e);
+    if (preset) grid.beginExternalDrag(e, { preset, dur: suggestDuration(preset.a) ?? NEW_DUR });
+  });
+  palette.addEventListener("click", (e) => {
+    const preset = presetOf(e);
+    if (!preset || grid.justDropped() || !writable(ctx)) return;
+    closeForm();
+    openForm();
+    $("plan-name").value = preset.a;
+    $("plan-cost").value = preset.c;
+    $("plan-dur").value = suggestDuration(preset.a) ?? "";
+  });
+
   function render() {
     if (!validDate(date) || date > addDays(ctx.today(), 6)) date = ctx.today();
     $("plan-span").value = span;
     const f = model(),
-      dates = days();
+      dates = days(),
+      forecasts = dates.map((d) => forecast(ctx.store.all(), d, ctx.settings()));
+    // With nothing planned in view, a phone leads with the way to start instead of a row of "No plan" days.
+    $("plan-start").hidden = forecasts.some((m) => m.rows.length);
+    $("plan-start-add").disabled = !writable(ctx);
     setStable(
       $("plan-days"),
-      html`${dates.map((d) => {
-        const m = forecast(ctx.store.all(), d, ctx.settings());
+      html`${dates.map((d, i) => {
+        const m = forecasts[i];
         return html`<button type="button" class="plan-day ${m.afterWork < 0 ? "plan-warning" : ""}" data-plan-day="${d}" aria-pressed="${d === date}"><span>${d === ctx.today() ? "Today" : fmtDay(d, ctx.settings().locale).split(",")[0]}</span><b>${m.rows.length || m.logged ? m.projected : "—"}</b><small>${m.rows.length ? `${m.pending.length} planned` : "No plan"}</small><span class="sr-only">${m.rows.length ? `${amount(ctx, m.projected)} projected; ${amount(ctx, m.afterWork)} before recovery` : ""}</span></button>`;
       })}`,
     );
@@ -269,9 +486,12 @@ export function init(ctx) {
     $("plan-allowance-hint").textContent = f.logged
       ? "Uses this day’s logged allowance. Adjust check-in and sleep in Today."
       : "Your estimate for this day, including expected sleep or check-in effects. Each day starts fresh.";
+    // Totals only mean something once there is a plan or a log; an empty day would show a wall of zeros.
     setStable(
       $("plan-forecast"),
-      html`<div class="plan-metrics"><div><span>Available ${date === ctx.today() ? "now" : "for this day"}</span><b>${f.remaining}</b></div><div><span>Work still planned</span><b>−${f.committed}</b></div><div><span>Uncommitted</span><b>${f.afterWork}</b></div><div class="is-recovery"><span>Planned recovery</span><b>+${f.recovery}</b></div><div><span>Projected balance</span><b>${f.projected}</b></div></div>
+      !f.rows.length && !f.logged
+        ? html``
+        : html`<div class="plan-metrics"><div><span>Available ${date === ctx.today() ? "now" : "for this day"}</span><b>${f.remaining}</b></div><div><span>Work still planned</span><b>${signed(f.committed)}</b></div><div><span>Uncommitted</span><b>${f.afterWork}</b></div><div class="is-recovery"><span>Planned recovery</span><b>${signed(-f.recovery)}</b></div><div><span>Projected balance</span><b>${f.projected}</b></div></div>
       <p class="plan-outlook ${f.shortfall ? "plan-warning" : ""}">${f.shortfall ? `${amount(ctx, f.shortfall)} recovery or less workload needed to stay within this allowance before recovery.` : `${amount(ctx, f.afterWork)} left after planned workload, before recovery.`}${f.recovery ? ` Your recovery plan adds an estimated ${amount(ctx, f.recovery)}; ${f.gap ? `${amount(ctx, f.gap)} still uncovered.` : "it is included only in the projected balance."}` : ""}</p>`,
     );
     setStable(
@@ -294,6 +514,40 @@ export function init(ctx) {
         : html``,
     );
     $("plan-add").disabled = !writable(ctx) || f.rows.length >= 200;
+    // The timeline: every planned activity of the days in view (just the chosen day on a phone).
+    const forecastOf = (d) =>
+      forecasts[dates.indexOf(d)] ?? forecast(ctx.store.all(), d, ctx.settings());
+    grid.render({
+      editable: writable(ctx),
+      days: (narrow.matches ? [date] : dates).map((d) => {
+        const m = forecastOf(d);
+        return {
+          date: d,
+          label: dayLabel(d),
+          value: m.rows.length || m.logged ? String(m.projected) : "—",
+          today: d === ctx.today(),
+          selected: d === date,
+          warn: m.afterWork < 0,
+          blocks: m.rows.map((e) => ({
+            id: e.id,
+            title: e.a,
+            cost: e.c,
+            t: e.t,
+            dur: e.dur,
+            kind: "plan",
+            done: m.done.includes(e),
+            editable: !m.done.includes(e),
+          })),
+        };
+      }),
+    });
+    const acts = ctx.settings().activities;
+    setStable(
+      $("plan-palette"),
+      acts.length
+        ? html`<h3 class="label">Drag onto the timeline</h3>${acts.map((e, i) => html`<button type="button" class="cal-chip cal-preset${e.c < 0 ? " is-recovery" : ""}" data-preset="${i}">${e.a}<span>${signed(e.c)}</span></button>`)}`
+        : html``,
+    );
     root
       .querySelectorAll("[data-plan-action],[data-plan-recovery]")
       .forEach((b) => (b.disabled = !writable(ctx)));
@@ -304,6 +558,7 @@ export function init(ctx) {
       restoreDraft();
     },
     render,
+    openDay,
     hide() {
       rememberDraft();
       closeForm();

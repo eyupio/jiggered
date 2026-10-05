@@ -11,7 +11,16 @@ import {
   fmtDay,
   fmtWhen,
   api,
+  signed,
 } from "../web/util.js";
+
+test("signed reads a cost as spending, recovery or nothing", () => {
+  assert.equal(signed(3), "−3");
+  assert.equal(signed(-2), "+2");
+  assert.equal(signed(0), "0");
+  // Callers negate a recovery total to print it as +n; negating zero must not print "+0" or "−0".
+  assert.equal(signed(-0), "0");
+});
 
 test("api returns transport failures when response bodies are interrupted", async (t) => {
   t.mock.method(globalThis, "fetch", async () => ({
