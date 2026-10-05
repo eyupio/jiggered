@@ -2440,8 +2440,11 @@ input[type="search"] {
   grid-template-rows: auto auto;
   gap: 8px 6px;
   width: 100%;
-  max-width: calc(24px + var(--weeks) * 28px);
+  max-width: calc(24px + var(--weeks) * 52px);
   min-width: 0;
+}
+.matrix-dense .matrix-calendar {
+  max-width: calc(24px + var(--weeks) * 28px);
 }
 .matrix-year .matrix-calendar {
   flex-basis: 100%;
@@ -2475,7 +2478,7 @@ input[type="search"] {
 }
 .matrix-cell {
   aspect-ratio: 1;
-  max-height: 26px;
+  max-height: 48px;
   border: 1px solid transparent;
   border-radius: 4px;
   padding: 0;
@@ -2522,7 +2525,7 @@ input[type="search"] {
 }
 .matrix-blank {
   aspect-ratio: 1;
-  max-height: 26px;
+  max-height: 48px;
   border: 1px solid var(--line);
   border-radius: 4px;
   background: var(--bg);
@@ -2548,6 +2551,7 @@ input[type="search"] {
   gap: 3px;
 }
 .matrix-dense .matrix-cell {
+  max-height: 26px;
   border-radius: 2px;
 }
 .matrix-reading {
@@ -2620,6 +2624,16 @@ input[type="search"] {
   }
 }
 @media (max-width: 700px) {
+  /* A month of days is six columns: let the grid use the panel's edge so each day is a touch-sized target. */
+  .matrix-calendar {
+    grid-template-columns: 14px minmax(0, 1fr);
+    gap: 8px 4px;
+    width: calc(100% + 16px);
+    margin-inline: -8px;
+  }
+  .matrix-grid {
+    gap: 3px;
+  }
   .matrix-overview > .label-row {
     flex-direction: column;
     align-items: stretch;

@@ -75,3 +75,25 @@ test("planned operations replay and merge without losing other activities", () =
   body = applyOp({ id: planId(date), type: "removeEntry", arg: rest }, body);
   assert.equal(body.entries.length, 1);
 });
+test("plan rows come back in the order of the day, untimed ones last, without reordering the stored plan", () => {
+  const entries = [
+    { id: "late", a: "Rest", c: -1, t: "17:00" },
+    { id: "anytime", a: "Admin", c: 1 },
+    { id: "early", a: "Work", c: 2, t: "09:30", dur: 90 },
+  ];
+  const docs = { [planId(date)]: { date, entries } };
+  const f = forecast(docs, date, S);
+  assert.deepEqual(
+    f.rows.map((r) => r.id),
+    ["early", "late", "anytime"],
+  );
+  assert.deepEqual(
+    f.pending.map((r) => r.id),
+    ["early", "late", "anytime"],
+  );
+  assert.deepEqual(
+    entries.map((r) => r.id),
+    ["late", "anytime", "early"],
+  );
+  assert.equal(f.rows[0].dur, 90);
+});

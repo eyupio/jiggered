@@ -1,8 +1,11 @@
 import { capOf, dayId, readableDay, used } from "./model.js";
+import { byTime } from "./calendar-model.js";
 
 export const planId = (date) => `p-${date}`;
 export const plannedEntryId = (date, id) => `planned:${date}:${id}`;
-export const planRows = (plan) => (Array.isArray(plan?.entries) ? plan.entries : []);
+// In the order of the day: timed rows by start time, then the ones with no time.
+export const planRows = (plan) =>
+  Array.isArray(plan?.entries) ? [...plan.entries].sort(byTime) : [];
 export function energyFlow(day, settings) {
   const spent = day.entries.reduce((n, e) => n + Math.max(0, e.c), 0);
   const recovered = day.entries.reduce((n, e) => n + Math.max(0, -e.c), 0);

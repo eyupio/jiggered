@@ -99,6 +99,32 @@ runBrowser({ name: "energy-theme", startServer: false }, async (harness) => {
   assert.equal(await page.locator("input[name=energyTheme][value=spoons]").isChecked(), true);
   assert.equal(await page.locator("#energy-theme-preview").textContent(), "8 spoons left today");
   assert.equal(await page.locator("html").getAttribute("data-energy-theme"), "points");
+  // The draft is written to the device store in the background; reloading before that lands loses it, as a slow
+  // runner showed. Wait for it to be stored, which is what "survives a reload" depends on.
+  await page.waitForFunction(
+    () =>
+      new Promise((resolve) => {
+        const request = indexedDB.open("jiggered-device");
+        request.onerror = () => resolve(false);
+        request.onsuccess = () => {
+          const db = request.result,
+            tx = db.transaction("items", "readonly"),
+            keys = tx.objectStore("items").getAllKeys();
+          tx.oncomplete = () => {
+            db.close();
+            resolve(
+              keys.result.some(
+                (k) => String(k).includes(":drafts:") && String(k).endsWith(":profile"),
+              ),
+            );
+          };
+          tx.onerror = () => {
+            db.close();
+            resolve(false);
+          };
+        };
+      }),
+  );
   await page.reload();
   await page.locator("#profile-save").waitFor();
   assert.equal(

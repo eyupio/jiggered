@@ -331,6 +331,24 @@
           </div>
         </div>
 
+        <details
+          class="panel history-disclosure today-timeline-panel"
+          id="today-timeline-panel"
+          open
+        >
+          <summary>
+            <h2>Your day on a timeline</h2>
+            <span class="meta" id="today-timeline-summary"></span>
+          </summary>
+          <div class="history-section-body">
+            <p class="meta">
+              What you have logged is solid; what is still planned is dashed. Drag a block to change
+              its time, click an empty space to log something at that time, or drag an activity here
+              from the list below.
+            </p>
+            <div id="today-board" class="cal"></div>
+          </div>
+        </details>
         <div class="panel activities-panel">
           <div class="label-row">
             <h2>The little things in your day.</h2>
@@ -389,6 +407,15 @@
                 ><input type="number" id="entry-cost" min="-10" max="10" step="1" required /></label
               ><label class="field">Time (optional)<input type="time" id="entry-time" /></label>
             </div>
+            <label class="field"
+              >Duration, minutes (optional)<input
+                type="number"
+                id="entry-dur"
+                min="5"
+                max="1440"
+                step="5"
+                inputmode="numeric"
+            /></label>
             <p class="hint">
               <span
                 data-energy-copy="Negative points record recovery. Zero only records the activity."
@@ -505,6 +532,13 @@
       </section>
 
       <section role="tabpanel" aria-labelledby="t-plan" id="plan-panel" hidden>
+        <div class="panel plan-start" id="plan-start" hidden>
+          <h2>Nothing planned yet.</h2>
+          <p class="meta">
+            Add one thing you need to do and one way to rest, and see how the day adds up.
+          </p>
+          <button type="button" class="primary" id="plan-start-add">Plan your day</button>
+        </div>
         <div class="panel">
           <div class="plan-heading">
             <div>
@@ -530,6 +564,21 @@
             Recovery is your own estimate; it becomes actual only when logged. Budgets reset daily
             and do not carry over.
           </p>
+        </div>
+        <div class="panel plan-board-panel" id="plan-board-panel">
+          <div class="plan-heading">
+            <div>
+              <h2>Your days on a timeline</h2>
+              <p class="meta">
+                Drag an activity to move it, or drag its edge to change how long it takes. Click an
+                empty space to add one.
+              </p>
+            </div>
+          </div>
+          <div class="plan-board-layout">
+            <div id="plan-palette" class="cal-palette" aria-label="Your saved activities"></div>
+            <div id="plan-board" class="cal"></div>
+          </div>
         </div>
         <div class="panel">
           <div class="plan-heading">
@@ -569,6 +618,14 @@
                   required
                   aria-describedby="plan-cost-hint" /></label
               ><label>Time (optional)<input type="time" id="plan-time" /></label
+              ><label
+                >Duration, minutes (optional)<input
+                  type="number"
+                  id="plan-dur"
+                  min="5"
+                  max="1440"
+                  step="5"
+                  inputmode="numeric" /></label
               ><label id="plan-repeat-row"
                 >Add on consecutive days<input
                   type="number"
@@ -650,6 +707,7 @@
           </form>
           <p id="history-count" class="meta" role="status"></p>
         </details>
+        <div id="history-week"></div>
         <div class="history-overview" id="history-matrix"></div>
         <details class="panel history-disclosure" id="history-share">
           <summary>

@@ -1,4 +1,4 @@
-import { html, setHTML } from "./util.js";
+import { html, setHTML, signed } from "./util.js";
 import { energyAmount, themeOf } from "./energy-theme.js";
 import { energyFlow } from "./planner-model.js";
 
@@ -22,7 +22,7 @@ export function renderEnergyFlow(ctx, day, settings) {
   previous.set(ctx, { date: day.date, remaining: f.remaining });
   setHTML(
     document.getElementById("energy-breakdown"),
-    html`<dl class="energy-breakdown"><div><dt>Starting allowance</dt><dd>${f.allowance}</dd></div><div class="is-spending"><dt>Used</dt><dd>−${f.spent}</dd></div><div class="is-recovery"><dt>Recovered</dt><dd>+${f.recovered}</dd></div><div><dt>Remaining</dt><dd>${f.remaining}</dd></div></dl><p class="sr-only">${word(f.allowance)} to start, ${word(f.spent)} used, ${word(f.recovered)} recovered, ${word(f.remaining)} remaining.</p>`,
+    html`<dl class="energy-breakdown"><div><dt>Starting allowance</dt><dd>${f.allowance}</dd></div><div class="is-spending"><dt>Used</dt><dd>${signed(f.spent)}</dd></div><div class="is-recovery"><dt>Recovered</dt><dd>${signed(-f.recovered)}</dd></div><div><dt>Remaining</dt><dd>${f.remaining}</dd></div></dl><p class="sr-only">${word(f.allowance)} to start, ${word(f.spent)} used, ${word(f.recovered)} recovered, ${word(f.remaining)} remaining.</p>`,
   );
   let balance = f.allowance;
   const changes = day.entries.map((e) => {

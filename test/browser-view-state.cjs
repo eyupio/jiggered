@@ -544,6 +544,10 @@ runBrowser({ name: "view-state", startServer: false }, async (harness) => {
     await page.locator(".matrix-facts").textContent(),
     "0Check-ins0Episodes0Poor-sleep days",
   );
+  // A first-time account is told what the calendar becomes, and an empty day offers logging, not sharing.
+  assert.match(await page.locator("[data-matrix-hint]").textContent(), /Nothing logged yet/);
+  assert.equal(await page.locator("[data-matrix-share]").count(), 0);
+  assert.equal(await page.locator("[data-matrix-open].primary").textContent(), "Log today");
   await page.locator("[data-matrix-open]").click();
   assert.equal(await page.locator("#today-panel").isVisible(), true);
   await page.locator("#t-account").click();
