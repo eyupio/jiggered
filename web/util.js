@@ -203,6 +203,64 @@ export async function withBusy(button, label, action) {
   }
 }
 
+// sheetMode shows an in-page form as a centred sheet over the page instead of wherever it happens to sit in the
+// document, so editing from a timeline neither moves the page nor loses the timeline. The form keeps its markup and
+// handlers; it leaves the sheet as soon as it is hidden again. Escape and a click outside call onCancel, and Tab
+// stays inside while it is open.
+export function sheetMode(form, { onCancel, labelledBy = "" }) {
+  let backdrop = null;
+  const focusable =
+    "a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled])";
+  const keys = (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      onCancel();
+      return;
+    }
+    if (e.key !== "Tab") return;
+    const items = [...form.querySelectorAll(focusable)].filter((el) => el.offsetParent !== null);
+    if (!items.length) return;
+    const first = items[0],
+      last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+  function off() {
+    if (!form.classList.contains("is-sheet")) return;
+    form.classList.remove("is-sheet");
+    form.removeAttribute("role");
+    form.removeAttribute("aria-modal");
+    form.removeAttribute("aria-labelledby");
+    form.removeEventListener("keydown", keys);
+    backdrop?.remove();
+    backdrop = null;
+  }
+  new MutationObserver(() => {
+    if (form.hidden) off();
+  }).observe(form, { attributes: true, attributeFilter: ["hidden"] });
+  return {
+    on() {
+      if (form.classList.contains("is-sheet")) return;
+      backdrop = document.createElement("div");
+      backdrop.className = "sheet-backdrop";
+      backdrop.addEventListener("click", onCancel);
+      document.body.append(backdrop);
+      form.classList.add("is-sheet");
+      form.setAttribute("role", "dialog");
+      form.setAttribute("aria-modal", "true");
+      if (labelledBy) form.setAttribute("aria-labelledby", labelledBy);
+      form.addEventListener("keydown", keys);
+    },
+    off,
+  };
+}
+
 // A modal yes/no question. Resolves true only for the confirm button; Escape, the backdrop and Cancel all resolve false.
 // Built on <dialog>, so focus is trapped and returned to what opened it. Text goes in through textContent.
 export function confirmDialog({ title, body, confirmLabel = "Remove", cancelLabel = "Keep it" }) {

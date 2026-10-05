@@ -113,8 +113,8 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     await page.locator("#t-plan").click();
     // Nothing planned: no wall of zero totals, and on a phone the way to start comes first.
     assert.equal((await page.locator("#plan-forecast").textContent()).trim(), "");
-    assert.equal(await page.locator("#plan-start").isVisible(), width < 700);
-    if (width < 700) {
+    assert.equal(await page.locator("#plan-start").isVisible(), true, `start card at ${width}`);
+    {
       const start = await page.locator("#plan-start-add").boundingBox(),
         strip = await page.locator("#plan-days").boundingBox();
       assert.ok(start.y + start.height < strip.y, `start button leads the day strip at ${width}`);
@@ -138,11 +138,23 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     });
     assert.equal(strip.scrollLeft, 0, "day strip starts unscrolled at " + width);
     assert.ok(!strip.clips || strip.room >= -0.01, `selected day ring clipped at ${width}`);
-    if (width < 700) {
+    {
+      await page.locator("#plan-start-add").scrollIntoViewIfNeeded();
+      const before = await page.evaluate(() => scrollY);
       await page.locator("#plan-start-add").click();
       assert.equal(await page.locator("#plan-form").isVisible(), true);
+      assert.equal(
+        await page.locator("#plan-form.is-sheet").count(),
+        1,
+        "the form floats over the page",
+      );
       assert.equal(await page.evaluate(() => document.activeElement.id), "plan-name");
-      await page.locator("#plan-cancel").click();
+      assert.ok(
+        Math.abs((await page.evaluate(() => scrollY)) - before) <= 3,
+        "the page did not move",
+      );
+      await page.keyboard.press("Escape");
+      assert.equal(await page.locator("#plan-form").isVisible(), false, "Escape closes the form");
     }
     await page.locator("#plan-add").click();
     await page.locator("#plan-presets").selectOption("0");

@@ -1649,9 +1649,6 @@
   width: 90px;
   margin: 0;
 }
-.plan-start {
-  display: none; /* phones only: see the max-width rule below */
-}
 .plan-start h2,
 .plan-start p {
   margin: 0;
@@ -2047,6 +2044,34 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Short blocks have no room for the time line, but the cost is never left to colour alone. */
+.cal-cost-badge {
+  display: none;
+  position: absolute;
+  top: 3px;
+  right: 30px;
+  font-size: 0.68rem;
+  line-height: 1.2;
+  pointer-events: none;
+}
+.cal-block.is-short .cal-cost-badge {
+  display: block;
+}
+.cal-block.is-short .cal-title {
+  padding-right: 52px;
+}
+.cal-chip-cost {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+@media (pointer: coarse) {
+  .cal-cost-badge {
+    right: 44px;
+  }
+  .cal-block.is-short .cal-title {
+    padding-right: 66px;
+  }
+}
 .cal-meta {
   overflow: hidden;
   color: var(--fg);
@@ -2118,6 +2143,10 @@
   .cal-resize {
     right: 40px;
     height: 24px;
+    touch-action: auto; /* a swipe that starts on an edge still scrolls; only press-and-hold resizes */
+  }
+  .cal-resize::after {
+    opacity: 0.45; /* so the edge looks like something you can hold */
   }
   .cal-resize[data-edge="top"] {
     top: -10px;

@@ -16,7 +16,7 @@ import {
 import { createTimeGrid } from "./calendar.js";
 import { forecast, planId } from "./planner-model.js";
 import { energyWords, energyAmount, energyCopy, themeOf, SPOON_PATH } from "./energy-theme.js";
-import { $, html, setHTML, uid, fmtLongDay, signed, confirmDialog } from "./util.js";
+import { $, html, setHTML, uid, fmtLongDay, signed, confirmDialog, sheetMode } from "./util.js";
 import {
   DAY,
   NEW_DUR,
@@ -430,6 +430,7 @@ export function init(ctx) {
   let returnTo = null;
   function fromTimeline(open) {
     const y = window.scrollY;
+    sheet.on(); // before the form opens, so focusing its first field cannot scroll the page away
     open();
     returnTo = y;
   }
@@ -512,7 +513,7 @@ export function init(ctx) {
     }
     const coarse = matchMedia("(pointer: coarse)").matches;
     $("today-timeline-help").textContent = coarse
-      ? "What you have logged is solid; what is still planned is dashed. Tap an activity, then a time. Use the handle on a block to move it, and drag its bottom edge to change how long it took: the points follow."
+      ? "What you have logged is solid; what is still planned is dashed. Tap an activity, then a time. Use the handle on a block to move it; to change how long it took, press and hold its bottom edge, then drag: the points follow."
       : "What you have logged is solid; what is still planned is dashed. Drag an activity onto the timeline, or click one and then a time. Drag a block to move it, or its edge to change how long it took: the points follow.";
     setStable(
       palette,
@@ -576,6 +577,10 @@ export function init(ctx) {
     () => ($("entry-group-row").hidden = !$("entry-save-choice").checked),
   );
   const lengthPoints = followLength(ctx, $("entry-dur"), $("entry-cost"), $("entry-length-hint"));
+  const sheet = sheetMode(entryForm, {
+    onCancel: () => $("entry-cancel").click(),
+    labelledBy: "entry-heading",
+  });
   function edit(entry = null) {
     editing = entry;
     editingDate = key();
@@ -695,7 +700,7 @@ export function init(ctx) {
     entryForm.hidden = true;
     backToTimeline();
     ctx.toast(
-      previous ? "Activity correction queued." : "Activity queued.",
+      previous ? `Updated ${changes.a}.` : `Logged ${changes.a}.`,
       previous
         ? {
             label: "Undo correction",

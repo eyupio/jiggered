@@ -1,4 +1,4 @@
-import { $, html, setHTML, uid, fmtDay, signed, confirmDialog } from "./util.js";
+import { $, html, setHTML, uid, fmtDay, signed, confirmDialog, sheetMode } from "./util.js";
 import { addDays, dayId, hhmm } from "./model.js";
 import {
   DAY,
@@ -310,10 +310,17 @@ export function init(ctx) {
   const model = () => forecast(ctx.store.all(), date, ctx.settings());
   const lengthPoints = followLength(ctx, $("plan-dur"), $("plan-cost"), $("plan-length-hint"));
   const days = () => Array.from({ length: span }, (_, i) => addDays(ctx.today(), i));
-  function openForm(entry = null, complete = false) {
+  // Opened from the timeline, the form floats over it as a sheet; from the buttons and the list it stays where it is.
+  const sheet = sheetMode(form, {
+    onCancel: () => $("plan-cancel").click(),
+    labelledBy: "plan-form-title",
+  });
+  function openForm(entry = null, complete = false, { floating = false } = {}) {
     if (!writable(ctx)) return;
     editing = entry;
     completing = complete;
+    if (floating) sheet.on();
+    else sheet.off();
     form.hidden = false;
     $("plan-form-title").textContent = complete
       ? "Log what actually happened"
@@ -384,7 +391,7 @@ export function init(ctx) {
     closeForm();
   });
   $("plan-add").addEventListener("click", () => openForm());
-  $("plan-start-add").addEventListener("click", () => openForm());
+  $("plan-start-add").addEventListener("click", () => openForm(null, false, { floating: true }));
   $("plan-span").addEventListener("change", (e) => {
     span = Number(e.target.value);
     date = ctx.today();
@@ -409,7 +416,15 @@ export function init(ctx) {
     }
     // A number typed by hand replaces the kind-of-day choice that produced the old one.
     const typed = f.plan.status || f.plan.poorSleep ? { status: null, poorSleep: false } : {};
-    dispatch(ctx, date, "patch", { date, allowance: n, ...typed }, planFields(f.plan));
+    // Choosing a kind of day and typing a number are both "set it to this": the last one wins, so a quick run of
+    // changes cannot be refused as a conflict with the one just before it.
+    dispatch(
+      ctx,
+      date,
+      "patch",
+      { date, allowance: n, ...typed },
+      Object.keys(typed).length ? undefined : planFields(f.plan),
+    );
   });
   // Green, amber, red and poor sleep take the same amounts off the budget as a check-in does, so a planned
   // day starts from what that kind of day will really have.
@@ -421,7 +436,7 @@ export function init(ctx) {
         (status === "amber" ? S.amberPenalty : status === "red" ? S.redPenalty : 0) +
         (poorSleep ? S.sleepPenalty : 0),
       allowance = Math.min(30, Math.max(1, S.budget - took));
-    dispatch(ctx, date, "patch", { date, allowance, status, poorSleep }, planFields(f.plan));
+    dispatch(ctx, date, "patch", { date, allowance, status, poorSleep }, undefined);
   }
   $("plan-daytype").addEventListener("click", (e) => {
     const b = e.target.closest("[data-daytype]");
@@ -507,8 +522,8 @@ export function init(ctx) {
     const wasCompleting = completing;
     closeForm();
     render();
-    $("plan-add").focus();
-    ctx.toast(wasCompleting ? "Activity queued." : "Plan update queued.");
+    $("plan-add").focus({ preventScroll: true });
+    ctx.toast(wasCompleting ? "Logged." : "Plan saved.");
   });
   root.addEventListener("click", (e) => {
     const day = e.target.closest("[data-plan-day]");
@@ -577,14 +592,14 @@ export function init(ctx) {
       date = d;
       closeForm();
       render();
-      openForm(row);
+      openForm(row, false, { floating: true });
     },
     onCreate({ date: d, start }) {
       if (placing !== null) return place(placing, d, start);
       date = d;
       closeForm();
       render();
-      openForm();
+      openForm(null, false, { floating: true });
       $("plan-time").value = fromMinutes(start);
       $("plan-dur").value = String(Math.min(NEW_DUR, DAY - start));
     },
@@ -625,7 +640,7 @@ export function init(ctx) {
         date = d;
         closeForm();
         render();
-        openForm(row);
+        openForm(row, false, { floating: true });
       },
       duplicate: () => duplicateBlock(d, row),
       patch: (changes, message) => patchBlock(d, row, changes, message),
@@ -855,7 +870,7 @@ export function init(ctx) {
     });
     const acts = ctx.settings().activities;
     $("plan-board-help").textContent = narrow.matches
-      ? "Tap an activity, then a time to add it. Use the handle on a block to move it, and drag its bottom edge to change how long it takes: the points follow."
+      ? "Tap an activity, then a time to add it. Use the handle on a block to move it; to change how long it takes, press and hold its bottom edge, then drag: the points follow."
       : "Drag an activity to move it, or drag its edge to change how long it takes: the points follow. Click an empty space to add one.";
     setStable(
       $("plan-palette"),
