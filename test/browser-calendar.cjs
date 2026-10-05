@@ -92,7 +92,8 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
     await page.locator("#acts .act, #acts button.act").first().waitFor();
     await page.locator("#t-" + tab).click();
     // On a phone Today's timeline starts closed, so wait for it to be drawn, not for it to be seen.
-    await page.locator(`#${tab}-board .cal-block`).first().waitFor({ state: "attached" });
+    const ready = tab === "history" ? ".matrix-cell" : `#${tab}-board .cal-block`;
+    await page.locator(ready).first().waitFor({ state: "attached" });
     return { page, context, docs, errors };
   }
   const entry = (docs, day, id) => docs["p-" + day]?.body.entries.find((e) => e.id === id);
