@@ -2567,7 +2567,7 @@ input[type="search"] {
 }
 .matrix-cell.level-3,
 .matrix-key.level-3 {
-  --tone-bg: color-mix(in srgb, var(--accent) 70%, var(--surface));
+  --tone-bg: color-mix(in srgb, var(--accent) 85%, var(--surface));
   --tone-ink: var(--bg);
 }
 .matrix-cell.level-4,
@@ -3101,6 +3101,9 @@ input[type="search"] {
     grid-row: span 2;
     position: sticky;
     top: 76px;
+    max-height: calc(100vh - 92px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 }
 

@@ -474,6 +474,13 @@ function wire(ctx) {
         msg = $("users-msg");
       const path = "/api/admin/users/" + id;
       say(msg, "");
+      if (b.dataset.act !== "two-factor-reset" && !$("admin-confirm-pw").value) {
+        // Ask for the password before any dialog, and say why nothing happened.
+        say(msg, "Type your password in “Confirm an admin change” first, then try again.", true);
+        $("admin-confirm-pw").scrollIntoView({ block: "center" });
+        $("admin-confirm-pw").focus();
+        return;
+      }
       let r;
       switch (b.dataset.act) {
         case "two-factor-reset": {
@@ -534,8 +541,9 @@ function wire(ctx) {
           break;
         }
       }
-      if (r && !r.ok) say(msg, r.error, true);
-      loadUsers();
+      const failed = r && !r.ok ? r.error : "";
+      await loadUsers(); // the refresh writes its own status line, so say the error after it
+      if (failed) say(msg, failed, true);
       loadAudit(true);
     });
   });

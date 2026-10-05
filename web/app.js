@@ -215,6 +215,8 @@ function fatal(text) {
     if (e.key === PURGE_KEY) toSignIn();
   });
   // Read-only tabs can browse and download. They never edit drafts or send writes.
+  const readOnlyMessage =
+    "This tab is read-only because another Jiggered tab is editing. Close it, then reload this one to edit here.";
   for (const type of ["click", "submit", "input", "change", "pointerdown", "keydown"])
     document.addEventListener(
       type,
@@ -228,6 +230,7 @@ function fatal(text) {
         if (target.closest?.("button,input,textarea,select,form,.drag-handle")) {
           e.preventDefault();
           e.stopImmediatePropagation();
+          if (type === "click" || type === "submit" || type === "change") toast(readOnlyMessage);
         }
       },
       true,
@@ -650,8 +653,15 @@ function fatal(text) {
       bar.append(b);
     }
     bar.hidden = false;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(hideToast, 8000);
+    // A toast with Undo stays longer, and waits while the pointer or keyboard focus is on it.
+    const wait = undo ? 12000 : 8000;
+    const arm = () => {
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(hideToast, wait);
+    };
+    bar.onpointerenter = bar.onfocusin = () => clearTimeout(toastTimer);
+    bar.onpointerleave = bar.onfocusout = arm;
+    arm();
   }
 
   // ---- the date moves on by itself, even if the app was left open overnight ----
