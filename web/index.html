@@ -906,15 +906,67 @@
           role="navigation"
           aria-label="Account sections"
         >
-          <button class="secondary small" data-account-target="profile-panel">Profile</button
-          ><button class="secondary small" data-account-target="settings-panel">
+          <button class="secondary small" data-account-target="settings-panel">
             Energy &amp; lists</button
+          ><button class="secondary small" data-account-target="profile-panel">Profile</button
           ><button class="secondary small" data-account-target="pw-panel">Password</button
           ><button class="secondary small" data-account-target="security-panel">
             Sign-in security</button
           ><button class="secondary small" data-account-target="sessions-panel">Devices</button
           ><button class="secondary small" data-account-target="data-panel">Your data</button>
         </div>
+        <div class="panel" id="settings-panel">
+          <div class="label-row">
+            <h2>Energy &amp; personal lists</h2>
+            <button class="help-link x" data-help="activities">Help with customising</button>
+          </div>
+          <form id="setform">
+            <div class="row2">
+              <label class="field"
+                >Points per day<input
+                  type="number"
+                  id="set-budget"
+                  min="1"
+                  max="30"
+                  inputmode="numeric"
+              /></label>
+              <label class="field"
+                >Poor sleep costs<input
+                  type="number"
+                  id="set-penalty"
+                  min="0"
+                  max="30"
+                  inputmode="numeric"
+              /></label>
+            </div>
+            <label class="field">Dates shown as<select id="set-locale"></select></label>
+            <fieldset>
+              <legend>Activities</legend>
+              <p class="hint">
+                Points an activity costs: −10 to 10, including zero. Negative numbers give points
+                back. Up to 200 distinct names, each up to 60 characters.
+              </p>
+              <div id="set-acts"></div>
+              <button class="secondary" type="button" id="set-addact">Add an activity</button>
+            </fieldset>
+            <label class="field"
+              >Symptoms to pick from (one per line)<textarea id="set-sym" rows="6"></textarea>
+            </label>
+            <label class="field"
+              >Possible triggers to pick from (one per line)<textarea
+                id="set-trig"
+                rows="6"
+              ></textarea>
+            </label>
+            <div class="row">
+              <button class="primary" type="submit">Save settings</button>
+              <button class="secondary" type="button" id="set-discard">Discard draft</button>
+              <button class="secondary" type="button" id="set-reset">Back to the defaults</button>
+            </div>
+            <p class="msg" id="set-msg" aria-live="polite"></p>
+          </form>
+        </div>
+
         <div class="panel" id="profile-panel">
           <div class="label-row">
             <h2>Make it yours</h2>
@@ -1073,7 +1125,7 @@
                 time.
               </p>
             </fieldset>
-            <div class="row">
+            <div class="row sticky-save">
               <button class="primary" id="profile-save" type="submit">Save profile</button
               ><button class="secondary" type="button" id="profile-discard" disabled>
                 Discard draft
@@ -1118,60 +1170,13 @@
         <div class="panel" id="sessions-panel">
           <h2>Where you're signed in</h2>
           <ul class="list" id="sessions"></ul>
-          <button class="secondary" id="revoke-others">Sign out all other devices</button>
-          <p class="msg" id="sessions-msg" aria-live="polite"></p>
-        </div>
-
-        <div class="panel" id="settings-panel">
-          <div class="label-row">
-            <h2>Energy &amp; personal lists</h2>
-            <button class="help-link x" data-help="activities">Help with customising</button>
+          <div class="row">
+            <button class="secondary" id="revoke-others">Sign out all other devices</button
+            ><button class="secondary" type="button" id="account-signout">
+              Sign out of this device
+            </button>
           </div>
-          <form id="setform">
-            <div class="row2">
-              <label class="field"
-                >Points per day<input
-                  type="number"
-                  id="set-budget"
-                  min="1"
-                  max="30"
-                  inputmode="numeric"
-              /></label>
-              <label class="field"
-                >Poor sleep costs<input
-                  type="number"
-                  id="set-penalty"
-                  min="0"
-                  max="30"
-                  inputmode="numeric"
-              /></label>
-            </div>
-            <label class="field">Dates shown as<select id="set-locale"></select></label>
-            <fieldset>
-              <legend>Activities</legend>
-              <p class="hint">
-                Points an activity costs: −10 to 10, including zero. Negative numbers give points
-                back. Up to 200 distinct names, each up to 60 characters.
-              </p>
-              <div id="set-acts"></div>
-              <button class="secondary" type="button" id="set-addact">Add an activity</button>
-            </fieldset>
-            <label class="field"
-              >Symptoms to pick from (one per line)<textarea id="set-sym" rows="6"></textarea>
-            </label>
-            <label class="field"
-              >Possible triggers to pick from (one per line)<textarea
-                id="set-trig"
-                rows="6"
-              ></textarea>
-            </label>
-            <div class="row">
-              <button class="primary" type="submit">Save settings</button>
-              <button class="secondary" type="button" id="set-discard">Discard draft</button>
-              <button class="secondary" type="button" id="set-reset">Back to the defaults</button>
-            </div>
-            <p class="msg" id="set-msg" aria-live="polite"></p>
-          </form>
+          <p class="msg" id="sessions-msg" aria-live="polite"></p>
         </div>
 
         <div class="panel" id="data-panel">

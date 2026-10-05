@@ -102,8 +102,14 @@ export function init(ctx) {
       block: "start",
       behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
     });
-    panel.querySelector("input,select,textarea,button")?.focus({ preventScroll: true });
+    // Land on the section's heading, so a screen reader reads where it is rather than the first button.
+    const heading = panel.querySelector("h2");
+    if (heading) {
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+    }
   });
+  $("account-signout")?.addEventListener("click", () => $("signout").requestSubmit());
 
   // ---- password ----
   $("pwform").addEventListener("submit", async (e) => {
