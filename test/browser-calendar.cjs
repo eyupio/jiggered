@@ -603,6 +603,21 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
     await undo(page);
     await until(() => !logged().some((e) => e.a === "Deep focus (2 hours)"), "undo removes it");
 
+    // Every block has a remove control. It asks first: Keep it changes nothing, Remove takes the activity off, Undo restores it.
+    await reveal();
+    const dialog = page.locator("dialog.confirm-dialog");
+    await block(page, "log:l1", T).locator(".cal-remove").click();
+    await dialog.waitFor();
+    assert.match(await dialog.textContent(), /Meeting or call/);
+    await dialog.locator("button.secondary").click();
+    await dialog.waitFor({ state: "detached" });
+    assert.ok(find("l1"), "keeping it leaves the activity logged");
+    await block(page, "log:l1", T).locator(".cal-remove").click();
+    await dialog.locator("button.danger").click();
+    await until(() => !find("l1"), "removed once confirmed");
+    await undo(page);
+    await until(() => find("l1"), "undo puts it back");
+
     // Stretching a block gives the points that go with the longer time, shown as it is dragged. 60 to 120 minutes: 2 to 4.
     await reveal();
     let b = await box(block(page, "log:l1", T));
