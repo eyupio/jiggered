@@ -172,6 +172,20 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
     assert.equal(await page.locator("#plan-board .cal-tray .cal-chip").isVisible(), true);
     await show(page);
 
+    // A day header keeps keyboard focus when the board repaints (a save, a refresh), as a block does: the repaint
+    // replaces the button, and focus used to fall back to the page.
+    const dayHead = page.locator("#plan-board .cal-day-head").nth(1);
+    const headDay = await dayHead.getAttribute("data-cal-day");
+    await dayHead.focus();
+    const oldHead = await dayHead.elementHandle();
+    await page.evaluate(() => window.dispatchEvent(new Event("online"))); // refreshes from the server, then repaints
+    await page.waitForFunction((el) => !el.isConnected, oldHead);
+    assert.equal(
+      await page.evaluate(() => document.activeElement?.dataset?.calDay),
+      headDay,
+      "the repainted day header has focus",
+    );
+
     // Move within a day: 14:00 -> 12:00. Undo puts it back.
     let b = await box(block(page, "p5"));
     await drag(
