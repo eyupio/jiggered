@@ -131,6 +131,11 @@ Scenarios must pass at any hour of the day. Some behaviour depends on the time (
 time today is planned, not logged), so a scenario that places things at fixed times pins the page clock with
 `context.clock.install({ time })`, as `test/browser-calendar.cjs` does, instead of relying on the wall clock.
 
+They must also pass on a busy machine. The app finishes starting after the page's load event (its scripts are
+modules, and it reads device storage first), so after `page.reload()` wait until `body` has lost `app-loading`
+before clicking or reading, as `reload()` in `test/browser.cjs` does. A click straight after a reload can otherwise
+land before the tabs are wired, or read a form before the app has restored it.
+
 Optional environment variables:
 
 - `GO_BINARY`: Go executable to use for the fixture build.

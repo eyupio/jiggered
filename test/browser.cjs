@@ -7,6 +7,12 @@ const tapActivity = async (p) => {
   if (await closed.count()) await closed.first().click();
   await p.locator("#acts button.act").first().click();
 };
+// The app finishes starting after the load event (its scripts are modules and it reads device storage first), so a click or
+// a read straight after reload() can land before the tabs are wired or a draft is restored. Wait until it says it is ready.
+const reload = async (p) => {
+  await p.reload();
+  await p.waitForFunction(() => !document.body.classList.contains("app-loading"));
+};
 // The list editors are collapsible sections that start closed; open one before using its rows.
 const openSection = async (p, prefix, key) => {
   const d = p.locator("#" + prefix + "-" + key).locator("xpath=ancestor::details[1]");
@@ -110,7 +116,7 @@ runBrowser({ name: "walkthrough", username: "auditadmin" }, async (harness) => {
   );
   await page.close();
   page = reader;
-  await page.reload();
+  await reload(page);
   await page.waitForFunction(() => document.querySelector("#sync")?.dataset.state === "saved");
   assert.equal(
     await page.locator("#tab-reload").count(),
@@ -145,7 +151,7 @@ runBrowser({ name: "walkthrough", username: "auditadmin" }, async (harness) => {
   );
   await page.locator("#setform [type=submit]").click();
   await page.locator("#set-msg").filter({ hasText: "Saved." }).waitFor();
-  await page.reload();
+  await reload(page);
   await page.locator("#t-account").click();
   await openSection(page, "set", "acts");
   assert.equal(
@@ -392,13 +398,13 @@ runBrowser({ name: "walkthrough", username: "auditadmin" }, async (harness) => {
   assert.equal(storageProbe.restored, "legacy");
   // An offline save and reload must keep the capture without claiming a server acknowledgement.
   await phone.evaluate(() => navigator.serviceWorker.ready);
-  await phone.reload();
+  await reload(phone);
   await phone.locator("#t-episode").click();
   await phone.locator("#ep-notes").fill("Offline survives reload");
   await phoneContext.setOffline(true);
   await phone.locator("#ep-save").click();
   await phone.locator("#eptoast").filter({ hasText: "queued on this device" }).waitFor();
-  await phone.reload();
+  await reload(phone);
   await phone.locator("#t-episode").click();
   assert.equal(await phone.locator("#ep-notes").inputValue(), "Offline survives reload");
   assert.ok(!(await phone.locator("#eptoast").textContent()).includes("Saved."));
@@ -422,7 +428,7 @@ runBrowser({ name: "walkthrough", username: "auditadmin" }, async (harness) => {
     "a refused change is named for what it was, not by its record id",
   );
   await phone.locator("#toastbar").filter({ hasText: "Couldn't save that" }).waitFor();
-  await phone.reload();
+  await reload(phone);
   await phone.locator("#t-episode").click();
   assert.equal(await phone.locator("#ep-notes").inputValue(), "Retained refusal");
   assert.equal(
