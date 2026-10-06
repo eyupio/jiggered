@@ -68,7 +68,9 @@ export function createTimeGrid(root, hooks) {
     const scroller = q("[data-cal-scroll]"),
       top = scroller ? scroller.scrollTop : 0,
       active = document.activeElement,
-      keep = focusKey ?? (root.contains(active) ? active.closest("[data-key]")?.dataset.key : null);
+      keep = focusKey ?? (root.contains(active) ? active.closest("[data-key]")?.dataset.key : null),
+      // A day header is focusable too (the "skip to the timeline" link lands on it): it keeps focus across a repaint.
+      keepDay = root.contains(active) ? active.closest("[data-cal-day]")?.dataset.calDay : null;
     focusKey = null;
     const days = m.days.map((d) => {
       // `slot` is the text for what was recorded; the drawn length of an entry with none is only a default.
@@ -131,7 +133,9 @@ export function createTimeGrid(root, hooks) {
       );
       scrolled = true;
     } else next.scrollTop = top;
-    const again = keep && byKey(keep);
+    const again =
+      (keep && byKey(keep)) ||
+      (keepDay && all(".cal-day-head").find((el) => el.dataset.calDay === keepDay));
     if (again) again.focus({ preventScroll: true });
   }
 
