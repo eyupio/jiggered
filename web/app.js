@@ -155,9 +155,11 @@ function fatal(text, { retry = false } = {}) {
       p.hidden = true;
     });
     $("sync").hidden = true;
-    document.querySelectorAll("header [data-help], [data-menu-go]").forEach((b) => {
-      b.hidden = true;
-    }); // nothing to open until the password is changed; the menu keeps only "Sign out"
+    document
+      .querySelectorAll("header [data-help], [data-menu-go], [data-menu-tool]")
+      .forEach((b) => {
+        b.hidden = true;
+      }); // nothing to open until the password is changed; the menu keeps only "Sign out"
     $("banner").hidden = false;
     $("banner").classList.add("welcome");
     $("banner").textContent =
@@ -485,9 +487,14 @@ function fatal(text, { retry = false } = {}) {
     (e) => {
       const menu = $("account-menu");
       if (menu.open && !e.target.closest("#account-menu summary")) menu.open = false;
-      const goto = e.target.closest("[data-menu-go]");
+      const goto = e.target.closest("[data-menu-go]"),
+        tool = e.target.closest("[data-menu-tool]");
       if (goto) {
         go(goto.dataset.menuGo);
+        return;
+      }
+      if (tool) {
+        ctx.openTool(tool.dataset.menuTool); // a shortcut: straight to the tool, not to the launcher
         return;
       }
     },

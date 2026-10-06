@@ -23,13 +23,9 @@ runBrowser({ name: "tools", portEnv: "JIGGERED_TOOLS_PORT" }, async (harness) =>
   await page.locator("#acts details.act-group").first().waitFor();
   await saved(page);
 
-  // Fretboard is the only tool, so it has no tab: it opens from the account menu, straight to an empty board.
-  assert.equal(await page.getByRole("tab", { name: "Tools" }).count(), 0, "no Tools tab");
-  const openFretboard = async () => {
-    await page.locator("#account-menu summary").click();
-    await page.locator('[data-menu-go="tools"]').click();
-  };
-  await openFretboard();
+  // The Tools tab lists Fretboard; opening it shows an empty board with its hint.
+  await page.getByRole("tab", { name: "Tools" }).click();
+  await page.locator('#tool-grid [data-tool="fretboard"]').click();
   await page.locator("#fb-canvas").waitFor();
   assert.ok(await page.locator("#fb-empty").isVisible(), "an empty board explains itself");
   assert.match(await page.locator("#tool-title").textContent(), /Fretboard/);
@@ -204,21 +200,25 @@ runBrowser({ name: "tools", portEnv: "JIGGERED_TOOLS_PORT" }, async (harness) =>
   assert.equal(await page.locator('[data-axis="right"]').textContent(), "Controlled");
   assert.match(await page.locator("#fb-summary").textContent(), /4 cards/);
 
-  // Leave and come back, and the phone layout stacks the tray under the board.
-  assert.equal(
-    await page.locator("#tool-back").isVisible(),
-    false,
-    "there is no launcher to go back to",
-  );
-  await page.locator("#t-today").click();
+  // Back to the launcher, and the phone layout stacks the tray under the board.
+  await page.locator("#tool-back").click();
+  assert.ok(await page.locator("#tool-launcher").isVisible());
   await page.setViewportSize({ width: 390, height: 900 });
-  await openFretboard();
+  await page.locator('#tool-grid [data-tool="fretboard"]').click();
   await page.locator("#fb-canvas").waitFor();
   const tray = await page.locator(".fb-tray").boundingBox();
   const board = await page.locator("#fb-canvas").boundingBox();
   assert.ok(tray.y > board.y + board.height - 1, "the tray sits under the board on a phone");
   assert.ok(board.width <= 390, "the board fits a phone");
   await harness.screenshot(page, "tools-phone.png");
+
+  // The account menu keeps a shortcut that goes straight to the board, not to the launcher.
+  await page.locator("#t-today").click();
+  await page.locator("#account-menu summary").click();
+  await page.locator('[data-menu-tool="fretboard"]').click();
+  await page.locator("#fb-canvas").waitFor();
+  assert.ok(await page.locator("#tools-panel").isVisible(), "the shortcut opens the Tools tab");
+  assert.equal(await page.locator("#tool-launcher").isVisible(), false, "and skips the launcher");
 
   assert.deepEqual(errors, [], "no page errors");
   await browser.close();

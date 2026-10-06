@@ -842,7 +842,13 @@
     padding: 6px;
     box-shadow: 0 6px 30px #203c3120;
   }
+  .app-shell #tabs {
+    gap: 4px;
+    overflow-x: auto; /* an admin's seventh tab scrolls the bar sideways instead of clipping the other labels */
+    scrollbar-width: none;
+  }
   .app-shell #tabs button {
+    flex: 1 0 auto; /* never narrower than its own label */
     padding: 8px 2px;
     min-height: 48px;
     font-size: 12px;
