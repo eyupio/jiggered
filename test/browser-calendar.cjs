@@ -53,6 +53,10 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
       serviceWorkers: "block",
       ...options,
     });
+    // What is "in the past" must not depend on when the suite runs: an activity dropped on a later time today is
+    // planned, not logged, so a run before 10:45 UTC used to fail the drop at 10:45. The page's clock starts at
+    // 20:00 on the day the seed is built around, and then runs normally.
+    await context.clock.install({ time: new Date(`${today}T20:00:00Z`) });
     await context.route("http://localhost:18759/**", async (route) => {
       const request = route.request(),
         pathname = new URL(request.url()).pathname;
@@ -522,6 +526,25 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
     assert.deepEqual([dropped.t, dropped.dur], ["10:45", 120]);
     await undo(page);
     await until(() => !logged().some((e) => e.a === "Deep focus (2 hours)"), "undo removes it");
+
+    // The same drop before that time of day has come is a plan, not a record: it spends nothing until it is finished.
+    const planned = () =>
+      docs["p-" + today].body.entries.filter((e) => e.a === "Deep focus (2 hours)");
+    await context.clock.setSystemTime(new Date(`${today}T08:00:00Z`));
+    await show(page, T);
+    from = await box(tile());
+    const early = await slot(page, today, 10 * 60 + 45, T);
+    await drag(page, { x: from.x + 30, y: from.y + 10 }, { x: early.x, y: early.y + 4 });
+    await until(() => planned().length === 1, "a drop on a later time today is planned");
+    assert.deepEqual([planned()[0].t, planned()[0].dur], ["10:45", 120]);
+    assert.ok(!logged().some((e) => e.a === "Deep focus (2 hours)"), "and nothing is logged");
+    assert.match(
+      await page.locator("#toastbar").textContent(),
+      /Planned Deep focus \(2 hours\) for 10:45/,
+    );
+    await undo(page);
+    await until(() => planned().length === 0, "undo takes the plan back");
+    await context.clock.setSystemTime(new Date(`${today}T20:00:00Z`));
 
     // Putting an activity back where it came from logs nothing, and is not mistaken for a tap.
     const count = logged().length;

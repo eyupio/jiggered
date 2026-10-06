@@ -126,6 +126,11 @@ Run one scenario with `node test/browser-today.cjs`; it compiles its own tempora
 binary. Both entry points share readiness checks, diagnostics and cleanup. The energy-theme
 and view-state scenarios use in-memory API fixtures and share browser cleanup without starting
 a server.
+
+Scenarios must pass at any hour of the day. Some behaviour depends on the time (an activity dropped onto a later
+time today is planned, not logged), so a scenario that places things at fixed times pins the page clock with
+`context.clock.install({ time })`, as `test/browser-calendar.cjs` does, instead of relying on the wall clock.
+
 Optional environment variables:
 
 - `GO_BINARY`: Go executable to use for the fixture build.
