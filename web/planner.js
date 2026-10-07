@@ -131,7 +131,7 @@ const amount = (ctx, n) => energyAmount(n, themeOf(ctx));
 // from an activity that already has a length (or a saved one whose name gives it); `set(cost, length)` says which.
 // What the number typed in a form will look like everywhere else: the sign shown on tiles, blocks and in the exports
 // is the effect on points left, so a cost of 2 appears as −2 and a recovery of 1 as +1.
-export function effectWords(ctx, c) {
+function effectWords(ctx, c) {
   if (!Number.isInteger(c)) return "";
   if (c === 0) return "Only records the activity; your balance does not change.";
   const theme = themeOf(ctx);
