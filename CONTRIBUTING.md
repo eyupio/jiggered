@@ -100,6 +100,8 @@ The initial Go build can take several minutes while compiling SQLite. Browser
 tests use disposable databases and local credentials; no S3 or external SMTP
 account is needed. CI runs these checks on pull requests before building the image.
 Do not commit build output, browser artifacts or database files.
+`test/go.mod` is deliberate: it keeps `go ./...` out of the Go files that npm packages
+in `test/node_modules` ship. Do not remove it.
 
 The browser runner compiles once, then runs all shared scenarios:
 
