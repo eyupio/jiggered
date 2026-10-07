@@ -1435,8 +1435,19 @@ export function mount(ctx, root) {
   });
 
   // The menu closes on a click or a press anywhere else, and when the page scrolls or resizes away from it.
+  // So does the selection, unless the press is on the canvas or on the bar that acts on it.
   const outside = (e) => {
     if (!menu.hidden && !menu.contains(e.target)) closeMenu();
+    if (
+      visible &&
+      !editing &&
+      !drag &&
+      !marquee &&
+      !canvas.contains(e.target) &&
+      !menu.contains(e.target) &&
+      !$("fb-actions").contains(e.target)
+    )
+      clearSelection();
   };
   document.addEventListener("pointerdown", outside, true);
   addEventListener("resize", closeMenu);
