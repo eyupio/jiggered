@@ -3,8 +3,8 @@
 > **Historical audit, not the current specification.** This report describes
 > commit `f3e34cb` on 1 Oct 2026. By 2 Oct the application includes a public
 > landing page and optional verified-email registration, so its original
-> first-run assumptions no longer describe the product. See [README.md](README.md)
-> for current behavior and [CONTRIBUTING.md](CONTRIBUTING.md) for development.
+> first-run assumptions no longer describe the product. See [README.md](../../README.md)
+> for current behavior and [CONTRIBUTING.md](../../CONTRIBUTING.md) for development.
 
 ## Disposition as of 2 Oct 2026
 
