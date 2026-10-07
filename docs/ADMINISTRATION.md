@@ -146,7 +146,7 @@ do not participate in this lock: close old Jiggered tabs when upgrading. No back
 required. Independent devices still merge activity additions and disjoint episode/settings edits. Activities in
 settings have stable row ids so editing one row preserves changes to another (and name/points merge separately).
 Same-field or incompatible reorder edits appear in Recovery with **Keep server copy** and **Use my change**.
-A deleted record wins over a queued edit; restoring the retained copy requires the explicit **Restore my record**
+A deleted record wins over a queued edit; restoring the retained copy requires the explicit **Bring back my record**
 action. These choices do not alter other users' records. Exported backups and recovery files are private health data.
 
 ## People and the admin
