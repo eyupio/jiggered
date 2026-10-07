@@ -1,9 +1,9 @@
 Directory,Tier,URL,Category,DR,Dofollow,Submission Date,Status,Live URL,Backlink Verified,Positioning Variant Used,Tags Used,Account Email,Notes
 AlternativeTo,2,https://alternativeto.net,SaaS,79,No,,Ready: needs screenshots, then approval,,,B,,,Alternative to Bearable and Visible
 SaaSHub,2,https://www.saashub.com,SaaS,77,Yes,2026-10-07,Submitted: free tier; awaiting approval (up to 32 days),https://www.saashub.com/jiggered,,B,"Health & Wellness; Journal",support@jiggered.io,"Competitor: Bearable App only (SaaSHub's 'Visible' is Verizon; no listing for the pacing app). No extra alternatives selected. Verification via a jiggered.io email is still to do"
-SourceForge,2,https://sourceforge.net,SaaS,92,Yes,,Ready: repo is public; needs approval,,,C,,,Open-source project page
+SourceForge,2,https://sourceforge.net/create/,SaaS,92,Yes,,Blocked: needs a SourceForge account (sign-up or GitHub OAuth) done by the owner,,,C,,,Create the project or Import from GitHub; description copy C in directory-submissions.md
 selfh.st,Self-hosted,https://selfh.st/submit/,Self-hosted,,,2026-10-07,Submitted: Self-Host Weekly Project Launch; awaiting editorial review,,,C,,,"Directory (selfh.st/apps) does not take newly launched projects, so used the newsletter Project Launch form. Link was the GitHub repo. AI-assisted development question answered Yes (Claude Code). Not guaranteed to be featured"
-LibHunt,Self-hosted,https://www.libhunt.com,Self-hosted,,,,Ready: repo is public; needs approval,,,C,,,
+LibHunt,Self-hosted,https://www.libhunt.com/repo/submit,Self-hosted,,,2026-10-07,Live (auto-approved),https://www.libhunt.com/r/jiggered,,C,"self-hosted; health; symptom-tracker; energy-tracking; sqlite; journal",,"Entered via repo URL; Go, MIT, self-hosted ticked. Skipped optional suggest-an-alternative step. Dofollow not checked yet"
 awesome-selfhosted,Self-hosted,https://github.com/awesome-selfhosted/awesome-selfhosted,GitHub list,,,,Blocked: read contribution rules,,,C,,,PR; do not open until criteria met
 Indie Hackers,2,https://www.indiehackers.com,Community,76,Yes,,Draft,,,A,,,Product page plus one build-in-public post
 Crunchbase,8,https://www.crunchbase.com,Profile,,,,Draft,,,A,,,Feeds AI corpora
