@@ -1,0 +1,65 @@
+<h1>Terms of use</h1>
+<p class="public-lead">
+  Jiggered is a personal energy and symptom log. These terms describe what you can expect from the
+  software and what is expected of you. Whoever runs this server may add their own terms.
+</p>
+<h2>A personal log, not medical advice</h2>
+<p>
+  Jiggered records what you tell it. Points, balances, charts and exports describe your own entries.
+  They are not a medical device, a diagnosis, a treatment plan or advice about how much activity is
+  safe. Talk to a qualified clinician about your health, and call emergency services if you think
+  you need urgent help.
+</p>
+<h2>Who provides the service</h2>
+<p>
+  {{if .OperatorName}}This server is run by {{.OperatorName}}{{if .OperatorContact}}
+  ({{.OperatorContact}}){{end}}. {{else}}This server does not say who runs it, so ask before you
+  rely on it.{{end}} Jiggered is self-hosted software, and the operator is responsible for the
+  server, its backups and its availability. The software's developer,
+  <a href="https://eyup.io">EyUp.io</a>, does not run or have access to your operator's server
+  unless it is also the operator.
+</p>
+<h2>Your account</h2>
+<ul>
+  <li>
+    Keep your password and any recovery codes private. You are responsible for activity under your
+    account.
+  </li>
+  <li>
+    Give a working email address if you register, so you can verify it and recover your account.
+  </li>
+  <li>
+    Use the service for your own records. Do not try to read other people's records, disrupt the
+    server or get round its limits.
+  </li>
+  <li>
+    An administrator can reset your password, disable your account or delete it. See
+    <a href="/privacy">what operators can access</a>.
+  </li>
+</ul>
+<h2>Your records</h2>
+<p>
+  Your entries are yours. Export them whenever you like, as described in the
+  <a href="/docs/export-and-share">export guide</a>, and keep your own copies of anything important.
+  Deleting an account removes its records from the active database, but not copies you exported or
+  earlier operator backups. <a href="/privacy">The privacy page</a> has the details.
+</p>
+<h2>No guarantees</h2>
+<p>
+  Jiggered is provided as is. This page does not promise uptime, support response times or that
+  records will never be lost. Do not rely on it as your only copy of information you cannot replace.
+  To the extent the law allows, the operator and the developers are not liable for losses arising
+  from use of the service. Nothing here limits rights you have under the law where you live.
+</p>
+<h2>The software licence</h2>
+<p>
+  The application source is released under the MIT Licence. That licence governs the code; these
+  terms govern use of this running service. See <a href="/pricing">pricing and access</a> for how to
+  run your own copy.
+</p>
+<h2>Changes and questions</h2>
+<p>
+  The operator may update these terms, and the page shows the current version. If you disagree with
+  a change, export your records and stop using the service. Contact the operator {{if
+  .OperatorContact}}at {{.OperatorContact}} {{end}}with questions about their service.
+</p>

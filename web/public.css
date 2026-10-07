@@ -138,6 +138,27 @@
 .public-example p:last-child {
   margin-bottom: 0;
 }
+.public-table-wrap {
+  overflow-x: auto;
+  margin-block: var(--space-6);
+}
+.public-table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+}
+.public-table th,
+.public-table td {
+  padding: 10px var(--space-3);
+  border: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.public-table thead th {
+  background: var(--accent-soft);
+}
 .public-next {
   max-width: 760px;
   margin-top: var(--space-12);

@@ -1,0 +1,34 @@
+<h1>A self-hosted energy and symptom tracker</h1>
+<p class="public-lead">
+  Jiggered is one Go binary with SQLite, shipped as a single container. There is no separate
+  database service, no frontend build step and no third-party analytics, so your health log stays on
+  a machine you choose.
+</p>
+<h2>What running it involves</h2>
+<ul>
+  <li>One container image on GitHub Container Registry, run with Docker Compose.</li>
+  <li>A single SQLite database, with an automatic snapshot before upgrades.</li>
+  <li>An HTTPS reverse proxy in front of it.</li>
+  <li>Several accounts, each with its own records, and an admin to manage them.</li>
+  <li>
+    Optional email for verified registration and recovery, and scheduled encrypted backups to
+    S3-compatible storage.
+  </li>
+</ul>
+<h2>What to know first</h2>
+<p>
+  Server operators can read the database and backups in plain text. This is not end-to-end
+  encryption. That is the trade you make for running it yourself: you control who that is. The
+  <a href="/privacy">privacy page</a> sets out who can see what.
+</p>
+<p>
+  The application is MIT licensed. The setup instructions, configuration tables and container tags
+  are in the
+  <a href="https://github.com/eyupio/jiggered" target="_blank" rel="noopener"
+    >repository<span class="sr-only"> (opens in a new tab)</span></a
+  >. Hosting costs and upkeep are yours, as <a href="/pricing">the pricing page</a> notes.
+</p>
+<p>
+  Not self-hosting? The <a href="/docs/offline-use">offline guide</a> and
+  <a href="/docs/export-and-share">export guide</a> cover keeping your own copies either way.
+</p>
