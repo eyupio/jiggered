@@ -1,9 +1,9 @@
 Directory,Tier,URL,Category,DR,Dofollow,Submission Date,Status,Live URL,Backlink Verified,Positioning Variant Used,Tags Used,Account Email,Notes
-AlternativeTo,2,https://alternativeto.net,SaaS,79,No,,Blocked: no public URL,,,B,,,Alternative to Bearable and Visible
-SaaSHub,2,https://www.saashub.com,SaaS,77,Yes,,Blocked: no public URL,,,B,,,Alternative to Bearable and Visible
-SourceForge,2,https://sourceforge.net,SaaS,92,Yes,,Blocked: repo public?,,,C,,,Open-source project page
-selfh.st,Self-hosted,https://selfh.st,Self-hosted,,,,Blocked: repo public?,,,C,,,Check submission method on site
-LibHunt,Self-hosted,https://www.libhunt.com,Self-hosted,,,,Blocked: repo public?,,,C,,,
+AlternativeTo,2,https://alternativeto.net,SaaS,79,No,,Ready: needs screenshots, then approval,,,B,,,Alternative to Bearable and Visible
+SaaSHub,2,https://www.saashub.com,SaaS,77,Yes,2026-10-07,Submitted: free tier; awaiting approval (up to 32 days),https://www.saashub.com/jiggered,,B,"Health & Wellness; Journal",support@jiggered.io,"Competitor: Bearable App only (SaaSHub's 'Visible' is Verizon; no listing for the pacing app). No extra alternatives selected. Verification via a jiggered.io email is still to do"
+SourceForge,2,https://sourceforge.net,SaaS,92,Yes,,Ready: repo is public; needs approval,,,C,,,Open-source project page
+selfh.st,Self-hosted,https://selfh.st,Self-hosted,,,,Ready: repo is public; needs approval,,,C,,,Check submission method on site
+LibHunt,Self-hosted,https://www.libhunt.com,Self-hosted,,,,Ready: repo is public; needs approval,,,C,,,
 awesome-selfhosted,Self-hosted,https://github.com/awesome-selfhosted/awesome-selfhosted,GitHub list,,,,Blocked: read contribution rules,,,C,,,PR; do not open until criteria met
 Indie Hackers,2,https://www.indiehackers.com,Community,76,Yes,,Draft,,,A,,,Product page plus one build-in-public post
 Crunchbase,8,https://www.crunchbase.com,Profile,,,,Draft,,,A,,,Feeds AI corpora
