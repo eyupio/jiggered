@@ -188,6 +188,7 @@ runBrowser(
     await page.locator("#svc-msg").filter({ hasText: "Enter your admin password" }).waitFor();
 
     await page.locator("#t-account").click();
+    await page.locator("#account-tab-security").click();
     await page.locator("#security-status").filter({ hasText: "Password only" }).waitFor();
     await page.locator("#security-password").fill("preview-password1");
     await page.locator("#security-start").click();
@@ -240,6 +241,7 @@ runBrowser(
     );
     await screenshot(page, "admin-mobile.png");
     await page.locator("#t-account").click();
+    await page.locator("#account-tab-security").click();
     await page.locator("#security-panel").scrollIntoViewIfNeeded();
     await screenshot(page, "account-security-mobile.png");
     assert.equal(
@@ -345,6 +347,7 @@ runBrowser(
     // Readiness-aware support actions are enabled only for protected accounts.
     await join.locator("#security-panel").waitFor({ state: "attached" });
     await join.locator("#t-account").click();
+    await join.locator("#account-tab-security").click();
     await join.locator("#security-status").filter({ hasText: "Password only" }).waitFor();
     await join.locator("#security-password").fill("replacement-password1");
     await join.locator("#security-start").click();
@@ -381,6 +384,7 @@ runBrowser(
     // codes, a wrong code is refused without changing anything, disabling with a code wipes the factor, and a
     // new recovery address only takes effect once its link is verified.
     await manage.locator("#t-account").click();
+    await manage.locator("#account-tab-security").click();
     await manage.locator("#security-status").filter({ hasText: "Two-step enabled" }).waitFor();
     await manage.locator("#security-password").fill("preview-password1");
     await manage.locator("#security-code").fill(totp(secret, 1));

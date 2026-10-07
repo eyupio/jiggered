@@ -453,6 +453,7 @@ runBrowser({ name: "view-state", startServer: false }, async (harness) => {
 
   // Photo remains a draft until saved; invalid files preserve it; both identity surfaces reload it.
   await page.locator("#t-account").click();
+  await page.locator("#account-tab-profile").click();
   const photo = await page.evaluate(() => {
     const canvas = document.createElement("canvas");
     canvas.width = 300;

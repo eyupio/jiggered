@@ -163,6 +163,7 @@ runBrowser({ name: "walkthrough", username: "auditadmin" }, async (harness) => {
     "order survives reload/IndexedDB/server",
   );
   await screenshot(page, "settings-desktop.png");
+  await page.locator("#account-tab-data").click();
   // Preview is read-only, stale confirmation rejects, and commit downloads a backup first.
   const exported = await (await context.request.get(base + "/api/export")).json();
   const restoreData = { ...exported, "e-998": { notes: "Legacy restored note" } };

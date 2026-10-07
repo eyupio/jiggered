@@ -92,6 +92,7 @@ runBrowser({ name: "energy-theme", startServer: false }, async (harness) => {
   assert.equal(await page.locator("#balance-label").textContent(), "Points left today");
   const balance = await page.locator("#left").textContent();
   await page.locator("#t-account").click();
+  await page.locator("#account-tab-profile").click();
   assert.equal(await page.locator("input[name=energyTheme][value=points]").isChecked(), true);
   // Native radio arrow keys change the preview without applying an unfinished draft.
   await page.locator("input[name=energyTheme][value=points]").focus();
@@ -194,6 +195,7 @@ runBrowser({ name: "energy-theme", startServer: false }, async (harness) => {
     "saved preference follows another device",
   );
   await second.page.locator("#t-account").click();
+  await second.page.locator("#account-tab-profile").click();
   await second.page.locator("input[name=energyTheme][value=points]").check();
   const pointsPreferenceSaved = second.page.waitForResponse(
     (response) =>
