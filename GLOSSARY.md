@@ -264,8 +264,5 @@ _Avoid_: Activity log, history
 
 ## Flagged ambiguities
 
-- The Summary offers 30, 90 and 365 days or everything (`web/model.js` `RANGES`), while History offers 7, 30, 90, 180, 365 days or all time (`web/history-model.js` `HISTORY_RANGES`). Decide whether **Period** should be one list.
-
-
 - The code and UI still say "recovery" for Held changes (`web/sync.js`, "Recovery is full", the `jiggered-device-recovery-v1` export). In this glossary **Recovery** always means a negative-cost Activity. Rename the UI and code later.
 - "Gap" is used in code for the shared-defaults difference (`defaultsGap`) and for an unaffordable plan (`forecast().gap`). Neither is a glossary term.

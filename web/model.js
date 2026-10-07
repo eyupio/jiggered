@@ -698,13 +698,6 @@ export function episodesCsv(docs, { includeNotes = true } = {}) {
 
 // ---- clinician summary ----
 
-export const RANGES = [
-  ["30", "Last 30 days"],
-  ["90", "Last 90 days"],
-  ["365", "Last year"],
-  ["all", "Everything"],
-];
-
 export function summary(docs, S, range, today) {
   // History supplies its exact dates and filters. Keep legacy preset callers on the same calculation.
   const filters = range && typeof range === "object" ? range : {};
