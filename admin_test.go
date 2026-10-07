@@ -2,8 +2,12 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -519,5 +523,116 @@ func TestBackupPasswordGuessesAreRateLimited(t *testing.T) {
 	}
 	if st := admin.do("POST", "/api/admin/backup", map[string]any{"password": adminPass}); st == 200 {
 		t.Error("the lockout should also stop the right password until the window passes")
+	}
+}
+
+func TestAdminCookieCannotCreatePersistence(t *testing.T) {
+	e := newTestServer(t)
+	stolen := e.signedInAdmin()
+	for _, path := range []string{"/api/admin/users", "/api/admin/settings"} {
+		method := "POST"
+		body := `{"username":"attackeradmin","role":"admin"}`
+		if strings.HasSuffix(path, "settings") {
+			method = "PATCH"
+			body = `{"trust_proxy":true}`
+		}
+		if status := stolen.do(method, path, body, "X-Jiggered-Password", ""); status != 403 {
+			t.Fatal(path, status)
+		}
+	}
+	if countRows(t, e, "SELECT count(*) FROM users WHERE username='attackeradmin'") != 0 {
+		t.Fatal("unauthorized account created")
+	}
+}
+
+type gateBody struct {
+	entered, release chan struct{}
+	content          io.Reader
+	first            bool
+}
+
+func (g *gateBody) Read(p []byte) (int, error) {
+	if !g.first {
+		g.first = true
+		close(g.entered)
+		<-g.release
+	}
+	return g.content.Read(p)
+}
+
+func (g *gateBody) Close() error { return nil }
+
+func TestDemotedAdminStillCreatesAdmin(t *testing.T) {
+	e := newTestServer(t)
+	old, _ := e.addUser("oldadmin", roleAdmin)
+	u, _ := e.s.userByName(t.Context(), "oldadmin")
+	req := httptest.NewRequest("POST", "/api/admin/users", nil)
+	base, _ := http.NewRequest("GET", e.ts.URL, nil)
+	for _, c := range old.hc.Jar.Cookies(base.URL) {
+		req.AddCookie(c)
+	}
+	req.Header.Set("X-Requested-With", "jiggered")
+	req.Header.Set("X-Jiggered-Password", "password-oldadmin")
+	body := &gateBody{entered: make(chan struct{}), release: make(chan struct{}), content: strings.NewReader(`{"username":"persistadmin","role":"admin"}`)}
+	req.Body = body
+	rec := httptest.NewRecorder()
+	done := make(chan struct{})
+	go func() { e.s.routes().ServeHTTP(rec, req); close(done) }()
+	<-body.entered
+	if err := e.s.setRole(t.Context(), u.ID, roleUser); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.s.revokeSessions(t.Context(), u.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	close(body.release)
+	<-done
+	if rec.Code != 403 {
+		t.Fatal(rec.Code, rec.Body.String())
+	}
+	if countRows(t, e, "SELECT count(*) FROM users WHERE username='persistadmin'") != 0 {
+		t.Fatal("demoted admin created persistent account")
+	}
+
+}
+
+func TestRevokedAdminCannotCommitAnyAccountMutation(t *testing.T) {
+	e := newTestServer(t)
+	admin := e.signedInAdmin()
+	target, _ := e.addUser("target", roleUser)
+	req := httptest.NewRequest("POST", "/api/admin/users", nil)
+	base, _ := http.NewRequest("GET", e.ts.URL, nil)
+	for _, cookie := range admin.hc.Jar.Cookies(base.URL) {
+		req.AddCookie(cookie)
+	}
+	a := e.s.lookup(req)
+	a.verified, _ = e.s.passwordHash(t.Context(), a.u.ID)
+	ctx := context.WithValue(context.WithValue(t.Context(), authKey{}, a), adminMutationKey{}, true)
+	tu, _ := e.s.userByName(t.Context(), "target")
+	if _, err := e.s.revokeSessions(t.Context(), a.u.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	cases := map[string]func() error{
+		"create":   func() error { _, err := e.s.createUser(ctx, "intruder", "invalidhash", roleAdmin, true); return err },
+		"password": func() error { return e.s.setPassword(ctx, tu.ID, "invalidhash", true, "") },
+		"role":     func() error { return e.s.setRole(ctx, tu.ID, roleAdmin) },
+		"disable":  func() error { return e.s.setDisabled(ctx, tu.ID, true) },
+		"delete":   func() error { return e.s.deleteUser(ctx, tu.ID) },
+		"revoke":   func() error { _, err := e.s.revokeSessions(ctx, tu.ID, ""); return err },
+		"settings": func() error { _, err := e.s.setSettings(ctx, map[string]string{"trust_proxy": "true"}); return err },
+	}
+	for name, fn := range cases {
+		t.Run(name, func(t *testing.T) {
+			if err := fn(); err != errStaleAuthorization {
+				t.Fatal("stale request admitted", err)
+			}
+		})
+	}
+	if target.do("GET", "/api/me", nil) != 200 {
+		t.Fatal("target session changed")
+	}
+	current, _ := e.s.userByID(t.Context(), tu.ID)
+	if current.Role != roleUser || current.Disabled || current.MustChange {
+		t.Fatal("target mutated")
 	}
 }

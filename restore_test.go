@@ -1,10 +1,14 @@
 package main
 
 import (
+	"encoding/json"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestBackupRefusesDestinationsThatWouldWriteNothing(t *testing.T) {
@@ -142,5 +146,99 @@ func TestLeftoverTempCopiesAreSweptAtStart(t *testing.T) {
 	sweepTempBackups(e.dbPath)
 	if _, err := os.Stat(tmp); err == nil {
 		t.Error("a killed backup's temporary copy was left in place")
+	}
+}
+
+func TestRestoreEndsRevokedSessions(t *testing.T) {
+	e := newTestServer(t)
+	c := e.signedInAdmin()
+	backup := filepath.Join(t.TempDir(), "backup.db")
+	if err := snapshot(e.s.db, backup); err != nil { // the cookie is valid in this copy
+		t.Fatal(err)
+	}
+	u, _ := url.Parse(c.base)
+	saved := c.hc.Jar.Cookies(u) // logout expires the cookie in the jar; keep it to replay the revoked token
+	if st := c.do("POST", "/logout", nil); st >= 400 {
+		t.Fatalf("logout = %d", st)
+	}
+	c.hc.Jar.SetCookies(u, saved)
+	if st := c.do("GET", "/api/me", nil); st != 401 {
+		t.Fatalf("revoked cookie = %d, want 401", st)
+	}
+	e.ts.Close()
+	e.s.db.Close()
+	t.Setenv("APP_DB", e.dbPath)
+	if _, _, _, err := cli(t, "", "restore", backup, "--yes"); err != nil {
+		t.Fatal(err)
+	}
+	db, err := openDB(e.dbPath, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	s, err := newServer(config{addr: "127.0.0.1:0", dbPath: e.dbPath, seeds: map[string]string{"secure_cookie": "false"}}, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(s.routes())
+	t.Cleanup(ts.Close)
+	c.base = ts.URL
+	if st := c.do("GET", "/api/me", nil); st != 401 {
+		t.Errorf("a session revoked before the restore works again afterwards: %d", st)
+	}
+}
+
+func TestRestoreRefusesDocsOnlyDatabase(t *testing.T) {
+	e := newTestServer(t)
+	e.signedInAdmin().putDoc("d-2026-10-01", `{"a":1}`)
+	bad := filepath.Join(t.TempDir(), "docs-only.db")
+	db, err := openRaw(bad)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec("CREATE TABLE docs(user_id INTEGER, id TEXT, body TEXT, rev INTEGER, size INTEGER, updated_at INTEGER)"); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	e.ts.Close()
+	e.s.db.Close()
+	t.Setenv("APP_DB", e.dbPath)
+	if _, _, _, err := cli(t, "", "restore", bad, "--yes"); err == nil {
+		t.Fatal("restore accepted a database with no users table")
+	}
+	if n := scalar(t, e.dbPath, "SELECT count(*) FROM users"); n != 1 {
+		t.Errorf("the refused restore changed the live database (%d users)", n)
+	}
+}
+
+func TestRestoreErasesAdminAudit(t *testing.T) {
+	e := newTestServer(t)
+	alice, _ := e.addUser("alice", roleUser)
+	e.s.audit(t.Context(), "admin", "password_reset", "alice", "KEEP-MARKER", "")
+	r, b := alice.req("POST", "/api/restore/preview", `{"e-1":{}}`)
+	if r.StatusCode != 200 {
+		t.Fatal(r.StatusCode)
+	}
+	var p struct {
+		Token string `json:"token"`
+	}
+	json.Unmarshal(b, &p)
+	if st := alice.do("POST", "/api/restore", `{"e-1":{}}`, "If-Match", p.Token); st != 200 {
+		t.Fatal(st)
+	}
+	var classified int
+	e.s.db.QueryRow("SELECT count(*) FROM audit_log WHERE action='restore' AND NOT " + auditSelfService).Scan(&classified)
+	if classified != 0 {
+		t.Fatal(classified)
+	}
+	// Seed repeat events locally rather than hammering the HTTP server 10,000 times.
+	tx, _ := e.s.db.Begin()
+	for i := 0; i < auditMaxRows; i++ {
+		tx.Exec("INSERT INTO audit_log(at,actor,action,target,detail,ip)VALUES(?,?,?,?,?,?)", time.Now().Unix(), "alice", "restore", "alice", "", "")
+	}
+	tx.Commit()
+	e.s.prune()
+	if countRows(t, e, "SELECT count(*) FROM audit_log WHERE detail='KEEP-MARKER'") != 1 {
+		t.Fatal("marker retained")
 	}
 }
