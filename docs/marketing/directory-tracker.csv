@@ -1,0 +1,19 @@
+Directory,Tier,URL,Category,DR,Dofollow,Submission Date,Status,Live URL,Backlink Verified,Positioning Variant Used,Tags Used,Account Email,Notes
+AlternativeTo,2,https://alternativeto.net,SaaS,79,No,,Blocked: no public URL,,,B,,,Alternative to Bearable and Visible
+SaaSHub,2,https://www.saashub.com,SaaS,77,Yes,,Blocked: no public URL,,,B,,,Alternative to Bearable and Visible
+SourceForge,2,https://sourceforge.net,SaaS,92,Yes,,Blocked: repo public?,,,C,,,Open-source project page
+selfh.st,Self-hosted,https://selfh.st,Self-hosted,,,,Blocked: repo public?,,,C,,,Check submission method on site
+LibHunt,Self-hosted,https://www.libhunt.com,Self-hosted,,,,Blocked: repo public?,,,C,,,
+awesome-selfhosted,Self-hosted,https://github.com/awesome-selfhosted/awesome-selfhosted,GitHub list,,,,Blocked: read contribution rules,,,C,,,PR; do not open until criteria met
+Indie Hackers,2,https://www.indiehackers.com,Community,76,Yes,,Draft,,,A,,,Product page plus one build-in-public post
+Crunchbase,8,https://www.crunchbase.com,Profile,,,,Draft,,,A,,,Feeds AI corpora
+LinkedIn company page,8,https://www.linkedin.com,Profile,,,,Draft,,,A,,,
+Dev.to,8,https://dev.to,Content,,Yes,,Draft,,,C,,,Sync/If-Match post; canonical to site
+Reddit r/selfhosted,10,https://www.reddit.com/r/selfhosted,Community,,No,,Draft,,,C,,,Read rules; disclose; human posts
+Reddit chronic-illness subs,10,https://www.reddit.com,Community,,No,,Draft,,,D,,,Only communities you belong to; read rules first
+Hacker News (Show HN),1,https://news.ycombinator.com/submit,Launch,91,No,,Optional week 3,,,E,,,Technical angle only
+Product Hunt,1,https://www.producthunt.com,Launch,91,Yes,,Optional,,,A,,,Needs 3-week warm-up; skip unless wanted
+Fazier,1,https://fazier.com,Launch,30,Yes,,Optional,,,A,,,Verify domain resolves
+Uneed,1,https://www.uneed.best,Launch,40,Yes,,Optional,,,A,,,Verify domain resolves
+G2,2,https://www.g2.com,Reviews,92,Yes,,Skip: no reviews,,,,,,Revisit with 20 users
+Capterra,2,https://www.capterra.com,Reviews,93,Yes,,Skip: no reviews,,,,,,Revisit with 20 users
