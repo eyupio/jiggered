@@ -314,7 +314,7 @@ func envOr(k, def string) string {
 }
 
 // Files the sign-in page and the home-screen icon need before anyone is signed in.
-var publicAssets = []string{"/manifest.webmanifest", "/icon.svg", "/style.css", "/presence.css", "/public-base.css", "/public.css", "/login.js", "/robots.txt", "/favicon-32.png", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png", "/favicon.ico"}
+var publicAssets = []string{"/manifest.webmanifest", "/icon.svg", "/tokens.css", "/style.css", "/presence.css", "/public-base.css", "/public.css", "/login.js", "/robots.txt", "/favicon-32.png", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png", "/favicon.ico"}
 
 func (s *server) routes() http.Handler {
 	static, _ := fs.Sub(webFS, "web")
@@ -506,7 +506,7 @@ func newStatic(fsys fs.FS) *static {
 // The files a page loads, and the pages that load them, are named with this build's version
 // (/v/<version>/app.js). A changed file therefore always has a new URL, so nothing between the browser and this
 // server (a CDN with a four-hour default, a browser's own rules) can run an old script against a new page.
-var versionedFiles = []string{"/style.css", "/presence.css", "/public-base.css", "/public.css", "/dashboard.css", "/tools.css", "/app.js", "/login.js", "/early-nav.js"}
+var versionedFiles = []string{"/tokens.css", "/style.css", "/presence.css", "/public-base.css", "/public.css", "/dashboard.css", "/tools.css", "/app.js", "/login.js", "/early-nav.js"}
 
 func (st *static) versionPage(page []byte) []byte {
 	for _, f := range versionedFiles {

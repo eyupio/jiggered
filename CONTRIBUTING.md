@@ -67,7 +67,7 @@ archives outside the checkout.
 | Data rules, queued operations and device storage    | `web/model.js`, `web/sync.js`, `web/device.js`                                        |
 | Today, Episode, History, Account and Admin views    | `web/today.js`, `web/episodes.js`, `web/history.js`, `web/account.js`, `web/admin.js` |
 | Shared editors, picking, help and escaped HTML      | `web/editor.js`, `web/picker.js`, `web/help.js`, `web/tooltips.js`, `web/util.js`     |
-| Shared styling and dashboard/public page styling    | `web/style.css`, `web/dashboard.css`, `web/presence.css`                              |
+| Shared styling and dashboard/public page styling    | `web/tokens.css`, `web/style.css`, `web/dashboard.css`, `web/presence.css`            |
 | Server, frontend logic and browser tests            | `*_test.go`, `test/*.test.mjs`, `test/browser*.cjs`                                   |
 | Browser lifecycle and suite runner                  | `test/support/`                                                                       |
 | Image, local container deployment and CI            | `Dockerfile`, `compose.yaml`, `.github/workflows/image.yml`                           |

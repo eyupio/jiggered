@@ -1,0 +1,57 @@
+/* Design tokens shared by the app, the sign-in page and the public pages.
+   Colour themes live in style.css (app) and presence.css (public); this file holds the scales that do not change
+   with the theme. Use a token where one fits; a one-off value is fine when it is deliberate (a hero clamp(), a
+   hairline, a component-local z-index). Media queries cannot read custom properties, so breakpoints stay literal:
+   480px (small phone), 700px (phone), 960px (desktop). */
+:root {
+  /* Type, in rem so the browser's text size applies. Nothing in the app is set below --text-xs. */
+  --text-xs: 0.75rem; /* 12px: captions, badges */
+  --text-sm: 0.875rem; /* 14px: secondary text, buttons, labels */
+  --text-base: 1rem; /* 16px: body */
+  --text-md: 1.125rem; /* 18px: lead text, small headings */
+  --text-lg: 1.25rem; /* 20px */
+  --text-xl: 1.5rem; /* 24px: page headings */
+  --text-2xl: 1.75rem; /* 28px */
+  --text-3xl: 2rem; /* 32px */
+  --text-4xl: 2.25rem; /* 36px */
+
+  --leading-tight: 1.2; /* headings and big numerals */
+  --leading-snug: 1.45; /* UI text */
+  --leading-normal: 1.6; /* paragraphs */
+  --leading-relaxed: 1.7; /* long-form reading */
+
+  /* Corner radius. 50% (circles) and 0 stay literal; so do radii under 4px, which round hairlines. */
+  --radius-xs: 4px;
+  --radius-sm: 8px; /* inputs, small buttons */
+  --radius-md: 12px; /* cards, panels */
+  --radius-lg: 16px;
+  --radius-xl: 24px; /* sheets */
+  --radius-pill: 999px;
+
+  /* Space, on a 4px grid. Off-grid values (6, 10, 14px and so on) are still literal in older rules. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Elevation. --shadow-ink is set by the colour theme (dark ink on light, black on dark). */
+  --shadow-sm: 0 2px 6px color-mix(in srgb, var(--shadow-ink, #000) 8%, transparent);
+  --shadow-md: 0 4px 12px color-mix(in srgb, var(--shadow-ink, #000) 14%, transparent);
+  --shadow-pop: 0 8px 28px color-mix(in srgb, var(--shadow-ink, #000) 22%, transparent);
+  --shadow-sheet: 0 24px 60px color-mix(in srgb, var(--shadow-ink, #000) 30%, transparent);
+
+  /* Stacking layers. Small z-index values inside one component (1 to 8) stay literal next to what they order. */
+  --z-toast: 20;
+  --z-menu: 25;
+  --z-tooltip: 30;
+  --z-skip: 50;
+  --z-overlay: 60;
+  --z-sheet: 61;
+  --z-drag: 10000;
+  --z-drag-top: 1000001;
+}
