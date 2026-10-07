@@ -20,6 +20,12 @@ tools, `npm --prefix test run check` for formatting/lint/logic tests, and
 `node test/browser-public.cjs` checks public pages with the same prebuilt fixture.
 Keep those instructions current when changing the workflow or tooling.
 
+## Domain language
+
+[GLOSSARY.md](GLOSSARY.md) is the canonical vocabulary (Day, Entry, Allowance, Held changes and so on); use
+its terms in code, UI copy and docs, and respect its `_Avoid_` lists. Decisions that are hard to reverse live in
+[docs/adr/](docs/adr/). Update the glossary when a term is settled, not afterwards.
+
 ## How it works
 
 - **Storage** (`db.go`): `users`, `docs(user_id, id, body, rev, size, updated_at)`,
