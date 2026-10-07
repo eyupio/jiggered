@@ -40,8 +40,8 @@ Keep those instructions current when changing the workflow or tooling.
   admin can't be demoted, disabled or deleted; nobody can do that to themselves
   through the admin API.
 - **Configuration lives in the database.** `APP_DB` and `APP_ADDR` locate it;
-  `APP_PUBLIC_ORIGIN` and `APP_PUBLIC_INDEXING` configure public-page metadata and
-  indexing (off by default). `APP_USERNAME`, `APP_PASSWORD(_HASH)`,
+  `APP_PUBLIC_ORIGIN` and `APP_PUBLIC_INDEXING` are optional overrides of public-page metadata and
+  indexing, which default to on once Admin's public application URL is set (`accounts.no_index` opts out). `APP_USERNAME`, `APP_PASSWORD(_HASH)`,
   `APP_SECURE_COOKIE`, `APP_TRUST_PROXY`, `APP_PROXY_HOPS` are one-time seeds,
   read only to fill in what the database lacks; the database wins after that.
   The tables in `README.md` are the reference: keep them and `.env.example` in

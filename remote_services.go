@@ -59,9 +59,11 @@ type accountSettings struct {
 	Registration bool   `json:"registration"`
 	Recovery     bool   `json:"recovery"`
 	PublicURL    string `json:"public_url"`
-	// Who runs this server, shown on the public pages so a visitor knows whose server holds their log. Both are optional.
+	// Who runs this server, shown on the public pages so a visitor knows whose server holds their log. Both are optional. No-index opts the public pages out of search.
 	OperatorName    string `json:"operator_name"`
 	OperatorContact string `json:"operator_contact"`
+	// Public pages are indexable by default once a public origin is known; this opts out. Zero value keeps older rows indexable.
+	NoIndex bool `json:"no_index"`
 }
 type rehearsalSettings struct {
 	Date    string `json:"date"`

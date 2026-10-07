@@ -43,11 +43,11 @@ func (c *config) loadPublicConfig() error {
 		c.publicOrigin = strings.TrimRight(u.String(), "/")
 	}
 	if v := os.Getenv("APP_PUBLIC_INDEXING"); v != "" {
-		var err error
-		c.publicIndex, err = strconv.ParseBool(v)
+		on, err := strconv.ParseBool(v)
 		if err != nil {
 			return fmt.Errorf("APP_PUBLIC_INDEXING must be true or false")
 		}
+		c.publicIndex, c.publicNoIdx = on, !on
 	}
 	if c.publicIndex && c.publicOrigin == "" {
 		return fmt.Errorf("APP_PUBLIC_INDEXING=true requires APP_PUBLIC_ORIGIN")
@@ -122,6 +122,28 @@ func (p *publicSite) routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /llms.txt", p.llms)
 }
 
+// publicIndexing resolves the canonical origin and whether the public pages may be indexed. The origin is the
+// deployment's APP_PUBLIC_ORIGIN, else the Admin public application URL; it is never taken from the request.
+// Indexing is on by default once an origin is known. The Admin "no index" setting turns it off, and
+// APP_PUBLIC_INDEXING, when set, overrides that setting either way.
+func (s *server) publicIndexing(cfg serviceSettings) (origin string, index bool) {
+	origin = s.cfg.publicOrigin
+	if origin == "" && cfg.Accounts.PublicURL != "" {
+		if u, err := url.Parse(cfg.Accounts.PublicURL); err == nil && u.Host != "" && u.User == nil {
+			origin = u.Scheme + "://" + u.Host
+		}
+	}
+	switch {
+	case s.cfg.publicNoIdx:
+		index = false
+	case s.cfg.publicIndex:
+		index = origin != ""
+	default:
+		index = origin != "" && !cfg.Accounts.NoIndex
+	}
+	return origin, index
+}
+
 func (p *publicSite) data(r *http.Request, page publicPage) publicData {
 	d := publicData{publicPage: page, Origin: p.s.cfg.publicOrigin, Index: p.s.cfg.publicIndex, Pages: publicPages,
 		Robots: "noindex, follow", CTA: "/login", CTALabel: "Log in", Status: "SIGNUP AVAILABILITY UNKNOWN",
@@ -140,6 +162,10 @@ func (p *publicSite) data(r *http.Request, page publicPage) publicData {
 		}
 		d.FooterGroups = append(d.FooterGroups, g)
 	}
+	settings, err := p.s.loadServices(r.Context(), false)
+	if err == nil {
+		d.Origin, d.Index = p.s.publicIndexing(settings)
+	}
 	if d.Origin != "" && page.Path != "" {
 		d.URL = d.Origin + page.Path
 		d.Image = d.Origin + "/icon-512.png"
@@ -147,7 +173,6 @@ func (p *publicSite) data(r *http.Request, page publicPage) publicData {
 	if d.Index {
 		d.Robots = "index, follow"
 	}
-	settings, err := p.s.loadServices(r.Context(), false)
 	if err == nil {
 		d.OperatorName = strings.TrimSpace(settings.Accounts.OperatorName)
 		d.OperatorContact = strings.TrimSpace(settings.Accounts.OperatorContact)
@@ -263,11 +288,11 @@ func (p *publicSite) sitemap(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *publicSite) llms(w http.ResponseWriter, r *http.Request) {
-	if !p.s.cfg.publicIndex || p.s.cfg.publicOrigin == "" {
+	d := p.data(r, publicPages[0])
+	if !d.Index || d.Origin == "" {
 		http.NotFound(w, r)
 		return
 	}
-	d := p.data(r, publicPages[0])
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	fmt.Fprintf(w, "# Jiggered\n\nJiggered is a personal energy and symptom tracker. Record daily check-ins, activity and rest points, symptom episodes, and review or export your observations. It is not a medical device.\n\nFree to use. %s\nDeveloped by EyUp.io (https://eyup.io). Application source is MIT licensed. Source and Docker setup: https://github.com/eyupio/jiggered.\n\n## Public pages\n", d.Availability)

@@ -169,8 +169,8 @@ service settings; do not commit them or enable registration by default for other
 
 Registration is closed by default. Create the first account, an admin, from the command line (see **Run it**).
 Signed-out visitors see the public landing page at `/`; `/welcome` is always the public page, including while signed in.
-The landing page and public feature/help pages include search and social metadata. Personal installations and previews
-are `noindex` by default. Sign-in, registration, APIs and personal logs remain `noindex` on every deployment.
+The landing page and public feature/help pages include search and social metadata. Installations with no public URL
+configured, and any with indexing switched off, are `noindex`. Sign-in, registration, APIs and personal logs remain `noindex` on every deployment.
 `/login` opens sign-in, and `/register` opens registration when available. The public HTML renders signup availability
 and links from the instance settings before JavaScript runs. The public pages use self-hosted assets and respect
 reduced-motion preferences.
@@ -182,26 +182,22 @@ exports, offline saving, price/access and privacy. Spoon Theory is attributed to
 her original essay; Jiggered points are personal estimates, not a fixed spoon scale. The pages are rendered by Go
 from embedded templates and work without JavaScript. Personal logs stay behind authentication.
 
-For the **official production host**, set these deployment variables and restart the app:
+Public pages are **indexable by default** as soon as a public origin is known. Set **Public application URL** in
+Admin (Registration & recovery); it is also the canonical origin. To keep a personal install or preview out of
+search, either leave that URL empty, tick **Ask search engines not to index the public pages**, or set
+`APP_PUBLIC_INDEXING=false`, which wins over the Admin setting.
 
-```dotenv
-APP_PUBLIC_ORIGIN=https://your-official-host.example
-APP_PUBLIC_INDEXING=true
-```
-
-Replace the example with the real public HTTPS origin. Do not copy these settings to previews or personal instances.
-If an existing official deployment previously relied on automatic indexing, configure both variables before upgrading:
-otherwise its public pages will become `noindex`. These are deployment controls, not database seeds. A configured
-origin without indexing enabled can be used for preview metadata. Indexing enabled without an origin fails startup.
-The origin must have no path, query, fragment or credentials; localhost HTTP is accepted for testing. Keep this origin
-consistent with the Public application URL used for account-verification email links.
+Deployment variables remain as overrides: `APP_PUBLIC_ORIGIN` replaces the Admin URL as the canonical origin, and
+`APP_PUBLIC_INDEXING=true` forces indexing on (it fails startup without an origin). The origin must have no path,
+query, fragment or credentials; localhost HTTP is accepted for testing. Keep it consistent with the Public
+application URL used for account-verification email links.
 
 `/sitemap.xml` automatically lists the nine canonical public pages and `/robots.txt` advertises it,
 without an indexing toggle or additional setup. It uses `APP_PUBLIC_ORIGIN` when provided, otherwise
 the existing Admin Public application URL, otherwise the request origin (forwarded headers are used only
 from a configured trusted proxy). Personal logs and account pages are always excluded.
 On an index-enabled production host, `/llms.txt` describes the product and links to those pages. Sitemap modification dates are omitted rather than
-invented. The llms endpoint returns 404 on non-indexable deployments; the sitemap remains available. Robots rules allow search and AI
+invented. The llms endpoint returns 404 while indexing is off; the sitemap remains available. Robots rules allow search and AI
 crawlers to read public pages and account `noindex` responses; APIs are disallowed and still require authentication.
 This is a deliberate shared crawler policy, not a separate model-training permission mechanism.
 

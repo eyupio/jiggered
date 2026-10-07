@@ -3,6 +3,7 @@
 [![Zoomies AI Context](https://github.com/eyupio/jiggered/actions/workflows/zoomies-ai-context.yml/badge.svg)](https://github.com/eyupio/jiggered/actions/workflows/zoomies-ai-context.yml)
 
 Repomix-generated context: [`.zoomies/ai-context/`](https://github.com/eyupio/jiggered/tree/zoomies-ai-context/.zoomies/ai-context). The badge shows workflow status, not context freshness or assistant connectivity. Private repository badges require GitHub access.
+
 <!-- zoomies-ai-context:end -->
 
 <p align="center">
@@ -106,13 +107,13 @@ The default image is `ghcr.io/eyupio/jiggered:latest`, built for **amd64** and *
 
 If upgrading from the former `jnnngs` image, keep the same Compose project and `jiggered-data` volume, then pull and recreate the service. The new image namespace needs a successful tagged release for `latest`; maintainers must also enable public package access for anonymous pulls.
 
-| Variable              | Default             | Purpose                                                                              |
-| --------------------- | ------------------- | ------------------------------------------------------------------------------------ |
-| `APP_DB`              | `/data/jiggered.db` | SQLite database path.                                                                |
-| `APP_ADDR`            | `:8080`             | Server listen address.                                                               |
-| `JIGGERED_TAG`        | `latest`            | Compose image tag. Use a release version to pin deployment, or `dev` to follow main. |
-| `APP_PUBLIC_ORIGIN`   | Unset               | Canonical origin for public-page metadata.                                           |
-| `APP_PUBLIC_INDEXING` | Disabled            | Opt public pages into search indexing; requires a configured public origin.          |
+| Variable              | Default             | Purpose                                                                                                           |
+| --------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `APP_DB`              | `/data/jiggered.db` | SQLite database path.                                                                                             |
+| `APP_ADDR`            | `:8080`             | Server listen address.                                                                                            |
+| `JIGGERED_TAG`        | `latest`            | Compose image tag. Use a release version to pin deployment, or `dev` to follow main.                              |
+| `APP_PUBLIC_ORIGIN`   | Unset               | Canonical origin for public pages. Falls back to the Admin public application URL.                                |
+| `APP_PUBLIC_INDEXING` | Unset               | Optional override of the Admin indexing setting: `true` forces it on (needs an origin), `false` forces `noindex`. |
 
 Account, proxy, email and backup settings are stored in the database. Legacy environment settings seed missing values once; they do not override saved settings.
 

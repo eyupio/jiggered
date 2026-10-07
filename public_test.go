@@ -362,3 +362,44 @@ func TestPublicHeaderAndFooterListEveryPageOnce(t *testing.T) {
 		}
 	}
 }
+
+func TestPublicIndexingFollowsAdminSettingAndEnvOverride(t *testing.T) {
+	e := newTestServer(t)
+	anon := e.newClient()
+	robots := func() string {
+		resp, _ := anon.req("GET", "/privacy", nil)
+		return resp.Header.Get("X-Robots-Tag")
+	}
+	if got := robots(); !strings.Contains(got, "noindex") {
+		t.Fatalf("no origin known: %q", got)
+	}
+	set := func(path, value string) {
+		t.Helper()
+		if _, err := e.s.db.Exec(`UPDATE instance_settings SET value=json_set(value,?,json(?)) WHERE key='remote_services'`, path, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	set("$.accounts.public_url", `"https://public.example"`)
+	if got := robots(); got != "index, follow" {
+		t.Fatalf("a public URL should enable indexing by default: %q", got)
+	}
+	if resp, body := anon.req("GET", "/privacy", nil); resp.StatusCode != 200 || !strings.Contains(string(body), `rel="canonical" href="https://public.example/privacy"`) {
+		t.Fatal("canonical must use the Admin public URL")
+	}
+	if anon.do("GET", "/llms.txt", nil) != 200 {
+		t.Fatal("llms.txt should follow indexing")
+	}
+	set("$.accounts.no_index", `true`)
+	if got := robots(); !strings.Contains(got, "noindex") {
+		t.Fatalf("Admin opt-out ignored: %q", got)
+	}
+	e.s.cfg.publicIndex = true
+	if got := robots(); got != "index, follow" {
+		t.Fatalf("APP_PUBLIC_INDEXING=true must override: %q", got)
+	}
+	e.s.cfg.publicIndex, e.s.cfg.publicNoIdx = false, true
+	set("$.accounts.no_index", `false`)
+	if got := robots(); !strings.Contains(got, "noindex") {
+		t.Fatalf("APP_PUBLIC_INDEXING=false must override: %q", got)
+	}
+}
