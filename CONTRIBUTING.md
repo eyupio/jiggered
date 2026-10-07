@@ -66,6 +66,11 @@ archives outside the checkout.
 | Frontend boot and tab selection                     | `web/app.js`                                                                          |
 | Data rules, queued operations and device storage    | `web/model.js`, `web/sync.js`, `web/device.js`                                        |
 | Today, Episode, History, Account and Admin views    | `web/today.js`, `web/episodes.js`, `web/history.js`, `web/account.js`, `web/admin.js` |
+| Plan, calendar and planner views                    | `web/planner.js`, `web/planner-model.js`, `web/calendar.js`, `web/calendar-model.js`  |
+| History charts and matrix                           | `web/history-charts.js`, `web/history-matrix.js`, `web/history-model.js`              |
+| Tools tab and Fretboard                             | `web/tools.js`, `web/fretboard.js`, `web/fretboard-model.js`                          |
+| Public pages, navigation and sitemap                | `public.go`, `web/public/`, `web/public.css`                                          |
+| Shared product defaults                             | `defaults.go`, `web/defaults.json`                                                    |
 | Shared editors, picking, help and escaped HTML      | `web/editor.js`, `web/picker.js`, `web/help.js`, `web/tooltips.js`, `web/util.js`     |
 | Shared styling and dashboard/public page styling    | `web/tokens.css`, `web/style.css`, `web/dashboard.css`, `web/presence.css`            |
 | Server, frontend logic and browser tests            | `*_test.go`, `test/*.test.mjs`, `test/browser*.cjs`                                   |
@@ -95,6 +100,8 @@ The initial Go build can take several minutes while compiling SQLite. Browser
 tests use disposable databases and local credentials; no S3 or external SMTP
 account is needed. CI runs these checks on pull requests before building the image.
 Do not commit build output, browser artifacts or database files.
+`test/go.mod` is deliberate: it keeps `go ./...` out of the Go files that npm packages
+in `test/node_modules` ship. Do not remove it.
 
 The browser runner compiles once, then runs all shared scenarios:
 
