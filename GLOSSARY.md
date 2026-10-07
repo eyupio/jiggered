@@ -142,6 +142,10 @@ _Avoid_: Rejected, failed
 Refused changes kept on the device until you resolve them, by keeping the server copy or using your change.
 _Avoid_: Recovery (reserved for energy), outbox
 
+**Device copy**:
+A file you can download of everything on this device that is not yet saved: Queued changes, Held changes and Drafts. It is for support or manual recovery and cannot be used with Restore.
+_Avoid_: Recovery file, recovery copy
+
 **Draft**:
 Unsent text in a form, kept for seven days.
 _Avoid_: Autosave
@@ -264,5 +268,5 @@ _Avoid_: Activity log, history
 
 ## Flagged ambiguities
 
-- The code and UI still say "recovery" for Held changes (`web/sync.js`, "Recovery is full", the `jiggered-device-recovery-v1` export). In this glossary **Recovery** always means a negative-cost Activity. Rename the UI and code later.
+- The file format `jiggered-device-recovery-v1`, the download name `jiggered-device-recovery.json`, `recoveryExport()` and the `#recovery` element ids still use "recovery". They are stored or tested names, left alone on purpose; the words people read now say Held changes and Device copy.
 - "Gap" is used in code for the shared-defaults difference (`defaultsGap`) and for an unaffordable plan (`forecast().gap`). Neither is a glossary term.

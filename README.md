@@ -145,9 +145,9 @@ Personal records are separated by account. Admin screens expose account and oper
 - Anyone with access to the server or database volume can read the unencrypted database.
 - Offline access stores sensitive, unencrypted copies on the device. Use a device you trust; an offline device learns about remote session revocation only after reconnecting.
 
-Offline changes remain queued until the server acknowledges them. Recovery tools retain refused changes for review, but browser eviction or device failure can still remove local copies. Resolve queued changes before exporting or restoring account data.
+Offline changes remain queued until the server acknowledges them. Held changes retain refused changes for review, but browser eviction or device failure can still remove local copies. Resolve queued changes before exporting or restoring account data.
 
-Optional local usage measurement is disabled by default and requires separate user consent. It uses bounded task counts, excludes health content and has no external analytics service. See the [detailed privacy and recovery guidance](docs/ADMINISTRATION.md).
+Optional local usage measurement is disabled by default and requires separate user consent. It uses bounded task counts, excludes health content and has no external analytics service. See the [detailed privacy and held-changes guidance](docs/ADMINISTRATION.md).
 
 ## Help and contributions
 

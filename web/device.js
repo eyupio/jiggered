@@ -317,7 +317,7 @@ export function createDrafts({
       if (!storage) {
         onError(
           new Error(
-            "Draft is only in memory. Keep this page open and download recovery before leaving.",
+            "Draft is only in memory. Keep this page open and download the device copy before leaving.",
           ),
         );
         return;

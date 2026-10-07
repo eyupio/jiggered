@@ -757,7 +757,7 @@ export function init(ctx) {
         const failed = ctx.store.failures().some((f) => f.id === "settings");
         ctx.toast(
           failed
-            ? "Activity captured separately. Your reusable choice needs attention in Recovery."
+            ? "Activity captured separately. Your reusable choice needs attention in Held changes."
             : "Reusable activity choice queued separately; check saving status.",
         );
       });

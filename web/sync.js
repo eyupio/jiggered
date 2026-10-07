@@ -367,7 +367,7 @@ export function createStore({
   // Refused content stays recoverable; successful unrelated saves never clear it.
   function dropBatch(id, lastN, message, extra = {}) {
     if (failed.length >= 100)
-      throw new Error("Recovery is full. Download or resolve older refused changes first.");
+      throw new Error("Held changes are full. Download the device copy or resolve older refused changes first.");
     const ops = pending.filter((o) => o.id === id && o.n <= lastN);
     failed.push({
       key: `${Date.now()}-${lastN}`,
@@ -468,7 +468,7 @@ export function createStore({
             if (++conflicts > MAX_CONFLICTS) throw new Error("kept conflicting");
             adopt(id, res.rev, res.body); // someone saved first: take their copy and replay our changes on it
             // A delete is not replayed over a copy that changed since this device last saw it: the person chooses
-            // in Recovery ("Keep server copy", or "Use my change" to delete it anyway).
+            // in Held changes ("Keep server copy", or "Use my change" to delete it anyway).
             if (body === undefined && res.body != null) {
               dropBatch(
                 id,
@@ -488,7 +488,7 @@ export function createStore({
           if ([408, 425, 429].includes(res.status)) throw new Error("HTTP " + res.status); // transient: keep the change and retry
           if (res.status >= 400 && res.status < 500) {
             if (failed.length >= 100)
-              throw new Error("Recovery is full. Download or resolve older refused changes first.");
+              throw new Error("Held changes are full. Download the device copy or resolve older refused changes first.");
             dropBatch(id, lastN, res.message);
             break;
           }
@@ -501,7 +501,7 @@ export function createStore({
       if (!(e instanceof Stop)) {
         offline = true;
         serverStatus = Number(/^HTTP (\d+)$/.exec(e.message || "")?.[1]) || 0;
-        if (e.message?.startsWith("Recovery is full")) error = e.message;
+        if (e.message?.startsWith("Held changes are full")) error = e.message;
         // Back off only when a scheduled retry itself fails; extra attempts from the person tapping don't count.
         retryTimer = setTimer(
           () => {
@@ -526,7 +526,7 @@ export function createStore({
       await drain();
       if (pending.length || failed.length)
         throw new Error(
-          "Resolve queued or refused changes before restoring. Download recovery to keep them.",
+          "Resolve queued or refused changes before restoring. Download the device copy to keep them.",
         );
       restoring = true;
       notify();
