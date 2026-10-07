@@ -87,7 +87,7 @@ func TestOptimisticConcurrency(t *testing.T) {
 	if st, out := c.putDoc("d-2026-10-02", `{}`, "If-Match", `"0"`); st != 200 || out["rev"] != float64(1) {
 		t.Errorf("If-Match 0 on a new doc = %d %v", st, out)
 	}
-	st, out = c.putDoc("d-2026-10-02", `{}`, "If-Match", `"0"`)
+	st, _ = c.putDoc("d-2026-10-02", `{}`, "If-Match", `"0"`)
 	if st != 409 {
 		t.Errorf("If-Match 0 on an existing doc = %d, want 409", st)
 	}
