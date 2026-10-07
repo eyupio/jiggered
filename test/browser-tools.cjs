@@ -188,6 +188,18 @@ runBrowser({ name: "tools", portEnv: "JIGGERED_TOOLS_PORT" }, async (harness) =>
   await page.keyboard.press("Escape");
   assert.equal(await page.locator(".fb-item.is-selected").count(), 0);
 
+  // A press outside the canvas drops the selection; a press on the actions bar keeps it.
+  await page.locator(".fb-item").first().click();
+  assert.equal(await page.locator(".fb-item.is-selected").count(), 1);
+  await page.locator("#fb-actions").click({ position: { x: 3, y: 3 } });
+  assert.equal(await page.locator(".fb-item.is-selected").count(), 1, "the actions bar keeps it");
+  await page.locator(".fb-legend-label").click();
+  assert.equal(
+    await page.locator(".fb-item.is-selected").count(),
+    0,
+    "outside the canvas clears it",
+  );
+
   // Renaming an axis end is an inline edit; the legend hides a status without deleting anything.
   await page.locator('[data-axis="right"]').click();
   await page.locator(".fb-axis-input").fill("Controlled");
