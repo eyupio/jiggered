@@ -51,7 +51,8 @@ const (
 // admin, and the proxy and cookie settings; they are read once to fill in what the database doesn't have yet.
 type config struct {
 	publicOrigin string // trusted canonical origin for public pages; never inferred from Host
-	publicIndex  bool   // explicit opt-in for the official production site
+	publicIndex  bool   // APP_PUBLIC_INDEXING=true: force indexing on
+	publicNoIdx  bool   // APP_PUBLIC_INDEXING=false: force indexing off, whatever the Admin setting says
 	addr         string
 	dbPath       string
 	username     string            // seed: the first admin, while there are no accounts
