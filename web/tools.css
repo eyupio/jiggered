@@ -82,6 +82,7 @@
   max-width: 60ch;
 }
 .tool-body {
+  margin-top: 12px; /* the header and the tool are separate cards; keep them apart */
   padding: 12px;
 }
 @media (min-width: 700px) {
