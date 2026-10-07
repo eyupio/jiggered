@@ -567,3 +567,30 @@ func TestConsumeFactorRequiredWhenNoFactorExists(t *testing.T) {
 		t.Fatalf("optional factor without enrolment should pass: %v", err)
 	}
 }
+
+func TestCancelFactorSetupPreservesEnabledFactor(t *testing.T) {
+	e := newTestServer(t)
+	c := e.newClient()
+	c.login(adminName, adminPass)
+	if st := c.do("POST", "/api/me/security/two-factor", map[string]string{"action": "setup", "password": adminPass}); st != 200 {
+		t.Fatal(st)
+	}
+	if st := c.do("POST", "/api/me/security/two-factor", map[string]string{"action": "cancel", "password": adminPass}); st != 200 {
+		t.Fatal(st)
+	}
+	var abandoned string
+	e.s.db.QueryRow(`SELECT pending_secret FROM account_security WHERE user_id=1`).Scan(&abandoned)
+	if abandoned != "" {
+		t.Fatal("cancel retained pending setup")
+	}
+	enableTestFactor(t, e, c, adminPass)
+	if st := c.do("POST", "/api/me/security/two-factor", map[string]string{"action": "cancel", "password": adminPass}); st != 200 {
+		t.Fatal(st)
+	}
+	var enabled int
+	var pending string
+	e.s.db.QueryRow(`SELECT enabled,pending_secret FROM account_security WHERE user_id=1`).Scan(&enabled, &pending)
+	if enabled != 1 || pending != "" {
+		t.Fatal("cancel changed protection or kept pending secret", enabled, pending)
+	}
+}

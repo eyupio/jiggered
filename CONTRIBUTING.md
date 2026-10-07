@@ -63,6 +63,7 @@ archives outside the checkout.
 | Instance settings and shared defaults               | `settings.go`, `defaults.go`                                                          |
 | CLI and local backup archives                       | `cli.go`, `backup.go`, `backup_archive.go`                                            |
 | Remote backups and email                            | `remote_services.go`, `remote_s3.go`, `notifications.go`, `branded_email.go`          |
+| Queued account email and local usage measurement    | `account_mail.go`, `usage.go`                                                         |
 | Frontend boot and tab selection                     | `web/app.js`                                                                          |
 | Data rules, queued operations and device storage    | `web/model.js`, `web/sync.js`, `web/device.js`                                        |
 | Today, Episode, History, Account and Admin views    | `web/today.js`, `web/episodes.js`, `web/history.js`, `web/account.js`, `web/admin.js` |
@@ -77,6 +78,8 @@ archives outside the checkout.
 | Browser lifecycle and suite runner                  | `test/support/`                                                                       |
 | Image, local container deployment and CI            | `Dockerfile`, `compose.yaml`, `.github/workflows/image.yml`                           |
 
+Name a test file after the code it covers (`docs.go` is tested in `docs_test.go`) and add to that file; do not
+name files after a review, a bug or a change.
 Keep Go files in the current application package unless a reusable boundary
 justifies a package (as the QR encoder does). Put view-specific frontend code
 beside its existing view. Do not add a second implementation of shared rules.

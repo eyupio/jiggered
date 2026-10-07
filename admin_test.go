@@ -636,3 +636,28 @@ func TestRevokedAdminCannotCommitAnyAccountMutation(t *testing.T) {
 		t.Fatal("target mutated")
 	}
 }
+
+func TestAdminAuditFiltersStayWithinCursor(t *testing.T) {
+	e := newTestServer(t)
+	c := e.newClient()
+	c.login(adminName, adminPass)
+	if _, err := e.s.db.Exec(`DELETE FROM audit_log; INSERT INTO audit_log(id,at,actor,action,target,detail,ip) VALUES(1,1790899200,'alex','password_changed','alex','',''),(2,1790899300,'alex','remote_backup_failed','','',''),(3,1790899400,'sam','password_reset','alex','','')`); err != nil {
+		t.Fatal(err)
+	}
+	var rows []auditOut
+	c.getJSON("/api/admin/audit?person=alex&family=account&from=2026-10-02&to=2026-10-02&limit=1", &rows)
+	if len(rows) != 1 || rows[0].Actor != "sam" {
+		t.Fatal("target filter missed newest event", rows)
+	}
+	// The middle backup event must not appear in the account family.
+	c.getJSON("/api/admin/audit?person=alex&family=account&from=2026-10-02&to=2026-10-02&before=3", &rows)
+	if len(rows) != 1 || rows[0].Action != "password_changed" {
+		t.Fatal("cursor dropped filters", rows)
+	}
+	if st := c.do("GET", "/api/admin/audit?family=invalid", nil); st != 400 {
+		t.Fatal("unknown family accepted", st)
+	}
+	if st := c.do("GET", "/api/admin/audit?from=2026-10-03&to=2026-10-02", nil); st != 400 {
+		t.Fatal("backwards date range accepted", st)
+	}
+}
