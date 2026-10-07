@@ -96,6 +96,9 @@ go test -race ./...
 npm --prefix test run browser
 ```
 
+`make check` runs the Go and frontend checks above; `make browser` runs the browser scenarios.
+`.node-version` names the Node major CI uses.
+
 The initial Go build can take several minutes while compiling SQLite. Browser
 tests use disposable databases and local credentials; no S3 or external SMTP
 account is needed. CI runs these checks on pull requests before building the image.
