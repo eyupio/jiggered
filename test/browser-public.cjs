@@ -45,7 +45,7 @@ process.on("exit", () => server.kill());
     const routes = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(
       (match) => new URL(match[1]).pathname,
     );
-    assert.equal(routes.length, 9);
+    assert.equal(routes.length, 16);
     browser = await chromium.launch({
       headless: true,
       ...(process.env.JIGGERED_BROWSER_PATH
