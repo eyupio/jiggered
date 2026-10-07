@@ -1,9 +1,15 @@
 # Public release checklist
 
-Repository files cannot enable GitHub account settings. Complete these steps
-before making the repository public, and verify them again after the switch.
+Repository files cannot enable GitHub account settings, so this is a list to check
+in GitHub itself.
 
-1. Review and merge the release preparation PR, including the MIT licence.
+Status on 2026-10-07: the repository is public, it carries the MIT licence, and the
+`v1.0` release exists (item 1 and the release part of item 7 are done). Items 2, 3
+and 6 are settings that cannot be read from the repository; confirm each one and
+record the result here. For item 5, the screenshots are still reachable in the
+public history.
+
+1. Review and merge the release preparation PR, including the MIT licence. (Done.)
 2. Require successful `test` and `browser` checks on the default branch.
    The existing **Protect main** ruleset is disabled and has no target refs;
    activation alone is insufficient. Target the default branch, require a pull

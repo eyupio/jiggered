@@ -5,8 +5,8 @@ export const DAY = 1440; // minutes in a day; a block may not run past midnight
 export const STEP = 15; // dragging snaps to a quarter of an hour
 const MIN_DUR = 5; // the shortest length stored; the server enforces the same range
 const DEFAULT_DUR = 30; // how long a timed activity with no recorded length is drawn
-export const NEW_DUR = 60;
-const MAX_COST = 10; // a cost is -10..10 points, as everywhere else; the same bound as LIMITS.cost // the length given to an activity dropped onto the calendar
+export const NEW_DUR = 60; // the length given to an activity dropped onto the calendar
+const MAX_COST = 10; // a cost is -10..10 points, as everywhere else; the same bound as LIMITS.cost
 
 const pad = (n) => String(n).padStart(2, "0");
 

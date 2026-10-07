@@ -12,7 +12,6 @@ stable deployment.
 Use [GitHub private vulnerability reporting](https://github.com/eyupio/jiggered/security/advisories/new).
 If GitHub does not offer **Report a vulnerability**, private reporting has not
 been enabled yet: do not post the details in a public issue or pull request.
-The maintainer must enable private reporting before the public launch.
 
 Include the affected version, deployment settings, impact, and minimal steps
 to reproduce using synthetic accounts and records. Never attach real health
