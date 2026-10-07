@@ -31,6 +31,13 @@ var publicPages = []publicPage{
 	{"/docs/export-and-share", "public/export.html", "Export Your Symptom Diary to CSV or PDF | Jiggered", "Export days and symptom episodes as CSV, or preview a printable summary and save it as PDF. Choose what personal information you share.", "Export & share", ""},
 	{"/docs/offline-use", "public/offline.html", "Use Jiggered Offline: Setup, Saving & Sync", "Set up Jiggered online, then record on a trusted device offline. Understand queued changes, server acknowledgement, storage limits and recovery.", "Offline use", ""},
 	{"/privacy", "public/privacy.html", "Jiggered Privacy: Your Logs, Hosting & Data Control", "Understand account isolation, server operator access, device copies, backups, exports and account deletion before using Jiggered for personal records.", "Privacy", "Privacy"},
+	{"/terms", "public/terms.html", "Jiggered Terms of Use", "What to expect from Jiggered and what it expects of you: a personal log, not medical advice, run by a server operator, with no uptime guarantee.", "Terms", ""},
+	{"/alternatives/bearable", "public/alt-bearable.html", "Bearable Alternative: Free, Self-Hosted | Jiggered", "Compare Jiggered with Bearable on cost, data location, source code and energy planning, and see when Bearable is the better choice.", "Jiggered vs Bearable", ""},
+	{"/alternatives/visible", "public/alt-visible.html", "Visible App Alternative Without a Wearable | Jiggered", "Compare Jiggered with Visible: a hand-entered personal energy budget against a heart-rate band, and when each one suits you.", "Jiggered vs Visible", ""},
+	{"/alternatives/spreadsheet-or-paper-diary", "public/alt-spreadsheet.html", "Symptom Diary: Jiggered vs Spreadsheet or Paper", "When a paper diary or spreadsheet is enough, and when a tracker that does the energy budget, history views and export helps.", "Jiggered vs paper or spreadsheet", ""},
+	{"/for/pacing", "public/for-pacing.html", "Energy Tracking for Pacing With Chronic Illness", "Set a personal daily energy budget, plan ahead and record rest. How Jiggered supports pacing without telling you what to do.", "Pacing", ""},
+	{"/for/self-hosters", "public/for-self-hosters.html", "Self-Hosted Energy & Symptom Tracker | Jiggered", "Run Jiggered as one Go binary with SQLite in a single container. No analytics, MIT licensed, with several accounts and an admin.", "Self-hosting", ""},
+	{"/for/appointments", "public/for-appointments.html", "Symptom Diary for Medical Appointments | Jiggered", "Keep a record of symptom episodes and energy, then share a CSV or printable summary of only what you choose.", "Appointments", ""},
 }
 
 func (c *config) loadPublicConfig() error {
@@ -88,7 +95,9 @@ var publicFooterGroups = []struct {
 }{
 	{"Product", []string{"/features/energy-tracking", "/features/symptom-tracking", "/pricing"}},
 	{"Guides", []string{"/docs/getting-started", "/guides/spoon-theory", "/docs/export-and-share", "/docs/offline-use"}},
-	{"Trust", []string{"/privacy"}},
+	{"Use cases", []string{"/for/pacing", "/for/appointments", "/for/self-hosters"}},
+	{"Compare", []string{"/alternatives/bearable", "/alternatives/visible", "/alternatives/spreadsheet-or-paper-diary"}},
+	{"Trust", []string{"/privacy", "/terms"}},
 }
 
 func publicPageAt(path string) (publicPage, bool) {
@@ -303,9 +312,11 @@ func (p *publicSite) llms(w http.ResponseWriter, r *http.Request) {
 
 // publicSections are the folders in the public URLs. They are not pages, but people shorten links by hand.
 var publicSections = map[string]string{
-	"/docs":     "/docs/getting-started",
-	"/features": "/features/energy-tracking",
-	"/guides":   "/guides/spoon-theory",
+	"/docs":         "/docs/getting-started",
+	"/features":     "/features/energy-tracking",
+	"/guides":       "/guides/spoon-theory",
+	"/for":          "/for/pacing",
+	"/alternatives": "/alternatives/bearable",
 }
 
 // notFound answers a mistyped or stale address with a page that says where to go. Scripts, images and the API keep
