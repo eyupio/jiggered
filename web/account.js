@@ -48,6 +48,120 @@ export function identity(ctx) {
   profileIdentity(ctx);
 }
 
+const ACCOUNT_SECTIONS = [
+  {
+    id: "settings",
+    label: "Energy & lists",
+    hint: "Points, activities and pick-lists",
+    title: "Energy & personal lists",
+    description: "Set your daily budget and the lists you pick from.",
+    panels: ["settings-panel"],
+  },
+  {
+    id: "profile",
+    label: "Profile",
+    hint: "Name, photo and energy language",
+    title: "Make it yours",
+    description: "Private preferences that follow your account across devices.",
+    panels: ["profile-panel"],
+  },
+  {
+    id: "password",
+    label: "Password",
+    hint: "Change how you sign in",
+    title: "Change password",
+    description: "Choose a new password; your other devices are signed out.",
+    panels: ["pw-panel"],
+  },
+  {
+    id: "security",
+    label: "Sign-in security",
+    hint: "Extra protection",
+    title: "Sign-in security",
+    description: "Keep your account safe from anyone else signing in.",
+    panels: ["security-panel"],
+  },
+  {
+    id: "devices",
+    label: "Devices",
+    hint: "Where you're signed in",
+    title: "Your devices",
+    description: "See and sign out the places you're signed in.",
+    panels: ["sessions-panel"],
+  },
+  {
+    id: "data",
+    label: "Your data",
+    hint: "Export, privacy and deletion",
+    title: "Your data",
+    description: "Download a copy, read how it is kept, or delete your account.",
+    panels: ["data-panel", ".account-privacy", ".danger-zone"],
+  },
+];
+
+// The sidebar, intro and section chrome reuse the Admin workspace's classes and styles.
+function initAccountNavigation(panel, ctx) {
+  const workspace = document.createElement("div");
+  workspace.className = "admin-workspace account-workspace";
+  setHTML(
+    workspace,
+    html`<aside class="admin-sidebar" id="account-shortcuts"><p class="eyebrow">YOUR SPACE</p><h2>Account</h2>
+    <div class="admin-nav" role="tablist" aria-label="Account sections" aria-orientation="vertical">${ACCOUNT_SECTIONS.map(
+      (section, i) =>
+        html`<button type="button" role="tab" id="account-tab-${section.id}" data-account-section="${section.id}" aria-controls="account-section-${section.id}" aria-selected="false" tabindex="-1"><span class="admin-nav-number" aria-hidden="true">${String(i + 1).padStart(2, "0")}</span><span><b>${section.label}</b><small>${section.hint}</small></span><span class="admin-nav-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="m9 5 7 7-7 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>`,
+    )}</div>
+    <p class="admin-nav-note">Yours alone to change.</p></aside>
+    <div class="admin-content"><div class="admin-intro"><div><p class="eyebrow">YOUR ACCOUNT</p><h2 id="account-section-title"></h2><p id="account-section-description" class="meta"></p></div></div>
+    ${ACCOUNT_SECTIONS.map((section) => html`<section id="account-section-${section.id}" class="admin-section" role="tabpanel" aria-labelledby="account-tab-${section.id}" tabindex="0" hidden></section>`)}</div>`,
+  );
+  for (const section of ACCOUNT_SECTIONS)
+    for (const sel of section.panels)
+      workspace
+        .querySelector("#account-section-" + section.id)
+        .append(panel.querySelector(sel.startsWith(".") ? sel : "#" + sel));
+  panel.querySelector(".profile-hero").after(workspace);
+  const tabs = [...workspace.querySelectorAll("[data-account-section]")];
+  let current = "";
+  function select(id, focus = false) {
+    const section = ACCOUNT_SECTIONS.find((section) => section.id === id);
+    if (!section) return;
+    current = id;
+    tabs.forEach((tab) => {
+      const active = tab.dataset.accountSection === id;
+      tab.setAttribute("aria-selected", String(active));
+      tab.tabIndex = active ? 0 : -1;
+    });
+    for (const item of ACCOUNT_SECTIONS) $("account-section-" + item.id).hidden = item.id !== id;
+    $("account-section-title").textContent = section.title;
+    $("account-section-description").textContent = section.description;
+    if (focus) $("account-tab-" + id).focus();
+  }
+  tabs.forEach((tab) => tab.addEventListener("click", () => select(tab.dataset.accountSection)));
+  workspace.querySelector(".admin-nav").addEventListener("keydown", (event) => {
+    const index = tabs.indexOf(event.target);
+    if (index < 0) return;
+    let next;
+    if (["ArrowDown", "ArrowRight"].includes(event.key)) next = (index + 1) % tabs.length;
+    else if (["ArrowUp", "ArrowLeft"].includes(event.key))
+      next = (index + tabs.length - 1) % tabs.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = tabs.length - 1;
+    else return;
+    event.preventDefault();
+    select(tabs[next].dataset.accountSection, true);
+  });
+  const saved = ctx.ui?.get("account").section;
+  select(ACCOUNT_SECTIONS.some((section) => section.id === saved) ? saved : "settings");
+  return {
+    section: () => current,
+    // Open whichever section holds an element, so a deep link or a recovery never lands on a hidden one.
+    reveal(el) {
+      const host = el?.closest(".admin-section");
+      if (host) select(host.id.replace("account-section-", ""));
+    },
+  };
+}
+
 export function init(ctx) {
   const { me } = ctx;
   identity(ctx);
@@ -100,21 +214,7 @@ export function init(ctx) {
   const profile = initProfile(ctx);
   $("pwform").closest(".panel").insertAdjacentHTML("afterend", securityMarkup);
   const security = initSecurity(ctx);
-  $("account-shortcuts").addEventListener("click", (e) => {
-    const target = e.target.closest("[data-account-target]");
-    if (!target) return;
-    const panel = $(target.dataset.accountTarget);
-    panel.scrollIntoView({
-      block: "start",
-      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
-    });
-    // Land on the section's heading, so a screen reader reads where it is rather than the first button.
-    const heading = panel.querySelector("h2");
-    if (heading) {
-      heading.tabIndex = -1;
-      heading.focus({ preventScroll: true });
-    }
-  });
+  const nav = me.must_change_password ? null : initAccountNavigation($("account-panel"), ctx);
   $("account-signout")?.addEventListener("click", () => $("signout").requestSubmit());
 
   // ---- password ----
@@ -467,6 +567,7 @@ export function init(ctx) {
   return {
     snapshot: () => ({
       importMode: document.querySelector('input[name="import-mode"]:checked').value,
+      section: nav?.section(),
     }),
     refreshUsage: loadUsage,
     render() {
@@ -474,6 +575,7 @@ export function init(ctx) {
       profile.render();
     },
     focus: (key) => {
+      nav?.reveal($(key));
       if (key === "profile-panel") {
         $(key).scrollIntoView({ block: "start" });
         $("profile-form").elements.energyTheme[0].focus();
@@ -489,6 +591,7 @@ export function init(ctx) {
         $("set-msg"),
         "Recovered copy opened. Save it, then resolve or discard the old recovery item.",
       );
+      nav?.reveal($("set-acts"));
       editor.focus("set-acts");
       if (value.profile) profile.recover(value.profile);
     },

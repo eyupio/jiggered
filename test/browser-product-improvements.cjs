@@ -132,6 +132,7 @@ runBrowser({ name: "product-improvements", startServer: false }, async (harness)
   for (const width of [320, 375, 768, 960, 1280]) {
     const { context, page } = await open({ width, height: 1000 });
     await page.locator("#t-account").click();
+    await page.locator("#account-tab-profile").click();
     const gap = await page.locator(".profile-photo-picker").evaluate((el) => {
       const input = el.querySelector("input[type=file]").getBoundingClientRect(),
         button = el.querySelector("button").getBoundingClientRect();

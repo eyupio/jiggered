@@ -2232,16 +2232,6 @@ input[type="search"] {
   font-size: 0.8rem;
   color: var(--muted);
 }
-.account-shortcuts {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding: 12px;
-}
-.account-shortcuts button {
-  min-height: 40px;
-  text-decoration: none;
-}
 #account-panel > .panel,
 #history-filters {
   scroll-margin-top: 80px;
