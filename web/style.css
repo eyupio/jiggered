@@ -63,6 +63,7 @@
   --green: #2e8a57;
   --green-text: #26774a;
   --amber: #c78512;
+  --amber-text: #855600;
   --red: #c2412f;
   --spent: #cfd8d4;
   --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
@@ -80,6 +81,7 @@
     --green: #58c487;
     --green-text: #58c487;
     --amber: #e8a93a;
+    --amber-text: #e8a93a;
     --red: #ef7461;
     --spent: #34403d;
     color-scheme: dark;
@@ -96,6 +98,7 @@
   --green: #58c487;
   --green-text: #58c487;
   --amber: #e8a93a;
+  --amber-text: #e8a93a;
   --red: #ef7461;
   --spent: #34403d;
   color-scheme: dark;
@@ -410,7 +413,7 @@ section {
   white-space: nowrap;
 }
 .act.rec .c {
-  color: var(--green);
+  color: var(--green-text);
 }
 .act:active {
   transform: scale(0.98);
@@ -724,6 +727,7 @@ button:focus-visible {
   display: flex;
   gap: 10px;
   align-items: center;
+  min-height: 44px;
 }
 .title img {
   border-radius: 9px;
@@ -986,10 +990,10 @@ ul.audit li {
   color: var(--muted);
 }
 .stat.green b {
-  color: var(--green);
+  color: var(--green-text);
 }
 .stat.amber b {
-  color: var(--amber);
+  color: var(--amber-text);
 }
 .stat.red b {
   color: var(--red);
@@ -1360,7 +1364,7 @@ input[type="search"] {
 }
 .help-link {
   white-space: nowrap;
-  min-height: 36px;
+  min-height: 44px;
 }
 .help-eyebrow,
 .help-category {
@@ -1480,6 +1484,9 @@ input[type="search"] {
   margin-top: 0;
 }
 .panel .hint summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
   cursor: pointer;
   color: var(--accent);
   font-weight: 700;
@@ -2027,9 +2034,11 @@ input[type="search"] {
   font-size: 0.85rem;
 }
 .chart-data summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
   cursor: pointer;
   color: var(--accent);
-  padding-block: 8px;
 }
 .table-scroll {
   overflow-x: auto;

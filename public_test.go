@@ -72,7 +72,7 @@ func TestPublicSitemapPagesAreCompleteAndPrivatePagesStayOut(t *testing.T) {
 	if err := xml.Unmarshal(body, &sitemap); err != nil {
 		t.Fatal(err)
 	}
-	if sitemap.NS != "http://www.sitemaps.org/schemas/sitemap/0.9" || len(sitemap.URLs) != 9 {
+	if sitemap.NS != "http://www.sitemaps.org/schemas/sitemap/0.9" || len(sitemap.URLs) != len(publicPages) {
 		t.Fatalf("unexpected sitemap: %s", body)
 	}
 	titles := map[string]bool{}

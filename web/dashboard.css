@@ -136,18 +136,16 @@
   justify-content: space-between;
   align-items: center;
   gap: 35px;
-  padding: 46px 0 34px;
+  padding: 24px 0;
 }
+/* Every view shares one masthead size, so the tab bar and the content below it start at the same height whichever
+   tab is chosen. The description reserves two lines because its wording differs from view to view. */
 .dashboard-eyebrow {
-  margin: 0 0 14px;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.13em;
+  display: none;
 }
 .dashboard-masthead h1 {
-  margin: 0 0 15px;
-  font-size: clamp(34px, 4vw, 52px);
+  margin: 0 0 8px;
+  font-size: 36px;
   line-height: 1.06;
   font-weight: 600;
   letter-spacing: -0.055em;
@@ -157,6 +155,7 @@
   color: var(--muted);
   font-size: 16px;
   max-width: 640px;
+  min-height: 2lh;
 }
 .dashboard-emblem {
   flex: none;
@@ -166,7 +165,7 @@
   border-radius: 48% 50% 46% 48%;
   background: var(--accent-soft);
   color: var(--green);
-  display: grid;
+  display: none; /* hidden on every view so the masthead keeps one height */
   place-items: center;
 }
 .dashboard-emblem svg {
@@ -259,6 +258,7 @@
   background: var(--accent-soft);
 }
 .app-shell .x {
+  min-width: 44px;
   text-underline-offset: 3px;
 }
 .app-shell input:not([type="checkbox"]):not([type="radio"]):not(.switch):not(.day-pick),
@@ -395,7 +395,7 @@
   height: 222px;
   justify-self: center;
   margin: 4px 0;
-  color: var(--green);
+  color: var(--green-text);
 }
 .energy-svg {
   width: 100%;
@@ -455,7 +455,7 @@
   max-width: 135px;
 }
 .live-energy[data-level="low"] {
-  color: var(--amber);
+  color: var(--amber-text);
 }
 .live-energy[data-level="over"],
 .live-energy[data-level="empty"] {
@@ -678,7 +678,7 @@
 }
 .app-shell .profile-avatar {
   background: var(--surface);
-  color: var(--green);
+  color: var(--green-text);
   border: 1px solid var(--line);
   box-shadow: none;
   border-radius: 50%;
@@ -728,17 +728,6 @@
 }
 .app-shell .matrix-cell.amber {
   --tone-ink: #101710;
-}
-.app-shell[data-view="history"] .dashboard-masthead {
-  padding-block: 24px;
-}
-.app-shell[data-view="history"] .dashboard-masthead h1 {
-  font-size: 36px;
-  margin-bottom: 8px;
-}
-.app-shell[data-view="history"] .dashboard-eyebrow,
-.app-shell[data-view="history"] .dashboard-emblem {
-  display: none;
 }
 .app-shell #history-panel > details:not([open]) {
   padding-block: 10px;
@@ -806,26 +795,14 @@
     height: 29px;
   }
   .dashboard-masthead {
-    padding: 31px 0 26px;
     gap: 0;
   }
   .dashboard-masthead h1 {
-    font-size: 36px;
+    font-size: 28px;
     max-width: 350px;
   }
   .dashboard-masthead #view-description {
     font-size: 15px;
-  }
-  .dashboard-eyebrow {
-    font-size: 10px;
-  }
-  /* On a phone the check-in is the first thing on Today; the brand copy above it is not. */
-  .app-shell[data-view="today"] .dashboard-eyebrow,
-  .app-shell[data-view="today"] #view-description {
-    display: none;
-  }
-  .app-shell[data-view="today"] .dashboard-masthead h1 {
-    font-size: 28px;
   }
   .dashboard-emblem {
     display: none;
@@ -1141,26 +1118,6 @@
   }
   .admin-workspace {
     display: block;
-  }
-}
-.app-shell[data-view="admin"] .dashboard-masthead {
-  padding-block: 28px 20px;
-}
-.app-shell[data-view="admin"] .dashboard-masthead h1 {
-  font-size: clamp(28px, 3vw, 38px);
-}
-.app-shell[data-view="admin"] .dashboard-emblem {
-  display: none;
-}
-.app-shell[data-view="admin"] .dashboard-eyebrow {
-  margin-bottom: 10px;
-}
-@media (max-width: 520px) {
-  .app-shell[data-view="admin"] .dashboard-masthead {
-    padding-block: 22px 18px;
-  }
-  .app-shell[data-view="admin"] #view-description {
-    font-size: 14px;
   }
 }
 
@@ -1513,6 +1470,9 @@
   padding: 16px 0;
 }
 .energy-flow summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
   cursor: pointer;
   font-weight: 700;
 }
@@ -1974,11 +1934,6 @@
 .cal-chip:hover {
   background: color-mix(in srgb, var(--accent) 14%, var(--accent-soft));
 }
-@media (pointer: coarse) {
-  .cal-chip {
-    min-height: 44px;
-  }
-}
 /* Palette chips are things to place, not planned blocks: solid, so the legend's "dashed = planned" holds. */
 .cal-chip.cal-preset {
   border-style: solid;
@@ -2323,6 +2278,12 @@
   font: inherit;
   font-size: 0.8rem;
   text-align: left;
+}
+/* After the base rule: same specificity, so order decides. */
+@media (pointer: coarse), (max-width: 700px) {
+  .cal-chip {
+    min-height: 44px;
+  }
 }
 .cal-chip.is-editable,
 .cal-preset {
