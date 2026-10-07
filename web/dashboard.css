@@ -259,6 +259,7 @@
   background: var(--accent-soft);
 }
 .app-shell .x {
+  min-width: 44px;
   text-underline-offset: 3px;
 }
 .app-shell input:not([type="checkbox"]):not([type="radio"]):not(.switch):not(.day-pick),
@@ -395,7 +396,7 @@
   height: 222px;
   justify-self: center;
   margin: 4px 0;
-  color: var(--green);
+  color: var(--green-text);
 }
 .energy-svg {
   width: 100%;
@@ -455,7 +456,7 @@
   max-width: 135px;
 }
 .live-energy[data-level="low"] {
-  color: var(--amber);
+  color: var(--amber-text);
 }
 .live-energy[data-level="over"],
 .live-energy[data-level="empty"] {
@@ -678,7 +679,7 @@
 }
 .app-shell .profile-avatar {
   background: var(--surface);
-  color: var(--green);
+  color: var(--green-text);
   border: 1px solid var(--line);
   box-shadow: none;
   border-radius: 50%;
@@ -1513,6 +1514,9 @@
   padding: 16px 0;
 }
 .energy-flow summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
   cursor: pointer;
   font-weight: 700;
 }
@@ -1974,11 +1978,6 @@
 .cal-chip:hover {
   background: color-mix(in srgb, var(--accent) 14%, var(--accent-soft));
 }
-@media (pointer: coarse) {
-  .cal-chip {
-    min-height: 44px;
-  }
-}
 /* Palette chips are things to place, not planned blocks: solid, so the legend's "dashed = planned" holds. */
 .cal-chip.cal-preset {
   border-style: solid;
@@ -2323,6 +2322,12 @@
   font: inherit;
   font-size: 0.8rem;
   text-align: left;
+}
+/* After the base rule: same specificity, so order decides. */
+@media (pointer: coarse), (max-width: 700px) {
+  .cal-chip {
+    min-height: 44px;
+  }
 }
 .cal-chip.is-editable,
 .cal-preset {
