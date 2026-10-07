@@ -5,7 +5,7 @@
 .tool-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 12px;
+  gap: var(--space-3);
 }
 .tool-card {
   font: inherit;
@@ -14,7 +14,7 @@
   gap: 6px;
   align-content: start;
   padding: 18px;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--fg);
@@ -42,7 +42,7 @@
   border-color: var(--line);
 }
 .tool-card-eyebrow {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-weight: 700;
@@ -53,20 +53,20 @@
 }
 .tool-card-name {
   font-family: var(--display);
-  font-size: 1.35rem;
+  font-size: var(--text-lg);
   font-weight: 700;
-  line-height: 1.15;
+  line-height: var(--leading-tight);
 }
 .tool-card-text {
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   color: var(--muted);
-  line-height: 1.45;
+  line-height: var(--leading-snug);
 }
 .tool-card-open {
   margin-top: 6px;
   font-weight: 700;
   color: var(--accent);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
 }
 .tool-head {
   display: grid;
@@ -78,12 +78,12 @@
   margin: 0;
 }
 .tool-head .meta {
-  margin: 4px 0 0;
+  margin: var(--space-1) 0 0;
   max-width: 60ch;
 }
 .tool-body {
-  margin-top: 12px; /* the header and the tool are separate cards; keep them apart */
-  padding: 12px;
+  margin-top: var(--space-3); /* the header and the tool are separate cards; keep them apart */
+  padding: var(--space-3);
 }
 @media (min-width: 700px) {
   .tool-body {
@@ -94,7 +94,7 @@
 /* ---- Fretboard ---- */
 .fb {
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
   --fb-todo: color-mix(in srgb, var(--fg) 50%, var(--surface)); /* a new card is not an alarm */
   --fb-doing: var(--amber);
   --fb-done: var(--green);
@@ -103,7 +103,7 @@
 .fb-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 14px;
+  gap: var(--space-2) 14px;
   align-items: center;
   justify-content: space-between;
 }
@@ -116,17 +116,17 @@
 .fb-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--space-1);
   margin-left: 6px;
 }
 .fb-legend-item {
   font: inherit;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 5px 9px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--fg);
@@ -159,7 +159,7 @@
 
 .fb-stage {
   display: grid;
-  gap: 16px;
+  gap: var(--space-4);
   grid-template-columns: minmax(0, 1fr);
 }
 @media (min-width: 900px) {
@@ -182,9 +182,9 @@
 .fb-axis {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   font-weight: 700;
@@ -217,19 +217,19 @@
   align-self: center;
 }
 .fb-arrow {
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
   color: var(--accent);
 }
 .fb-axis-label {
   font: inherit;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   font-weight: 700;
   color: var(--fg);
   background: none;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 2px 6px;
   cursor: text;
   white-space: nowrap;
@@ -244,7 +244,7 @@
 }
 .fb-axis-input {
   font: inherit;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   font-weight: 700;
@@ -274,7 +274,7 @@
   aspect-ratio: 4 / 3;
   min-height: 420px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background:
     radial-gradient(
         circle at 1px 1px,
@@ -318,9 +318,9 @@
     display: none;
   }
   .fb-axis-label {
-    font-size: 0.68rem;
+    font-size: var(--text-xs);
     letter-spacing: 0;
-    padding: 2px 4px;
+    padding: 2px var(--space-1);
     max-width: 100%;
   }
 }
@@ -347,11 +347,11 @@
   height: 50%;
   display: flex;
   align-items: flex-end;
-  padding: 10px 12px;
+  padding: 10px var(--space-3);
   pointer-events: none;
   color: var(--muted);
-  font-size: 0.75rem;
-  line-height: 1.35;
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
 }
 .fb-quad span {
   max-width: 24ch;
@@ -394,15 +394,15 @@
   gap: 7px;
   max-width: min(34%, 260px);
   min-width: 56px;
-  padding: 7px 10px 7px 8px;
-  border-radius: 9px;
+  padding: 7px 10px 7px var(--space-2);
+  border-radius: var(--radius-sm);
   background: var(--surface);
   border: 1px solid var(--line);
   border-left: 4px solid var(--fb-tone, var(--line));
-  box-shadow: 0 2px 6px color-mix(in srgb, var(--fg) 8%, transparent);
+  box-shadow: var(--shadow-sm);
   color: var(--fg);
-  font-size: 0.88rem;
-  line-height: 1.3;
+  font-size: var(--text-sm);
+  line-height: var(--leading-tight);
   cursor: grab;
   outline: none;
   transition:
@@ -422,7 +422,7 @@
   flex: none;
   width: 9px;
   height: 9px;
-  margin-top: 4px;
+  margin-top: var(--space-1);
   border-radius: 50%;
   background: var(--fb-tone, var(--line));
 }
@@ -460,16 +460,16 @@
   background: color-mix(in srgb, var(--amber) 16%, var(--surface));
   border-color: color-mix(in srgb, var(--amber) 40%, var(--line));
   border-left-width: 1px;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   max-width: min(40%, 320px);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   box-shadow: 2px 3px 8px color-mix(in srgb, var(--fg) 12%, transparent);
 }
 .fb-note .fb-dot {
   display: none;
 }
 .fb-item:hover {
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--fg) 14%, transparent);
+  box-shadow: var(--shadow-md);
 }
 .fb-item.is-selected {
   box-shadow:
@@ -521,9 +521,9 @@
   position: absolute;
   border: 1px dashed var(--accent);
   background: color-mix(in srgb, var(--accent) 12%, transparent);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   pointer-events: none;
-  z-index: 1000001;
+  z-index: var(--z-drag-top);
 }
 .fb-empty {
   position: absolute;
@@ -531,8 +531,8 @@
   display: grid;
   place-content: center;
   text-align: center;
-  gap: 4px;
-  padding: 24px;
+  gap: var(--space-1);
+  padding: var(--space-6);
   color: var(--muted);
   pointer-events: none;
 }
@@ -556,7 +556,7 @@
   gap: 10px;
   align-content: start;
   padding: 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--line);
   background: linear-gradient(
     180deg,
@@ -568,12 +568,12 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .fb-tray h3 {
   margin: 0;
   font-family: var(--display);
-  font-size: 1.15rem;
+  font-size: var(--text-md);
 }
 .fb-tray > .meta {
   margin: 0;
@@ -590,10 +590,10 @@
   display: grid;
   /* number, tick, text, remove; the "on board" chip drops to a row of its own so the text keeps its width */
   grid-template-columns: auto auto minmax(0, 1fr) auto;
-  gap: 4px 8px;
+  gap: var(--space-1) var(--space-2);
   align-items: center;
-  padding: 8px 10px;
-  border-radius: 10px;
+  padding: var(--space-2) 10px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   border: 1px solid var(--line);
   counter-increment: three;
@@ -649,8 +649,8 @@
 .fb-legend-label {
   align-self: center;
   color: var(--muted);
-  font-size: 0.8rem;
-  padding-inline: 4px;
+  font-size: var(--text-sm);
+  padding-inline: var(--space-1);
 }
 /* What can be done with the selection. It floats over the page rather than sitting in it: a bar that opened above the
    board would move the board under the pointer the moment a card was pressed. */
@@ -664,12 +664,12 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 10px;
-  padding: 8px 12px;
+  gap: var(--space-2) 10px;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--accent);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--surface);
-  box-shadow: 0 10px 30px color-mix(in srgb, var(--fg) 22%, transparent);
+  box-shadow: var(--shadow-pop);
 }
 .fb-actions[hidden] {
   display: none;
@@ -686,13 +686,13 @@
 }
 .fb-set-button {
   font: inherit;
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   display: inline-flex;
   align-items: center;
   gap: 6px;
   min-height: 36px;
-  padding: 4px 10px;
-  border-radius: 999px;
+  padding: var(--space-1) 10px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--fg);
@@ -713,7 +713,7 @@
 .fb-count {
   display: block;
   text-align: right;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
 }
 .fb-status {
   margin: 0;
@@ -728,9 +728,9 @@
 }
 .fb-chip {
   font: inherit;
-  font-size: 0.75rem;
-  padding: 2px 8px;
-  border-radius: 999px;
+  font-size: var(--text-xs);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
   border: 1px solid var(--line);
   background: var(--accent-soft);
   color: var(--accent);
@@ -743,10 +743,10 @@
   background: none;
   color: var(--muted);
   cursor: pointer;
-  font-size: 1.1rem;
+  font-size: var(--text-md);
   line-height: 1;
-  padding: 2px 4px;
-  border-radius: 6px;
+  padding: 2px var(--space-1);
+  border-radius: var(--radius-sm);
 }
 .fb-three-remove:hover {
   color: var(--red);
@@ -767,7 +767,7 @@
 .fb-tray-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 12px;
+  gap: var(--space-1) var(--space-3);
 }
 .fb-summary {
   margin: 0;
@@ -776,24 +776,24 @@
 /* context menu */
 .fb-menu {
   position: fixed;
-  z-index: 60;
+  z-index: var(--z-overlay);
   min-width: 220px;
   padding: 6px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--line);
   background: var(--surface);
-  box-shadow: 0 12px 32px color-mix(in srgb, var(--fg) 22%, transparent);
+  box-shadow: var(--shadow-pop);
   display: grid;
   gap: 1px;
 }
 .fb-menu hr {
   border: 0;
   border-top: 1px solid var(--line);
-  margin: 4px 2px;
+  margin: var(--space-1) 2px;
 }
 .fb-menu-heading {
-  margin: 4px 10px 2px;
-  font-size: 0.7rem;
+  margin: var(--space-1) 10px 2px;
+  font-size: var(--text-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
@@ -801,16 +801,16 @@
 }
 .fb-menu button {
   font: inherit;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-4);
   width: 100%;
   text-align: left;
   padding: 7px 10px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: none;
   color: var(--fg);
   cursor: pointer;
@@ -835,10 +835,10 @@
 }
 .fb-menu kbd {
   font: inherit;
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
   color: var(--muted);
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   padding: 0 5px;
 }
 

@@ -82,7 +82,7 @@
   top: 8px;
   left: 8px;
   z-index: 20;
-  padding: 12px;
+  padding: var(--space-3);
   background: var(--surface);
   transform: translateY(-150%);
 }
@@ -94,7 +94,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: var(--space-6);
 }
 .wordmark {
   display: inline-flex;
@@ -102,7 +102,7 @@
   gap: 7px;
   font-family: var(--display);
   font-weight: 700;
-  font-size: 29px;
+  font-size: var(--text-2xl);
   letter-spacing: -1.5px;
 }
 .brand-dot {
@@ -117,7 +117,7 @@
   display: flex;
   gap: 28px;
   overflow: visible;
-  font-size: 14px;
+  font-size: var(--text-sm);
 }
 .site-nav a,
 .text-link,
@@ -132,8 +132,8 @@
 .nav-actions {
   display: flex;
   align-items: center;
-  gap: 24px;
-  font-size: 14px;
+  gap: var(--space-6);
+  font-size: var(--text-sm);
 }
 .p-button {
   display: inline-flex;
@@ -142,12 +142,12 @@
   gap: 14px;
   white-space: nowrap;
   min-height: 56px;
-  padding: 16px 25px;
-  border-radius: 8px;
+  padding: var(--space-4) 25px;
+  border-radius: var(--radius-sm);
   background: var(--accent);
   color: var(--on-accent) !important;
   font-weight: 700;
-  font-size: 16px;
+  font-size: var(--text-base);
   border: 1px solid var(--accent);
   box-shadow: 0 4px 0 #203c310a;
   transition:
@@ -161,11 +161,11 @@
 .p-button.small {
   min-height: 44px;
   padding: 10px 17px;
-  font-size: 14px;
+  font-size: var(--text-sm);
   gap: 18px;
 }
 .p-button span {
-  font-size: 21px;
+  font-size: var(--text-lg);
   font-weight: 400;
 }
 .hero {
@@ -176,18 +176,18 @@
   padding-block: 58px 80px;
 }
 .eyebrow {
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.13em;
   display: flex;
   align-items: center;
   gap: 9px;
-  line-height: 1.5;
+  line-height: var(--leading-normal);
 }
 .hero-copy .eyebrow {
   letter-spacing: 0.03em;
   text-transform: none;
-  font-size: 14px;
+  font-size: var(--text-sm);
 }
 .status-dot {
   display: inline-block;
@@ -211,8 +211,8 @@
 }
 .hero-description {
   max-width: 420px;
-  font-size: 19px;
-  line-height: 1.65;
+  font-size: var(--text-lg);
+  line-height: var(--leading-relaxed);
   color: var(--muted);
 }
 .hero-actions {
@@ -223,13 +223,13 @@
 }
 .demo-link {
   font-weight: 700;
-  font-size: 15px;
+  font-size: var(--text-base);
 }
 .demo-link span {
-  margin-left: 12px;
+  margin-left: var(--space-3);
 }
 .quiet-note {
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 .hero-art {
@@ -257,15 +257,15 @@
 .principles {
   display: flex;
   justify-content: space-between;
-  gap: 20px;
+  gap: var(--space-5);
   flex-wrap: wrap;
   border-block: 1px solid var(--line);
   padding-block: 23px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 .principles > span:first-child {
-  font-size: 11px;
+  font-size: var(--text-xs);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   font-weight: 700;
@@ -281,7 +281,7 @@
 }
 .section-heading .eyebrow {
   grid-column: 1/-1;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 .presence h2 {
   font-size: clamp(32px, 3.8vw, 48px);
@@ -291,8 +291,8 @@
   margin: 0;
 }
 .section-heading > p:last-child {
-  font-size: 17px;
-  line-height: 1.7;
+  font-size: var(--text-md);
+  line-height: var(--leading-relaxed);
   max-width: 410px;
   color: var(--muted);
 }
@@ -300,13 +300,13 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 18px;
-  margin-top: 40px;
+  margin-top: var(--space-10);
 }
 .feature-card {
   padding: 30px;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 13px;
+  border-radius: var(--radius-md);
   transition:
     transform 0.2s,
     box-shadow 0.2s;
@@ -319,19 +319,19 @@
   background: var(--accent-soft);
 }
 .feature-number {
-  font-size: 10px;
+  font-size: var(--text-xs);
   letter-spacing: 0.1em;
   color: var(--muted);
   font-weight: 700;
 }
 .feature-card h3 {
-  font-size: 24px;
-  margin: 15px 0 12px;
+  font-size: var(--text-xl);
+  margin: 15px 0 var(--space-3);
 }
 .feature-card p {
   color: var(--muted);
-  font-size: 15px;
-  line-height: 1.7;
+  font-size: var(--text-base);
+  line-height: var(--leading-relaxed);
 }
 .mini-checkin,
 .mini-budget,
@@ -344,7 +344,7 @@
 .mini-checkin {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .mini-chart .chart-grid {
   stroke: var(--line);
@@ -374,7 +374,7 @@
 .mini-budget span {
   width: 25px;
   height: 40px;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   background: #7e966b;
 }
 .mini-budget span:nth-child(n + 6) {
@@ -387,11 +387,11 @@
   padding-block: 35px 90px;
 }
 .how-section h2 {
-  margin: 20px 0;
+  margin: var(--space-5) 0;
 }
 .how-section > div > p:last-child {
-  font-size: 17px;
-  line-height: 1.7;
+  font-size: var(--text-md);
+  line-height: var(--leading-relaxed);
   color: var(--muted);
   max-width: 400px;
 }
@@ -404,7 +404,7 @@
 }
 .steps li {
   display: flex;
-  gap: 20px;
+  gap: var(--space-5);
 }
 .steps li > span {
   flex-shrink: 0;
@@ -415,15 +415,15 @@
   border: 1px solid var(--tint-line);
   background: var(--tint);
   border-radius: 50%;
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .steps h3 {
-  font-size: 20px;
+  font-size: var(--text-lg);
   margin: 7px 0 10px;
 }
 .steps p {
-  font-size: 15px;
-  line-height: 1.65;
+  font-size: var(--text-base);
+  line-height: var(--leading-relaxed);
   color: var(--muted);
 }
 .privacy-section {
@@ -434,7 +434,7 @@
   padding: 50px 65px;
   background: var(--tint);
   border: 1px solid var(--tint-line);
-  border-radius: 17px;
+  border-radius: var(--radius-lg);
 }
 .privacy-symbol {
   font-size: 150px;
@@ -447,10 +447,12 @@
 }
 .privacy-section p {
   max-width: 680px;
-  line-height: 1.7;
+  line-height: var(--leading-relaxed);
 }
 .privacy-section .privacy-detail {
-  font-size: 16px; /* the most honest sentence on the page is read at the size of the rest */
+  font-size: var(
+    --text-base
+  ); /* the most honest sentence on the page is read at the size of the rest */
   color: var(--fg);
   margin-top: 15px;
 }
@@ -461,11 +463,11 @@
   padding-block: 95px;
 }
 .faq-section h2 {
-  margin: 20px 0;
+  margin: var(--space-5) 0;
 }
 .faq-list details {
   border-bottom: 1px solid var(--line);
-  padding: 20px 0;
+  padding: var(--space-5) 0;
 }
 .faq-list details:first-child {
   padding-top: 0;
@@ -486,25 +488,25 @@
 .faq-list summary:after {
   content: "+";
   font-weight: 400;
-  font-size: 24px;
+  font-size: var(--text-xl);
 }
 .faq-list details[open] summary:after {
   content: "−";
 }
 .faq-list p {
-  margin-top: 12px;
+  margin-top: var(--space-3);
   color: var(--muted);
-  line-height: 1.7;
-  font-size: 15px;
+  line-height: var(--leading-relaxed);
+  font-size: var(--text-base);
 }
 .closing {
   text-align: center;
   align-items: center;
   justify-items: center;
-  padding: 60px 24px;
+  padding: 60px var(--space-6);
   background: #203c31;
   color: #f5f6ed;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   gap: 17px;
 }
 .closing h2 {
@@ -512,12 +514,12 @@
   margin: 0;
 }
 .closing .eyebrow {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: #c1d1b9;
 }
 .closing > p:not(.eyebrow) {
   color: #c9d7c3;
-  font-size: 17px;
+  font-size: var(--text-md);
 }
 .closing .p-button {
   margin-top: 10px;
@@ -533,19 +535,19 @@
   padding-block: 45px 25px;
 }
 .site-footer p {
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 .site-footer > div {
   display: flex;
   gap: 23px;
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .site-footer small {
   grid-column: 1/-1;
-  padding-top: 20px;
+  padding-top: var(--space-5);
   border-top: 1px solid var(--line);
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 .auth-page .site-header {
@@ -573,8 +575,8 @@
   margin: 23px 0;
 }
 .auth-story > p:not(.eyebrow):not(.auth-story-title) {
-  font-size: 18px;
-  line-height: 1.7;
+  font-size: var(--text-md);
+  line-height: var(--leading-relaxed);
   max-width: 370px;
   color: var(--muted);
 }
@@ -592,14 +594,14 @@
 }
 .auth-art span {
   font-family: var(--display);
-  font-size: 15px;
+  font-size: var(--text-base);
   position: absolute;
   right: -35px;
   bottom: 16px;
-  padding: 15px 20px;
+  padding: 15px var(--space-5);
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   transform: rotate(-5deg);
   color: var(--fg);
 }
@@ -616,16 +618,16 @@
 .choice-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
+  gap: var(--space-5);
   margin-top: 35px;
 }
 .choice-card {
   display: grid;
   align-content: start;
-  gap: 16px;
-  padding: 32px;
+  gap: var(--space-4);
+  padding: var(--space-8);
   border: 1px solid var(--line);
-  border-radius: 13px;
+  border-radius: var(--radius-md);
   background: var(--card);
 }
 .choice-card:first-child {
@@ -634,29 +636,29 @@
 .choice-status {
   justify-self: start;
   padding: 6px 10px;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--accent) 16%, var(--bg));
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.08em;
 }
 .choice-card h3 {
-  margin: 4px 0 0;
-  font-size: 28px;
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-2xl);
 }
 .choice-card p {
   color: var(--muted);
-  line-height: 1.7;
+  line-height: var(--leading-relaxed);
 }
 .choice-card .choice-price {
   color: var(--fg);
   font-weight: 700;
-  font-size: 17px;
+  font-size: var(--text-md);
 }
 .choice-card .choice-detail {
-  padding-top: 16px;
+  padding-top: var(--space-4);
   border-top: 1px solid var(--line);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 @media (max-width: 760px) {
   .choice-grid {
@@ -670,31 +672,31 @@
   }
 }
 .auth-main .panel {
-  border-radius: 16px;
-  padding: 32px;
+  border-radius: var(--radius-lg);
+  padding: var(--space-8);
   gap: 17px;
   background: var(--card);
 }
 .auth-main h1 {
-  font-size: 32px;
+  font-size: var(--text-3xl);
 }
 .auth-main .tag,
 .auth-main .meta {
-  font-size: 14px;
-  line-height: 1.55;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
   color: var(--muted);
 }
 .auth-main label {
-  font-size: 14px;
+  font-size: var(--text-sm);
   font-weight: 700;
   gap: 7px;
 }
 .auth-main input {
   background: var(--field);
   min-height: 48px;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--field-line);
-  padding: 12px;
+  padding: var(--space-3);
   color: var(--fg);
 }
 .auth-main input:focus {
@@ -704,7 +706,7 @@
   min-height: 50px;
   background: var(--accent);
   color: var(--on-accent);
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 .auth-main .primary:hover {
@@ -721,59 +723,59 @@
   gap: 10px;
 }
 .auth-main .auth-links button {
-  padding: 8px 0;
+  padding: var(--space-2) 0;
   background: none;
   border: 0;
   color: var(--accent);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--text-sm);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 .auth-main .msg,
 .auth-main .err {
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
   overflow-wrap: anywhere;
 }
 .auth-main .err {
   color: var(--err);
 }
 .auth-main .setup {
-  font-size: 13px;
+  font-size: var(--text-sm);
   overflow-wrap: anywhere;
 }
 .auth-main details.panel {
   margin-top: 17px;
-  padding: 20px 25px;
-  font-size: 13px;
+  padding: var(--space-5) 25px;
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 .auth-main details summary {
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--text-sm);
   color: var(--fg);
   font-weight: 700;
 }
 .auth-main details p {
   margin-top: 14px;
-  line-height: 1.65;
+  line-height: var(--leading-relaxed);
 }
 .auth-state {
   padding: 15px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--accent-soft);
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
 }
 .auth-page .site-footer {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  padding-block: 20px 30px;
+  padding-block: var(--space-5) 30px;
   border-top: 1px solid var(--line);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .password-field {
   position: relative;
@@ -787,12 +789,12 @@
   bottom: 2px;
   min-width: 56px;
   min-height: 44px;
-  padding: 0 12px;
-  font-size: 13px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-sm);
   font-weight: 700;
   background: none;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   color: var(--accent);
 }
@@ -828,7 +830,7 @@
   display: none;
 }
 .presence .quiet-note {
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 @media (max-width: 1050px) {
   .hero-art {
@@ -861,10 +863,10 @@
     width: calc(100% - 56px);
   }
   .site-nav {
-    gap: 16px;
+    gap: var(--space-4);
   }
   .hero {
-    gap: 20px;
+    gap: var(--space-5);
   }
   .hero-art {
     transform: scale(0.9);
@@ -883,7 +885,7 @@
   }
   .privacy-section {
     gap: 25px;
-    padding: 40px;
+    padding: var(--space-10);
   }
   .site-footer {
     grid-template-columns: auto 1fr;
@@ -892,7 +894,7 @@
     grid-column: 1/-1;
   }
   .hero-description {
-    font-size: 17px;
+    font-size: var(--text-md);
   }
 }
 @media (max-width: 760px) {
@@ -900,11 +902,11 @@
     width: calc(100% - 40px);
   }
   .site-header {
-    padding-block: 20px;
-    gap: 12px;
+    padding-block: var(--space-5);
+    gap: var(--space-3);
   }
   .wordmark {
-    font-size: 25px;
+    font-size: var(--text-xl);
   }
   .wordmark img {
     width: 28px;
@@ -917,9 +919,9 @@
     gap: 17px;
   }
   .nav-actions .small {
-    padding: 9px 12px;
+    padding: 9px var(--space-3);
     gap: 10px;
-    font-size: 12px;
+    font-size: var(--text-xs);
   }
   .hero {
     grid-template-columns: 1fr;
@@ -944,7 +946,7 @@
   }
   .principles {
     gap: 17px;
-    font-size: 12px;
+    font-size: var(--text-xs);
   }
   .principles > span:first-child {
     width: 100%;
@@ -954,7 +956,7 @@
   }
   .section-heading {
     grid-template-columns: 1fr;
-    gap: 20px;
+    gap: var(--space-5);
   }
   .section-heading .eyebrow {
     margin: 0;
@@ -977,14 +979,14 @@
   .privacy-section,
   .faq-section {
     grid-template-columns: 1fr;
-    gap: 32px;
+    gap: var(--space-8);
   }
   .how-section {
     padding-block: 10px 55px;
   }
   .privacy-section {
     padding: 30px;
-    gap: 12px;
+    gap: var(--space-3);
   }
   .privacy-symbol {
     text-align: left;
@@ -998,19 +1000,19 @@
   }
   .closing .eyebrow {
     max-width: 250px;
-    line-height: 1.8;
+    line-height: var(--leading-relaxed);
   }
   .site-footer {
-    gap: 16px;
+    gap: var(--space-4);
     padding-top: 35px;
   }
   .site-footer > p {
     max-width: 145px;
-    font-size: 12px;
+    font-size: var(--text-xs);
     text-align: right;
   }
   .site-footer > div {
-    gap: 20px;
+    gap: var(--space-5);
   }
   .auth-layout {
     grid-template-columns: 1fr;
@@ -1051,12 +1053,12 @@
   margin: 18px 0 0;
   padding: 14px 18px;
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--card);
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
 }
 
 /* The hero shows the real Today screen (example data), not an illustration. */
@@ -1070,29 +1072,29 @@
   width: min(100%, 340px);
   height: auto;
   border: 1px solid var(--line);
-  border-radius: 22px;
+  border-radius: var(--radius-xl);
   background: var(--card);
   box-shadow: 0 18px 40px #203c3118;
 }
 .hero-shot figcaption {
   text-align: center;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 
 /* The "check your inbox" state after asking for a link. */
 .sent-box {
-  padding: 14px 16px;
+  padding: 14px var(--space-4);
   border: 1px solid var(--ok-line);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--ok-bg);
 }
 .sent-box h2 {
   margin: 0 0 6px;
-  font-size: 20px;
+  font-size: var(--text-lg);
 }
 .sent-box p {
   margin: 0;
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
 }

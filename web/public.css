@@ -39,7 +39,7 @@
 .public-nav {
   flex-wrap: wrap;
   justify-content: center;
-  gap: 8px 18px;
+  gap: var(--space-2) 18px;
 }
 .public-nav a {
   display: inline-flex;
@@ -58,28 +58,28 @@
   align-items: flex-start;
 }
 .footer-title {
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
-  padding-block: 8px 2px;
+  padding-block: var(--space-2) 2px;
 }
 .public-footer nav a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  font-size: 14px;
+  font-size: var(--text-sm);
 }
 .public-main {
   max-width: 920px;
-  padding-block: 24px 64px;
+  padding-block: var(--space-6) 64px;
 }
 .breadcrumbs {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  font-size: 14px;
+  font-size: var(--text-sm);
   margin-bottom: 30px;
 }
 .breadcrumbs a {
@@ -91,23 +91,23 @@
 }
 .public-article h1 {
   font-size: clamp(38px, 5vw, 64px);
-  margin: 16px 0 24px;
+  margin: var(--space-4) 0 var(--space-6);
 }
 .public-article h2 {
   font-size: clamp(24px, 3vw, 32px);
-  margin: 36px 0 16px;
+  margin: 36px 0 var(--space-4);
 }
 .public-article h3 {
-  font-size: 22px;
-  margin: 0 0 12px;
+  font-size: var(--text-xl);
+  margin: 0 0 var(--space-3);
 }
 .public-article p:not(.eyebrow):not(.choice-status),
 .public-article li {
-  font-size: 18px;
-  line-height: 1.75;
+  font-size: var(--text-md);
+  line-height: var(--leading-relaxed);
 }
 .public-article p {
-  margin: 16px 0;
+  margin: var(--space-4) 0;
 }
 .public-article a,
 .spoon-note a,
@@ -121,16 +121,16 @@
   text-decoration: none;
 }
 .public-lead {
-  font-size: 21px !important;
+  font-size: var(--text-lg) !important;
   color: var(--muted);
 }
 .public-example {
   display: block;
-  padding: 24px;
+  padding: var(--space-6);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--accent-soft);
-  margin-block: 24px;
+  margin-block: var(--space-6);
 }
 .public-example h2 {
   margin-top: 0;
@@ -140,18 +140,18 @@
 }
 .public-table-wrap {
   overflow-x: auto;
-  margin-block: 24px;
+  margin-block: var(--space-6);
 }
 .public-table {
   width: 100%;
   min-width: 520px;
   border-collapse: collapse;
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
 }
 .public-table th,
 .public-table td {
-  padding: 10px 12px;
+  padding: 10px var(--space-3);
   border: 1px solid var(--line);
   text-align: left;
   vertical-align: top;
@@ -161,18 +161,18 @@
 }
 .public-next {
   max-width: 760px;
-  margin-top: 48px;
+  margin-top: var(--space-12);
   padding: 28px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--accent-soft);
 }
 .public-next h2 {
-  font-size: 28px;
-  margin: 0 0 16px;
+  font-size: var(--text-2xl);
+  margin: 0 0 var(--space-4);
 }
 .public-next p {
-  line-height: 1.7;
-  margin-bottom: 20px;
+  line-height: var(--leading-relaxed);
+  margin-bottom: var(--space-5);
 }
 .public-next .p-button {
   max-width: 100%;
@@ -180,7 +180,7 @@
 .public-links {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 4px 24px;
+  gap: var(--space-1) var(--space-6);
   padding: 0;
   list-style: none;
 }
@@ -207,17 +207,17 @@
 }
 .feature-link {
   display: inline-block;
-  margin-top: 12px;
+  margin-top: var(--space-3);
   font-weight: 700;
 }
 .spoon-note {
   max-width: 760px;
-  padding-block: 12px 60px;
-  line-height: 1.75;
+  padding-block: var(--space-3) 60px;
+  line-height: var(--leading-relaxed);
 }
 .spoon-note h2 {
-  font-size: 32px;
-  margin-bottom: 20px;
+  font-size: var(--text-3xl);
+  margin-bottom: var(--space-5);
 }
 .spoon-note p + p {
   margin-top: 14px;
@@ -230,20 +230,20 @@
 }
 .landing-page .hero-actions {
   flex-wrap: wrap;
-  gap: 16px 24px;
+  gap: var(--space-4) var(--space-6);
 }
 .landing-page .hero-actions .p-button {
   max-width: 100%;
 }
 .landing-page .hero-availability {
-  margin-top: 12px;
+  margin-top: var(--space-3);
   max-width: 490px;
-  line-height: 1.6;
+  line-height: var(--leading-normal);
 }
 @media (max-width: 900px) {
   .public-header {
-    padding-block: 12px;
-    gap: 4px 12px;
+    padding-block: var(--space-3);
+    gap: var(--space-1) var(--space-3);
   }
   .public-header .wordmark {
     order: 1;
@@ -252,7 +252,7 @@
     order: 2;
     flex-basis: auto;
     margin-left: auto;
-    gap: 8px;
+    gap: var(--space-2);
   }
   .public-header .public-nav {
     display: flex;
@@ -260,7 +260,7 @@
     flex-basis: 100%;
     justify-content: flex-start;
     gap: 0 22px;
-    font-size: 14px;
+    font-size: var(--text-sm);
   }
   /* The short label keeps the buttons on the logo's row; the long one stays for screen readers. */
   .public-header .cta-long {
@@ -278,7 +278,7 @@
 @media (max-width: 360px) {
   .public-header .public-nav {
     gap: 0 14px;
-    font-size: 13px;
+    font-size: var(--text-sm);
   }
 }
 @media (max-width: 760px) {
@@ -293,15 +293,15 @@
   }
   .public-article p,
   .public-article li {
-    font-size: 17px;
+    font-size: var(--text-md);
   }
   .public-example,
   .public-next {
-    padding: 20px;
+    padding: var(--space-5);
   }
   .public-footer nav {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px 16px;
+    gap: 6px var(--space-4);
   }
 }
 
@@ -309,12 +309,12 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px 18px;
-  margin: 8px 0 28px;
+  gap: var(--space-3) 18px;
+  margin: var(--space-2) 0 28px;
 }
 .public-cta span {
   color: var(--muted);
-  font-size: 15px;
+  font-size: var(--text-base);
 }
 
 /* Printing an article: the page itself, without the header, calls to action and footer. */

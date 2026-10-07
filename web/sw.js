@@ -40,6 +40,7 @@ const SHELL = [
   "/tools.js",
   "/fretboard.js",
   "/fretboard-model.js",
+  "/tokens.css",
   "/tools.css",
   "/style.css",
   "/dashboard.css",

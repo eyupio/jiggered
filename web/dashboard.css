@@ -60,7 +60,7 @@
 }
 .app-shell .wrap {
   max-width: 1264px;
-  padding: 30px 32px 65px;
+  padding: 30px var(--space-8) 65px;
 }
 .app-shell h1,
 .app-shell h2,
@@ -68,15 +68,15 @@
   letter-spacing: -0.035em;
 }
 .app-shell h2 {
-  font-size: 1.4rem;
-  line-height: 1.2;
+  font-size: var(--text-xl);
+  line-height: var(--leading-tight);
   font-weight: 600;
 }
 .app-shell h3 {
-  line-height: 1.3;
+  line-height: var(--leading-tight);
 }
 .app-shell p {
-  line-height: 1.65;
+  line-height: var(--leading-relaxed);
 }
 .app-shell :focus-visible {
   outline: 3px solid var(--amber);
@@ -86,8 +86,8 @@
   position: fixed;
   top: 8px;
   left: 8px;
-  z-index: 50;
-  padding: 12px;
+  z-index: var(--z-skip);
+  padding: var(--space-3);
   background: var(--surface);
   color: var(--fg);
   transform: translateY(-150%);
@@ -103,12 +103,12 @@
   height: 34px;
 }
 .app-wordmark {
-  font: 700 29px var(--display);
+  font: 700 var(--text-2xl) var(--display);
   letter-spacing: -1.5px;
   line-height: 1.1;
 }
 .app-shell .date {
-  font-size: 11px;
+  font-size: var(--text-xs);
   margin-top: 5px;
 }
 .app-shell .head-actions {
@@ -125,7 +125,7 @@
   border: 1px solid var(--line);
 }
 .app-shell .who {
-  font-size: 14px;
+  font-size: var(--text-sm);
   max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -136,7 +136,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 35px;
-  padding: 24px 0;
+  padding: var(--space-6) 0;
 }
 /* Every view shares one masthead size, so the tab bar and the content below it start at the same height whichever
    tab is chosen. The description reserves two lines because its wording differs from view to view. */
@@ -144,8 +144,8 @@
   display: none;
 }
 .dashboard-masthead h1 {
-  margin: 0 0 8px;
-  font-size: 36px;
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-4xl);
   line-height: 1.06;
   font-weight: 600;
   letter-spacing: -0.055em;
@@ -153,7 +153,7 @@
 .dashboard-masthead #view-description {
   margin: 0;
   color: var(--muted);
-  font-size: 16px;
+  font-size: var(--text-base);
   max-width: 640px;
   min-height: 2lh;
 }
@@ -176,20 +176,20 @@
   position: absolute;
   bottom: 3px;
   right: -2px;
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 700;
   color: var(--fg);
-  padding: 9px 12px;
+  padding: 9px var(--space-3);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   transform: rotate(-4deg);
   white-space: nowrap;
 }
 .app-shell #tabs {
   gap: 7px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   padding: 7px;
   margin: 0 0 27px;
@@ -198,7 +198,7 @@
 }
 .app-shell #tabs button {
   min-height: 46px;
-  font-size: 14px;
+  font-size: var(--text-sm);
   background: transparent;
   border-color: transparent;
   padding: 10px 17px;
@@ -218,7 +218,7 @@
   gap: 22px;
 }
 .app-shell .panel {
-  border-radius: 15px;
+  border-radius: var(--radius-lg);
   padding: 25px;
   gap: 17px;
   box-shadow: 0 3px 12px #203c3103;
@@ -229,12 +229,12 @@
 .app-shell .label,
 .app-shell .help-eyebrow {
   letter-spacing: 0.1em;
-  font-size: 10px;
+  font-size: var(--text-xs);
 }
 .app-shell .meta,
 .app-shell .hint {
-  font-size: 14px;
-  line-height: 1.65;
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
 }
 .app-shell .panel > .label-row {
   flex-wrap: wrap;
@@ -242,16 +242,16 @@
 }
 .app-shell .primary {
   min-height: 46px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-weight: 700;
   background: var(--accent);
   color: var(--bg);
-  padding: 12px 19px;
+  padding: var(--space-3) 19px;
 }
 .app-shell .secondary {
   min-height: 44px;
   padding: 10px 15px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
 }
 .app-shell .secondary:hover {
@@ -264,20 +264,20 @@
 .app-shell input:not([type="checkbox"]):not([type="radio"]):not(.switch):not(.day-pick),
 .app-shell textarea,
 .app-shell select {
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
-  padding: 11px 12px;
+  padding: 11px var(--space-3);
   border-color: var(--line);
   min-height: 44px;
 }
 .app-shell .field,
 .app-shell .field-block,
 .app-shell .legend {
-  font-size: 14px;
+  font-size: var(--text-sm);
 }
 .app-shell .badge {
   background: var(--accent-soft);
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
 }
 .app-shell .onboarding {
   background: var(--accent-soft);
@@ -285,11 +285,11 @@
   border-left: 1px solid var(--line);
 }
 .app-shell .onboarding .steps {
-  gap: 16px;
+  gap: var(--space-4);
 }
 .app-shell .onboarding .steps li {
   align-items: center;
-  font-size: 14px;
+  font-size: var(--text-sm);
 }
 .app-shell .onboarding .tick {
   width: 25px;
@@ -303,7 +303,7 @@
 }
 .app-shell .onboarding .step-budget {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-sm);
 }
 .app-shell .onboarding input {
   width: 62px;
@@ -321,24 +321,24 @@
 }
 .app-shell .daynav b {
   font-family: var(--display);
-  font-size: 19px;
+  font-size: var(--text-lg);
   font-weight: 600;
 }
 .app-shell .day-date {
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .app-shell .checkin {
-  gap: 8px;
+  gap: var(--space-2);
 }
 .app-shell .checkin button {
   padding: 17px 7px 13px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   gap: 9px;
 }
 .app-shell .checkin button b {
-  font-size: 13px;
+  font-size: var(--text-sm);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -352,11 +352,11 @@
   height: 19px;
 }
 .app-shell .checkin button .mood {
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .app-shell .checkin button .cost {
-  font-size: 10px;
-  padding: 4px 6px;
+  font-size: var(--text-xs);
+  padding: var(--space-1) 6px;
 }
 .app-shell .checkin button[aria-pressed="true"] {
   border-color: var(--dot);
@@ -371,8 +371,8 @@
   background: var(--accent-soft);
 }
 .app-shell .advice {
-  font-size: 14px;
-  line-height: 1.65;
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
   color: var(--muted);
   margin: 0;
   min-height: 3.3em;
@@ -394,7 +394,7 @@
   width: 222px;
   height: 222px;
   justify-self: center;
-  margin: 4px 0;
+  margin: var(--space-1) 0;
   color: var(--green-text);
 }
 .energy-svg {
@@ -425,12 +425,12 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   text-align: center;
   color: var(--fg);
 }
 .energy-readout .label {
-  font-size: 10px;
+  font-size: var(--text-xs);
   letter-spacing: 0.04em;
   text-transform: none;
   max-width: 160px;
@@ -444,12 +444,12 @@
   margin: 0;
 }
 .app-shell .energy-readout .big small {
-  font-size: 12px;
+  font-size: var(--text-xs);
   letter-spacing: 0;
 }
 .energy-readout .energy-caption {
-  font-size: 10px;
-  line-height: 1.4;
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
   color: var(--muted);
   margin: 0;
   max-width: 135px;
@@ -465,21 +465,21 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
   padding: 13px 0;
   border-block: 1px solid var(--line);
 }
 .energy-summary .meta {
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .energy-activities > .meta {
   margin: 0 0 10px;
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .energy-activity-pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
   list-style: none;
   padding: 0;
   margin: 0;
@@ -489,7 +489,7 @@
   max-width: 100%;
   min-width: 0;
   border: 1px solid var(--line);
-  border-radius: 24px;
+  border-radius: var(--radius-xl);
   background: var(--bg);
 }
 .energy-activity-pill.recovery {
@@ -507,9 +507,9 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
-  padding: 8px 10px 8px 15px;
+  padding: var(--space-2) 10px var(--space-2) 15px;
   border-radius: 24px 0 0 24px;
-  font-size: 12px;
+  font-size: var(--text-xs);
   text-align: left;
 }
 .energy-activity-name {
@@ -519,10 +519,10 @@
 }
 .energy-activity-detail {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   align-items: center;
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 .energy-activity-detail b {
@@ -533,7 +533,7 @@
   border-left: 1px solid var(--line);
   border-radius: 0 24px 24px 0;
   padding: 0;
-  font-size: 19px;
+  font-size: var(--text-lg);
   color: var(--muted);
 }
 .app-shell .energy-activity-pill button:hover {
@@ -543,24 +543,24 @@
   color: var(--red);
 }
 .app-shell .cells {
-  gap: 4px;
+  gap: var(--space-1);
 }
 .app-shell .cell {
   height: 16px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
 }
 .app-shell .energy-panel .switch-row {
-  padding: 12px;
+  padding: var(--space-3);
   margin: 0;
 }
 .app-shell .switch-text b {
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .app-shell .switch-text small {
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .app-shell .energy-panel details.hint {
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .app-shell .activities-panel > .meta {
   margin: -5px 0 0;
@@ -570,21 +570,21 @@
   gap: 15px;
 }
 .app-shell .act-group > summary {
-  padding: 12px 0;
+  padding: var(--space-3) 0;
   border-bottom: 1px solid var(--line);
   font-family: var(--display);
   font-weight: 600;
-  font-size: 17px;
+  font-size: var(--text-md);
 }
 .app-shell .acts {
   gap: 11px;
 }
 .app-shell .act {
   background: var(--surface);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   padding: 13px;
   grid-template-rows: minmax(3.6em, auto) 44px;
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .app-shell .act:hover {
   background: var(--accent-soft);
@@ -593,8 +593,8 @@
 .app-shell .act .c {
   padding: 5px 7px;
   background: var(--bg);
-  border-radius: 6px;
-  font-size: 12px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
 }
 .activity-add {
   grid-column: 1 / -1;
@@ -606,7 +606,7 @@
   color: var(--muted);
 }
 .activity-add > span {
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 .activity-add > b {
   display: grid;
@@ -617,7 +617,7 @@
   border-radius: 50%;
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 20px;
+  font-size: var(--text-lg);
   font-weight: 400;
 }
 .app-shell .act.rec {
@@ -632,12 +632,12 @@
 }
 .app-shell .step {
   width: 44px;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
 }
 .app-shell #activity-log > summary {
   background: var(--accent-soft);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 .app-shell .history-intro,
 .app-shell .profile-hero,
@@ -647,7 +647,7 @@
 .app-shell .metric {
   background: var(--surface);
   padding: 23px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   gap: 14px;
 }
 .app-shell .metric b {
@@ -684,7 +684,7 @@
   border-radius: 50%;
 }
 .app-shell #acc-title {
-  font-size: 32px;
+  font-size: var(--text-3xl);
   overflow-wrap: anywhere;
 }
 .app-shell .profile-stats {
@@ -692,7 +692,7 @@
 }
 .app-shell .list-section {
   background: var(--surface);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 .app-shell .list-section > summary {
   background: var(--accent-soft);
@@ -701,15 +701,15 @@
   background: var(--accent-soft);
 }
 .app-shell .help-card {
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 .app-shell .chips button {
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   min-height: 44px;
 }
 .app-shell .warn {
-  padding: 16px 20px;
-  line-height: 1.6;
+  padding: var(--space-4) var(--space-5);
+  line-height: var(--leading-normal);
 }
 .app-shell #episode-panel,
 .app-shell #account-panel,
@@ -753,7 +753,7 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .app-shell .onboarding {
-    padding: 20px 25px;
+    padding: var(--space-5) 25px;
   }
 }
 @media (min-width: 1180px) {
@@ -785,10 +785,10 @@
   .app-shell header .ghost {
     background: transparent;
     border: 0;
-    padding: 8px;
+    padding: var(--space-2);
   }
   .app-wordmark {
-    font-size: 26px;
+    font-size: var(--text-2xl);
   }
   .app-shell .title img {
     width: 29px;
@@ -798,11 +798,11 @@
     gap: 0;
   }
   .dashboard-masthead h1 {
-    font-size: 28px;
+    font-size: var(--text-2xl);
     max-width: 350px;
   }
   .dashboard-masthead #view-description {
-    font-size: 15px;
+    font-size: var(--text-base);
   }
   .dashboard-emblem {
     display: none;
@@ -817,30 +817,30 @@
     box-shadow: 0 6px 30px #203c3120;
   }
   .app-shell #tabs {
-    gap: 4px;
+    gap: var(--space-1);
     overflow-x: auto; /* an admin's seventh tab scrolls the bar sideways instead of clipping the other labels */
     scrollbar-width: none;
   }
   .app-shell #tabs button {
     flex: 1 0 auto; /* never narrower than its own label */
-    padding: 8px 2px;
+    padding: var(--space-2) 2px;
     min-height: 48px;
-    font-size: 12px;
+    font-size: var(--text-xs);
   }
   .app-shell .panel {
-    padding: 20px;
-    gap: 16px;
-    border-radius: 13px;
+    padding: var(--space-5);
+    gap: var(--space-4);
+    border-radius: var(--radius-md);
   }
   .app-shell h2 {
-    font-size: 23px;
+    font-size: var(--text-xl);
   }
   .app-shell .panel > .label-row {
     gap: 9px;
   }
   .app-shell .save-bar {
     margin-inline: -20px;
-    padding-inline: 20px;
+    padding-inline: var(--space-5);
     bottom: calc(78px + env(safe-area-inset-bottom, 0px));
   }
   .app-shell .toastbar {
@@ -850,7 +850,7 @@
     padding: 17px;
   }
   .app-shell .metric b {
-    font-size: 31px;
+    font-size: var(--text-3xl);
   }
 }
 @media (max-width: 360px) {
@@ -858,13 +858,13 @@
     padding-inline: 14px;
   }
   .app-shell .panel {
-    padding: 16px;
+    padding: var(--space-4);
   }
   .app-shell .checkin button {
-    padding-inline: 4px;
+    padding-inline: var(--space-1);
   }
   .app-shell .checkin button .mood {
-    font-size: 11px;
+    font-size: var(--text-xs);
   }
   .app-shell .act {
     padding: 10px;
@@ -906,7 +906,7 @@
   max-width: 1200px;
 }
 .account-workspace {
-  margin-top: 20px;
+  margin-top: var(--space-5);
 }
 .admin-workspace {
   display: grid;
@@ -917,17 +917,17 @@
 .admin-sidebar {
   position: sticky;
   top: 90px;
-  padding: 24px 16px;
+  padding: var(--space-6) var(--space-4);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
 }
 .admin-sidebar > h2 {
-  margin: 0 10px 24px;
-  font-size: 23px;
+  margin: 0 10px var(--space-6);
+  font-size: var(--text-xl);
 }
 .admin-sidebar > .eyebrow {
-  margin: 0 10px 8px;
+  margin: 0 10px var(--space-2);
 }
 .admin-nav {
   display: grid;
@@ -935,13 +935,13 @@
 }
 .admin-nav button {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   align-items: center;
   width: 100%;
   min-height: 68px;
-  padding: 12px 10px;
+  padding: var(--space-3) 10px;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--fg);
   font: inherit;
@@ -959,18 +959,18 @@
 }
 .admin-nav b {
   display: block;
-  font-size: 14px;
+  font-size: var(--text-sm);
 }
 .admin-nav small {
   display: block;
   margin-top: 3px;
   color: var(--muted);
-  font-size: 11px;
-  line-height: 1.35;
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
 }
 .admin-nav-number {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
 }
 .admin-nav-arrow {
@@ -982,45 +982,45 @@
   opacity: 1;
 }
 .admin-nav-note {
-  margin: 24px 10px 0;
-  padding-top: 20px;
+  margin: var(--space-6) 10px 0;
+  padding-top: var(--space-5);
   border-top: 1px solid var(--line);
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .admin-content {
   display: grid;
-  gap: 20px;
+  gap: var(--space-5);
   min-width: 0;
 }
 .admin-intro {
   display: flex;
   align-items: start;
   justify-content: space-between;
-  gap: 16px;
-  padding: 12px 0 6px;
+  gap: var(--space-4);
+  padding: var(--space-3) 0 6px;
 }
 .admin-intro h2 {
-  margin: 8px 0 10px;
+  margin: var(--space-2) 0 10px;
   font-size: clamp(26px, 3vw, 36px);
   letter-spacing: -0.04em;
-  line-height: 1.15;
+  line-height: var(--leading-tight);
 }
 .admin-intro .meta {
   max-width: 48ch;
   margin: 0;
-  line-height: 1.6;
+  line-height: var(--leading-normal);
 }
 .admin-intro .badge {
   flex-shrink: 0;
   margin-top: 28px;
 }
 .app-shell .admin-confirmation {
-  padding: 16px 20px;
+  padding: var(--space-4) var(--space-5);
   background: var(--accent-soft);
 }
 .admin-confirmation label {
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 700;
 }
 .admin-confirmation input {
@@ -1029,7 +1029,7 @@
 }
 .admin-confirmation .hint {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .admin-section {
   min-width: 0;
@@ -1040,7 +1040,7 @@
 }
 .admin-section .people > li {
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
   padding-block: 18px;
 }
 .admin-user-actions {
@@ -1050,15 +1050,15 @@
   padding: 10px 0;
   min-height: 44px;
   color: var(--accent);
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 700;
   cursor: pointer;
 }
 .admin-user-actions .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding-bottom: 8px;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
 }
 @media (min-width: 1180px) {
   #admin-section-people {
@@ -1072,7 +1072,7 @@
   }
   .admin-sidebar {
     position: static;
-    padding: 16px;
+    padding: var(--space-4);
   }
   .admin-sidebar > h2,
   .admin-sidebar > .eyebrow,
@@ -1098,12 +1098,12 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .admin-nav button {
-    gap: 8px;
-    padding: 10px 8px;
+    gap: var(--space-2);
+    padding: 10px var(--space-2);
   }
   .admin-intro {
     flex-direction: column;
-    gap: 12px;
+    gap: var(--space-3);
   }
   .admin-intro .badge {
     margin: 0;
@@ -1124,18 +1124,18 @@
 .app-shell #brand-home {
   color: inherit;
   text-decoration: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 
 /* Energy language is independent of light/dark appearance. Native radios keep keyboard semantics. */
 .energy-theme-picker {
-  gap: 12px;
-  padding-top: 8px;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
   border-top: 1px solid var(--line);
 }
 .energy-theme-picker legend {
-  padding: 12px 0 0;
-  font-size: 1rem;
+  padding: var(--space-3) 0 0;
+  font-size: var(--text-base);
 }
 .energy-theme-picker > .hint {
   margin: 0;
@@ -1143,7 +1143,7 @@
 .energy-theme-options {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--space-3);
 }
 .energy-theme-option {
   position: relative;
@@ -1159,15 +1159,15 @@
 .energy-theme-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
   height: 100%;
   padding: 18px;
   border: 2px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--muted);
-  font-size: 0.9rem;
-  line-height: 1.5;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
 }
 .energy-theme-option:hover .energy-theme-card {
   border-color: var(--muted);
@@ -1187,7 +1187,7 @@
   color: var(--fg);
 }
 .energy-theme-top b {
-  font-size: 1.05rem;
+  font-size: var(--text-base);
 }
 .energy-theme-symbol {
   display: inline-flex;
@@ -1218,20 +1218,20 @@
 }
 .energy-theme-example {
   margin-top: auto;
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--fg);
 }
 .energy-theme-preview {
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
   padding: 14px 18px;
   background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
 }
 .energy-theme-preview .label {
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
 }
 .energy-spoon {
   width: 20px;
@@ -1240,7 +1240,7 @@
   flex-shrink: 0;
 }
 :root[data-energy-theme="spoons"] .energy-readout {
-  gap: 4px;
+  gap: var(--space-1);
 }
 :root[data-energy-theme="spoons"] .app-shell .cell {
   height: 30px;
@@ -1277,8 +1277,8 @@
     grid-template-columns: 1fr;
   }
   .energy-theme-card {
-    padding: 16px;
-    gap: 8px;
+    padding: var(--space-4);
+    gap: var(--space-2);
   }
 }
 @media (forced-colors: active) {
@@ -1296,7 +1296,7 @@
 /* Controls keep a consistent rhythm when they wrap; file inputs never crowd their actions. */
 .app-shell .profile-photo-picker > div:last-child {
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .app-shell .profile-photo-picker .secondary {
   justify-self: start;
@@ -1307,17 +1307,17 @@
   overflow: hidden;
 }
 .app-shell input[type="file"]::file-selector-button {
-  margin-right: 12px;
-  padding: 8px 12px;
+  margin-right: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--accent-soft);
   color: var(--fg);
   font: inherit;
 }
 .app-shell .row,
 .app-shell .service-actions {
-  row-gap: 12px;
+  row-gap: var(--space-3);
 }
 @media (max-width: 959px) {
   .app-shell .history-overview {
@@ -1335,13 +1335,13 @@
   .app-shell .history-disclosure > summary {
     align-items: start;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--space-2);
   }
 }
 
 /* Keep the full touch targets inside narrow activity cards. */
 .app-shell .stepper {
-  gap: 4px;
+  gap: var(--space-1);
   justify-content: space-between;
 }
 .app-shell .step {
@@ -1363,7 +1363,7 @@
 }
 .app-shell #usage-report th,
 .app-shell #usage-report td {
-  padding: 8px;
+  padding: var(--space-2);
   text-align: left;
 }
 
@@ -1392,20 +1392,20 @@
 .plan-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin: 20px 0;
+  gap: var(--space-3);
+  margin: var(--space-5) 0;
 }
 .energy-breakdown div,
 .plan-metrics > div {
   padding: 14px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   min-width: 0;
   background: var(--surface);
 }
 .energy-breakdown dt,
 .plan-metrics span {
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   color: var(--muted);
   display: block;
 }
@@ -1413,7 +1413,7 @@
 .plan-metrics b {
   margin: 6px 0 0;
   display: block;
-  font-size: 1.6rem;
+  font-size: var(--text-xl);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -1424,10 +1424,10 @@
 .energy-cell-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 18px;
-  font-size: 0.8rem;
+  gap: var(--space-2) 18px;
+  font-size: var(--text-sm);
   color: var(--muted);
-  margin: 12px 0 20px;
+  margin: var(--space-3) 0 var(--space-5);
 }
 .energy-cell-legend span {
   display: flex;
@@ -1437,7 +1437,7 @@
 .energy-cell-legend i {
   width: 12px;
   height: 12px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--accent);
 }
 .energy-cell-legend i.spent {
@@ -1467,7 +1467,7 @@
 }
 .energy-flow {
   border-top: 1px solid var(--line);
-  padding: 16px 0;
+  padding: var(--space-4) 0;
 }
 .energy-flow summary {
   display: flex;
@@ -1486,18 +1486,18 @@
   justify-content: space-between;
   align-items: center;
   gap: 14px;
-  padding: 12px 0;
+  padding: var(--space-3) 0;
   border-bottom: 1px solid var(--line);
 }
 .energy-flow-list small {
   display: block;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   margin-top: 3px;
 }
 .energy-flow-list b {
   text-align: right;
-  font-size: 1.3rem;
+  font-size: var(--text-lg);
   font-variant-numeric: tabular-nums;
 }
 .today-plan {
@@ -1509,8 +1509,8 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 .plan-heading h2,
 .plan-heading h3,
@@ -1526,7 +1526,7 @@
 .plan-days {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 8px;
+  gap: var(--space-2);
 }
 .plan-days:has(> :only-child) {
   grid-template-columns: minmax(0, 180px);
@@ -1544,7 +1544,7 @@
   background: var(--surface);
   color: var(--fg);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   min-width: 0;
 }
 .app-shell .plan-day[aria-pressed="true"] {
@@ -1553,36 +1553,36 @@
   outline-offset: 1px;
 }
 .plan-day b {
-  font-size: 1.6rem;
+  font-size: var(--text-xl);
   font-variant-numeric: tabular-nums;
 }
 .plan-day small {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 .plan-metrics {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 .plan-outlook {
-  padding: 14px 16px;
+  padding: 14px var(--space-4);
   background: var(--accent-soft);
   border: 1px solid var(--line);
-  border-radius: 12px;
-  line-height: 1.55;
+  border-radius: var(--radius-md);
+  line-height: var(--leading-normal);
 }
 .plan-warning {
   border-left: 4px solid var(--amber);
 }
 .plan-activities {
   list-style: none;
-  margin: 12px 0 0;
+  margin: var(--space-3) 0 0;
   padding: 0;
 }
 .plan-activity {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 16px 0;
+  padding: var(--space-4) 0;
   border-bottom: 1px solid var(--line);
 }
 .plan-activity-info {
@@ -1596,13 +1596,13 @@
 }
 .plan-cost {
   flex-shrink: 0;
-  font-size: 1.2rem;
+  font-size: var(--text-lg);
   font-variant-numeric: tabular-nums;
 }
 .plan-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 .plan-done {
@@ -1624,20 +1624,20 @@
   margin: 0;
 }
 .plan-start p {
-  margin-block: 6px 16px;
+  margin-block: 6px var(--space-4);
 }
 .plan-empty {
-  padding: 28px 16px;
+  padding: 28px var(--space-4);
   text-align: center;
   background: var(--accent-soft);
   border: 1px dashed var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
 }
 .plan-form {
   padding: 22px;
-  margin-top: 20px;
+  margin-top: var(--space-5);
   border: 1px solid var(--accent);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--accent-soft);
 }
 .plan-form-fields {
@@ -1652,12 +1652,12 @@
 }
 #episode-ongoing .ongoing-item p,
 #today-ongoing .ongoing-item p {
-  margin: 0 0 8px;
+  margin: 0 0 var(--space-2);
 }
 #episode-ongoing .ongoing-item .row,
 #today-ongoing .ongoing-item .row {
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 /* Visible only to someone who tabs to it. */
 .skip-inline {
@@ -1681,7 +1681,7 @@
   padding: 10px 14px;
   clip-path: none;
   border: 2px solid var(--accent);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--fg);
   font: inherit;
@@ -1690,9 +1690,9 @@
 .pattern-row {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  padding: 4px 0;
-  font-size: 0.9rem;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+  font-size: var(--text-sm);
 }
 .pattern-row b {
   flex: none;
@@ -1717,20 +1717,20 @@
 }
 .plan-history {
   margin: 18px 0;
-  padding: 16px;
+  padding: var(--space-4);
   background: var(--accent-soft);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
 }
 @media (max-width: 700px) {
   .energy-breakdown,
   .plan-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    gap: var(--space-2);
   }
   .energy-breakdown div,
   .plan-metrics > div {
-    padding: 12px;
+    padding: var(--space-3);
   }
   .plan-metrics > div:last-child {
     grid-column: 1/-1;
@@ -1739,7 +1739,7 @@
     display: flex;
     overflow-x: auto;
     margin-inline: -8px; /* cancels the padding below, so the days stay aligned with the text above */
-    padding: 6px 8px; /* room for the selected day's 3px ring, which the scroller would clip */
+    padding: 6px var(--space-2); /* room for the selected day's 3px ring, which the scroller would clip */
     scroll-padding-inline: 8px; /* snapping to the first day must not scroll that padding away */
     scroll-snap-type: x proximity;
   }
@@ -1773,7 +1773,7 @@
     gap: 6px;
   }
   .plan-form {
-    padding: 16px;
+    padding: var(--space-4);
   }
   .plan-heading > button {
     width: 100%;
@@ -1783,21 +1783,21 @@
 .plan-recovery-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 12px 0;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
 }
 
 .app-shell .app-footer {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 12px 24px;
-  margin-top: 32px;
-  padding-top: 20px;
+  gap: var(--space-3) var(--space-6);
+  margin-top: var(--space-8);
+  padding-top: var(--space-5);
   border-top: 1px solid var(--line);
   color: var(--muted);
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
 }
 .app-shell .app-footer a {
   display: inline-flex;
@@ -1816,7 +1816,7 @@
   --hour: 56px;
   --rail: 46px;
   --min: calc(var(--hour) / 60);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   min-width: 0;
 }
 @media (pointer: coarse) {
@@ -1838,11 +1838,11 @@
     position: static;
     width: auto;
     height: auto;
-    margin: 8px 0 0;
+    margin: var(--space-2) 0 0;
     clip-path: none;
     color: var(--muted);
-    font-size: 0.8rem;
-    line-height: 1.5;
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
   }
 }
 .cal-inner {
@@ -1865,7 +1865,7 @@
 .cal-corner {
   align-self: center;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
 }
 .cal-day-head {
   display: flex;
@@ -1873,7 +1873,7 @@
   align-items: center;
   gap: 2px;
   min-height: 44px;
-  padding: 6px 4px;
+  padding: 6px var(--space-1);
   border: 0;
   border-bottom: 3px solid transparent;
   border-radius: 8px 8px 0 0;
@@ -1889,7 +1889,7 @@
   font-family: var(--display);
 }
 .cal-day-head b {
-  font-size: 1.05rem;
+  font-size: var(--text-base);
   font-variant-numeric: tabular-nums;
 }
 .cal-day-head.is-today span {
@@ -1915,7 +1915,7 @@
   border-radius: 50%;
   background: var(--red-text);
   color: var(--surface);
-  font: 700 0.62rem/1 var(--display);
+  font: 700 var(--text-xs)/1 var(--display);
 }
 .cal-day-head {
   position: relative;
@@ -1926,7 +1926,7 @@
 .cal-tray {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--space-1);
   padding-inline: 2px;
   max-height: 76px; /* many untimed items must not push the hours off the screen */
   overflow-y: auto;
@@ -1945,7 +1945,7 @@
   max-height: min(70vh, 620px);
   overflow-y: auto;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
 }
 .cal-body {
   position: relative;
@@ -1960,7 +1960,7 @@
   box-sizing: border-box;
   padding: 2px 6px 0 0;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
@@ -1991,11 +1991,11 @@
   padding: 3px 6px;
   overflow: hidden;
   border: 1px dashed var(--accent);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--accent-soft);
   color: var(--fg);
   font: inherit;
-  line-height: 1.2;
+  line-height: var(--leading-tight);
   text-align: left;
   user-select: none;
 }
@@ -2040,8 +2040,8 @@
 }
 .fb-swatches {
   display: flex;
-  gap: 8px;
-  padding: 4px 10px 6px;
+  gap: var(--space-2);
+  padding: var(--space-1) 10px 6px;
 }
 .fb-menu .fb-swatch {
   width: 22px;
@@ -2089,7 +2089,7 @@
   width: calc((var(--strip) - 2px) / var(--lanes) - 2px);
   padding: 0;
   border: 1px solid var(--red);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--red) 55%, var(--surface));
 }
 .cal-block.cal-side .cal-title,
@@ -2123,8 +2123,8 @@
   position: absolute;
   top: 3px;
   right: 30px;
-  font-size: 0.68rem;
-  line-height: 1.2;
+  font-size: var(--text-xs);
+  line-height: var(--leading-tight);
   pointer-events: none;
 }
 .cal-block.is-short .cal-cost-badge {
@@ -2135,7 +2135,7 @@
 }
 .cal-chip-cost {
   flex: none;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   white-space: nowrap; /* "−2" must not break between the sign and the number */
 }
@@ -2151,7 +2151,7 @@
   overflow: hidden;
   color: var(--fg);
   opacity: 0.82;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2191,7 +2191,7 @@
   right: 2px;
   width: 22px;
   height: 22px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background-image: radial-gradient(circle, currentColor 1.3px, transparent 1.7px);
   background-size: 6px 6px;
   color: var(--muted);
@@ -2238,10 +2238,10 @@
   box-sizing: border-box;
   padding: 2px 6px;
   border: 2px solid var(--accent);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--accent) 18%, transparent);
   color: var(--fg);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   pointer-events: none;
   z-index: 4;
@@ -2269,14 +2269,14 @@
   align-items: center;
   gap: 6px;
   min-height: 32px;
-  padding: 4px 10px;
+  padding: var(--space-1) 10px;
   border: 1px dashed var(--accent);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   overflow-wrap: anywhere;
   background: var(--accent-soft);
   color: var(--fg);
   font: inherit;
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   text-align: left;
 }
 /* After the base rule: same specificity, so order decides. */
@@ -2304,7 +2304,7 @@
 .plan-board-layout {
   display: grid;
   grid-template-columns: 210px minmax(0, 1fr);
-  gap: 16px;
+  gap: var(--space-4);
   align-items: start;
   margin-top: 14px;
 }
@@ -2365,10 +2365,10 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 12px;
+  gap: var(--space-1) var(--space-3);
   margin: 0;
-  padding: 8px 12px;
-  border-radius: 10px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
   background: var(--accent-soft);
   font-weight: 600;
 }
@@ -2397,7 +2397,7 @@
   height: 20px;
   border-radius: 50%;
   color: var(--muted);
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
@@ -2417,14 +2417,14 @@
 }
 .cal-chip.is-removable {
   position: relative;
-  padding-right: 24px;
+  padding-right: var(--space-6);
 }
 .cal-chip .cal-remove {
   top: 50%;
   transform: translateY(-50%);
 }
 .cal-block.is-removable {
-  padding-right: 24px;
+  padding-right: var(--space-6);
 }
 .cal-block.is-removable .cal-grip {
   right: 24px;
@@ -2433,10 +2433,10 @@
   .cal-remove {
     width: 36px;
     height: 36px;
-    font-size: 1.3rem;
+    font-size: var(--text-lg);
   }
   .cal-block.is-removable {
-    padding-right: 40px;
+    padding-right: var(--space-10);
   }
   .cal-block.is-removable .cal-grip {
     right: 40px;
@@ -2445,14 +2445,14 @@
     right: 80px;
   }
   .cal-chip.is-removable {
-    padding-right: 40px;
+    padding-right: var(--space-10);
   }
 }
 .confirm-dialog {
   width: min(420px, calc(100vw - 32px));
-  padding: 24px;
+  padding: var(--space-6);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   color: var(--fg);
   background: var(--surface);
 }
@@ -2464,11 +2464,11 @@
   backdrop-filter: blur(3px);
 }
 .confirm-dialog h2 {
-  margin: 0 0 8px;
-  font-size: 1.15rem;
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-md);
 }
 .confirm-dialog p {
-  margin: 0 0 20px;
+  margin: 0 0 var(--space-5);
   overflow-wrap: anywhere;
 }
 .confirm-actions {
@@ -2480,7 +2480,7 @@
 @media (max-width: 340px) {
   .app-shell #tabs button {
     padding-inline: 0;
-    font-size: 10.5px;
+    font-size: var(--text-xs);
     letter-spacing: 0;
   }
 }
