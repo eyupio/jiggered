@@ -8,8 +8,8 @@
     "test": "node --test \"*.test.mjs\"",
     "browser": "node support/run-browser.cjs",
     "browser:install": "playwright install chromium",
-    "format": "prettier --write --ignore-path ../.prettierignore ../web . ../.github ../CONTRIBUTING.md ../CLAUDE.md ../README.md ../.prettierrc.json",
-    "format:check": "prettier --check --ignore-path ../.prettierignore ../web . ../.github ../CONTRIBUTING.md ../CLAUDE.md ../README.md ../.prettierrc.json",
+    "format": "prettier --write --ignore-path ../.prettierignore ../web . ../.github ../CONTRIBUTING.md ../AGENTS.md ../CLAUDE.md ../README.md ../.prettierrc.json",
+    "format:check": "prettier --check --ignore-path ../.prettierignore ../web . ../.github ../CONTRIBUTING.md ../AGENTS.md ../CLAUDE.md ../README.md ../.prettierrc.json",
     "lint": "cd .. && test/node_modules/.bin/eslint --config test/eslint.config.mjs web test",
     "check": "npm run format:check && npm run lint && npm test"
   },
