@@ -1,0 +1,31 @@
+name: Bug report
+description: Something in Jiggered does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use synthetic data only. Never paste real health records, passwords, backups or tokens.
+        Report security problems privately through the link on the issue chooser, not here.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Start from a fresh account or database if you can.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or image tag
+      description: For example `v1.0`, `latest`, or `dev` with the short SHA.
+  - type: input
+    id: environment
+    attributes:
+      label: Browser and device, or how you run the server
