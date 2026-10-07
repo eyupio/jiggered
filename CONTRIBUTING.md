@@ -112,7 +112,7 @@ The browser runner compiles once, then runs all shared scenarios:
 | `test/browser-security.cjs`             | Password confirmation, revocation and reader-tab cleanup                                                                                                                                                      |
 | `test/browser-accounts.cjs`             | Local SMTP relay, registration, recovery, 2FA (including disable and regenerating codes), recovery-email change and mobile layout                                                                             |
 | `test/browser-admin.cjs`                | Admin navigation, layout and encrypted manual backups                                                                                                                                                         |
-| `test/browser.cjs`                      | Full desktop/touch walkthrough, offline sync and held changes                                                                                                                                                     |
+| `test/browser.cjs`                      | Full desktop/touch walkthrough, offline sync and held changes                                                                                                                                                 |
 
 The public pages have a separate browser check for JavaScript-disabled rendering,
 metadata, links, signup availability and mobile layouts. CI reuses the same fixture

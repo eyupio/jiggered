@@ -367,7 +367,9 @@ export function createStore({
   // Refused content stays recoverable; successful unrelated saves never clear it.
   function dropBatch(id, lastN, message, extra = {}) {
     if (failed.length >= 100)
-      throw new Error("Held changes are full. Download the device copy or resolve older refused changes first.");
+      throw new Error(
+        "Held changes are full. Download the device copy or resolve older refused changes first.",
+      );
     const ops = pending.filter((o) => o.id === id && o.n <= lastN);
     failed.push({
       key: `${Date.now()}-${lastN}`,
@@ -488,7 +490,9 @@ export function createStore({
           if ([408, 425, 429].includes(res.status)) throw new Error("HTTP " + res.status); // transient: keep the change and retry
           if (res.status >= 400 && res.status < 500) {
             if (failed.length >= 100)
-              throw new Error("Held changes are full. Download the device copy or resolve older refused changes first.");
+              throw new Error(
+                "Held changes are full. Download the device copy or resolve older refused changes first.",
+              );
             dropBatch(id, lastN, res.message);
             break;
           }

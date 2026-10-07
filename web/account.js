@@ -587,10 +587,7 @@ export function init(ctx) {
       setDirty(true);
       ticket = null;
       ctx.drafts?.put("settings", { value: editor.read(), baseline });
-      say(
-        $("set-msg"),
-        "Held copy opened. Save it, then resolve or discard the held change.",
-      );
+      say($("set-msg"), "Held copy opened. Save it, then resolve or discard the held change.");
       nav?.reveal($("set-acts"));
       editor.focus("set-acts");
       if (value.profile) profile.recover(value.profile);
