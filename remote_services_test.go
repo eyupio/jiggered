@@ -597,3 +597,19 @@ func TestBackupListingIsTruncatedAtTwoHundred(t *testing.T) {
 		}
 	}
 }
+
+func TestUsableBackupSurvivesLaterFailure(t *testing.T) {
+	e := newTestServer(t)
+	c := e.newClient()
+	c.login(adminName, adminPass)
+	e.s.db.Exec(`INSERT INTO remote_backup_runs(id,started,finished,status,uploaded,verified,verification_required,retained) VALUES(1,100,101,'warning',1,1,1,0),(2,200,201,'failed',1,0,1,0)`)
+	var result struct {
+		Usable   int64       `json:"last_usable"`
+		Verified int64       `json:"last_verified"`
+		Runs     []backupRun `json:"runs"`
+	}
+	c.getJSON("/api/admin/services", &result)
+	if result.Usable != 101 || result.Verified != 101 || len(result.Runs) != 2 || result.Runs[0].Status != "failed" {
+		t.Fatalf("backup history=%+v", result)
+	}
+}

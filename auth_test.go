@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestLoginAndLogout(t *testing.T) {
@@ -577,5 +580,106 @@ func TestALimiterFullOfLiveKeysLetsNewOnesThrough(t *testing.T) {
 	l.mu.Unlock()
 	if recorded {
 		t.Fatal("an untracked attempt was recorded")
+	}
+}
+
+func TestStalePasswordChange(t *testing.T) {
+	e := newTestServer(t)
+	alice, old := e.addUser("alice", roleUser)
+	u, _ := e.s.userByName(t.Context(), "alice")
+	resetHash, _ := bcrypt.GenerateFromPassword([]byte("owner-reset-password"), bcrypt.MinCost)
+	e.s.hashSem = make(chan struct{})
+	done := make(chan int, 1)
+	go func() {
+		done <- alice.do("POST", "/api/me/password", map[string]string{"current": old, "new": "attacker-final-password"})
+	}()
+	<-e.s.hashSem             // password verification starts
+	e.s.hashSem <- struct{}{} // verification ends, next step starts
+	<-e.s.hashSem             // new-password hashing starts after old password was verified
+	if err := e.s.setPassword(context.Background(), u.ID, string(resetHash), true, ""); err != nil {
+		t.Fatal(err)
+	}
+	e.s.hashSem <- struct{}{} // permit stale request to finish hashing and commit
+	if st := <-done; st != 409 {
+		t.Fatal(st)
+	}
+	hash, _ := e.s.passwordHash(t.Context(), u.ID)
+	if bcrypt.CompareHashAndPassword(hash, []byte("owner-reset-password")) != nil {
+		t.Fatal("reset password was overwritten")
+	}
+	fresh, _ := e.s.userByID(t.Context(), u.ID)
+	if !fresh.MustChange {
+		t.Fatal("must-change unexpectedly retained")
+	}
+	// Restore a normal semaphore before performing a real login.
+	e.s.hashSem = make(chan struct{}, maxHashing)
+	if loc := e.newClient().login("alice", "attacker-final-password"); loc == "/" {
+		t.Fatal("stale password accepted")
+	}
+}
+
+func TestProxySpoofing(t *testing.T) {
+	s := serverWithSettings(instanceSettings{SecureCookie: true, TrustProxy: true, ProxyHops: 1})
+	r := httptest.NewRequest("POST", "/login", nil)
+	r.RemoteAddr = "203.0.113.10:5000"
+	r.Header.Set("X-Forwarded-For", "198.51.100.99")
+	if s.clientIP(r) != "203.0.113.10" {
+		t.Fatal(s.clientIP(r))
+	}
+	r.Header.Set("Origin", "https://evil.example")
+	r.Header.Set("X-Forwarded-Host", "evil.example")
+	if s.sameSiteLogin(r) {
+		t.Fatal("forged origin accepted")
+	}
+}
+
+func TestStolenCurrentCookieSurvivesPasswordChange(t *testing.T) {
+	e := newTestServer(t)
+	alice, old := e.addUser("alice", roleUser)
+	base, _ := http.NewRequest("GET", e.ts.URL, nil)
+	stolen := e.newClient()
+	stolen.hc.Jar.SetCookies(base.URL, alice.hc.Jar.Cookies(base.URL))
+	if st := alice.do("POST", "/api/me/password", map[string]string{"current": old, "new": "owner-changed-password"}); st != 204 {
+		t.Fatal(st)
+	}
+	if st := stolen.do("GET", "/api/docs", nil); st != 401 {
+		t.Fatal(st)
+	}
+}
+
+func TestProxyRequiresPeersChainAndCanonicalOrigin(t *testing.T) {
+	s := serverWithSettings(instanceSettings{TrustProxy: true, ProxyHops: 2, TrustedProxyCIDRs: "127.0.0.1/32,10.0.0.0/8"})
+	r := httptest.NewRequest("POST", "http://internal/login", nil)
+	r.RemoteAddr = "127.0.0.1:1234"
+	r.Header.Set("X-Forwarded-For", "198.51.100.4,10.0.0.2")
+	r.Header.Set("Origin", "https://logs.example")
+	r.Header.Set("X-Forwarded-Host", "logs.example")
+	r.Header.Set("X-Forwarded-Proto", "https")
+	if s.clientIP(r) != "198.51.100.4" || !s.sameSiteLogin(r) {
+		t.Fatal("valid proxy rejected")
+	}
+	r.Header.Set("X-Forwarded-Host", "evil.example,logs.example")
+	if s.sameSiteLogin(r) {
+		t.Fatal("multi-valued host accepted")
+	}
+	r.Header.Set("X-Forwarded-For", "198.51.100.4,203.0.113.9")
+	if s.clientIP(r) != "127.0.0.1" {
+		t.Fatal("untrusted intermediary accepted")
+	}
+}
+
+func TestReservedUsernames(t *testing.T) {
+	e := newTestServer(t)
+	admin := e.signedInAdmin()
+	for _, name := range []string{"system", "cli"} {
+		if validUsername(name) {
+			t.Errorf("%q is what the activity log calls the app and the command line, so nobody may have it", name)
+		}
+		if st := admin.do("POST", "/api/admin/users", map[string]string{"username": name}); st != 400 {
+			t.Errorf("creating %q: %d, want 400", name, st)
+		}
+	}
+	if st := admin.do("POST", "/api/admin/users", map[string]string{"username": "systemd"}); st != 201 {
+		t.Errorf("names that merely start with a reserved one are fine: %d", st)
 	}
 }

@@ -95,18 +95,18 @@ func TestBackupDownloadIsRecordedEvenIfItIsCutShort(t *testing.T) {
 	}
 }
 
-func TestReservedUsernames(t *testing.T) {
+func TestAuditLimitIsCappedAt500(t *testing.T) {
 	e := newTestServer(t)
 	admin := e.signedInAdmin()
-	for _, name := range []string{"system", "cli"} {
-		if validUsername(name) {
-			t.Errorf("%q is what the activity log calls the app and the command line, so nobody may have it", name)
-		}
-		if st := admin.do("POST", "/api/admin/users", map[string]string{"username": name}); st != 400 {
-			t.Errorf("creating %q: %d, want 400", name, st)
-		}
+	if _, err := e.s.db.Exec(`WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM n WHERE x < 700)
+		INSERT INTO audit_log(at, actor, action) SELECT 1, 'x', 'filler' FROM n`); err != nil {
+		t.Fatal(err)
 	}
-	if st := admin.do("POST", "/api/admin/users", map[string]string{"username": "systemd"}); st != 201 {
-		t.Errorf("names that merely start with a reserved one are fine: %d", st)
+	for limit, want := range map[string]int{"501": 500, "100000": 500, "500": 500, "5": 5, "0": 100, "-3": 100, "junk": 100} {
+		var got []auditOut
+		admin.getJSON("/api/admin/audit?limit="+limit, &got)
+		if len(got) != want {
+			t.Errorf("limit=%s returned %d rows, want %d", limit, len(got), want)
+		}
 	}
 }

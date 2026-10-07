@@ -549,3 +549,15 @@ func TestJSONBodiesMustBeASingleValue(t *testing.T) {
 		t.Error("the first value was applied despite the trailing data")
 	}
 }
+
+func TestRejectedSettingsPatchChangesNothing(t *testing.T) {
+	e := newTestServer(t)
+	c := e.signedInAdmin()
+	before := e.s.settings().strings()
+	if st := c.do("PATCH", "/api/admin/settings", map[string]any{"trust_proxy": true, "proxy_hops": 99}); st != 400 {
+		t.Fatalf("patch with an invalid field = %d, want 400", st)
+	}
+	if after := e.s.settings().strings(); after["trust_proxy"] != before["trust_proxy"] {
+		t.Errorf("a refused patch still changed trust_proxy: %q -> %q", before["trust_proxy"], after["trust_proxy"])
+	}
+}

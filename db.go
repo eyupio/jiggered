@@ -320,3 +320,19 @@ func migrateDocRevs(tx *sql.Tx, _ *seedAdmin) error {
 ) WITHOUT ROWID`)
 	return err
 }
+
+func migrateProductImprovements(tx *sql.Tx, first *seedAdmin) error {
+	_, err := tx.Exec(`
+ ALTER TABLE remote_backup_runs ADD COLUMN uploaded INTEGER NOT NULL DEFAULT 0;
+ ALTER TABLE remote_backup_runs ADD COLUMN verified INTEGER NOT NULL DEFAULT 0;
+ ALTER TABLE remote_backup_runs ADD COLUMN verification_required INTEGER NOT NULL DEFAULT 0;
+ ALTER TABLE remote_backup_runs ADD COLUMN retained INTEGER NOT NULL DEFAULT 0;
+ UPDATE remote_backup_runs SET uploaded=1,retained=1 WHERE status='success';
+ UPDATE remote_backup_runs SET verified=1,verification_required=1 WHERE status='success' AND message='Backup uploaded and SHA-256 verified.';
+ CREATE TABLE account_mail_deliveries(id INTEGER PRIMARY KEY AUTOINCREMENT,purpose TEXT NOT NULL,created INTEGER NOT NULL,expires INTEGER NOT NULL,next_at INTEGER NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,status TEXT NOT NULL DEFAULT 'queued',token_hash TEXT NOT NULL,payload TEXT NOT NULL,error_category TEXT NOT NULL DEFAULT '');
+ CREATE INDEX account_mail_due ON account_mail_deliveries(status,next_at);
+ CREATE TABLE usage_consent(user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,seed TEXT NOT NULL);
+ CREATE TABLE product_usage(cohort TEXT NOT NULL,week TEXT NOT NULL,event TEXT NOT NULL,count INTEGER NOT NULL,days INTEGER NOT NULL,PRIMARY KEY(cohort,week,event));
+ `)
+	return err
+}
