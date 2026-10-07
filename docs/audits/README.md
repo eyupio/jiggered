@@ -9,6 +9,7 @@ repository before these documents were archived.
 - [Repository review](REPO_AUDIT.md)
 - [Feature review](FEATURES_AUDIT.md)
 - [SEO review](SEO_AUDIT.md)
-- [UI review](UI_AUDIT.md)
+- [UI review, 1 Oct 2026](UI_AUDIT.md)
+- [UI review, October 2026 (landing to first value)](UI_AUDIT_2026-10.md)
 - [Test review](TEST_AUDIT.md)
 - [Implementation map](AUDIT_IMPLEMENTATION.md)
