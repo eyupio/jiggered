@@ -32,7 +32,7 @@ export const profileInitials = (name) =>
     .slice(0, 2)
     .join("")
     .toLocaleUpperCase() || "J";
-export function applyAppearance(profile) {
+function applyAppearance(profile) {
   const { theme } = normaliseProfile(profile);
   if (theme === "system") delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = theme;

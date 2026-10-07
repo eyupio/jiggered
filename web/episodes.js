@@ -72,7 +72,7 @@ export function endEpisodeNow(ctx, id) {
 }
 
 // "Still going" is only a sensible default for something that started just now; for anything older the person chooses.
-export function defaultDuration(when, now = new Date()) {
+function defaultDuration(when, now = new Date()) {
   const start = new Date(when);
   return Number.isFinite(start.getTime()) && now - start >= -60_000 && now - start <= 30 * 60_000
     ? "Still going"

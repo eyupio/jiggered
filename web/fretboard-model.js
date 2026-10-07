@@ -15,7 +15,7 @@ export const STATUSES = Object.freeze({
   external: { label: "Not my problem", short: "Not mine", key: "4" },
 });
 export const STATUS_ORDER = ["todo", "doing", "done", "external"];
-export const KINDS = ["card", "note"];
+const KINDS = ["card", "note"];
 
 export const DEFAULT_AXES = Object.freeze({
   left: "Out of my hands",
@@ -40,7 +40,7 @@ export const emptyBoard = () => ({
 
 // normaliseItem keeps only what the board understands and keeps every value inside its bounds, whatever an older build
 // or a hand-edited backup wrote. Unknown kinds and statuses fall back rather than being dropped: a card is never lost.
-export function normaliseItem(raw) {
+function normaliseItem(raw) {
   if (!raw || typeof raw !== "object") return null;
   const item = {
     k: KINDS.includes(raw.k) ? raw.k : "card",
@@ -54,7 +54,7 @@ export function normaliseItem(raw) {
   return item;
 }
 
-export function normaliseThree(raw) {
+function normaliseThree(raw) {
   if (!Array.isArray(raw)) return [];
   return raw
     .filter((r) => r && typeof r === "object" && validId(r.id))

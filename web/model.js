@@ -297,7 +297,7 @@ export function resolveSettings(raw, shared) {
 
 // ---- a day ----
 
-export const emptyDay = (key) => ({ date: key, status: null, poorSleep: false, entries: [] });
+const emptyDay = (key) => ({ date: key, status: null, poorSleep: false, entries: [] });
 export const used = (d) => (d.entries || []).reduce((s, e) => s + (e.c || 0), 0);
 // The one definition of "average net points" for the graphs and the printed summary: days with at least one activity
 // count, a day that only has a check-in does not (nothing was recorded to average).
