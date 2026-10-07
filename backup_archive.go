@@ -82,6 +82,7 @@ func archiveBackup(snapshot, password string) (result string, err error) {
 	}
 	header := &zip.FileHeader{Name: "jiggered.db", Method: zip.Deflate}
 	header.SetMode(0600)
+	//lint:ignore SA1019 SetModTime keeps the archive's member header as it has always been written; Modified would add an extended timestamp field.
 	header.SetModTime(stat.ModTime())
 	member, err := zw.CreateHeader(header)
 	if err != nil {
