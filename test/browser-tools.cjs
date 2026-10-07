@@ -76,10 +76,18 @@ runBrowser({ name: "tools", portEnv: "JIGGERED_TOOLS_PORT" }, async (harness) =>
   box = await cardBox(page, "Sleep");
   assert.ok(box.x > canvas.x + canvas.width * 0.5, "the card is now right of the midline");
   assert.match(await sleep.getAttribute("aria-label"), /In your hands, matters most/);
-  const stored = await page.evaluate(async () => {
-    const r = await fetch("/api/docs", { credentials: "same-origin" });
-    return (await r.json())["t-fretboard"]?.body;
-  });
+  // "saved" can read true before the drag's save is queued, so wait for the server to hold the move.
+  const fetchStored = () =>
+    page.evaluate(async () => {
+      const r = await fetch("/api/docs", { credentials: "same-origin" });
+      return (await r.json())["t-fretboard"]?.body;
+    });
+  let stored;
+  for (let i = 0; i < 50; i++) {
+    stored = await fetchStored();
+    if (Object.values(stored?.items || {})[0]?.x > 0.5) break;
+    await page.waitForTimeout(100);
+  }
   const [, item] = Object.entries(stored.items)[0];
   assert.ok(item.x > 0.5 && item.t === "Sleep", "the server copy holds the moved card");
 
