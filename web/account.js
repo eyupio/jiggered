@@ -445,7 +445,7 @@ export function init(ctx) {
       if (data?.format === "jiggered-device-recovery-v1")
         return say(
           msg,
-          "That is a device recovery file, not an account export. Choose a file named like jiggered-2026-10-05.json (from Download everything).",
+          "That is a device copy, not an account export. Choose a file named like jiggered-2026-10-05.json (from Download everything).",
           true,
         );
       const mode = document.querySelector("input[name=import-mode]:checked").value;
@@ -523,7 +523,7 @@ export function init(ctx) {
     );
     say(
       $("export-msg"),
-      "Device recovery copy downloaded. It can't be restored on this page; keep it in case you need support.",
+      "Device copy downloaded. It can't be restored on this page; keep it in case you need support.",
     );
   });
   $("export-all").addEventListener("click", async () =>
@@ -532,7 +532,7 @@ export function init(ctx) {
       if (ctx.store.status().pending || ctx.store.status().failed)
         return say(
           $("export-msg"),
-          "Your server export would miss unsaved changes. Resolve them or download the device recovery copy.",
+          "Your server export would miss unsaved changes. Resolve them or download the device copy.",
           true,
         );
       const r = await api("GET", "/api/export");
@@ -587,10 +587,7 @@ export function init(ctx) {
       setDirty(true);
       ticket = null;
       ctx.drafts?.put("settings", { value: editor.read(), baseline });
-      say(
-        $("set-msg"),
-        "Recovered copy opened. Save it, then resolve or discard the old recovery item.",
-      );
+      say($("set-msg"), "Held copy opened. Save it, then resolve or discard the held change.");
       nav?.reveal($("set-acts"));
       editor.focus("set-acts");
       if (value.profile) profile.recover(value.profile);

@@ -621,7 +621,7 @@ export function mount(ctx, root) {
       line = $("fb-status");
     if (st.failed) {
       line.textContent =
-        "A change could not be saved. It is kept in Recovery at the top of the page.";
+        "A change could not be saved. It is kept in Held changes at the top of the page.";
     } else if (st.pending) {
       line.textContent = st.offline
         ? `Offline. ${plural(st.pending, "change")} saved on this device and sent when you are back online.`

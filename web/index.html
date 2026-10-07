@@ -66,12 +66,7 @@
         </p>
       </header>
       <div class="banner" id="banner" hidden></div>
-      <section
-        class="panel recovery"
-        id="recovery"
-        hidden
-        aria-label="Recover unsaved changes"
-      ></section>
+      <section class="panel recovery" id="recovery" hidden aria-label="Held changes"></section>
       <section
         class="panel defaults-notice"
         id="defaults-notice"
@@ -968,7 +963,7 @@
             <button
               class="help-tip"
               aria-label="About your profile"
-              data-tooltip="Your display name and focus are private preferences in your account. Your sign-in username stays the same. Profile changes use the same saving and offline recovery as your log."
+              data-tooltip="Your display name and focus are private preferences in your account. Your sign-in username stays the same. Profile changes use the same saving, offline queue and Held changes as your log."
             >
               ?
             </button>
@@ -1190,7 +1185,7 @@
           <div class="row">
             <p class="meta" id="account-usage" role="status"></p>
             <button class="secondary" id="export-all">Download everything (JSON)</button
-            ><button class="secondary" id="export-device">Download device recovery copy</button>
+            ><button class="secondary" id="export-device">Download device copy</button>
           </div>
           <p class="msg" id="export-msg" aria-live="polite"></p>
           <form id="importform">

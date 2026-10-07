@@ -1,6 +1,6 @@
 # Administration and product reference
 
-Detailed guidance for operating Jiggered and understanding its saving, recovery and privacy behaviour. For an overview and quick start, see [README.md](../README.md).
+Detailed guidance for operating Jiggered and understanding its saving, held changes and privacy behaviour. For an overview and quick start, see [README.md](../README.md).
 
 - **Today:** a live energy breakdown and labelled available/planned/used spoon or point cells,
   plus a running balance showing how logged activities changed your energy. Green, amber or red check-in, a points budget (10 by default), a poor-sleep penalty, and one-tap
@@ -29,7 +29,7 @@ Detailed guidance for operating Jiggered and understanding its saving, recovery 
 
 Add it to your phone's home screen and it opens like an app, even with no signal. What you log while offline
 waits on the phone and is sent when you're back online. The status distinguishes a queued device copy from
-server acknowledgement; blocked/full device storage warns you to keep the page open and download recovery.
+server acknowledgement; blocked/full device storage warns you to keep the page open and download the device copy.
 
 ### Personal lists and shared defaults
 
@@ -66,7 +66,7 @@ Points remain the default. The spoon theory theme uses spoons for energy labels,
 activity costs, history and printed summaries, with a spoon visual for the daily
 budget. One spoon represents one point; the theme preserves budgets, calculations
 and historical values. It follows your private profile across devices and can be
-switched back at any time. Drafts follow the existing offline saving and recovery
+switched back at any time. Drafts follow the existing offline saving and held changes
 flow. JSON backups include the preference; CSV column names remain stable for
 existing spreadsheets.
 
@@ -92,9 +92,9 @@ reflect what you recorded and do not establish causes.
 
 **Account → Profile** saves your private name, focus and preferences separately from energy settings and lists.
 Your sign-in username stays the same. Appearance applies on save; the starting history period applies when
-you next open the app. Profile saves use the existing offline queue and conflict recovery.
+you next open the app. Profile saves use the existing offline queue and conflict handling.
 
-### Drafts and recovery
+### Drafts and held changes
 
 New episodes, individual episode edits, activity corrections, profile, personal settings and admin defaults keep separate drafts on this
 device for seven days. Navigation preserves them; unfinished episode edits have a Continue action. Explicit
@@ -103,12 +103,12 @@ open them. These copies contain sensitive data: use a device you trust.
 
 The large cache/outbox uses IndexedDB, with localStorage fallback where unavailable. Migration removes the
 old name-bound cache only after its IndexedDB transaction completes. Server refusals keep their content in
-**Recovery**, even when other changes save successfully. Retry, edit a recovered copy, discard, or download
-a private device recovery file; up to 100 refusals are retained until explicitly resolved. At that limit new
-refusals stay queued, with a warning, rather than dropping content. Recovery files include unfinished drafts
+**Held changes**, even when other changes save successfully. Retry, edit a held copy, discard, or download
+a private device copy; up to 100 refusals are retained until explicitly resolved. At that limit new
+refusals stay queued, with a warning, rather than dropping content. Device copies include unfinished drafts
 and unsent operations and are for manual recovery/support, **not** the account Restore form. Server exports
 and restores require queued/refused changes to be resolved first. A confirmed session expiry or revocation clears
-this browser’s identity, logs and drafts before sign-in; download recovery before deliberately signing out.
+this browser’s identity, logs and drafts before sign-in; download the device copy before deliberately signing out.
 Offline access uses unencrypted device copies on trusted devices. A fully offline device cannot learn of remote revocation
 until it reconnects. Signing out from any tab clears the shared device copy and stops older tabs writing it back. Browser eviction or a device failure can still remove local
 copies, so acknowledged server saves and private backups remain important.
@@ -136,7 +136,7 @@ remove records added by a restore. The older `/api/import` API remains available
 skips a record instead of rejecting the file, and the new UI uses `/api/restore/preview` and `/api/restore` exclusively.
 Saves, imports and restores all check records with the same rules (`validate.go`): the fields the app knows are
 checked, anything else is kept exactly as sent, and an older or shorter record is accepted. A save that breaks a rule
-is refused with a 422 and a reason, and the app keeps the change in Recovery.
+is refused with a 422 and a reason, and the app keeps the change in Held changes.
 
 The browser grants **one editing tab** an exclusive Web Lock; other tabs can browse/download and follow its
 acknowledged device cache, without sending or overwriting its outbox. Close the editing tab, then use **Reload
@@ -145,9 +145,9 @@ required for editing; unsupported environments display an actionable read-only n
 do not participate in this lock: close old Jiggered tabs when upgrading. No background heartbeat or service is
 required. Independent devices still merge activity additions and disjoint episode/settings edits. Activities in
 settings have stable row ids so editing one row preserves changes to another (and name/points merge separately).
-Same-field or incompatible reorder edits appear in Recovery with **Keep server copy** and **Use my change**.
+Same-field or incompatible reorder edits appear in Held changes with **Keep server copy** and **Use my change**.
 A deleted record wins over a queued edit; restoring the retained copy requires the explicit **Bring back my record**
-action. These choices do not alter other users' records. Exported backups and recovery files are private health data.
+action. These choices do not alter other users' records. Exported backups and device copies are private health data.
 
 ## People and the admin
 
@@ -616,7 +616,7 @@ The feature review is in [historical feature review](../docs/audits/FEATURES_AUD
 
 - **Today:** Other activities accept up to 60 Unicode characters, with an inline counter. Optionally add
   one to your reusable activity list with its cost and group. Capture and list updates save independently;
-  check Recovery if either is refused. Help can reopen first-use setup; the allowance review is optional.
+  check Held changes if either is refused. Help can reopen first-use setup; the allowance review is optional.
 - **History:** Selected days can show every activity and episode, edit the day, or prepare a one-day summary.
   Return to the previous period restores filters and calendar selection. Activity details can be included
   in print, or downloaded as one row per activity in CSV. The private-notes checkbox controls episode CSV

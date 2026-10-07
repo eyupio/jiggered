@@ -215,7 +215,7 @@ function fatal(text, { retry = false } = {}) {
     username: me.username,
   });
   let draftError = storage?.legacyCopies?.(me.id, me.username).length
-    ? "An older build has a different device copy. Download recovery, then close the older tab; neither copy has been discarded."
+    ? "An older build has a different device copy. Download the device copy, then close the older tab; neither copy has been discarded."
     : "";
   const drafts = createDrafts({
     storage,
@@ -548,7 +548,7 @@ function fatal(text, { retry = false } = {}) {
       b.dataset.action === "discard" &&
       (f.conflict ||
         confirm(
-          "Discard this refused change? Download a recovery copy first if you want to keep it.",
+          "Discard this refused change? Download the device copy first if you want to keep it.",
         ))
     )
       store.discardFailed(f.key);
@@ -624,7 +624,7 @@ function fatal(text, { retry = false } = {}) {
     lastUsageFailure = !!st.failed;
     // The panel that holds a refused change can be thousands of pixels from where it was made: say so where the person is.
     if (failuresSeen >= 0 && st.failed > failuresSeen)
-      toast("Couldn't save that. It is kept in Recovery at the top of the page.", {
+      toast("Couldn't save that. It is kept in Held changes at the top of the page.", {
         label: "Show",
         plain: true,
         fn: () => $("recovery-title")?.focus(),
@@ -682,7 +682,7 @@ function fatal(text, { retry = false } = {}) {
             : st.localError ||
               draftError ||
               (st.failed
-                ? `${st.failed} refused ${st.failed === 1 ? "change needs" : "changes need"} recovery below.`
+                ? `${st.failed} refused ${st.failed === 1 ? "change is" : "changes are"} held below.`
                 : n
                   ? !st.durable
                     ? `${n} ${n === 1 ? "change is" : "changes are"} only in memory while device storage finishes. Keep this page open.`
@@ -704,7 +704,7 @@ function fatal(text, { retry = false } = {}) {
     if (!$("recovery").hidden)
       setHTML(
         $("recovery"),
-        html`<h2 id="recovery-title" tabindex="-1">Recover unsaved changes</h2><p>Download a private copy before leaving this device. This recovery file is for support or manual recovery, not the account restore form.</p><button class="secondary" data-action="download">Download recovery copy</button>${failures.map((f) => html`<div class="recovery-item"><b>${recordName(f)}</b><p>${f.message}</p><button class="secondary" data-action="retry" data-key="${f.key}">${f.conflict ? (f.deleted || f.deletedEntry ? "Bring back my record" : "Use my change") : "Retry"}</button>${f.body && (f.id === "settings" || /^e-/.test(f.id)) ? html`<button class="secondary" data-action="edit" data-key="${f.key}">Edit a recovered copy</button>` : ""}<button class="x" data-action="discard" data-key="${f.key}">${f.conflict ? "Keep server copy" : "Discard"}</button></div>`)}`,
+        html`<h2 id="recovery-title" tabindex="-1">Held changes</h2><p>Download a private copy before leaving this device. This device copy is for support or manual recovery, not the account restore form.</p><button class="secondary" data-action="download">Download device copy</button>${failures.map((f) => html`<div class="recovery-item"><b>${recordName(f)}</b><p>${f.message}</p><button class="secondary" data-action="retry" data-key="${f.key}">${f.conflict ? (f.deleted || f.deletedEntry ? "Bring back my record" : "Use my change") : "Retry"}</button>${f.body && (f.id === "settings" || /^e-/.test(f.id)) ? html`<button class="secondary" data-action="edit" data-key="${f.key}">Edit a held copy</button>` : ""}<button class="x" data-action="discard" data-key="${f.key}">${f.conflict ? "Keep server copy" : "Discard"}</button></div>`)}`,
       );
   }
 
@@ -885,7 +885,7 @@ function fatal(text, { retry = false } = {}) {
       if (
         (n || unfinished) &&
         !confirm(
-          `${n} unsaved changes and ${unfinished} unfinished drafts have device copies here. Signing out removes them. Download a recovery copy first if you need them. Sign out anyway?`,
+          `${n} unsaved changes and ${unfinished} unfinished drafts have device copies here. Signing out removes them. Download the device copy first if you need them. Sign out anyway?`,
         )
       )
         return;
