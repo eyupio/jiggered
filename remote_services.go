@@ -498,31 +498,7 @@ func (s *server) adminServiceAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if in.Action == "test_s3" {
-			key := backupPrefix(cfg) + "probe-" + fmt.Sprint(time.Now().UnixNano())
-			body := "Jiggered connection test\n"
-			sum := sha256.Sum256([]byte(body))
-			err = c.put(ctx, key, strings.NewReader(body), int64(len(body)), hex.EncodeToString(sum[:]))
-			if err == nil {
-				reader, _, e := c.get(ctx, key)
-				err = e
-				if e == nil {
-					b, e := io.ReadAll(io.LimitReader(reader, 1024))
-					reader.Close()
-					err = e
-					if err == nil && string(b) != body {
-						err = errors.New("The test object was changed in transit.")
-					}
-				}
-				cleanupCtx, done := context.WithTimeout(context.Background(), 15*time.Second)
-				e = c.remove(cleanupCtx, key)
-				done()
-				if e != nil {
-					err = fmt.Errorf("The probe could not be deleted; check DeleteObject permission: %w", e)
-				}
-			}
-			if err == nil {
-				_, err = c.list(ctx, backupPrefix(cfg), 1)
-			}
+			err = s3Probe(ctx, c, cfg)
 			if err != nil {
 				jsonError(w, 400, "S3 test failed: "+err.Error())
 				return
@@ -555,27 +531,64 @@ func (s *server) adminServiceAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		cancel()
-		ctx, cancel = context.WithTimeout(r.Context(), 10*time.Minute)
-		defer cancel()
-		reader, size, e := c.get(ctx, in.Key)
-		if e != nil {
-			jsonError(w, 400, e.Error())
-			return
-		}
-		defer reader.Close()
-		http.NewResponseController(w).SetWriteDeadline(time.Now().Add(10 * time.Minute))
-		w.Header().Set("Content-Type", backupContentType(in.Key))
-		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filepath.Base(in.Key)))
-		w.Header().Set("Cache-Control", "no-store")
-		if size >= 0 {
-			w.Header().Set("Content-Length", fmt.Sprint(size))
-		}
-		s.audit(r.Context(), actor, "remote_backup_downloaded", "", "whole database", s.clientIP(r))
-		io.Copy(w, reader)
+		s.streamBackup(w, r, c, in.Key, actor)
 	default:
 		jsonError(w, 400, "Unknown backup or notification action.")
 	}
 }
+
+// s3Probe writes, reads back, deletes and lists a small test object, so a missing permission shows up before a real
+// backup depends on it.
+func s3Probe(ctx context.Context, c *s3Client, cfg serviceSettings) error {
+	key := backupPrefix(cfg) + "probe-" + fmt.Sprint(time.Now().UnixNano())
+	body := "Jiggered connection test\n"
+	sum := sha256.Sum256([]byte(body))
+	err := c.put(ctx, key, strings.NewReader(body), int64(len(body)), hex.EncodeToString(sum[:]))
+	if err == nil {
+		reader, _, e := c.get(ctx, key)
+		err = e
+		if e == nil {
+			b, e := io.ReadAll(io.LimitReader(reader, 1024))
+			reader.Close()
+			err = e
+			if err == nil && string(b) != body {
+				err = errors.New("The test object was changed in transit.")
+			}
+		}
+		cleanupCtx, done := context.WithTimeout(context.Background(), 15*time.Second)
+		e = c.remove(cleanupCtx, key)
+		done()
+		if e != nil {
+			err = fmt.Errorf("The probe could not be deleted; check DeleteObject permission: %w", e)
+		}
+	}
+	if err == nil {
+		_, err = c.list(ctx, backupPrefix(cfg), 1)
+	}
+	return err
+}
+
+// streamBackup sends one stored backup to an admin, allowing the transfer more time than an ordinary request.
+func (s *server) streamBackup(w http.ResponseWriter, r *http.Request, c *s3Client, key, actor string) {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Minute)
+	defer cancel()
+	reader, size, e := c.get(ctx, key)
+	if e != nil {
+		jsonError(w, 400, e.Error())
+		return
+	}
+	defer reader.Close()
+	http.NewResponseController(w).SetWriteDeadline(time.Now().Add(10 * time.Minute))
+	w.Header().Set("Content-Type", backupContentType(key))
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filepath.Base(key)))
+	w.Header().Set("Cache-Control", "no-store")
+	if size >= 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(size))
+	}
+	s.audit(r.Context(), actor, "remote_backup_downloaded", "", "whole database", s.clientIP(r))
+	io.Copy(w, reader)
+}
+
 func (s *server) startRemoteBackup(cfg serviceSettings, actor string) (int64, error) {
 	if !s.backupMu.TryLock() {
 		return 0, errors.New("A backup is already running.")

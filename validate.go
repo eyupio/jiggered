@@ -22,34 +22,50 @@ func validateDoc(id string, raw json.RawMessage) error {
 		return fmt.Errorf("record must be a JSON object")
 	}
 	if id == "settings" {
-		factory, _ := webFS.ReadFile("web/defaults.json")
-		var d productDefaults
-		json.Unmarshal(factory, &d)
-		if err := json.Unmarshal(raw, &d); err != nil {
-			return fmt.Errorf("settings field has the wrong type")
-		}
-		// A penalty the document leaves out falls back to its default, but never above the budget: that is how the
-		// app reads a short settings document, so an older one such as {"budget":3} is valid.
-		if _, ok := fields["sleepPenalty"]; !ok {
-			d.SleepPenalty = min(d.SleepPenalty, d.Budget)
-		}
-		for name, p := range map[string]**int{"amberPenalty": &d.AmberPenalty, "redPenalty": &d.RedPenalty} {
-			if _, ok := fields[name]; !ok && *p != nil {
-				v := min(**p, d.Budget)
-				*p = &v
-			}
-		}
-		// A group set for a name that is no longer in the list is dropped when the app reads settings, and a renamed
-		// item in the shared defaults leaves exactly that behind, so it is read the same way here, not refused.
-		d.SymptomGroups = pruneGroups(d.SymptomGroups, d.Symptoms)
-		d.TriggerGroups = pruneGroups(d.TriggerGroups, d.Triggers)
-		return d.validate()
+		return validateSettingsDoc(fields, raw)
 	}
 	if strings.HasPrefix(id, "t-") {
 		return validateToolDoc(fields)
 	}
 	var value map[string]any
 	json.Unmarshal(raw, &value)
+	if err := validateRecordFields(value); err != nil {
+		return err
+	}
+	if strings.HasPrefix(id, "d-") || strings.HasPrefix(id, "p-") {
+		return validateDayDoc(id, value)
+	}
+	return nil
+}
+
+// validateSettingsDoc reads a settings document the way the app does: fields it leaves out take their defaults.
+func validateSettingsDoc(fields map[string]json.RawMessage, raw json.RawMessage) error {
+	factory, _ := webFS.ReadFile("web/defaults.json")
+	var d productDefaults
+	json.Unmarshal(factory, &d)
+	if err := json.Unmarshal(raw, &d); err != nil {
+		return fmt.Errorf("settings field has the wrong type")
+	}
+	// A penalty the document leaves out falls back to its default, but never above the budget: that is how the
+	// app reads a short settings document, so an older one such as {"budget":3} is valid.
+	if _, ok := fields["sleepPenalty"]; !ok {
+		d.SleepPenalty = min(d.SleepPenalty, d.Budget)
+	}
+	for name, p := range map[string]**int{"amberPenalty": &d.AmberPenalty, "redPenalty": &d.RedPenalty} {
+		if _, ok := fields[name]; !ok && *p != nil {
+			v := min(**p, d.Budget)
+			*p = &v
+		}
+	}
+	// A group set for a name that is no longer in the list is dropped when the app reads settings, and a renamed
+	// item in the shared defaults leaves exactly that behind, so it is read the same way here, not refused.
+	d.SymptomGroups = pruneGroups(d.SymptomGroups, d.Symptoms)
+	d.TriggerGroups = pruneGroups(d.TriggerGroups, d.Triggers)
+	return d.validate()
+}
+
+// validateRecordFields checks the text, list and time fields that episodes and days share.
+func validateRecordFields(value map[string]any) error {
 	for _, field := range []string{"when", "endedAt", "whenZone", "endZone", "notes", "onset", "duration", "date"} {
 		if v, ok := value[field]; ok {
 			if _, ok := v.(string); !ok {
@@ -79,96 +95,113 @@ func validateDoc(id string, raw json.RawMessage) error {
 			}
 		}
 	}
-	if strings.HasPrefix(id, "d-") || strings.HasPrefix(id, "p-") {
-		if strings.HasPrefix(id, "p-") {
-			n, exists := value["allowance"]
-			if exists {
-				v, ok := n.(float64)
-				if !ok || v != float64(int(v)) || v < 1 || v > 30 {
-					return fmt.Errorf("planned allowance must be a whole number from 1 to 30")
-				}
-			}
-			if rows, ok := value["entries"].([]any); ok {
-				if len(rows) > 200 {
-					return fmt.Errorf("a day can contain at most 200 planned activities")
-				}
-				for _, row := range rows {
-					e, ok := row.(map[string]any)
-					if !ok {
-						return fmt.Errorf("planned activity must be an object")
-					}
-					if id, ok := e["id"].(string); !ok || id == "" || len(id) > 200 {
-						return fmt.Errorf("planned activity needs an id of 1–200 characters")
-					}
-					if err := validDuration(e); err != nil {
-						return err
-					}
-					if v, ok := e["col"]; ok && v != nil {
-						if col, ok := v.(string); !ok || len(col) > 20 {
-							return fmt.Errorf("planned activity colour must be short text")
-						}
-					}
-				}
+	return nil
+}
+
+// validateDayDoc checks a day (d-) or a plan (p-): a plan's allowance and rows, then the date, the check-in and the
+// logged activities, in that order.
+func validateDayDoc(id string, value map[string]any) error {
+	if strings.HasPrefix(id, "p-") {
+		if err := validatePlannedDay(value); err != nil {
+			return err
+		}
+	}
+	if v, ok := value["date"]; ok && v != id[2:] {
+		return fmt.Errorf("date does not match record id")
+	}
+	if v, ok := value["status"]; ok && v != nil && v != "green" && v != "amber" && v != "red" {
+		return fmt.Errorf("unknown check-in status")
+	}
+	if v, ok := value["poorSleep"]; ok {
+		if _, ok := v.(bool); !ok {
+			return fmt.Errorf("poorSleep must be true or false")
+		}
+	}
+	for _, field := range []string{"budget", "sleepPenalty"} {
+		if v, ok := value[field]; ok {
+			n, ok := v.(float64)
+			if !ok || n != float64(int(n)) || n < 0 || n > 30 || field == "budget" && n < 1 {
+				return fmt.Errorf("%s must be a valid whole number", field)
 			}
 		}
-		if v, ok := value["date"]; ok && v != id[2:] {
-			return fmt.Errorf("date does not match record id")
+	}
+	return validateLoggedEntries(value)
+}
+
+// validateLoggedEntries checks the activities logged on a day.
+func validateLoggedEntries(value map[string]any) error {
+	if v, ok := value["entries"]; ok {
+		list, ok := v.([]any)
+		if !ok {
+			return fmt.Errorf("entries must be a list")
 		}
-		if v, ok := value["status"]; ok && v != nil && v != "green" && v != "amber" && v != "red" {
-			return fmt.Errorf("unknown check-in status")
-		}
-		if v, ok := value["poorSleep"]; ok {
-			if _, ok := v.(bool); !ok {
-				return fmt.Errorf("poorSleep must be true or false")
-			}
-		}
-		for _, field := range []string{"budget", "sleepPenalty"} {
-			if v, ok := value[field]; ok {
-				n, ok := v.(float64)
-				if !ok || n != float64(int(n)) || n < 0 || n > 30 || field == "budget" && n < 1 {
-					return fmt.Errorf("%s must be a valid whole number", field)
-				}
-			}
-		}
-		if v, ok := value["entries"]; ok {
-			list, ok := v.([]any)
+		ids := map[string]bool{}
+		for _, entry := range list {
+			e, ok := entry.(map[string]any)
 			if !ok {
-				return fmt.Errorf("entries must be a list")
+				return fmt.Errorf("activity must be an object")
 			}
-			ids := map[string]bool{}
-			for _, entry := range list {
-				e, ok := entry.(map[string]any)
+			a, ok := e["a"].(string)
+			if !ok || strings.TrimSpace(a) == "" || utf8.RuneCountInString(a) > 60 {
+				return fmt.Errorf("activity needs a name of 1–60 characters")
+			}
+			n, ok := e["c"].(float64)
+			if !ok || n != float64(int(n)) || n < -10 || n > 10 {
+				return fmt.Errorf("activity points must be a whole number from −10 to 10")
+			}
+			if v, ok := e["id"]; ok {
+				id, ok := v.(string)
+				if !ok || id == "" || ids[id] {
+					return fmt.Errorf("activity ids must be distinct text")
+				}
+				ids[id] = true
+			}
+			if v, ok := e["t"]; ok {
+				t, ok := v.(string)
 				if !ok {
-					return fmt.Errorf("activity must be an object")
+					return fmt.Errorf("activity time must be text")
 				}
-				a, ok := e["a"].(string)
-				if !ok || strings.TrimSpace(a) == "" || utf8.RuneCountInString(a) > 60 {
-					return fmt.Errorf("activity needs a name of 1–60 characters")
-				}
-				n, ok := e["c"].(float64)
-				if !ok || n != float64(int(n)) || n < -10 || n > 10 {
-					return fmt.Errorf("activity points must be a whole number from −10 to 10")
-				}
-				if v, ok := e["id"]; ok {
-					id, ok := v.(string)
-					if !ok || id == "" || ids[id] {
-						return fmt.Errorf("activity ids must be distinct text")
-					}
-					ids[id] = true
-				}
-				if v, ok := e["t"]; ok {
-					t, ok := v.(string)
-					if !ok {
-						return fmt.Errorf("activity time must be text")
-					}
-					if t != "" {
-						if _, err := time.Parse("15:04", t); err != nil {
-							return fmt.Errorf("activity time must be HH:MM or empty")
-						}
+				if t != "" {
+					if _, err := time.Parse("15:04", t); err != nil {
+						return fmt.Errorf("activity time must be HH:MM or empty")
 					}
 				}
-				if err := validDuration(e); err != nil {
-					return err
+			}
+			if err := validDuration(e); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// validatePlannedDay checks a plan's allowance and its planned activities.
+func validatePlannedDay(value map[string]any) error {
+	n, exists := value["allowance"]
+	if exists {
+		v, ok := n.(float64)
+		if !ok || v != float64(int(v)) || v < 1 || v > 30 {
+			return fmt.Errorf("planned allowance must be a whole number from 1 to 30")
+		}
+	}
+	if rows, ok := value["entries"].([]any); ok {
+		if len(rows) > 200 {
+			return fmt.Errorf("a day can contain at most 200 planned activities")
+		}
+		for _, row := range rows {
+			e, ok := row.(map[string]any)
+			if !ok {
+				return fmt.Errorf("planned activity must be an object")
+			}
+			if id, ok := e["id"].(string); !ok || id == "" || len(id) > 200 {
+				return fmt.Errorf("planned activity needs an id of 1–200 characters")
+			}
+			if err := validDuration(e); err != nil {
+				return err
+			}
+			if v, ok := e["col"]; ok && v != nil {
+				if col, ok := v.(string); !ok || len(col) > 20 {
+					return fmt.Errorf("planned activity colour must be short text")
 				}
 			}
 		}

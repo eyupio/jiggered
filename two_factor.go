@@ -209,95 +209,21 @@ func (s *server) twoFactorAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result := map[string]any{}
+	var done bool
 	switch in.Action {
 	case "setup":
-		if enabled == 1 {
-			jsonError(w, 409, "Two-step verification is already enabled. Disable it before setting up another device.")
-			return
-		}
-		secret := newTOTPSecret()
-		sealed, err := s.cryptSecret(secret, true)
-		if err != nil {
-			jsonError(w, 400, err.Error())
-			return
-		}
-		uri := totpURI(secret, "Jiggered ("+r.Host+")", a.u.Username)
-		code, err := qr.Encode([]byte(uri))
-		if err != nil {
-			serverError(w, r, err)
-			return
-		}
-		if _, err = tx.ExecContext(r.Context(), `INSERT INTO account_security(user_id,pending_secret,pending_until) VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET pending_secret=excluded.pending_secret,pending_until=excluded.pending_until`, a.u.ID, sealed, time.Now().Add(10*time.Minute).Unix()); err != nil {
-			serverError(w, r, err)
-			return
-		}
-		result["secret"] = secret
-		result["qr"] = "data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString([]byte(code.SVG("#142a22", "#ffffff")))
-		result["message"] = "Scan the QR code, then confirm a code from your app. Setup expires in 10 minutes."
+		done = s.startTwoFactorSetup(w, r, tx, a, enabled, result)
 	case "cancel":
-		if _, err = tx.ExecContext(r.Context(), `UPDATE account_security SET pending_secret='',pending_until=0 WHERE user_id=?`, a.u.ID); err != nil {
-			serverError(w, r, err)
-			return
-		}
-		result["message"] = "Authenticator setup cancelled. Existing protection is unchanged."
+		done = s.cancelTwoFactorSetup(w, r, tx, a, result)
 	case "enable":
-		if enabled == 1 {
-			jsonError(w, 409, "Two-step verification is already enabled.")
-			return
-		}
-		var sealed string
-		var expires int64
-		if err = tx.QueryRowContext(r.Context(), `SELECT pending_secret,pending_until FROM account_security WHERE user_id=?`, a.u.ID).Scan(&sealed, &expires); err != nil || sealed == "" || expires <= time.Now().Unix() {
-			jsonError(w, 400, "Setup expired. Start again.")
-			return
-		}
-		secret, err := s.cryptSecret(sealed, false)
-		if err != nil {
-			jsonError(w, 400, err.Error())
-			return
-		}
-		step, ok := matchTOTP(secret, in.Code, time.Now())
-		if !ok {
-			jsonError(w, 400, "Enter the six-digit code from your authenticator app.")
-			return
-		}
-		if _, err = tx.ExecContext(r.Context(), `UPDATE account_security SET secret=?,enabled=1,last_step=?,pending_secret='',pending_until=0 WHERE user_id=?`, sealed, step, a.u.ID); err != nil {
-			serverError(w, r, err)
-			return
-		}
-		codes, err := saveRecoveryCodes(r.Context(), tx, a.u.ID)
-		if err != nil {
-			serverError(w, r, err)
-			return
-		}
-		result["codes"] = codes
-		result["message"] = "Two-step verification enabled. Save these recovery codes now; they are shown once. Other devices were signed out."
+		done = s.enableTwoFactor(w, r, tx, a, enabled, in.Code, result)
 	case "disable", "regenerate":
-		if err = s.consumeFactor(r.Context(), tx, a.u.ID, in.Code, false); err != nil {
-			jsonError(w, 400, "Enter your current authenticator code or an unused recovery code.")
-			return
-		}
-		if in.Action == "disable" {
-			if _, err = tx.ExecContext(r.Context(), `UPDATE account_security SET secret='',enabled=0,last_step=-1,pending_secret='',pending_until=0 WHERE user_id=?`, a.u.ID); err != nil {
-				serverError(w, r, err)
-				return
-			}
-			if _, err = tx.ExecContext(r.Context(), `DELETE FROM recovery_codes WHERE user_id=?`, a.u.ID); err != nil {
-				serverError(w, r, err)
-				return
-			}
-			result["message"] = "Two-step verification disabled. Other devices were signed out."
-		} else {
-			codes, err := saveRecoveryCodes(r.Context(), tx, a.u.ID)
-			if err != nil {
-				serverError(w, r, err)
-				return
-			}
-			result["codes"] = codes
-			result["message"] = "New recovery codes created. All previous codes are invalid."
-		}
+		done = s.disableOrRegenerateTwoFactor(w, r, tx, a, in.Action, in.Code, result)
 	default:
 		jsonError(w, 400, "Unknown security action.")
+		return
+	}
+	if !done {
 		return
 	}
 	if in.Action != "setup" && in.Action != "cancel" {
@@ -318,6 +244,113 @@ func (s *server) twoFactorAction(w http.ResponseWriter, r *http.Request) {
 	s.audit(r.Context(), a.u.Username, "two_factor_"+in.Action, a.u.Username, "", s.clientIP(r))
 	writeJSON(w, 200, result)
 }
+
+// startTwoFactorSetup begins authenticator setup: it makes a secret and its QR code and keeps the secret, sealed, for ten
+// minutes. Each of these helpers returns false after it has already written the error response.
+func (s *server) startTwoFactorSetup(w http.ResponseWriter, r *http.Request, tx *sql.Tx, a *authInfo, enabled int, result map[string]any) bool {
+	if enabled == 1 {
+		jsonError(w, 409, "Two-step verification is already enabled. Disable it before setting up another device.")
+		return false
+	}
+	secret := newTOTPSecret()
+	sealed, err := s.cryptSecret(secret, true)
+	if err != nil {
+		jsonError(w, 400, err.Error())
+		return false
+	}
+	uri := totpURI(secret, "Jiggered ("+r.Host+")", a.u.Username)
+	code, err := qr.Encode([]byte(uri))
+	if err != nil {
+		serverError(w, r, err)
+		return false
+	}
+	if _, err = tx.ExecContext(r.Context(), `INSERT INTO account_security(user_id,pending_secret,pending_until) VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET pending_secret=excluded.pending_secret,pending_until=excluded.pending_until`, a.u.ID, sealed, time.Now().Add(10*time.Minute).Unix()); err != nil {
+		serverError(w, r, err)
+		return false
+	}
+	result["secret"] = secret
+	result["qr"] = "data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString([]byte(code.SVG("#142a22", "#ffffff")))
+	result["message"] = "Scan the QR code, then confirm a code from your app. Setup expires in 10 minutes."
+	return true
+}
+
+// cancelTwoFactorSetup drops a pending setup and leaves any enabled protection as it was.
+func (s *server) cancelTwoFactorSetup(w http.ResponseWriter, r *http.Request, tx *sql.Tx, a *authInfo, result map[string]any) bool {
+	if _, err := tx.ExecContext(r.Context(), `UPDATE account_security SET pending_secret='',pending_until=0 WHERE user_id=?`, a.u.ID); err != nil {
+		serverError(w, r, err)
+		return false
+	}
+	result["message"] = "Authenticator setup cancelled. Existing protection is unchanged."
+	return true
+}
+
+// enableTwoFactor turns protection on once the person proves they can produce a code, and shows the recovery codes.
+func (s *server) enableTwoFactor(w http.ResponseWriter, r *http.Request, tx *sql.Tx, a *authInfo, enabled int, code string, result map[string]any) bool {
+	var err error
+	if enabled == 1 {
+		jsonError(w, 409, "Two-step verification is already enabled.")
+		return false
+	}
+	var sealed string
+	var expires int64
+	if err = tx.QueryRowContext(r.Context(), `SELECT pending_secret,pending_until FROM account_security WHERE user_id=?`, a.u.ID).Scan(&sealed, &expires); err != nil || sealed == "" || expires <= time.Now().Unix() {
+		jsonError(w, 400, "Setup expired. Start again.")
+		return false
+	}
+	secret, err := s.cryptSecret(sealed, false)
+	if err != nil {
+		jsonError(w, 400, err.Error())
+		return false
+	}
+	step, ok := matchTOTP(secret, code, time.Now())
+	if !ok {
+		jsonError(w, 400, "Enter the six-digit code from your authenticator app.")
+		return false
+	}
+	if _, err = tx.ExecContext(r.Context(), `UPDATE account_security SET secret=?,enabled=1,last_step=?,pending_secret='',pending_until=0 WHERE user_id=?`, sealed, step, a.u.ID); err != nil {
+		serverError(w, r, err)
+		return false
+	}
+	codes, err := saveRecoveryCodes(r.Context(), tx, a.u.ID)
+	if err != nil {
+		serverError(w, r, err)
+		return false
+	}
+	result["codes"] = codes
+	result["message"] = "Two-step verification enabled. Save these recovery codes now; they are shown once. Other devices were signed out."
+	return true
+}
+
+// disableOrRegenerateTwoFactor needs a current code or an unused recovery code, then either turns protection off or
+// replaces the recovery codes.
+func (s *server) disableOrRegenerateTwoFactor(w http.ResponseWriter, r *http.Request, tx *sql.Tx, a *authInfo, action, code string, result map[string]any) bool {
+	var err error
+	if err = s.consumeFactor(r.Context(), tx, a.u.ID, code, false); err != nil {
+		jsonError(w, 400, "Enter your current authenticator code or an unused recovery code.")
+		return false
+	}
+	if action == "disable" {
+		if _, err = tx.ExecContext(r.Context(), `UPDATE account_security SET secret='',enabled=0,last_step=-1,pending_secret='',pending_until=0 WHERE user_id=?`, a.u.ID); err != nil {
+			serverError(w, r, err)
+			return false
+		}
+		if _, err = tx.ExecContext(r.Context(), `DELETE FROM recovery_codes WHERE user_id=?`, a.u.ID); err != nil {
+			serverError(w, r, err)
+			return false
+		}
+		result["message"] = "Two-step verification disabled. Other devices were signed out."
+	} else {
+		codes, err := saveRecoveryCodes(r.Context(), tx, a.u.ID)
+		if err != nil {
+			serverError(w, r, err)
+			return false
+		}
+		result["codes"] = codes
+		result["message"] = "New recovery codes created. All previous codes are invalid."
+	}
+	return true
+}
+
 func saveRecoveryCodes(ctx context.Context, tx *sql.Tx, id int64) ([]string, error) {
 	codes := newRecoveryCodes()
 	if _, err := tx.ExecContext(ctx, `DELETE FROM recovery_codes WHERE user_id=?`, id); err != nil {
