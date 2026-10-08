@@ -3,11 +3,12 @@
 Repository files cannot enable GitHub account settings, so this is a list to check
 in GitHub itself.
 
-Status on 2026-10-07: the repository is public, it carries the MIT licence, and the
-`v1.0` release exists (item 1 and the release part of item 7 are done). Items 2, 3
-and 6 are settings that cannot be read from the repository; confirm each one and
-record the result here. For item 5, the screenshots are still reachable in the
-public history.
+Status on 2026-10-08: the repository is public, it carries the MIT licence, and the
+`v1.0` release exists (item 1 and the release part of item 7 are done). The owner
+confirmed the GitHub settings in items 2, 3 and 6 on 2026-10-08; they cannot be read
+from the repository, so re-check them in GitHub if in doubt. For item 5, the
+screenshots are still reachable in the public history and the decision on them is
+open.
 
 1. Review and merge the release preparation PR, including the MIT licence. (Done.)
 2. Require successful `test` and `browser` checks on the default branch.
