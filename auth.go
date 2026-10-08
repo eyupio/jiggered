@@ -415,16 +415,23 @@ const maxSessionsPerUser = 25
 // errStaleLogin means the account changed between checking its password and creating the session.
 var errStaleLogin = errors.New("the account changed while signing in")
 
+// newSessionIDs makes the secret that goes in the cookie and the shorter id that lists the session without revealing it.
+func newSessionIDs() (token, sid string, err error) {
+	if token, err = randomHex(32); err != nil {
+		return "", "", err
+	}
+	if sid, err = randomHex(8); err != nil {
+		return "", "", err
+	}
+	return token, sid, nil
+}
+
 // newSession starts a session for a sign-in that checked the password against `verified`. Checking takes ~300ms of
 // bcrypt, and a password change, reset or disable that lands meanwhile has already ended the account's sessions;
 // without this check the late one would be created anyway and outlive the revocation. So the insert only happens
 // if the account still has the password that was checked and is still enabled.
 func (s *server) newSession(ctx context.Context, userID int64, verified []byte, ip, ua string) (string, time.Time, error) {
-	token, err := randomHex(32)
-	if err != nil {
-		return "", time.Time{}, err
-	}
-	sid, err := randomHex(8)
+	token, sid, err := newSessionIDs()
 	if err != nil {
 		return "", time.Time{}, err
 	}
