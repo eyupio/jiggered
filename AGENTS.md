@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Guidance for coding agents in this repository. Claude Code reaches it through the root
-`CLAUDE.md`, which only imports this file. `README.md` is the user-facing
+`CLAUDE.md`, which imports this file and carries the Zoomies block the bot reads. `README.md` is the user-facing
 setup guide; this file is the index and the rules.
 
 ## What this is
@@ -127,7 +127,7 @@ existing commit messages are short imperative sentences in sentence case.
 ## Memory file hierarchy
 
 Keep this file and every `CLAUDE.md` under 200 lines. This root file is the always-loaded
-index and the universal rules; the root `CLAUDE.md` only imports it, so there is one copy. A `CLAUDE.md` in a
+index and the universal rules; the root `CLAUDE.md` imports it, so there is one copy of the rules. A `CLAUDE.md` in a
 subfolder, if one is ever justified by that folder's own tooling, appends scoped context and must never
 contradict or overwrite this file. There is none today: the Go code is one flat
 package; frontend and browser tooling is managed by `test/package.json`.
