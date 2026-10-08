@@ -1,0 +1,251 @@
+/* Energy language is independent of light/dark appearance. Native radios keep keyboard semantics. */
+.energy-theme-picker {
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line);
+}
+.energy-theme-picker legend {
+  padding: var(--space-3) 0 0;
+  font-size: var(--text-base);
+}
+.energy-theme-picker > .hint {
+  margin: 0;
+}
+.energy-theme-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.energy-theme-option {
+  position: relative;
+  min-width: 0;
+  cursor: pointer;
+}
+.energy-theme-option > input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.energy-theme-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  height: 100%;
+  padding: 18px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+.energy-theme-option:hover .energy-theme-card {
+  border-color: var(--muted);
+}
+.energy-theme-option > input:checked + .energy-theme-card {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.energy-theme-option > input:focus-visible + .energy-theme-card {
+  outline: 3px solid var(--amber);
+  outline-offset: 4px;
+}
+.energy-theme-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--fg);
+}
+.energy-theme-top b {
+  font-size: var(--text-base);
+}
+.energy-theme-symbol {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.energy-theme-symbol path,
+.energy-spoon path,
+.cells .cell path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.energy-theme-check {
+  margin-left: auto;
+  visibility: hidden;
+  color: var(--accent);
+  font-weight: 700;
+}
+.energy-theme-option > input:checked + .energy-theme-card .energy-theme-check {
+  visibility: visible;
+}
+.energy-theme-example {
+  margin-top: auto;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--fg);
+}
+.energy-theme-preview {
+  display: grid;
+  gap: var(--space-1);
+  padding: 14px 18px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+.energy-theme-preview .label {
+  font-size: var(--text-xs);
+}
+.energy-spoon {
+  width: 20px;
+  height: 20px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+:root[data-energy-theme="spoons"] .energy-readout {
+  gap: var(--space-1);
+}
+:root[data-energy-theme="spoons"] .app-shell .cell {
+  height: 30px;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  border-radius: 0;
+}
+:root[data-energy-theme="spoons"] .cell svg {
+  width: 19px;
+  height: 28px;
+}
+:root[data-energy-theme="spoons"] .app-shell .cell.spent {
+  color: var(--muted);
+}
+:root[data-energy-theme="spoons"] .cell.spent path {
+  stroke-dasharray: 2 2;
+}
+:root[data-energy-theme="spoons"] .app-shell .cell.lost {
+  color: var(--muted);
+  opacity: 0.4;
+}
+:root[data-energy-theme="spoons"] .cells.low .cell:not(.spent):not(.lost) {
+  color: var(--amber);
+  background: transparent;
+}
+:root[data-energy-theme="spoons"] .cells.out .cell:not(.spent):not(.lost) {
+  color: var(--red);
+  background: transparent;
+}
+@media (max-width: 480px) {
+  .energy-theme-options {
+    grid-template-columns: 1fr;
+  }
+  .energy-theme-card {
+    padding: var(--space-4);
+    gap: var(--space-2);
+  }
+}
+@media (forced-colors: active) {
+  .energy-theme-option > input:checked + .energy-theme-card {
+    border-color: Highlight;
+  }
+  .energy-theme-option > input:focus-visible + .energy-theme-card {
+    outline-color: Highlight;
+  }
+  .energy-theme-check {
+    color: Highlight;
+  }
+}
+
+/* Controls keep a consistent rhythm when they wrap; file inputs never crowd their actions. */
+.app-shell .profile-photo-picker > div:last-child {
+  display: grid;
+  gap: var(--space-3);
+}
+.app-shell .profile-photo-picker .secondary {
+  justify-self: start;
+}
+.app-shell input[type="file"] {
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+}
+.app-shell input[type="file"]::file-selector-button {
+  margin-right: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--fg);
+  font: inherit;
+}
+.app-shell .row,
+.app-shell .service-actions {
+  row-gap: var(--space-3);
+}
+@media (max-width: 959px) {
+  .app-shell .history-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .app-shell .profile-photo-picker {
+    align-items: start;
+    flex-direction: column;
+  }
+  .app-shell .profile-photo-picker > div:last-child {
+    width: 100%;
+  }
+  .app-shell .history-disclosure > summary {
+    align-items: start;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+}
+
+/* Keep the full touch targets inside narrow activity cards. */
+.app-shell .stepper {
+  gap: var(--space-1);
+  justify-content: space-between;
+}
+.app-shell .step {
+  flex: 0 0 44px;
+  padding: 0;
+}
+@media (max-width: 480px) {
+  .app-shell .acts {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+  }
+}
+
+.app-shell #usage-report {
+  min-width: 0;
+  overflow-x: auto;
+}
+.app-shell #usage-report table {
+  width: 100%;
+}
+.app-shell #usage-report th,
+.app-shell #usage-report td {
+  padding: var(--space-2);
+  text-align: left;
+}
+
+.app-shell #audit-filters {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.app-shell #audit-filters > .row {
+  grid-column: 1 / -1;
+}
+@media (max-width: 600px) {
+  .app-shell #audit-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,0 +1,1105 @@
+/* Energy movement and proactive planning use the same quiet, legible visual language. */
+/* The four tiles reflow to two rows when the card is narrow, so no label is clipped or spills out of its tile. */
+.energy-panel .energy-breakdown {
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+}
+.energy-panel .energy-breakdown dt {
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+.energy-breakdown,
+.plan-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-5) 0;
+}
+.energy-breakdown div,
+.plan-metrics > div {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  min-width: 0;
+  background: var(--surface);
+}
+.energy-breakdown dt,
+.plan-metrics span {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  display: block;
+}
+.energy-breakdown dd,
+.plan-metrics b {
+  margin: 6px 0 0;
+  display: block;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.is-recovery,
+.is-recovery .plan-cost {
+  color: var(--accent);
+}
+.energy-cell-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) 18px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  margin: var(--space-3) 0 var(--space-5);
+}
+.energy-cell-legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.energy-cell-legend i {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-xs);
+  background: var(--accent);
+}
+.energy-cell-legend i.spent {
+  background: var(--spent);
+  border: 1px solid var(--muted);
+}
+.energy-cell-legend i.reserved {
+  background: var(--amber);
+}
+.energy-cell-legend i.lost {
+  background: transparent;
+  border: 1px dashed var(--muted);
+}
+.app-shell .cell.reserved {
+  background: var(--amber);
+}
+:root[data-energy-theme="spoons"] .app-shell .cell.reserved {
+  background: transparent;
+  color: var(--amber);
+}
+:root[data-energy-theme="spoons"] .cell:not(.spent):not(.lost) path {
+  fill: currentColor;
+  fill-opacity: 0.18;
+}
+:root[data-energy-theme="spoons"] .app-shell .cell.spent {
+  opacity: 0.45;
+}
+.energy-flow {
+  border-top: 1px solid var(--line);
+  padding: var(--space-4) 0;
+}
+.energy-flow summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.energy-flow-list {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+}
+.energy-flow-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+.energy-flow-list small {
+  display: block;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  margin-top: 3px;
+}
+.energy-flow-list b {
+  text-align: right;
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+}
+.today-plan {
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+}
+.plan-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.plan-heading h2,
+.plan-heading h3,
+.plan-heading p {
+  margin: 0;
+}
+.plan-heading p {
+  margin-top: 6px;
+}
+.plan-heading label {
+  max-width: 180px;
+}
+.plan-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.plan-days:has(> :only-child) {
+  grid-template-columns: minmax(0, 180px);
+}
+.plan-days:has(> :nth-child(3):last-child) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.app-shell .plan-day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 6px;
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  min-width: 0;
+}
+.app-shell .plan-day[aria-pressed="true"] {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.plan-day b {
+  font-size: var(--text-xl);
+  font-variant-numeric: tabular-nums;
+}
+.plan-day small {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+.plan-metrics {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.plan-outlook {
+  padding: 14px var(--space-4);
+  background: var(--accent-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  line-height: var(--leading-normal);
+}
+.plan-warning {
+  border-left: 4px solid var(--amber);
+}
+.plan-activities {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+}
+.plan-activity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--line);
+}
+.plan-activity-info {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.plan-activity-info .meta {
+  display: block;
+  margin-top: 5px;
+}
+.plan-cost {
+  flex-shrink: 0;
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+}
+.plan-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.plan-done {
+  color: var(--accent);
+  white-space: nowrap;
+}
+.plan-allowance-label {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.plan-allowance-label input {
+  width: 90px;
+  margin: 0;
+}
+.plan-start h2,
+.plan-start p {
+  margin: 0;
+}
+.plan-start p {
+  margin-block: 6px var(--space-4);
+}
+.plan-empty {
+  padding: 28px var(--space-4);
+  text-align: center;
+  background: var(--accent-soft);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-lg);
+}
+.plan-form {
+  padding: 22px;
+  margin-top: var(--space-5);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-lg);
+  background: var(--accent-soft);
+}
+.plan-form-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+/* "Still going" episodes: what it was on one line, the two ways to end it on the next. */
+#episode-ongoing .ongoing-item,
+#today-ongoing .ongoing-item {
+  margin-block: 10px;
+}
+#episode-ongoing .ongoing-item p,
+#today-ongoing .ongoing-item p {
+  margin: 0 0 var(--space-2);
+}
+#episode-ongoing .ongoing-item .row,
+#today-ongoing .ongoing-item .row {
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+/* Visible only to someone who tabs to it. */
+.skip-inline {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.plan-board-panel {
+  position: relative;
+}
+.skip-inline:focus {
+  /* Over the panel's corner, not in the flow: showing and hiding it must not move what is under the pointer. */
+  top: 8px;
+  right: 12px;
+  z-index: 6;
+  width: auto;
+  height: auto;
+  padding: 10px 14px;
+  clip-path: none;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-weight: 700;
+}
+.pattern-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+  font-size: var(--text-sm);
+}
+.pattern-row b {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+.plan-form input[aria-invalid="true"] {
+  border-color: var(--red-text);
+  outline: 2px solid var(--red-text);
+  outline-offset: 1px;
+}
+.plan-form :focus-visible {
+  outline-offset: 2px; /* the ring must not sit on the label above the field */
+}
+.plan-form-fields > .hint {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.plan-form-fields > .hint:empty,
+#entry-effect:empty {
+  display: none;
+}
+.plan-history {
+  margin: 18px 0;
+  padding: var(--space-4);
+  background: var(--accent-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+@media (max-width: 700px) {
+  .energy-breakdown,
+  .plan-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+  .energy-breakdown div,
+  .plan-metrics > div {
+    padding: var(--space-3);
+  }
+  .plan-metrics > div:last-child {
+    grid-column: 1/-1;
+  }
+  .plan-days {
+    display: flex;
+    overflow-x: auto;
+    margin-inline: -8px; /* cancels the padding below, so the days stay aligned with the text above */
+    padding: 6px var(--space-2); /* room for the selected day's 3px ring, which the scroller would clip */
+    scroll-padding-inline: 8px; /* snapping to the first day must not scroll that padding away */
+    scroll-snap-type: x proximity;
+  }
+  .app-shell .plan-day {
+    position: relative;
+    flex: 0 0 88px;
+    scroll-snap-align: start;
+  }
+  .plan-start:not([hidden]) {
+    display: block;
+  }
+  .plan-start .primary {
+    width: 100%;
+  }
+  .plan-activity {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .plan-activity-info {
+    flex-basis: calc(100% - 65px);
+  }
+  .plan-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .plan-actions button {
+    min-height: 40px;
+  }
+  .plan-form-fields {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .plan-form {
+    padding: var(--space-4);
+  }
+  .plan-heading > button {
+    width: 100%;
+  }
+}
+
+.plan-recovery-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+}
+
+.app-shell .app-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+  margin-top: var(--space-8);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+.app-shell .app-footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.app-shell .app-footer a:hover {
+  color: var(--accent);
+}
+
+/* ---- The planning calendar (calendar.js). Geometry comes from custom properties the script sets. ---- */
+.cal {
+  --hour: 56px;
+  --rail: 46px;
+  --min: calc(var(--hour) / 60);
+  font-size: var(--text-sm);
+  min-width: 0;
+}
+@media (pointer: coarse) {
+  .cal {
+    --hour: 72px;
+  }
+}
+/* The keyboard help is read aloud with the grid. Where there is a mouse and a keyboard it is also printed below the
+   grid; it must not appear and vanish with focus, which would move the page under a click. */
+.cal-help {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+@media (hover: hover) and (pointer: fine) {
+  .cal-help {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: var(--space-2) 0 0;
+    clip-path: none;
+    color: var(--muted);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+  }
+}
+.cal-inner {
+  --cols: 7;
+  min-width: 0;
+}
+.cal-top {
+  /* The day headers and the "Any time" row stay in view while the hours scroll. */
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: var(--surface);
+}
+.cal-head,
+.cal-tray-row,
+.cal-body {
+  display: grid;
+  grid-template-columns: var(--rail) repeat(var(--cols), minmax(0, 1fr));
+}
+.cal-corner {
+  align-self: center;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+.cal-day-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  padding: 6px var(--space-1);
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 8px 8px 0 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+}
+.cal-day-head b,
+.cal-rail span,
+.cal-meta,
+.cal-drop {
+  /* The body face draws a slashed zero, which reads as "Ø8:ØØ" on a time axis. */
+  font-family: var(--display);
+}
+.cal-day-head b {
+  font-size: var(--text-base);
+  font-variant-numeric: tabular-nums;
+}
+.cal-day-head.is-today span {
+  color: var(--accent);
+  font-weight: 700;
+}
+.cal-day-head.is-selected {
+  border-bottom-color: var(--accent);
+  background: var(--accent-soft);
+}
+.cal-day-head.is-warn b {
+  color: var(--red-text);
+}
+/* The red number alone would be colour only: a mark says "over your allowance before recovery". */
+.cal-warn {
+  position: absolute;
+  top: 3px;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--red-text);
+  color: var(--surface);
+  font: 700 var(--text-xs)/1 var(--display);
+}
+.cal-day-head {
+  position: relative;
+}
+.cal-tray-row {
+  margin-block: 6px;
+}
+.cal-tray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding-inline: 2px;
+  max-height: 76px; /* many untimed items must not push the hours off the screen */
+  overflow-y: auto;
+}
+.cal-chip:hover {
+  background: color-mix(in srgb, var(--accent) 14%, var(--accent-soft));
+}
+/* Palette chips are things to place, not planned blocks: solid, so the legend's "dashed = planned" holds. */
+.cal-chip.cal-preset {
+  border-style: solid;
+  border-color: var(--line);
+  background: var(--surface);
+}
+.cal-scroll {
+  position: relative;
+  max-height: min(70vh, 620px);
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+.cal-body {
+  position: relative;
+}
+.cal-rail,
+.cal-col {
+  height: calc(var(--hours) * var(--hour));
+}
+.cal-rail span {
+  display: block;
+  height: var(--hour);
+  box-sizing: border-box;
+  padding: 2px 6px 0 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.cal-col {
+  position: relative;
+  border-left: 1px solid var(--line);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--line) 0,
+    var(--line) 1px,
+    transparent 1px,
+    transparent var(--hour)
+  );
+}
+.cal-col.is-today {
+  background-color: color-mix(in srgb, var(--accent-soft) 45%, transparent);
+}
+.cal-block {
+  position: absolute;
+  top: calc(var(--start) * var(--min));
+  left: calc(var(--lane) * (100% - var(--strip, 0px)) / var(--lanes) + 2px);
+  width: calc((100% - var(--strip, 0px)) / var(--lanes) - 4px);
+  height: max(calc(var(--span) * var(--min) - 2px), 22px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 3px 6px;
+  overflow: hidden;
+  border: 1px dashed var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--fg);
+  font: inherit;
+  line-height: var(--leading-tight);
+  text-align: left;
+  user-select: none;
+}
+.cal-block.is-spend {
+  border-color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 16%, var(--surface));
+}
+.cal-block.is-recovery {
+  border-color: var(--green);
+  background: color-mix(in srgb, var(--green) 15%, var(--surface));
+}
+.cal-block.is-done {
+  border-style: solid;
+  opacity: 0.72;
+}
+.cal-block.is-editable {
+  cursor: grab;
+}
+/* Colours chosen from a planned block's right-click menu. */
+.cal-tone-sand {
+  --tone: #c9a46b;
+}
+.cal-tone-sage {
+  --tone: #6f9a73;
+}
+.cal-tone-sky {
+  --tone: #5b8fb9;
+}
+.cal-tone-rose {
+  --tone: #c4707f;
+}
+.cal-tone-plum {
+  --tone: #8f6ab0;
+}
+.cal-tone-slate {
+  --tone: #6b7685;
+}
+.cal-block.cal-tone,
+.cal-chip.cal-tone {
+  border-color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 24%, var(--surface));
+}
+.fb-swatches {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-1) 10px 6px;
+}
+.fb-menu .fb-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 3px solid var(--tone, var(--line));
+  background: color-mix(in srgb, var(--tone, var(--surface)) 38%, var(--surface));
+}
+.fb-menu .fb-swatch.cal-tone-auto {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--surface),
+    var(--surface) 3px,
+    var(--line) 3px,
+    var(--line) 5px
+  );
+}
+.fb-menu .fb-swatch[aria-checked="true"] {
+  border-color: var(--fg);
+}
+.cal-block.is-dragging {
+  opacity: 0.4;
+}
+.cal-block.cal-logged {
+  border-style: solid;
+}
+.cal-block.cal-logged.is-spend {
+  background: color-mix(in srgb, var(--amber) 30%, var(--surface));
+}
+.cal-block.cal-logged.is-recovery {
+  background: color-mix(in srgb, var(--green) 28%, var(--surface));
+}
+/* A chosen colour replaces the cost tint on logged blocks too (kept after the rules above, same specificity). */
+.cal-block.cal-logged.cal-tone {
+  border-color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 38%, var(--surface));
+}
+/* Episodes: a strip down the right of each day, so a symptom sits beside the activity that came before it. */
+.cal-col.has-side {
+  --strip: 18px;
+}
+.cal-block.cal-side {
+  left: calc(100% - var(--strip) + var(--lane) * (var(--strip) - 2px) / var(--lanes));
+  width: calc((var(--strip) - 2px) / var(--lanes) - 2px);
+  padding: 0;
+  border: 1px solid var(--red);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--red) 55%, var(--surface));
+}
+.cal-block.cal-side .cal-title,
+.cal-block.cal-side .cal-meta {
+  display: none;
+}
+.cal-block.is-short {
+  flex-direction: row;
+  align-items: center;
+  padding-block: 1px;
+}
+.cal-block.is-short .cal-meta {
+  display: none;
+}
+.cal-block:focus-visible,
+.cal-chip:focus-visible,
+.cal-day-head:focus-visible {
+  z-index: 5;
+  outline: 3px solid var(--accent);
+  outline-offset: 1px;
+}
+.cal-title {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Short blocks have no room for the time line, but the cost is never left to colour alone. */
+.cal-cost-badge {
+  display: none;
+  position: absolute;
+  top: 3px;
+  right: 30px;
+  font-size: var(--text-xs);
+  line-height: var(--leading-tight);
+  pointer-events: none;
+}
+.cal-block.is-short .cal-cost-badge {
+  display: block;
+}
+.cal-block.is-short .cal-title {
+  padding-right: 52px;
+}
+.cal-chip-cost {
+  flex: none;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  white-space: nowrap; /* "−2" must not break between the sign and the number */
+}
+@media (pointer: coarse) {
+  .cal-cost-badge {
+    right: 44px;
+  }
+  .cal-block.is-short .cal-title {
+    padding-right: 66px;
+  }
+}
+.cal-meta {
+  overflow: hidden;
+  color: var(--fg);
+  opacity: 0.82;
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-resize {
+  position: absolute;
+  inset-inline: 0;
+  height: 10px;
+  cursor: ns-resize;
+  touch-action: none;
+  z-index: 2;
+}
+.cal-resize[data-edge="top"] {
+  top: -3px;
+}
+.cal-resize[data-edge="bottom"] {
+  bottom: -3px;
+}
+.cal-resize::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 4px;
+  width: 22px;
+  height: 3px;
+  margin-left: -11px;
+  border-radius: 2px;
+  background: var(--accent);
+  opacity: 0;
+}
+.cal-block:hover .cal-resize::after,
+.cal-block:focus-visible .cal-resize::after {
+  opacity: 0.7;
+}
+.cal-grip {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  background-image: radial-gradient(circle, currentColor 1.3px, transparent 1.7px);
+  background-size: 6px 6px;
+  color: var(--muted);
+  cursor: grab;
+  opacity: 0;
+  touch-action: none;
+  z-index: 3; /* above the resize handles, so the corner always moves the block */
+}
+.cal-block:hover .cal-grip,
+.cal-block:focus-visible .cal-grip {
+  opacity: 0.6;
+}
+@media (pointer: coarse) {
+  /* A finger needs something to hold: always show the grip, keep every block big enough to hit, and keep the resize
+     handles clear of the grip so a short block can still be moved. */
+  .cal-block {
+    min-height: 44px;
+  }
+  .cal-grip {
+    width: 36px;
+    height: 36px;
+    opacity: 0.6;
+  }
+  .cal-resize {
+    right: 40px;
+    height: 24px;
+    touch-action: auto; /* a swipe that starts on an edge still scrolls; only press-and-hold resizes */
+  }
+  .cal-resize::after {
+    opacity: 0.45; /* so the edge looks like something you can hold */
+  }
+  .cal-resize[data-edge="top"] {
+    top: -10px;
+  }
+  .cal-resize[data-edge="bottom"] {
+    bottom: -10px;
+  }
+}
+.cal-drop {
+  position: absolute;
+  top: calc(var(--start) * var(--min));
+  height: calc(var(--span) * var(--min));
+  inset-inline: 2px;
+  box-sizing: border-box;
+  padding: 2px 6px;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--fg);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  pointer-events: none;
+  z-index: 4;
+}
+.cal-now {
+  position: absolute;
+  top: calc(var(--start) * var(--min));
+  inset-inline: 0;
+  border-top: 2px solid var(--red);
+  pointer-events: none;
+  z-index: 3;
+}
+.cal-now::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+}
+.cal-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: var(--space-1) 10px;
+  border: 1px dashed var(--accent);
+  border-radius: var(--radius-lg);
+  overflow-wrap: anywhere;
+  background: var(--accent-soft);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+}
+/* After the base rule: same specificity, so order decides. */
+@media (pointer: coarse), (max-width: 700px) {
+  .cal-chip {
+    min-height: 44px;
+  }
+}
+.cal-chip.is-editable,
+.cal-preset {
+  cursor: grab;
+}
+.cal-chip.is-done {
+  border-style: solid;
+  opacity: 0.72;
+}
+.cal-preset span {
+  margin-left: auto;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.cal-preset.is-recovery {
+  border-color: var(--green);
+}
+.plan-board-layout {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+  margin-top: 14px;
+}
+.cal-palette {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: min(70vh, 620px);
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.cal-palette h3 {
+  margin: 0 0 2px;
+}
+@media (max-width: 1000px) {
+  /* Not enough width for a side column and seven days: the activities wrap above the timeline instead. */
+  .plan-board-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cal-palette {
+    flex-flow: row wrap;
+    max-height: 112px;
+  }
+  .cal-palette h3 {
+    flex-basis: 100%;
+  }
+}
+@media (max-width: 700px) {
+  /* A phone shows one day at a time, and its activities are placed by tapping one and then a time. */
+  .plan-board-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cal-palette {
+    max-height: 176px;
+  }
+}
+.today-timeline-panel .history-section-body > .meta {
+  margin: 0;
+}
+/* Today: activities to place on the timeline sit above it, as a wrapped row, so a drag has somewhere to start. */
+#today-palette {
+  display: flex;
+  flex-flow: row wrap;
+  gap: 6px;
+  max-height: none; /* every activity shows; a scroller inside the page's own scroll hid chips and trapped the wheel */
+  overflow: visible;
+}
+#today-palette h3 {
+  flex-basis: 100%;
+}
+.cal-preset[aria-pressed="true"] {
+  border-style: solid;
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+}
+.placing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+.placing[hidden] {
+  display: none;
+}
+.cal[data-placing] .cal-col {
+  cursor: copy;
+}
+@media (max-width: 700px) {
+  /* On a phone the timeline shares the screen with the page: a shorter window onto the day, and room for several
+     activities at once, since tapping one is how it gets placed. */
+  #today-board .cal-scroll {
+    max-height: min(52vh, 420px);
+  }
+}
+
+/* Timeline: a small remove control in the corner of every block and chip; it asks before anything is removed. */
+.cal-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: var(--text-base);
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.7;
+  z-index: 4;
+}
+/* The glyph is 20px; the area that takes the click is bigger, so a mouse does not have to hit it exactly. */
+.cal-remove::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+}
+.cal-remove:hover {
+  opacity: 1;
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 14%, transparent);
+}
+.cal-chip.is-removable {
+  position: relative;
+  padding-right: var(--space-6);
+}
+.cal-chip .cal-remove {
+  top: 50%;
+  transform: translateY(-50%);
+}
+.cal-block.is-removable {
+  padding-right: var(--space-6);
+}
+.cal-block.is-removable .cal-grip {
+  right: 24px;
+}
+@media (pointer: coarse) {
+  .cal-remove {
+    width: 36px;
+    height: 36px;
+    font-size: var(--text-lg);
+  }
+  .cal-block.is-removable {
+    padding-right: var(--space-10);
+  }
+  .cal-block.is-removable .cal-grip {
+    right: 40px;
+  }
+  .cal-block.is-removable .cal-resize {
+    right: 80px;
+  }
+  .cal-chip.is-removable {
+    padding-right: var(--space-10);
+  }
+}
+.confirm-dialog {
+  width: min(420px, calc(100vw - 32px));
+  padding: var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  color: var(--fg);
+  background: var(--surface);
+}
+.confirm-dialog:not([open]) {
+  display: none;
+}
+.confirm-dialog::backdrop {
+  background: color-mix(in srgb, var(--fg) 40%, transparent);
+  backdrop-filter: blur(3px);
+}
+.confirm-dialog h2 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-md);
+}
+.confirm-dialog p {
+  margin: 0 0 var(--space-5);
+  overflow-wrap: anywhere;
+}
+.confirm-actions {
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* An admin has six tabs: on the narrowest phones the labels get a little less room around them and a smaller size. */
+@media (max-width: 340px) {
+  .app-shell #tabs button {
+    padding-inline: 0;
+    font-size: var(--text-xs);
+    letter-spacing: 0;
+  }
+}
