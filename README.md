@@ -105,8 +105,6 @@ For local HTTP development, follow [CONTRIBUTING.md](CONTRIBUTING.md#run-locally
 
 The default image is `ghcr.io/eyupio/jiggered:latest`, built for **amd64** and **arm64**. Package visibility is separate from repository visibility.
 
-If upgrading from the former `jnnngs` image, keep the same Compose project and `jiggered-data` volume, then pull and recreate the service. The new image namespace needs a successful tagged release for `latest`; maintainers must also enable public package access for anonymous pulls.
-
 | Variable              | Default             | Purpose                                                                                                           |
 | --------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `APP_DB`              | `/data/jiggered.db` | SQLite database path.                                                                                             |
