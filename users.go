@@ -353,11 +353,7 @@ func (s *server) prune() {
 // The checked credential and live calling session must still match when the password changes.
 // Revoke every old token, including copies of the caller's cookie, and issue a new token atomically.
 func (s *server) changePassword(ctx context.Context, a *authInfo, hash, ip, ua string) (string, time.Time, error) {
-	token, err := randomHex(32)
-	if err != nil {
-		return "", time.Time{}, err
-	}
-	sid, err := randomHex(8)
+	token, sid, err := newSessionIDs()
 	if err != nil {
 		return "", time.Time{}, err
 	}

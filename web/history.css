@@ -1,0 +1,183 @@
+/* History has one heading; its calendar and selected day carry the page. */
+.app-shell .matrix-cell.green,
+.app-shell .matrix-cell.recovery {
+  --tone-bg: var(--matrix-green);
+  --tone-ink: var(--matrix-status-ink);
+}
+.app-shell .matrix-cell.red {
+  --tone-bg: var(--matrix-red);
+  --tone-ink: var(--matrix-status-ink);
+}
+.app-shell .matrix-cell.amber {
+  --tone-ink: #101710;
+}
+.app-shell #history-panel > details:not([open]) {
+  padding-block: 10px;
+}
+/* A closed disclosure is only its summary: the panel's row gap would otherwise leave a blank strip beneath it, where
+   the browser keeps the hidden content. */
+.app-shell .history-disclosure:not([open]),
+.app-shell .history-filter-panel:not([open]) {
+  gap: 0;
+}
+.app-shell #history-panel > .history-intro {
+  background: var(--surface);
+}
+/* The cards of the overview sit one section gap apart, the same as every other History panel. */
+.app-shell .history-overview {
+  gap: 22px;
+}
+@media (min-width: 960px) {
+  .app-shell #today-panel {
+    grid-template-columns: minmax(320px, 365px) minmax(0, 1fr);
+  }
+  .app-shell .onboarding .steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .app-shell .onboarding {
+    padding: var(--space-5) 25px;
+  }
+}
+@media (min-width: 1180px) {
+  .app-shell .acts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 959px) {
+  .app-shell #today-panel {
+    max-width: 700px;
+  }
+  .dashboard-emblem {
+    width: 130px;
+    height: 110px;
+  }
+}
+@media (max-width: 700px) {
+  html {
+    scroll-padding-bottom: 220px; /* focus() and scrollIntoView keep fields clear of the fixed tab bar and save bar */
+  }
+}
+@media (max-width: 600px) {
+  .app-shell .wrap {
+    padding: 21px 20px calc(105px + env(safe-area-inset-bottom, 0px));
+  }
+  .app-shell .head-actions {
+    gap: 10px;
+  }
+  .app-shell header .ghost {
+    background: transparent;
+    border: 0;
+    padding: var(--space-2);
+  }
+  .app-wordmark {
+    font-size: var(--text-2xl);
+  }
+  .app-shell .title img {
+    width: 29px;
+    height: 29px;
+  }
+  .dashboard-masthead {
+    gap: 0;
+  }
+  .dashboard-masthead h1 {
+    font-size: var(--text-2xl);
+    max-width: 350px;
+  }
+  .dashboard-masthead #view-description {
+    font-size: var(--text-base);
+  }
+  .dashboard-emblem {
+    display: none;
+  }
+  .app-shell #tabs {
+    top: auto;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    left: 12px;
+    right: 12px;
+    margin: 0;
+    padding: 6px;
+    box-shadow: 0 6px 30px #203c3120;
+  }
+  .app-shell #tabs {
+    gap: var(--space-1);
+    overflow-x: auto; /* an admin's seventh tab scrolls the bar sideways instead of clipping the other labels */
+    scrollbar-width: none;
+  }
+  .app-shell #tabs button {
+    flex: 1 0 auto; /* never narrower than its own label */
+    padding: var(--space-2) 2px;
+    min-height: 48px;
+    font-size: var(--text-xs);
+  }
+  .app-shell .panel {
+    padding: var(--space-5);
+    gap: var(--space-4);
+    border-radius: var(--radius-md);
+  }
+  .app-shell h2 {
+    font-size: var(--text-xl);
+  }
+  .app-shell .panel > .label-row {
+    gap: 9px;
+  }
+  .app-shell .save-bar {
+    margin-inline: -20px;
+    padding-inline: var(--space-5);
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+  }
+  .app-shell .toastbar {
+    bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+  }
+  .app-shell .metric {
+    padding: 17px;
+  }
+  .app-shell .metric b {
+    font-size: var(--text-3xl);
+  }
+}
+@media (max-width: 360px) {
+  .app-shell .wrap {
+    padding-inline: 14px;
+  }
+  .app-shell .panel {
+    padding: var(--space-4);
+  }
+  .app-shell .checkin button {
+    padding-inline: var(--space-1);
+  }
+  .app-shell .checkin button .mood {
+    font-size: var(--text-xs);
+  }
+  .app-shell .act {
+    padding: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-shell *,
+  .app-shell *::before,
+  .app-shell *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+@media (forced-colors: active) {
+  .energy-track {
+    stroke: GrayText;
+  }
+  .energy-progress {
+    stroke: CanvasText;
+  }
+  .app-shell #tabs button[aria-selected="true"] {
+    border: 2px solid Highlight;
+  }
+}
+@media print {
+  .app-skip {
+    display: none;
+  }
+  body.printing.app-shell .wrap {
+    max-width: none;
+    padding: 0;
+  }
+}

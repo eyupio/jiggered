@@ -11,8 +11,10 @@ on:
 permissions:
   contents: read
 
-# A newer push to the same pull request replaces the older run. Pushes to main and tags are never cancelled, and
-# each ref has its own group, so one release can't cancel another.
+# A newer push to the same pull request replaces the older run. On main and tags a run that has started is never
+# cancelled, but only one run can wait behind it: a newer push replaces a run still queued. After a burst of merges
+# only the last is built and published, so the earlier merges get no image and no SHA tag. Each ref has its own
+# group, so one release can't cancel another.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}

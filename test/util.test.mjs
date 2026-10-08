@@ -12,6 +12,7 @@ import {
   fmtWhen,
   api,
   signed,
+  sectionTabKeys,
 } from "../web/util.js";
 
 test("signed reads a cost as spending, recovery or nothing", () => {
@@ -132,4 +133,32 @@ test("fmtBytes, uid, and date formatting", () => {
   assert.match(fmtDay("2026-10-01", "en-GB"), /Thu/);
   assert.equal(fmtWhen("garbage", "en-GB"), "garbage");
   assert.match(fmtWhen("2026-10-01T09:05", "en-GB"), /1 Oct 2026, 09:05/);
+});
+
+test("sectionTabKeys moves between tabs with the arrow keys, Home and End, and ignores everything else", () => {
+  const tabs = [{ n: "a" }, { n: "b" }, { n: "c" }];
+  let handler;
+  const nav = { addEventListener: (type, fn) => type === "keydown" && (handler = fn) };
+  const shown = [];
+  sectionTabKeys(nav, tabs, (tab) => shown.push(tab.n));
+  const press = (target, key) => {
+    let prevented = false;
+    handler({ target, key, preventDefault: () => (prevented = true) });
+    return prevented;
+  };
+  assert.equal(press(tabs[0], "ArrowDown"), true);
+  assert.equal(press(tabs[2], "ArrowRight"), true, "wraps from the last tab to the first");
+  assert.equal(press(tabs[0], "ArrowUp"), true, "wraps from the first tab to the last");
+  assert.equal(press(tabs[1], "ArrowLeft"), true);
+  assert.equal(press(tabs[1], "Home"), true);
+  assert.equal(press(tabs[0], "End"), true);
+  assert.deepEqual(shown, ["b", "a", "c", "a", "a", "c"]);
+  shown.length = 0;
+  assert.equal(press(tabs[1], "x"), false, "other keys are left alone");
+  assert.equal(
+    press({ n: "outside" }, "ArrowDown"),
+    false,
+    "events from outside the tabs are left alone",
+  );
+  assert.deepEqual(shown, []);
 });

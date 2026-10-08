@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"io/fs"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -94,5 +97,39 @@ func TestManifestHasItsOwnMediaType(t *testing.T) {
 	e := newTestServer(t)
 	if ct := e.newClient().mustHeader("GET", "/manifest.webmanifest", "Content-Type"); !strings.HasPrefix(ct, "application/manifest+json") {
 		t.Errorf("manifest served as %q", ct)
+	}
+}
+
+// A stylesheet the app page links must be named by version (so a CDN in front can't serve an old one against a new
+// page) and listed for the service worker (or the app would not open offline). Splitting a stylesheet adds links, and
+// forgetting either list would only show up behind a CDN or offline.
+func TestEveryStylesheetTheAppPageLinksIsVersionedAndCached(t *testing.T) {
+	index, err := fs.ReadFile(webFS, "web/index.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sw, err := fs.ReadFile(webFS, "web/sw.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	block := regexp.MustCompile(`(?s)const SHELL = \[(.*?)\];`).FindSubmatch(sw)
+	if block == nil {
+		t.Fatal("no SHELL list in sw.js")
+	}
+	links := regexp.MustCompile(`<link rel="stylesheet" href="(/[^"]+\.css)"`).FindAllSubmatch(index, -1)
+	if len(links) == 0 {
+		t.Fatal("index.html links no stylesheets")
+	}
+	for _, m := range links {
+		path := string(m[1])
+		if !slices.Contains(versionedFiles, path) {
+			t.Errorf("%s is linked by index.html but missing from versionedFiles in main.go", path)
+		}
+		if !bytes.Contains(block[1], []byte(`"`+path+`"`)) {
+			t.Errorf("%s is linked by index.html but missing from SHELL in sw.js", path)
+		}
+		if _, err := fs.Stat(webFS, "web"+path); err != nil {
+			t.Errorf("%s is linked by index.html but does not exist", path)
+		}
 	}
 }

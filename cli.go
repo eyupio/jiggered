@@ -447,6 +447,23 @@ func cmdHealthcheck() error {
 	return nil
 }
 
+// openExistingDB loads the configuration and opens the database a command-line tool works on. It never creates one:
+// a missing file usually means APP_DB points somewhere else.
+func openExistingDB() (config, *sql.DB, error) {
+	cfg, err := loadConfig()
+	if err != nil {
+		return cfg, nil, err
+	}
+	if _, err := os.Stat(cfg.dbPath); err != nil {
+		return cfg, nil, fmt.Errorf("no database at %s (is APP_DB set?): %w", cfg.dbPath, err)
+	}
+	db, err := openDB(cfg.dbPath, cfg.seedForOpen())
+	if err != nil {
+		return cfg, nil, cfg.explainOpen(err)
+	}
+	return cfg, db, nil
+}
+
 // cmdSettings shows or changes the instance settings. A running server notices within a couple of seconds.
 func cmdSettings(args []string, out io.Writer) error {
 	if len(args) == 1 && args[0] == "list" { // the same as no argument, spelled like "user list"
@@ -455,16 +472,9 @@ func cmdSettings(args []string, out io.Writer) error {
 	if len(args) != 0 && !(len(args) == 3 && args[0] == "set") {
 		return errors.New("usage: jiggered settings | jiggered settings set KEY VALUE")
 	}
-	cfg, err := loadConfig()
+	cfg, db, err := openExistingDB()
 	if err != nil {
 		return err
-	}
-	if _, err := os.Stat(cfg.dbPath); err != nil {
-		return fmt.Errorf("no database at %s (is APP_DB set?): %w", cfg.dbPath, err)
-	}
-	db, err := openDB(cfg.dbPath, cfg.seedForOpen())
-	if err != nil {
-		return cfg.explainOpen(err)
 	}
 	defer db.Close()
 	s := &server{cfg: cfg, db: db}
@@ -501,16 +511,9 @@ func cmdUser(args []string, out io.Writer) error {
 	if len(args) == 0 {
 		return fmt.Errorf("usage: jiggered user list|add|reset-password|reset-two-factor|disable|enable|promote|demote|delete\n\n%s", usage)
 	}
-	cfg, err := loadConfig()
+	cfg, db, err := openExistingDB()
 	if err != nil {
 		return err
-	}
-	if _, err := os.Stat(cfg.dbPath); err != nil {
-		return fmt.Errorf("no database at %s (is APP_DB set?): %w", cfg.dbPath, err)
-	}
-	db, err := openDB(cfg.dbPath, cfg.seedForOpen())
-	if err != nil {
-		return cfg.explainOpen(err)
 	}
 	defer db.Close()
 	s := &server{cfg: cfg, db: db, hashSem: make(chan struct{}, maxHashing)}

@@ -5,7 +5,17 @@
 // Nothing of this is in the page for anyone else: app.js imports this file, and calls mount(), only while the
 // server says the signed-in person is an admin.
 
-import { $, api, html, setHTML, appendHTML, fmtBytes, ago, withBusy } from "./util.js";
+import {
+  $,
+  api,
+  html,
+  setHTML,
+  appendHTML,
+  fmtBytes,
+  ago,
+  withBusy,
+  sectionTabKeys,
+} from "./util.js";
 
 import { createEditor, editorMarkup } from "./editor.js";
 import { servicesMarkup, initServices } from "./services.js";
@@ -239,19 +249,9 @@ function initAdminNavigation(panel, ctx) {
     if (button) select(button.dataset.auditOpen);
   });
   tabs.forEach((tab) => tab.addEventListener("click", () => select(tab.dataset.adminSection)));
-  workspace.querySelector(".admin-nav").addEventListener("keydown", (event) => {
-    const index = tabs.indexOf(event.target);
-    if (index < 0) return;
-    let next;
-    if (["ArrowDown", "ArrowRight"].includes(event.key)) next = (index + 1) % tabs.length;
-    else if (["ArrowUp", "ArrowLeft"].includes(event.key))
-      next = (index + tabs.length - 1) % tabs.length;
-    else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = tabs.length - 1;
-    else return;
-    event.preventDefault();
-    select(tabs[next].dataset.adminSection, true);
-  });
+  sectionTabKeys(workspace.querySelector(".admin-nav"), tabs, (tab) =>
+    select(tab.dataset.adminSection, true),
+  );
   // Native validation must be able to reveal an invalid field in the other service section.
   $("services-form").addEventListener(
     "invalid",

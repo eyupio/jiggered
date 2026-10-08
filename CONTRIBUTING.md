@@ -53,30 +53,31 @@ archives outside the checkout.
 
 ## Find the right file
 
-| Area                                                | Files                                                                                 |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Startup, routes, static assets and security headers | `main.go`                                                                             |
-| Database opening and append-only schema migrations  | `db.go`                                                                               |
-| Login, accounts, sessions and administrator actions | `auth.go`, `users.go`, `account.go`, `admin.go`                                       |
-| Enrollment, recovery and two-factor authentication  | `security_accounts.go`, `totp.go`, `internal/qr/`                                     |
-| Personal documents, validation and restores         | `docs.go`, `validate.go`, `restore.go`                                                |
-| Instance settings and shared defaults               | `settings.go`, `defaults.go`                                                          |
-| CLI and local backup archives                       | `cli.go`, `backup.go`, `backup_archive.go`                                            |
-| Remote backups and email                            | `remote_services.go`, `remote_s3.go`, `notifications.go`, `branded_email.go`          |
-| Queued account email and local usage measurement    | `account_mail.go`, `usage.go`                                                         |
-| Frontend boot and tab selection                     | `web/app.js`                                                                          |
-| Data rules, queued operations and device storage    | `web/model.js`, `web/sync.js`, `web/device.js`                                        |
-| Today, Episode, History, Account and Admin views    | `web/today.js`, `web/episodes.js`, `web/history.js`, `web/account.js`, `web/admin.js` |
-| Plan, calendar and planner views                    | `web/planner.js`, `web/planner-model.js`, `web/calendar.js`, `web/calendar-model.js`  |
-| History charts and matrix                           | `web/history-charts.js`, `web/history-matrix.js`, `web/history-model.js`              |
-| Tools tab and Fretboard                             | `web/tools.js`, `web/fretboard.js`, `web/fretboard-model.js`                          |
-| Public pages, navigation and sitemap                | `public.go`, `web/public/`, `web/public.css`                                          |
-| Shared product defaults                             | `defaults.go`, `web/defaults.json`                                                    |
-| Shared editors, picking, help and escaped HTML      | `web/editor.js`, `web/picker.js`, `web/help.js`, `web/tooltips.js`, `web/util.js`     |
-| Shared styling and dashboard/public page styling    | `web/tokens.css`, `web/style.css`, `web/dashboard.css`, `web/presence.css`            |
-| Server, frontend logic and browser tests            | `*_test.go`, `test/*.test.mjs`, `test/browser*.cjs`                                   |
-| Browser lifecycle and suite runner                  | `test/support/`                                                                       |
-| Image, local container deployment and CI            | `Dockerfile`, `compose.yaml`, `.github/workflows/image.yml`                           |
+| Area                                                | Files                                                                                                                                                |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Startup, routes, static assets and security headers | `main.go`                                                                                                                                            |
+| Database opening and append-only schema migrations  | `db.go`                                                                                                                                              |
+| Login, accounts, sessions and administrator actions | `auth.go`, `users.go`, `account.go`, `admin.go`                                                                                                      |
+| Enrollment, recovery and two-factor authentication  | `security_accounts.go`, `totp.go`, `internal/qr/`                                                                                                    |
+| Personal documents, validation and restores         | `docs.go`, `validate.go`, `restore.go`                                                                                                               |
+| Instance settings and shared defaults               | `settings.go`, `defaults.go`                                                                                                                         |
+| CLI and local backup archives                       | `cli.go`, `backup.go`, `backup_archive.go`                                                                                                           |
+| Remote backups and email                            | `remote_services.go`, `remote_s3.go`, `notifications.go`, `branded_email.go`                                                                         |
+| Queued account email and local usage measurement    | `account_mail.go`, `usage.go`                                                                                                                        |
+| Frontend boot and tab selection                     | `web/app.js`                                                                                                                                         |
+| Data rules, queued operations and device storage    | `web/model.js`, `web/sync.js`, `web/device.js`                                                                                                       |
+| Today, Episode, History, Account and Admin views    | `web/today.js`, `web/episodes.js`, `web/history.js`, `web/account.js`, `web/admin.js`                                                                |
+| Plan, calendar and planner views                    | `web/planner.js`, `web/planner-model.js`, `web/calendar.js`, `web/calendar-model.js`                                                                 |
+| History charts and matrix                           | `web/history-charts.js`, `web/history-matrix.js`, `web/history-model.js`                                                                             |
+| Tools tab and Fretboard                             | `web/tools.js`, `web/fretboard.js`, `web/fretboard-model.js`                                                                                         |
+| Public pages, navigation and sitemap                | `public.go`, `web/public/`, `web/public.css`                                                                                                         |
+| Shared product defaults                             | `defaults.go`, `web/defaults.json`                                                                                                                   |
+| Shared editors, picking, help and escaped HTML      | `web/editor.js`, `web/picker.js`, `web/help.js`, `web/tooltips.js`, `web/util.js`                                                                    |
+| Shared styling and public page styling              | `web/tokens.css`, `web/style.css`, `web/presence.css`, `web/public-base.css`, `web/public.css`                                                       |
+| App styling, in the order `index.html` loads it     | `web/dashboard.css` (shell, Today), `web/history.css`, `web/admin.css`, `web/energy.css`, `web/planner.css` (timeline and calendar), `web/tools.css` |
+| Server, frontend logic and browser tests            | `*_test.go`, `test/*.test.mjs`, `test/browser*.cjs`                                                                                                  |
+| Browser lifecycle and suite runner                  | `test/support/`                                                                                                                                      |
+| Image, local container deployment and CI            | `Dockerfile`, `compose.yaml`, `.github/workflows/image.yml`                                                                                          |
 
 Name a test file after the code it covers (`docs.go` is tested in `docs_test.go`) and add to that file; do not
 name files after a review, a bug or a change.

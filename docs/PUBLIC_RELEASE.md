@@ -6,9 +6,8 @@ in GitHub itself.
 Status on 2026-10-08: the repository is public, it carries the MIT licence, and the
 `v1.0` release exists (item 1 and the release part of item 7 are done). The owner
 confirmed the GitHub settings in items 2, 3 and 6 on 2026-10-08; they cannot be read
-from the repository, so re-check them in GitHub if in doubt. For item 5, the
-screenshots are still reachable in the public history and the decision on them is
-open.
+from the repository, so re-check them in GitHub if in doubt. Item 5 is decided: the
+screenshots stay in the public history.
 
 1. Review and merge the release preparation PR, including the MIT licence. (Done.)
 2. Require successful `test` and `browser` checks on the default branch.
@@ -23,9 +22,14 @@ open.
    available secret scanning and push protection when publishing. Removing a
    file from a new commit does not remove its earlier versions from Git history.
 5. `n1.png` and `n2.png` were removed from the current tree, but earlier versions
-   still contain the username and energy values shown in those screenshots.
-   Decide whether that historic content is acceptable before publishing.
-   Any history rewrite requires a separate coordinated operation.
+   are still reachable in the public history. **Decision, 2026-10-08: leave them.**
+   Both are phone screenshots of the Today screen with the default activities.
+   The only personal detail is the username `paul` (in `n1.png`), which is already
+   public in the licence and as the default seed username; there are no symptoms,
+   notes, email addresses or other health records. A history rewrite would break
+   every clone, fork and the `v1.0` tag and would not reliably remove the files from
+   GitHub's caches and forks. Revisit only if a screenshot with real data turns up;
+   any rewrite is a separate, coordinated operation.
 6. Make the GHCR package public separately if anonymous image pulls are intended.
    From a clean Docker configuration (without cached registry credentials), run
    `docker pull ghcr.io/eyupio/jiggered:latest`. Confirm both amd64 and arm64
