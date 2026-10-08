@@ -520,25 +520,7 @@ func cmdUser(args []string, out io.Writer) error {
 func (s *server) runUserCommand(ctx context.Context, args []string, out io.Writer) error {
 	cmd, rest := args[0], args[1:]
 	if cmd == "list" {
-		users, err := s.listUsers(ctx)
-		if err != nil {
-			return err
-		}
-		tw := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(tw, "ID\tUSERNAME\tROLE\tSTATUS\tLAST SIGN-IN\tENTRIES")
-		for _, u := range users {
-			status, last := "active", "never"
-			if u.Disabled {
-				status = "disabled"
-			} else if u.MustChange {
-				status = "must change password"
-			}
-			if u.LastLogin > 0 {
-				last = time.Unix(u.LastLogin, 0).Format("2006-01-02 15:04")
-			}
-			fmt.Fprintf(tw, "%d\t%s\t%s\t%s\t%s\t%d\n", u.ID, u.Username, u.Role, status, last, u.Docs)
-		}
-		return tw.Flush()
+		return s.listUsersCommand(ctx, out)
 	}
 
 	if len(rest) < 1 {
@@ -547,33 +529,7 @@ func (s *server) runUserCommand(ctx context.Context, args []string, out io.Write
 	name, flags := normUsername(rest[0]), rest[1:]
 
 	if cmd == "add" {
-		if reservedUsernames[name] {
-			return fmt.Errorf("%q is reserved (the activity log uses it for the app and the command line); choose another name", name)
-		}
-		if !validUsername(name) {
-			return errors.New("usernames use letters, digits and . _ @ + - (up to 64 characters)")
-		}
-		role := roleUser
-		if slices.Contains(flags, "--admin") {
-			role = roleAdmin
-		}
-		pw, err := tempPassword()
-		if err != nil {
-			return err
-		}
-		hash, err := s.hashPassword(pw)
-		if err != nil {
-			return err
-		}
-		if _, err := s.createUser(ctx, name, hash, role, true); err != nil {
-			if errors.Is(err, errUserExists) {
-				return fmt.Errorf("user %q already exists", name)
-			}
-			return err
-		}
-		s.audit(ctx, "cli", "user_created", name, role, "")
-		fmt.Fprintf(out, "Created %s %q.\nTemporary password: %s\nThey choose a new one the first time they sign in.\n", role, name, pw)
-		return nil
+		return s.addUserCommand(ctx, name, flags, out)
 	}
 
 	t, err := s.userByName(ctx, name)
@@ -583,6 +539,66 @@ func (s *server) runUserCommand(ctx context.Context, args []string, out io.Write
 	if err != nil {
 		return err
 	}
+	return s.changeUserCommand(ctx, cmd, t, flags, out)
+}
+
+// listUsersCommand prints one row per account.
+func (s *server) listUsersCommand(ctx context.Context, out io.Writer) error {
+	users, err := s.listUsers(ctx)
+	if err != nil {
+		return err
+	}
+	tw := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
+	fmt.Fprintln(tw, "ID\tUSERNAME\tROLE\tSTATUS\tLAST SIGN-IN\tENTRIES")
+	for _, u := range users {
+		status, last := "active", "never"
+		if u.Disabled {
+			status = "disabled"
+		} else if u.MustChange {
+			status = "must change password"
+		}
+		if u.LastLogin > 0 {
+			last = time.Unix(u.LastLogin, 0).Format("2006-01-02 15:04")
+		}
+		fmt.Fprintf(tw, "%d\t%s\t%s\t%s\t%s\t%d\n", u.ID, u.Username, u.Role, status, last, u.Docs)
+	}
+	return tw.Flush()
+}
+
+// addUserCommand creates an account with a temporary password the person changes at first sign-in.
+func (s *server) addUserCommand(ctx context.Context, name string, flags []string, out io.Writer) error {
+	if reservedUsernames[name] {
+		return fmt.Errorf("%q is reserved (the activity log uses it for the app and the command line); choose another name", name)
+	}
+	if !validUsername(name) {
+		return errors.New("usernames use letters, digits and . _ @ + - (up to 64 characters)")
+	}
+	role := roleUser
+	if slices.Contains(flags, "--admin") {
+		role = roleAdmin
+	}
+	pw, err := tempPassword()
+	if err != nil {
+		return err
+	}
+	hash, err := s.hashPassword(pw)
+	if err != nil {
+		return err
+	}
+	if _, err := s.createUser(ctx, name, hash, role, true); err != nil {
+		if errors.Is(err, errUserExists) {
+			return fmt.Errorf("user %q already exists", name)
+		}
+		return err
+	}
+	s.audit(ctx, "cli", "user_created", name, role, "")
+	fmt.Fprintf(out, "Created %s %q.\nTemporary password: %s\nThey choose a new one the first time they sign in.\n", role, name, pw)
+	return nil
+}
+
+// changeUserCommand applies one of the commands that act on an existing account.
+func (s *server) changeUserCommand(ctx context.Context, cmd string, t *user, flags []string, out io.Writer) error {
+	var err error
 	note := func(err error) error {
 		if errors.Is(err, errLastAdmin) {
 			return errors.New("that would leave no active admin; make someone else an admin first")
