@@ -1,8 +1,10 @@
 # AGENTS.md
 
 Guidance for coding agents in this repository. Claude Code reaches it through the root
-`CLAUDE.md`, which imports this file and carries the Zoomies block the bot reads. `README.md` is the user-facing
-setup guide; this file is the index and the rules.
+`CLAUDE.md`, which only imports this file. The Zoomies AI Context block lives here and nowhere else,
+because Claude Code expands the import and would otherwise load it twice; `TestClaudeCodeLoadsOneZoomiesBlock`
+fails a reinstall that adds a second copy. `README.md` is the user-facing setup guide; this file is the
+index and the rules.
 
 ## What this is
 
