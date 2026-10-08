@@ -324,6 +324,18 @@ func (s *server) routes() http.Handler {
 	auth := func(h http.HandlerFunc) http.Handler { return s.requireAuth(h) }
 	admin := func(h http.HandlerFunc) http.Handler { return s.requireAdmin(h) }
 
+	s.sitePages(mux, static, files, public)
+	s.accountRoutes(mux, auth)
+	s.docRoutes(mux, auth, admin)
+	s.adminRoutes(mux, admin)
+	mux.HandleFunc("GET /", s.homeHandler(static, files, public))
+
+	return securityHeaders(rejectCrossSite(mux))
+}
+
+// sitePages registers everything served before anyone is signed in: the sign-in and registration pages, the public
+// site, the sign-in endpoints, the files those pages need, and the service worker.
+func (s *server) sitePages(mux *http.ServeMux, static fs.FS, files *static, public *publicSite) {
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	loginPage := func(w http.ResponseWriter, r *http.Request) {
 		if s.lookup(r) != nil {
@@ -373,7 +385,10 @@ func (s *server) routes() http.Handler {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Write(files.serviceWorker(b))
 	})
+}
 
+// accountRoutes registers what a signed-in person does to their own account.
+func (s *server) accountRoutes(mux *http.ServeMux, auth func(http.HandlerFunc) http.Handler) {
 	mux.Handle("GET /api/me", auth(s.handleMe))
 	mux.Handle("GET /api/me/usage-consent", auth(s.usageConsent))
 	mux.Handle("PUT /api/me/usage-consent", auth(s.usageConsent))
@@ -381,14 +396,16 @@ func (s *server) routes() http.Handler {
 	mux.Handle("GET /api/me/security", auth(s.securityStatus))
 	mux.Handle("POST /api/me/security/email", auth(s.requestRecoveryEmail))
 	mux.Handle("POST /api/me/security/two-factor", auth(s.twoFactorAction))
-	mux.Handle("POST /api/admin/users/{name}/two-factor-reset", admin(s.adminResetTwoFactor))
 	mux.Handle("DELETE /api/me", auth(s.deleteSelf))
 	mux.Handle("POST /api/me/password", auth(s.handleChangePassword))
 	mux.Handle("GET /api/me/sessions", auth(s.listSessions))
 	mux.Handle("POST /api/me/sessions/revoke-others", auth(s.revokeOtherSessions))
 	mux.Handle("POST /api/me/sessions/revoke-all", auth(s.revokeAllSessions))
 	mux.Handle("DELETE /api/me/sessions/{sid}", auth(s.revokeSession))
+}
 
+// docRoutes registers the personal records, their export and restore, and the shared defaults.
+func (s *server) docRoutes(mux *http.ServeMux, auth, admin func(http.HandlerFunc) http.Handler) {
 	mux.Handle("GET /api/defaults", auth(s.productGetDefaults))
 	mux.Handle("PUT /api/admin/defaults", admin(s.productPutDefaults))
 	mux.Handle("GET /api/docs", auth(s.listDocs))
@@ -398,7 +415,10 @@ func (s *server) routes() http.Handler {
 	mux.Handle("POST /api/import", auth(s.importDocs))
 	mux.Handle("POST /api/restore/preview", auth(s.restoreDocs))
 	mux.Handle("POST /api/restore", auth(s.restoreDocs))
+}
 
+// adminRoutes registers the admin API. It returns account metadata only, never a personal record.
+func (s *server) adminRoutes(mux *http.ServeMux, admin func(http.HandlerFunc) http.Handler) {
 	mux.Handle("GET /api/admin/users", admin(s.adminListUsers))
 	mux.Handle("POST /api/admin/users", admin(s.adminCreateUser))
 	mux.Handle("PATCH /api/admin/users/{id}", admin(s.adminUpdateUser))
@@ -414,8 +434,13 @@ func (s *server) routes() http.Handler {
 	mux.Handle("GET /api/admin/services", admin(s.adminGetServices))
 	mux.Handle("PUT /api/admin/services", admin(s.adminSaveServices))
 	mux.Handle("POST /api/admin/services/action", admin(s.adminServiceAction))
+	mux.Handle("POST /api/admin/users/{name}/two-factor-reset", admin(s.adminResetTwoFactor))
+}
 
-	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+// homeHandler serves "/": the landing page when signed out, the app when signed in, and every other address that
+// is not a route (a private file behind sign-in, a public alias, or the not-found page).
+func (s *server) homeHandler(static fs.FS, files *static, public *publicSite) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			if public.redirectAlias(w, r) {
 				return
@@ -438,9 +463,7 @@ func (s *server) routes() http.Handler {
 		}
 		w.Header().Set("X-Jiggered-App", "1") // offline cache must distinguish the app from the public home page
 		serveHTML(w, r, files, files.versionPage(b))
-	})
-
-	return securityHeaders(rejectCrossSite(mux))
+	}
 }
 
 func (s *server) handleHealth(w http.ResponseWriter, r *http.Request) {
