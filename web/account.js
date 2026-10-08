@@ -10,6 +10,7 @@ import {
   ago,
   saveFeedback,
   withBusy,
+  sectionTabKeys,
   downloadFile,
 } from "./util.js";
 import { createEditor, editorMarkup } from "./editor.js";
@@ -137,19 +138,9 @@ function initAccountNavigation(panel, ctx) {
     if (focus) $("account-tab-" + id).focus();
   }
   tabs.forEach((tab) => tab.addEventListener("click", () => select(tab.dataset.accountSection)));
-  workspace.querySelector(".admin-nav").addEventListener("keydown", (event) => {
-    const index = tabs.indexOf(event.target);
-    if (index < 0) return;
-    let next;
-    if (["ArrowDown", "ArrowRight"].includes(event.key)) next = (index + 1) % tabs.length;
-    else if (["ArrowUp", "ArrowLeft"].includes(event.key))
-      next = (index + tabs.length - 1) % tabs.length;
-    else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = tabs.length - 1;
-    else return;
-    event.preventDefault();
-    select(tabs[next].dataset.accountSection, true);
-  });
+  sectionTabKeys(workspace.querySelector(".admin-nav"), tabs, (tab) =>
+    select(tab.dataset.accountSection, true),
+  );
   const saved = ctx.ui?.get("account").section;
   select(ACCOUNT_SECTIONS.some((section) => section.id === saved) ? saved : "settings");
   return {

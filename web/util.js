@@ -314,6 +314,24 @@ export function confirmDialog({ title, body, confirmLabel = "Remove", cancelLabe
   });
 }
 
+// Arrow keys, Home and End move between the tabs of a side menu, as in a native tab list. select(tab) is called with
+// the tab element to show.
+export function sectionTabKeys(nav, tabs, select) {
+  nav.addEventListener("keydown", (event) => {
+    const index = tabs.indexOf(event.target);
+    if (index < 0) return;
+    let next;
+    if (["ArrowDown", "ArrowRight"].includes(event.key)) next = (index + 1) % tabs.length;
+    else if (["ArrowUp", "ArrowLeft"].includes(event.key))
+      next = (index + tabs.length - 1) % tabs.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = tabs.length - 1;
+    else return;
+    event.preventDefault();
+    select(tabs[next]);
+  });
+}
+
 export function downloadFile(name, text, type = "application/json") {
   const url = URL.createObjectURL(new Blob([text], { type }));
   const a = Object.assign(document.createElement("a"), { href: url, download: name });
