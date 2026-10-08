@@ -176,6 +176,24 @@ func (s *server) finishTwoFactor(w http.ResponseWriter, r *http.Request) {
 	s.audit(r.Context(), name, "login", name, "two-step verified", s.clientIP(r))
 	writeJSON(w, 200, map[string]string{"message": "Signed in."})
 }
+
+// beginVerifiedTx opens the transaction a two-step change runs in and checks, inside it, that the password the person
+// just entered is still the account's current one and this session is still live. When it can't go on it has answered
+// the request and returns false; otherwise the caller must roll the transaction back, normally with a defer.
+func (s *server) beginVerifiedTx(w http.ResponseWriter, r *http.Request) (*sql.Tx, bool) {
+	tx, err := s.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		serverError(w, r, err)
+		return nil, false
+	}
+	if err = verifiedPasswordTx(r.Context(), tx, authOf(r)); err != nil {
+		tx.Rollback()
+		jsonError(w, 409, err.Error())
+		return nil, false
+	}
+	return tx, true
+}
+
 func (s *server) twoFactorAction(w http.ResponseWriter, r *http.Request) {
 	a := authOf(r)
 	var in struct {
@@ -192,18 +210,13 @@ func (s *server) twoFactorAction(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, 429, "Too many code attempts. Wait 15 minutes.")
 		return
 	}
-	tx, err := s.db.BeginTx(r.Context(), nil)
-	if err != nil {
-		serverError(w, r, err)
+	tx, ok := s.beginVerifiedTx(w, r)
+	if !ok {
 		return
 	}
 	defer tx.Rollback()
-	if err = verifiedPasswordTx(r.Context(), tx, authOf(r)); err != nil {
-		jsonError(w, 409, err.Error())
-		return
-	}
 	var enabled int
-	err = tx.QueryRowContext(r.Context(), `SELECT enabled FROM account_security WHERE user_id=?`, a.u.ID).Scan(&enabled)
+	err := tx.QueryRowContext(r.Context(), `SELECT enabled FROM account_security WHERE user_id=?`, a.u.ID).Scan(&enabled)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		serverError(w, r, err)
 		return
@@ -380,16 +393,11 @@ func (s *server) adminResetTwoFactor(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, 400, "Manage your own two-step verification in Account.")
 		return
 	}
-	tx, err := s.db.BeginTx(r.Context(), nil)
-	if err != nil {
-		serverError(w, r, err)
+	tx, ok := s.beginVerifiedTx(w, r)
+	if !ok {
 		return
 	}
 	defer tx.Rollback()
-	if err = verifiedPasswordTx(r.Context(), tx, authOf(r)); err != nil {
-		jsonError(w, 409, err.Error())
-		return
-	}
 	give, ok := s.userLimit.take("2fa:" + authOf(r).u.Username)
 	if !ok {
 		jsonError(w, 429, "Too many code attempts. Wait 15 minutes.")
