@@ -6,7 +6,7 @@ existing module responsible for the behavior.
 
 ## Tools and setup
 
-Install Go **1.27.1** (the version in `go.mod`), Node **22.13+ or 24+**, npm,
+Install Go **1.27.2** (the version in `go.mod`), Node **22.13+ or 24+**, npm,
 and a C compiler for Go's race detector. Production builds use pure Go and do
 not need a C compiler. Docker is optional; Compose must support the optional
 `env_file` syntax (2.24+).
