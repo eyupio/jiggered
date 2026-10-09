@@ -538,12 +538,17 @@ func (st *static) versionPage(page []byte) []byte {
 	return page
 }
 
+// Compiled once: sw.js is requested on every page load and update check, and compiling per request cost more than matching.
+var (
+	shellBlock = regexp.MustCompile(`(?s)const SHELL = \[.*?\];`)
+	shellFile  = regexp.MustCompile(`"/([a-z0-9-]+\.(?:js|css))"`)
+)
+
 // serviceWorker points the worker's list of files, and its cache, at this build's versioned URLs, so every
 // release gives it new bytes and the browser installs it.
 func (st *static) serviceWorker(sw []byte) []byte {
-	block := regexp.MustCompile(`(?s)const SHELL = \[.*?\];`)
-	sw = block.ReplaceAllFunc(sw, func(b []byte) []byte {
-		return regexp.MustCompile(`"/([a-z0-9-]+\.(?:js|css))"`).ReplaceAll(b, []byte(`"/v/`+st.version+`/$1"`))
+	sw = shellBlock.ReplaceAllFunc(sw, func(b []byte) []byte {
+		return shellFile.ReplaceAll(b, []byte(`"/v/`+st.version+`/$1"`))
 	})
 	return bytes.Replace(sw, []byte(`"jiggered-app-v1"`), []byte(`"jiggered-app-`+st.version+`"`), 1)
 }
