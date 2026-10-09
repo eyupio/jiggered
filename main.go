@@ -46,6 +46,14 @@ const (
 	maxBodySize = 256 << 10
 )
 
+// Throttle budgets for the server's limiters, all counted over one window. Recovery paths (register by
+// email, email change, account recovery) get a smaller budget than sign-in and the public forms.
+const (
+	limiterWindow     = 15 * time.Minute
+	attemptsPerWindow = 10
+	recoveryPerWindow = 3
+)
+
 // config holds deployment controls: storage, listening and public-site indexing. Account/proxy variables
 // are optional and only seed the database. Older versions needed a username and password here for the first
 // admin, and the proxy and cookie settings; they are read once to fill in what the database doesn't have yet.
@@ -173,10 +181,10 @@ func newServer(cfg config, db *sql.DB) (*server, error) {
 	return &server{
 		cfg:           cfg,
 		db:            db,
-		ipLimit:       newLoginLimiter(10, 15*time.Minute),
-		publicLimit:   newLoginLimiter(10, 15*time.Minute),
-		recoveryLimit: newLoginLimiter(3, 15*time.Minute),
-		userLimit:     newLoginLimiter(10, 15*time.Minute),
+		ipLimit:       newLoginLimiter(attemptsPerWindow, limiterWindow),
+		publicLimit:   newLoginLimiter(attemptsPerWindow, limiterWindow),
+		recoveryLimit: newLoginLimiter(recoveryPerWindow, limiterWindow),
+		userLimit:     newLoginLimiter(attemptsPerWindow, limiterWindow),
 		hashSem:       make(chan struct{}, maxHashing),
 		mailSem:       make(chan struct{}, 4),
 		dummyHash:     dummy,

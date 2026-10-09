@@ -1,6 +1,6 @@
 module github.com/eyupio/jiggered
 
-go 1.27.1
+go 1.27.2
 
 require (
 	golang.org/x/crypto v0.57.0
