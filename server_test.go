@@ -350,6 +350,37 @@ func TestServiceWorkerCachesEveryFileTheAppNeeds(t *testing.T) {
 	}
 }
 
+// A signed-in render of a public page tells a visitor on this device that an account is signed in on it, so the
+// worker (which the signed-in app installs for the whole origin) must send every public page to the server rather
+// than reply from the cache a signed-in session filled.
+func TestServiceWorkerDoesNotCachePublicPages(t *testing.T) {
+	sw, err := fs.ReadFile(webFS, "web/sw.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exact := map[string]bool{}
+	for _, m := range regexp.MustCompile(`"(/[a-z0-9._-]+(?:\.[a-z0-9]+)?)"`).FindAllStringSubmatch(string(sw), -1) {
+		exact[m[1]] = true
+	}
+	prefixes := regexp.MustCompile(`"(/[a-z0-9-]+/)"`).FindAllStringSubmatch(string(sw), -1)
+	bypassed := func(p string) bool {
+		if exact[p] {
+			return true
+		}
+		for _, m := range prefixes {
+			if strings.HasPrefix(p, m[1]) {
+				return true
+			}
+		}
+		return false
+	}
+	for _, page := range publicPages {
+		if !bypassed(page.Path) {
+			t.Errorf("public page %s is not in the service worker's bypass list: a signed-in render would be cached and served back to a signed-out visitor", page.Path)
+		}
+	}
+}
+
 func TestServiceWorkerIsServedForTheWholeSite(t *testing.T) {
 	e := newTestServer(t)
 	resp, _ := e.newClient().req("GET", "/sw.js", nil)

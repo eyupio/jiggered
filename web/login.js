@@ -53,6 +53,13 @@ function initAuth() {
     line.textContent = msg;
     // A deleted account is news, not an error.
     if (e === "deleted") line.className = "msg";
+    // Tie a refusal to the field being retyped, so a screen reader reads the reason with the
+    // password and the field is marked as the one that failed.
+    else if (e !== "expired") {
+      const password = document.getElementById("password");
+      password?.setAttribute("aria-describedby", "err");
+      if (e === "bad") password?.setAttribute("aria-invalid", "true");
+    }
   }
   // A visitor who came from the Spoon Theory guide starts in spoons. This is best effort: it survives the email
   // round trip only when the link is opened in the same browser; the first-run checklist asks everyone else.

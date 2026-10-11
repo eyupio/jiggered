@@ -101,7 +101,9 @@ self.addEventListener("fetch", (e) => {
   if (req.method !== "GET" || url.origin !== location.origin) return;
   if (
     url.pathname.startsWith("/api/") ||
-    ["/features/", "/guides/", "/docs/"].some((prefix) => url.pathname.startsWith(prefix)) ||
+    ["/features/", "/guides/", "/docs/", "/alternatives/", "/for/"].some((prefix) =>
+      url.pathname.startsWith(prefix),
+    ) ||
     [
       "/healthz",
       "/login",
@@ -109,13 +111,14 @@ self.addEventListener("fetch", (e) => {
       "/welcome",
       "/pricing",
       "/privacy",
+      "/terms",
       "/robots.txt",
       "/sitemap.xml",
       "/llms.txt",
       "/logout",
     ].includes(url.pathname)
   )
-    return; // data, public pages and sign-in always go to the server
+    return; // data, public pages and sign-in always go to the server; a signed-in render of a public page must never be served back to a signed-out visitor
   e.respondWith(networkFirst(req, url.pathname));
 });
 

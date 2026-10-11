@@ -88,6 +88,9 @@ runBrowser(
       .filter({ hasText: "Registration is closed" })
       .waitFor();
     assert.equal(await page.locator("#register-form").isVisible(), false);
+    await page.goto(base + "/login?e=bad");
+    assert.equal(await page.locator("#password").getAttribute("aria-invalid"), "true");
+    assert.equal(await page.locator("#password").getAttribute("aria-describedby"), "err");
     await page.goto(base + "/login");
     await page.locator("#username").fill("admin");
     await page.locator("#password").fill("preview-password1");
