@@ -35,6 +35,8 @@ var invalidDocs = []struct{ name, id, body string }{
 	{"settings budget too large", "settings", `{"budget":99}`},
 	{"settings group with surrounding spaces", "settings", `{"budget":9,"symptoms":["Dizzy"],"symptomGroups":{"Dizzy":" Head "}}`},
 	{"a JSON array, not an object", "e-1790000000001", `[1,2]`},
+	{"day with a number too large for a browser", "d-2026-10-01", `{"status":"green","futureField":1e400}`},
+	{"episode with a number too large for a browser", "e-1790000000001", `{"notes":"old","futureField":1e400}`},
 }
 
 func sameJSON(t *testing.T, got, want string) bool {

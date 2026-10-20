@@ -28,7 +28,9 @@ func validateDoc(id string, raw json.RawMessage) error {
 		return validateToolDoc(fields)
 	}
 	var value map[string]any
-	json.Unmarshal(raw, &value)
+	if json.Unmarshal(raw, &value) != nil {
+		return fmt.Errorf("record contains a number the app cannot represent")
+	}
 	if err := validateRecordFields(value); err != nil {
 		return err
 	}
