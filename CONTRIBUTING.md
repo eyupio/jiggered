@@ -95,11 +95,23 @@ gofmt -w path/to/changed.go        # for Go changes
 npm --prefix test run format      # frontend, tooling and current contributor docs
 npm --prefix test run check       # formatter, ESLint, frontend logic tests
 go vet ./...
-staticcheck ./...                    # v0.8.1 built against golang.org/x/tools@v0.50.0 with Go 1.27.2 (see image.yml); bug checks only, see staticcheck.conf
+staticcheck ./...                 # bug checks only, see staticcheck.conf
 CGO_ENABLED=0 go build ./...
 go test -race ./...
 npm --prefix test run browser
 ```
+
+Do not install staticcheck with a plain `go install`: the pinned v0.8.1 release
+cannot read Go 1.27.2 export data. Build the same release against a supported
+`x/tools` with the shared script, then put it on `PATH`:
+
+```sh
+.github/scripts/build-staticcheck.sh "$HOME/go/bin/staticcheck"
+export PATH="$HOME/go/bin:$PATH"
+```
+
+CI runs the same script before `staticcheck ./...`; drop the override once a
+staticcheck release carries it.
 
 `make check` runs the Go and frontend checks above; `make browser` runs the browser scenarios.
 `.node-version` names the Node major CI uses.
