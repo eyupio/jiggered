@@ -102,6 +102,45 @@ test("large histories have at most 60 buckets and preserve counts and averages",
   assert.ok(d.buckets.every((b) => b.avgUsed === null || Number.isFinite(b.avgUsed)));
 });
 
+test("history derives each record list once and reuses prepared records", () => {
+  const docs = {
+    "d-2026-09-29": day("green", [activity("Walk", -1)]),
+    "d-2026-09-30": day("amber", [activity("Work", 3)]),
+    "d-2026-10-01": day("red"),
+    "e-1": episode("2026-09-30T10:00", ["Headache"]),
+    "e-2": episode("2026-10-01T11:00", ["Fatigue"], ["Poor sleep"]),
+  };
+  const filters = { from: "2026-09-29" };
+  let enumerations = 0;
+  const counted = new Proxy(docs, {
+    ownKeys(target) {
+      enumerations++;
+      return Reflect.ownKeys(target);
+    },
+  });
+  const expected = historyInsights(docs, DEFAULTS, "2026-10-01", filters);
+  const derived = historyInsights(counted, DEFAULTS, "2026-10-01", filters);
+  assert.equal(enumerations, 2, "one pass for Days and one for Episodes");
+  assert.deepEqual(derived, expected);
+
+  const prepared = {
+    days: model.listDays(docs),
+    episodes: model.listEpisodes(docs),
+  };
+  const daysBefore = prepared.days.slice(),
+    episodesBefore = prepared.episodes.slice();
+  enumerations = 0;
+  const reused = historyInsights(counted, DEFAULTS, "2026-10-01", filters, prepared);
+  assert.equal(enumerations, 0, "prepared records are used instead of reading docs");
+  assert.deepEqual(reused, expected);
+  assert.deepEqual(prepared.days, daysBefore, "prepared Days were not reordered or changed");
+  assert.deepEqual(
+    prepared.episodes,
+    episodesBefore,
+    "prepared Episodes were not reordered or changed",
+  );
+});
+
 test("empty and episode-only accounts give useful ranges without fabricated activity days", () => {
   assert.deepEqual(historyRange({}, "2026-10-01", "all"), { from: "2026-10-01", to: "2026-10-01" });
   const docs = { "e-1": episode("2026-01-01T09:00"), "e-2": episode("2027-01-01T09:00") };

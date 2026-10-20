@@ -3,7 +3,7 @@ import {
   addDays,
   listDays,
   listEpisodes,
-  selectHistory,
+  selectHistoryFrom,
   used,
   capOf,
   activityDays,
@@ -46,15 +46,16 @@ const counts = (lists, limit = 5) => {
   return [...result].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, limit);
 };
 
-export function historyRange(docs, today, preset = "30") {
+export function historyRange(docs, today, preset = "30", records) {
   if (preset !== "all")
     return {
       from: addDays(today, 1 - Number(HISTORY_RANGES.find(([key]) => key === preset)?.[0] || 30)),
       to: today,
     };
+  const { days, episodes } = records || { days: listDays(docs), episodes: listEpisodes(docs) };
   const dates = [
-    ...listDays(docs).map((d) => d.date),
-    ...listEpisodes(docs).map(([, e]) => e.when.slice(0, 10)),
+    ...days.map((d) => d.date),
+    ...episodes.map(([, e]) => e.when.slice(0, 10)),
   ].filter((d) => validDate(d) && d <= today);
   return { from: dates.reduce((a, b) => (a < b ? a : b), today), to: today };
 }
@@ -80,8 +81,9 @@ function measure(days, episodes, S) {
   };
 }
 
-export function historyInsights(docs, S, today, filters = {}) {
-  const all = historyRange(docs, today, "all"),
+export function historyInsights(docs, S, today, filters = {}, records) {
+  const prepared = records || { days: listDays(docs), episodes: listEpisodes(docs) };
+  const all = historyRange(docs, today, "all", prepared),
     from = filters.from || all.from,
     to = filters.to || today;
   if (!validDate(from) || !validDate(to) || from > to || to > today)
@@ -89,13 +91,17 @@ export function historyInsights(docs, S, today, filters = {}) {
       error: "Choose valid dates with an end date on or after the start and no later than today.",
     };
   const span = Math.round(ordinal(to) - ordinal(from)) + 1;
-  const selected = selectHistory(docs, { ...filters, from, to });
+  const selected = selectHistoryFrom(prepared.days, prepared.episodes, { ...filters, from, to });
   selected.days = selected.days.filter((d) => validDate(d.date));
   selected.episodes = selected.episodes.filter(([, e]) => validDate(e.when.slice(0, 10)));
   const { days, episodes } = selected;
   const previousTo = addDays(from, -1),
     previousFrom = addDays(from, -span);
-  const previous = selectHistory(docs, { ...filters, from: previousFrom, to: previousTo });
+  const previous = selectHistoryFrom(prepared.days, prepared.episodes, {
+    ...filters,
+    from: previousFrom,
+    to: previousTo,
+  });
   const metrics = measure(days, episodes, S),
     prior = measure(previous.days, previous.episodes, S);
   // At most 60 buckets regardless of account size. Each record is visited once.
