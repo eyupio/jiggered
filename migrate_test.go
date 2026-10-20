@@ -326,6 +326,80 @@ func TestTwoProcessesMigrateTheSameDatabaseOnce(t *testing.T) {
 	}
 }
 
+// A populated legacy database opened twice at once must still keep an untouched copy for each opener that snapshots.
+func TestConcurrentMigrationsWithPopulatedLegacyDatabase(t *testing.T) {
+	body := `{"date":"2026-09-29","status":"green","entries":[]}`
+	path := legacyDB(t, map[string]string{"d-2026-09-29": body}, nil)
+	seed := seedFor(t, "paul", "oldpassword1")
+
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	errs := make([]error, 2)
+	dbs := make([]*sql.DB, 2)
+	for i := range errs {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			dbs[i], errs[i] = openDB(path, seed)
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("opener %d: %v", i, err)
+		}
+		if err := dbs[i].Close(); err != nil {
+			t.Fatalf("closing opener %d: %v", i, err)
+		}
+	}
+
+	if got := scalar(t, path, "PRAGMA user_version"); got != len(migrations) {
+		t.Fatalf("user_version = %d, want %d", got, len(migrations))
+	}
+	if got := scalar(t, path, "SELECT count(*) FROM docs WHERE id = 'd-2026-09-29'"); got != 1 {
+		t.Fatal("the legacy document did not survive the concurrent upgrade")
+	}
+
+	snaps, err := filepath.Glob(filepath.Join(filepath.Dir(path), "backups", "pre-upgrade-v0-*.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, snap := range snaps {
+		if scalar(t, snap, "PRAGMA user_version") == 0 && scalar(t, snap, "SELECT count(*) FROM docs WHERE id = 'd-2026-09-29'") == 1 {
+			return
+		}
+	}
+	t.Fatalf("no untouched pre-upgrade snapshot holds the legacy document; snapshots: %v", snaps)
+}
+
+// Two upgrades named in the same second must reserve different destinations, and each destination must be absent
+// again before VACUUM INTO runs.
+func TestUniqueSnapshotDestinationsAtSameTimestamp(t *testing.T) {
+	dir := t.TempDir()
+	at := time.Date(2026, 10, 20, 6, 7, 8, 0, time.UTC)
+	first, err := reserveSnapshotPath(dir, 0, at)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := reserveSnapshotPath(dir, 0, at)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first == second {
+		t.Fatalf("both reservations returned %s", first)
+	}
+	for _, path := range []string{first, second} {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Errorf("reserved path %s exists (stat error: %v); VACUUM INTO needs an absent destination", path, err)
+		}
+		if matched, err := filepath.Match(filepath.Join(dir, "pre-upgrade-v0-*.db"), path); err != nil || !matched {
+			t.Errorf("reserved path %s does not match the snapshot pattern (error: %v)", path, err)
+		}
+	}
+}
+
 // snapshot writes a real file or refuses; a name SQLite would silently accept without writing anything is an error.
 func TestSnapshotRefusesDestinationsThatAreNotFiles(t *testing.T) {
 	e := newTestServer(t)
