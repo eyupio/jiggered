@@ -167,12 +167,33 @@ func snapshotBeforeMigrating(db *sql.DB, path string, from int) error {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return fmt.Errorf("creating backup directory: %w", err)
 	}
-	dest := filepath.Join(dir, fmt.Sprintf("pre-upgrade-v%d-%s.db", from, time.Now().Format("20060102-150405")))
+	dest, err := reserveSnapshotPath(dir, from, time.Now())
+	if err != nil {
+		return fmt.Errorf("backing up before upgrade: %w", err)
+	}
 	if err := snapshot(db, dest); err != nil {
 		return fmt.Errorf("backing up before upgrade: %w", err)
 	}
 	log.Printf("saved a copy of the database to %s before upgrading its schema", dest)
 	return nil
+}
+
+// reserveSnapshotPath claims a unique snapshot name and removes the placeholder,
+// because VACUUM INTO refuses to write over an existing file.
+func reserveSnapshotPath(dir string, from int, at time.Time) (string, error) {
+	placeholder, err := os.CreateTemp(dir, fmt.Sprintf("pre-upgrade-v%d-%s-*.db", from, at.Format("20060102-150405")))
+	if err != nil {
+		return "", err
+	}
+	name := placeholder.Name()
+	if err := placeholder.Close(); err != nil {
+		os.Remove(name)
+		return "", err
+	}
+	if err := os.Remove(name); err != nil {
+		return "", err
+	}
+	return name, nil
 }
 
 // snapshot writes a consistent copy of a live database. Copying the .db file
