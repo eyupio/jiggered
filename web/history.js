@@ -110,10 +110,10 @@ export function init(ctx) {
   const openFilters = () => {
     $("history-filter-panel").open = true;
   };
-  const setRange = (key) => {
+  const setRange = (key, records) => {
     rangeMode = key;
     rangeToday = ctx.today();
-    const dates = historyRange(ctx.store.all(), ctx.today(), key);
+    const dates = historyRange(ctx.store.all(), ctx.today(), key, records);
     $("hist-from").value = key === "all" ? "" : dates.from;
     $("hist-to").value = key === "all" ? "" : dates.to;
     shown = episodesShown = PAGE;
@@ -383,6 +383,7 @@ export function init(ctx) {
       L = S.locale,
       docs = ctx.store.all(),
       today = ctx.today();
+    const records = { days: listDays(docs), episodes: listEpisodes(docs) };
     const f = focus();
     $("history-lens").hidden = !f;
     $("history-lens").textContent = f
@@ -392,13 +393,13 @@ export function init(ctx) {
     $("sum-focus-text").textContent = f ? `“${f}”` : "";
     if (!initialised && ctx.store.status().loaded) {
       initialised = true;
-      setRange(normaliseProfile(ctx.store.view("settings")?.profile).historyRange);
+      setRange(normaliseProfile(ctx.store.view("settings")?.profile).historyRange, records);
     }
-    if (rangeMode !== "custom" && rangeToday !== today) setRange(rangeMode);
+    if (rangeMode !== "custom" && rangeToday !== today) setRange(rangeMode, records);
     $("hist-from").max = $("hist-to").max = today;
     $("history-range").value = rangeMode;
     const symptom = restoredSymptom || $("hist-symptom").value,
-      options = [...new Set([...S.symptoms, ...listEpisodes(docs).flatMap(([, e]) => e.symptoms)])];
+      options = [...new Set([...S.symptoms, ...records.episodes.flatMap(([, e]) => e.symptoms)])];
     setHTML(
       $("hist-symptom"),
       html`<option value="">Any</option>${options.map((name) => html`<option value="${name}">${name}</option>`)}`,
@@ -406,7 +407,7 @@ export function init(ctx) {
     $("hist-symptom").value = symptom;
     if ($("hist-symptom").selectedIndex < 0) $("hist-symptom").value = "";
     restoredSymptom = "";
-    const data = historyInsights(docs, S, today, filters());
+    const data = historyInsights(docs, S, today, filters(), records);
     currentData = data;
     const days = data.days || [],
       eps = data.episodes || [];
@@ -561,10 +562,10 @@ export function init(ctx) {
     );
     $("more-eps").hidden = eps.length <= episodesShown;
     $("noeps").hidden = eps.length > 0;
-    $("noeps").textContent = listEpisodes(docs).length
+    $("noeps").textContent = records.episodes.length
       ? "No episodes match this period and filters. Try a wider period or clear search and filters."
       : "No episodes logged. Use Episode if one happens.";
-    $("nodays").textContent = listDays(docs).length
+    $("nodays").textContent = records.days.length
       ? "No days match this period and filters. Try a wider period or clear search and filters."
       : "Your days appear here after a check-in or activity.";
     if (!$("summary-preview").hidden) updatePreview();

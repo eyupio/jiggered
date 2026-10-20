@@ -809,17 +809,22 @@ const searchText = (record, make) => {
 };
 
 export function selectHistory(docs, filters = {}) {
+  return selectHistoryFrom(listDays(docs), listEpisodes(docs), filters);
+}
+
+// selectHistoryFrom filters prepared, already-sorted lists without reading or reordering them.
+export function selectHistoryFrom(days, episodes, filters = {}) {
   const { from = "", to = "", status = "", symptom = "", ongoing = false, query = "" } = filters;
   const between = (date) => (!from || date >= from) && (!to || date <= to);
   const needle = query.trim().toLocaleLowerCase();
   const contains = (record, make) => !needle || searchText(record, make).includes(needle);
-  const days = listDays(docs).filter(
+  const selectedDays = days.filter(
     (d) =>
       between(d.date) &&
       (!status || d.status === status) &&
       contains(d, () => [d.date, ...(d.entries || []).map((e) => e.a)].join(" ")),
   );
-  const episodes = listEpisodes(docs).filter(
+  const selectedEpisodes = episodes.filter(
     ([, e]) =>
       between(e.when.slice(0, 10)) &&
       (!symptom || (e.symptoms || []).includes(symptom)) &&
@@ -828,7 +833,7 @@ export function selectHistory(docs, filters = {}) {
         [e.when, ...(e.symptoms || []), ...(e.before || []), e.notes || ""].join(" "),
       ),
   );
-  return { days, episodes };
+  return { days: selectedDays, episodes: selectedEpisodes };
 }
 
 // Strip broken imported fields at the read boundary; retain the original document for recovery/export.
