@@ -582,8 +582,8 @@ sessions, pending sign-in challenges and emailed tokens; it never signs anyone b
 
 ## Development
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for local setup, the code map, all eight
-browser scenarios and change guidelines. Use Go 1.27.2 and Node 22.13+ or 24+.
+See [CONTRIBUTING.md](../CONTRIBUTING.md) for local setup, the code map, the browser
+scenarios and change guidelines. Use Go 1.27.2 and Node 22.13+ or 24+.
 There is no frontend build step; npm installs locked development tools only.
 
 ```sh
@@ -592,7 +592,7 @@ npm --prefix test run browser:install
 npm --prefix test run check
 go vet ./...
 go test -race ./...             # requires a C compiler
-npm --prefix test run browser   # compiles once, runs all eight scenarios
+npm --prefix test run browser   # compiles once, runs the shared browser suite
 ```
 
 CI also runs pinned `govulncheck` and builds without cgo. Docker bases and CI
