@@ -89,6 +89,11 @@ test("resizing keeps a minimum length, the other edge fixed, and the day's bound
   assert.deepEqual(resizeStart(block, -100), { start: 0, dur: 600 });
 });
 
+test("dragging the top edge of a block shorter than a step at midnight never leaves the day", () => {
+  assert.deepEqual(resizeStart({ start: 0, dur: 10 }, 300), { start: 0, dur: 10 });
+  assert.deepEqual(resizeStart({ start: 5, dur: 5 }, -100), { start: 0, dur: 10 });
+});
+
 test("overlapping blocks share the width; blocks that only touch do not", () => {
   const block = (id, start, end) => ({ id, start, end });
   const lane = (blocks) =>

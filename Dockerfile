@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e
 # The build always runs on the builder's own CPU and cross-compiles (pure Go, no cgo), so a multi-platform image
 # never has to run the compiler under emulation. That used to be most of the build time.
-FROM --platform=$BUILDPLATFORM golang:1.27.2-alpine@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS build
+FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine@sha256:7eadb9cbb0aab2649418025b8472a770195e9a94921309519896514de85bba7f AS build
 ARG VERSION=dev
 ARG TARGETOS
 ARG TARGETARCH
