@@ -583,7 +583,7 @@ sessions, pending sign-in challenges and emailed tokens; it never signs anyone b
 ## Development
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md) for local setup, the code map, the browser
-scenarios and change guidelines. Use Go 1.27.2 and Node 22.13+ or 24+.
+scenarios and change guidelines. Use Go 1.27.3 and Node 22.13+ or 24+.
 There is no frontend build step; npm installs locked development tools only.
 
 ```sh

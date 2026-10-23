@@ -69,7 +69,7 @@ export function resizeEnd(block, end) {
 // Drag the top edge to `start`; the end stays where it is.
 export function resizeStart(block, start) {
   const end = block.start + block.dur,
-    s = clamp(snap(start), 0, end - STEP);
+    s = clamp(snap(start), 0, Math.max(0, end - STEP)); // a block ending within a step of midnight can't start before it
   return { start: s, dur: end - s };
 }
 

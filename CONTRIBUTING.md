@@ -6,7 +6,7 @@ existing module responsible for the behavior.
 
 ## Tools and setup
 
-Install Go **1.27.2** (the version in `go.mod`), Node **22.13+ or 24+**, npm,
+Install Go **1.27.3** (the version in `go.mod`), Node **22.13+ or 24+**, npm,
 and a C compiler for Go's race detector. Production builds use pure Go and do
 not need a C compiler. Docker is optional; Compose must support the optional
 `env_file` syntax (2.24+).
@@ -102,7 +102,7 @@ npm --prefix test run browser
 ```
 
 Do not install staticcheck with a plain `go install`: the pinned v0.8.1 release
-cannot read Go 1.27.2 export data. Build the same release against a supported
+cannot read Go 1.27 export data. Build the same release against a supported
 `x/tools` with the shared script, then put it on `PATH`:
 
 ```sh
