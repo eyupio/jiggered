@@ -18,6 +18,9 @@ import (
 const (
 	totpPeriod = 30 * time.Second
 	totpDigits = 6
+	// totpModulus is 10^totpDigits: the truncated HOTP value is reduced by it
+	// to leave exactly totpDigits decimal digits. Change both together.
+	totpModulus = 1_000_000
 	// totpSkew is how many steps either side of now a code is accepted for.
 	// One step covers a phone clock thirty seconds adrift and a code typed
 	// as it rolled over; more widens the window an overheard code is good in.
@@ -55,7 +58,7 @@ func totpCode(secret string, step int64) (string, error) {
 	sum := mac.Sum(nil)
 	offset := sum[len(sum)-1] & 0x0f
 	value := binary.BigEndian.Uint32(sum[offset:offset+4]) & 0x7fffffff
-	return fmt.Sprintf("%0*d", totpDigits, value%1_000_000), nil
+	return fmt.Sprintf("%0*d", totpDigits, value%totpModulus), nil
 }
 
 // matchTOTP returns the step a code is valid for within the skew window
