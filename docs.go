@@ -85,14 +85,21 @@ func snapshotTag(ctx context.Context, tx *sql.Tx, userID int64) (string, error) 
 		return "", err
 	}
 	defer rows.Close()
+	// Hash straight from RawBytes and a reused buffer: this runs on every sync poll, once per document, and
+	// fmt.Fprintf with a string scan boxed and allocated several times per row. The bytes hashed are unchanged.
 	h := sha256.New()
+	var id sql.RawBytes
+	var rev, size, at int64
+	var line []byte
 	for rows.Next() {
-		var id string
-		var rev, size, at int64
 		if err := rows.Scan(&id, &rev, &size, &at); err != nil {
 			return "", err
 		}
-		fmt.Fprintf(h, "%s\x00%d\x00%d\x00%d\n", id, rev, size, at)
+		line = append(line[:0], id...)
+		for _, n := range [...]int64{rev, size, at} {
+			line = strconv.AppendInt(append(line, 0), n, 10)
+		}
+		h.Write(append(line, '\n'))
 	}
 	if err := rows.Err(); err != nil {
 		return "", err
