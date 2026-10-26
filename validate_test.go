@@ -19,6 +19,7 @@ var validDocs = []struct{ name, id, body string }{
 	{"sparse legacy settings", "settings", `{"budget":3}`},
 	{"settings with an unknown field", "settings", `{"budget":9,"activities":[{"a":"Walk","c":-1}],"somethingNew":true}`},
 	{"settings with a group for a name no longer in the list", "settings", `{"budget":9,"symptoms":["Renamed"],"symptomGroups":{"Old name":"Head"},"triggers":["Heat"],"triggerGroups":{"Old trigger":"Body"}}`},
+	{"tool board with fields from a newer client", "t-fretboard", `{"items":{"card-1":{"t":"Walk","x":0.25,"y":0.75,"mood":"ok"}},"three":[{"id":"three-1","t":"Rest","done":false}],"futureField":{"nested":[1,2,3]}}`},
 }
 
 var invalidDocs = []struct{ name, id, body string }{
@@ -37,6 +38,8 @@ var invalidDocs = []struct{ name, id, body string }{
 	{"a JSON array, not an object", "e-1790000000001", `[1,2]`},
 	{"day with a number too large for a browser", "d-2026-10-01", `{"status":"green","futureField":1e400}`},
 	{"episode with a number too large for a browser", "e-1790000000001", `{"notes":"old","futureField":1e400}`},
+	{"settings with a number too large for a browser", "settings", `{"budget":9,"futureField":1e400}`},
+	{"tool with a number too large for a browser", "t-fretboard", `{"items":{},"futureField":1e400}`},
 }
 
 func sameJSON(t *testing.T, got, want string) bool {
