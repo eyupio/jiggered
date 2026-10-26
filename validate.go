@@ -21,15 +21,19 @@ func validateDoc(id string, raw json.RawMessage) error {
 	if json.Unmarshal(raw, &fields) != nil || fields == nil {
 		return fmt.Errorf("record must be a JSON object")
 	}
+	// Decode the whole body before choosing a validator. Every value, including one in an unknown field or a Tool
+	// document, must be representable by a browser as well as by Go: a literal such as 1e400 is valid JSON to the raw
+	// decoder but becomes Infinity in a browser and is then written back as null, silently losing it. Known numeric
+	// fields are range-checked below; this is what protects the opaque ones on import and restore.
+	var value map[string]any
+	if json.Unmarshal(raw, &value) != nil {
+		return fmt.Errorf("record contains a number the app cannot represent")
+	}
 	if id == "settings" {
 		return validateSettingsDoc(fields, raw)
 	}
 	if strings.HasPrefix(id, "t-") {
 		return validateToolDoc(fields)
-	}
-	var value map[string]any
-	if json.Unmarshal(raw, &value) != nil {
-		return fmt.Errorf("record contains a number the app cannot represent")
 	}
 	if err := validateRecordFields(value); err != nil {
 		return err
