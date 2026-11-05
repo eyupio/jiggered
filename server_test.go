@@ -60,6 +60,13 @@ func TestSecurityHeaders(t *testing.T) {
 	if strings.Contains(csp, "unsafe") {
 		t.Errorf("CSP allows unsafe sources: %s", csp)
 	}
+	// Powerful browser APIs this app never calls stay off at the platform level, not just the CSP.
+	pp := h.Get("Permissions-Policy")
+	for _, want := range []string{"camera=()", "microphone=()", "geolocation=()", "payment=()", "usb=()", "browsing-topics=()"} {
+		if !strings.Contains(pp, want) {
+			t.Errorf("Permissions-Policy lacks %q: %s", want, pp)
+		}
+	}
 }
 
 func TestStaticFilesAreRevalidated(t *testing.T) {
