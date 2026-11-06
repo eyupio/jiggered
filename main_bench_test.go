@@ -52,3 +52,13 @@ func BenchmarkSnapshotTag(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkValidateDayDoc(b *testing.B) {
+	raw := []byte(`{"date":"2026-01-05","status":"amber","notes":"slept badly, short walk","before":["late night","screen"],"symptoms":["fog","aching"],"activities":[{"name":"walk","minutes":20},{"name":"shopping","minutes":40}]}`)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		if err := validateDoc("d-2026-01-05", raw); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
