@@ -11,6 +11,15 @@ import (
 	"time"
 )
 
+const (
+	// emailLinkLifetime is how long a verification or reset link works. The emails and
+	// confirmation messages say "30 minutes" in words, so change them together.
+	emailLinkLifetime = 30 * time.Minute
+	// maxPendingEmailTokens caps unexpired auth_tokens so an unauthenticated registration
+	// flood cannot grow the table or the outbox without bound.
+	maxPendingEmailTokens = 1000
+)
+
 func verifiedPasswordTx(ctx context.Context, tx *sql.Tx, a *authInfo) error {
 	var hash, role string
 	err := tx.QueryRowContext(ctx, `SELECT u.password_hash,u.role FROM users u JOIN sessions s ON s.user_id=u.id WHERE u.id=? AND u.disabled=0 AND s.token_hash=? AND s.sid=? AND s.expires_at>?`, a.u.ID, a.hash, a.sid, time.Now().Unix()).Scan(&hash, &role)
@@ -135,14 +144,14 @@ func (s *server) registerAccount(w http.ResponseWriter, r *http.Request) {
 			serverError(w, r, err)
 			return
 		}
-		if pending >= 1000 {
+		if pending >= maxPendingEmailTokens {
 			jsonError(w, 503, "Registration is busy. Try again later.")
 			return
 		}
 		// A registration payload has fixed separators because usernames, addresses and bcrypt hashes cannot contain newlines.
 		payload := name + "\n" + email + "\n" + hash
 		s.db.ExecContext(r.Context(), `DELETE FROM auth_tokens WHERE purpose='register' AND substr(payload,1,instr(payload,char(10))-1)=?`, name)
-		if _, err = s.db.ExecContext(r.Context(), `INSERT INTO auth_tokens(token_hash,purpose,payload,expires) VALUES(?,'register',?,?)`, hashToken(token), payload, time.Now().Add(30*time.Minute).Unix()); err != nil {
+		if _, err = s.db.ExecContext(r.Context(), `INSERT INTO auth_tokens(token_hash,purpose,payload,expires) VALUES(?,'register',?,?)`, hashToken(token), payload, time.Now().Add(emailLinkLifetime).Unix()); err != nil {
 			serverError(w, r, err)
 			return
 		}
@@ -183,7 +192,7 @@ func (s *server) forgotPassword(w http.ResponseWriter, r *http.Request) {
 			}
 			defer tx.Rollback()
 			if _, e = tx.ExecContext(r.Context(), `DELETE FROM auth_tokens WHERE user_id=? AND purpose='reset'`, id); e == nil {
-				_, e = tx.ExecContext(r.Context(), `INSERT INTO auth_tokens(token_hash,purpose,user_id,payload,expires) VALUES(?,'reset',?,?,?)`, hashToken(token), id, oldHash, time.Now().Add(30*time.Minute).Unix())
+				_, e = tx.ExecContext(r.Context(), `INSERT INTO auth_tokens(token_hash,purpose,user_id,payload,expires) VALUES(?,'reset',?,?,?)`, hashToken(token), id, oldHash, time.Now().Add(emailLinkLifetime).Unix())
 			}
 			if e != nil {
 				serverError(w, r, e)
@@ -419,7 +428,7 @@ func (s *server) requestRecoveryEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err = tx.ExecContext(r.Context(), `DELETE FROM auth_tokens WHERE user_id=? AND purpose='email'`, a.u.ID); err == nil {
-		_, err = tx.ExecContext(r.Context(), `INSERT INTO auth_tokens(token_hash,purpose,user_id,payload,expires) VALUES(?,'email',?,?,?)`, hashToken(token), a.u.ID, email+"\n"+string(current), time.Now().Add(30*time.Minute).Unix())
+		_, err = tx.ExecContext(r.Context(), `INSERT INTO auth_tokens(token_hash,purpose,user_id,payload,expires) VALUES(?,'email',?,?,?)`, hashToken(token), a.u.ID, email+"\n"+string(current), time.Now().Add(emailLinkLifetime).Unix())
 	}
 	if err != nil {
 		serverError(w, r, err)
