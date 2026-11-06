@@ -17,22 +17,27 @@ func validateDoc(id string, raw json.RawMessage) error {
 	if !validDocID(id) || len(raw) > maxBodySize {
 		return fmt.Errorf("unsupported record id or record too large")
 	}
-	var fields map[string]json.RawMessage
-	if json.Unmarshal(raw, &fields) != nil || fields == nil {
-		return fmt.Errorf("record must be a JSON object")
-	}
 	// Decode the whole body before choosing a validator. Every value, including one in an unknown field or a Tool
 	// document, must be representable by a browser as well as by Go: a literal such as 1e400 is valid JSON to the raw
 	// decoder but becomes Infinity in a browser and is then written back as null, silently losing it. Known numeric
 	// fields are range-checked below; this is what protects the opaque ones on import and restore.
+	//
+	// This is the one decode a day or episode needs, and it runs on every save. The per-field raw map is built only
+	// for the two kinds that read it, and only to tell "not an object" from "unrepresentable number" on failure.
 	var value map[string]any
-	if json.Unmarshal(raw, &value) != nil {
+	if err := json.Unmarshal(raw, &value); err != nil || value == nil {
+		var fields map[string]json.RawMessage
+		if json.Unmarshal(raw, &fields) != nil || fields == nil {
+			return fmt.Errorf("record must be a JSON object")
+		}
 		return fmt.Errorf("record contains a number the app cannot represent")
 	}
-	if id == "settings" {
-		return validateSettingsDoc(fields, raw)
-	}
-	if strings.HasPrefix(id, "t-") {
+	if id == "settings" || strings.HasPrefix(id, "t-") {
+		var fields map[string]json.RawMessage
+		json.Unmarshal(raw, &fields)
+		if id == "settings" {
+			return validateSettingsDoc(fields, raw)
+		}
 		return validateToolDoc(fields)
 	}
 	if err := validateRecordFields(value); err != nil {
