@@ -34,7 +34,7 @@ concurrency:
 jobs:
   cleanup:
     name: Cleanup jiggered
-    runs-on: ubuntu-latest
+    runs-on: zoomies-linux-x64
     permissions:
       contents: read
       packages: write
