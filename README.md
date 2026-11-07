@@ -1,3 +1,5 @@
+[![CI has the Zoomies](https://zoomies.sh/badge.svg)](https://zoomies.sh)
+
 <!-- zoomies-ai-context:start -->
 
 [![Zoomies AI Context](https://github.com/eyupio/jiggered/actions/workflows/zoomies-ai-context.yml/badge.svg)](https://github.com/eyupio/jiggered/actions/workflows/zoomies-ai-context.yml)
