@@ -70,6 +70,8 @@
   flex-shrink: 0;
 }
 .energy-theme-symbol path,
+.energy-theme-symbol circle,
+.energy-theme-check path,
 .energy-spoon path,
 .cells .cell path {
   fill: none;
@@ -78,11 +80,18 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+.energy-theme-symbol .point-dot {
+  fill: currentColor;
+  stroke: none;
+}
+.energy-theme-check svg {
+  display: block;
+}
 .energy-theme-check {
+  display: inline-flex;
   margin-left: auto;
   visibility: hidden;
   color: var(--accent);
-  font-weight: 700;
 }
 .energy-theme-option > input:checked + .energy-theme-card .energy-theme-check {
   visibility: visible;

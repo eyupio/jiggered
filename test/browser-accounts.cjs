@@ -63,7 +63,7 @@ runBrowser(
     await page.goto(base + "/");
     await page.locator("#hero-title").waitFor();
     assert.equal(await page.locator("[data-register-link]").first().getAttribute("href"), "/login");
-    assert.equal(await page.locator("#registration-status").textContent(), "REGISTRATION CLOSED");
+    assert.equal(await page.locator("#registration-status").textContent(), "Registration closed");
     assert.match(
       await page.locator("[data-registration-copy]").first().textContent(),
       /currently closed/,
@@ -75,7 +75,7 @@ runBrowser(
     await page.goto(base + "/welcome");
     await page
       .locator("#registration-status")
-      .filter({ hasText: "SIGNUP AVAILABILITY UNKNOWN" })
+      .filter({ hasText: "Signup availability unknown" })
       .waitFor();
     assert.match(
       await page.locator("[data-registration-copy]").first().textContent(),
@@ -263,7 +263,7 @@ runBrowser(
     await join.goto(base + "/");
     await join
       .locator("#registration-status")
-      .filter({ hasText: "OPEN FOR REGISTRATION" })
+      .filter({ hasText: "Open for registration" })
       .waitFor();
     assert.equal(
       (await join.locator("[data-registration-copy]").first().textContent()).trim(),

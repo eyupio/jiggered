@@ -415,8 +415,8 @@
 .energy-progress {
   stroke: currentColor;
   transition:
-    stroke-dasharray 0.5s ease,
-    stroke 0.3s ease;
+    stroke-dasharray 0.5s var(--ease),
+    stroke var(--dur-slow) var(--ease);
 }
 .energy-readout {
   position: absolute;

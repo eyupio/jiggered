@@ -155,7 +155,7 @@ func (s *server) publicIndexing(cfg serviceSettings) (origin string, index bool)
 
 func (p *publicSite) data(r *http.Request, page publicPage) publicData {
 	d := publicData{publicPage: page, Origin: p.s.cfg.publicOrigin, Index: p.s.cfg.publicIndex, Pages: publicPages,
-		Robots: "noindex, follow", CTA: "/login", CTALabel: "Log in", Status: "SIGNUP AVAILABILITY UNKNOWN",
+		Robots: "noindex, follow", CTA: "/login", CTALabel: "Log in", Status: "Signup availability unknown",
 		Availability: "Account availability could not be checked. Open the account page to try again."}
 	for _, listed := range publicPages {
 		if listed.Nav != "" {
@@ -187,13 +187,13 @@ func (p *publicSite) data(r *http.Request, page publicPage) publicData {
 		d.OperatorContact = strings.TrimSpace(settings.Accounts.OperatorContact)
 		d.Registration = settings.Accounts.Registration && settings.Email.Enabled
 		if d.Registration {
-			d.Status, d.CTA, d.CTALabel = "OPEN FOR REGISTRATION", "/register", "Create your free account"
+			d.Status, d.CTA, d.CTALabel = "Open for registration", "/register", "Create your free account"
 			d.Availability = "No card needed. We’ll email you a link to confirm your address, then you’re on Today in about a minute."
 			if page.Path == "/guides/spoon-theory" {
 				d.CTA = "/register?w=spoons" // someone who read about spoons should start counting in them
 			}
 		} else {
-			d.Status = "REGISTRATION CLOSED"
+			d.Status = "Registration closed"
 			d.Availability = "Registration is currently closed. Existing members can sign in."
 			if d.OperatorContact != "" {
 				d.Availability += " Ask " + d.OperatorContact + " for an account, or run your own copy."

@@ -90,7 +90,7 @@
   transform: none;
 }
 .site-header {
-  padding-block: 30px;
+  padding-block: 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -99,9 +99,9 @@
 .wordmark {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   font-family: var(--display);
-  font-weight: 700;
+  font-weight: 600;
   font-size: var(--text-2xl);
   letter-spacing: -1.5px;
 }
@@ -122,7 +122,7 @@
 .site-nav a,
 .text-link,
 .site-footer a {
-  transition: color 0.2s;
+  transition: color var(--dur-fast) var(--ease);
 }
 .site-nav a:hover,
 .text-link:hover,
@@ -139,72 +139,60 @@
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   white-space: nowrap;
   min-height: 56px;
-  padding: var(--space-4) 25px;
+  padding: 16px 24px;
   border-radius: var(--radius-sm);
   background: var(--accent);
   color: var(--on-accent) !important;
-  font-weight: 700;
+  font-weight: 600;
   font-size: var(--text-base);
   border: 1px solid var(--accent);
-  box-shadow: 0 4px 0 #203c310a;
   transition:
-    transform 0.2s,
-    background 0.2s;
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+.p-button:active {
+  transform: translateY(1px);
 }
 .p-button:hover {
   background: var(--accent-hover);
-  transform: translateY(-2px);
+  border-color: var(--accent-hover);
 }
 .p-button.small {
   min-height: 44px;
-  padding: 10px 17px;
+  padding: 8px 16px;
   font-size: var(--text-sm);
-  gap: 18px;
-}
-.p-button span {
-  font-size: var(--text-lg);
-  font-weight: 400;
+  gap: 8px;
 }
 .hero {
   display: grid;
   grid-template-columns: 1.05fr 1fr;
   align-items: center;
-  gap: 55px;
-  padding-block: 58px 80px;
+  gap: 56px;
+  padding-block: 56px 80px;
 }
+/* An eyebrow is a quiet label above a heading: sentence case, no tracking, no badge. */
 .eyebrow {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  letter-spacing: 0.13em;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--muted);
   display: flex;
   align-items: center;
-  gap: 9px;
-  line-height: var(--leading-normal);
+  gap: 8px;
+  line-height: var(--leading-snug);
 }
 .hero-copy .eyebrow {
-  letter-spacing: 0.03em;
-  text-transform: none;
   font-size: var(--text-sm);
-}
-.status-dot {
-  display: inline-block;
-  flex-shrink: 0;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #527957;
-  box-shadow: 0 0 0 4px #52795712;
 }
 .hero h1 {
   font-size: clamp(64px, 6.7vw, 88px);
-  margin: 27px 0 26px;
+  margin: 28px 0 24px;
   line-height: 0.98;
-  font-weight: 700;
-  letter-spacing: -0.045em;
-  word-spacing: 0.12em;
+  font-weight: 600;
+  letter-spacing: -0.04em;
 }
 .hero h1 > span {
   color: var(--hl);
@@ -218,15 +206,15 @@
 .hero-actions {
   display: flex;
   align-items: center;
-  gap: 28px;
-  margin: 30px 0 17px;
+  gap: 24px;
+  margin: 32px 0 16px;
 }
 .demo-link {
-  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 500;
   font-size: var(--text-base);
-}
-.demo-link span {
-  margin-left: var(--space-3);
 }
 .quiet-note {
   font-size: var(--text-sm);
@@ -234,24 +222,10 @@
 }
 .hero-art {
   position: relative;
-  min-height: 565px;
+  min-height: 568px;
   display: grid;
   place-items: center;
-  isolation: isolate;
-  scroll-margin-top: 30px;
-}
-.hero-art:before {
-  content: "";
-  position: absolute;
-  inset: 15px -20px 5px;
-  border-radius: 48% 48% 42% 50%;
-  background: radial-gradient(
-    ellipse at 60% 40%,
-    color-mix(in srgb, var(--accent) 12%, var(--bg)),
-    var(--accent-soft) 70%,
-    var(--bg)
-  );
-  z-index: -2;
+  scroll-margin-top: 32px;
 }
 
 .principles {
@@ -260,18 +234,30 @@
   gap: var(--space-5);
   flex-wrap: wrap;
   border-block: 1px solid var(--line);
-  padding-block: 23px;
+  padding-block: 24px;
   font-size: var(--text-sm);
   color: var(--muted);
 }
-.principles > span:first-child {
-  font-size: var(--text-xs);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  font-weight: 700;
+.principles-title {
+  order: -1;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg);
+}
+/* A quiet dot separates the promises instead of a sparkle or a pill. */
+.principles span:not(.principles-title)::before {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.45;
+  vertical-align: 2px;
 }
 .features {
-  padding-block: 100px 80px;
+  padding-block: 96px 80px;
 }
 .section-heading {
   display: grid;
@@ -281,7 +267,7 @@
 }
 .section-heading .eyebrow {
   grid-column: 1/-1;
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-4);
 }
 .presence h2 {
   font-size: clamp(32px, 3.8vw, 48px);
@@ -299,34 +285,35 @@
 .feature-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
+  gap: 16px;
   margin-top: var(--space-10);
 }
 .feature-card {
-  padding: 30px;
+  padding: 32px;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   transition:
-    transform 0.2s,
-    box-shadow 0.2s;
+    border-color var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease);
 }
-.feature-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 12px 30px #203c3109;
+.feature-card:hover,
+.feature-card:focus-within {
+  border-color: color-mix(in srgb, var(--fg) 24%, transparent);
 }
 .feature-card.tinted {
   background: var(--accent-soft);
 }
-.feature-number {
+.feature-label {
+  display: block;
   font-size: var(--text-xs);
-  letter-spacing: 0.1em;
   color: var(--muted);
-  font-weight: 700;
+  font-weight: 500;
 }
 .feature-card h3 {
   font-size: var(--text-xl);
-  margin: 15px 0 var(--space-3);
+  font-weight: 600;
+  margin: 8px 0 var(--space-3);
 }
 .feature-card p {
   color: var(--muted);
@@ -337,14 +324,45 @@
 .mini-budget,
 .mini-chart {
   display: block;
-  height: 65px;
+  height: 64px;
   width: 100%;
-  margin: 5px 0 28px;
+  margin: 4px 0 28px;
 }
+/* The three check-in levels the app really uses, with the points each costs. */
 .mini-checkin {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
+  align-content: center;
+  gap: var(--space-2);
+}
+.mini-checkin .level {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+.mini-checkin .level span:last-child {
+  color: var(--muted);
+}
+.mini-checkin .level::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hl);
+}
+.mini-checkin .level-amber::before {
+  background: #c78512;
+}
+.mini-checkin .level-red::before {
+  background: #c2412f;
 }
 .mini-chart .chart-grid {
   stroke: var(--line);
@@ -352,27 +370,13 @@
 .mini-chart .chart-line {
   stroke: var(--accent);
 }
-.mini-checkin span {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: #f5e5de;
-  border: 5px solid var(--card);
-}
-.mini-checkin span:nth-child(2) {
-  background: #eedaac;
-  box-shadow: 0 0 0 1px #d4ba7c;
-}
-.mini-checkin span:nth-child(3) {
-  background: #b5c5a3;
-}
 .mini-budget {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
 }
 .mini-budget span {
-  width: 25px;
+  width: 24px;
   height: 40px;
   border-radius: var(--radius-xs);
   background: #7e966b;
@@ -383,11 +387,11 @@
 .how-section {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 100px;
-  padding-block: 35px 90px;
+  gap: 96px;
+  padding-block: 32px 88px;
 }
 .how-section h2 {
-  margin: var(--space-5) 0;
+  margin: var(--space-4) 0;
 }
 .how-section > div > p:last-child {
   font-size: var(--text-md);
@@ -400,7 +404,7 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 25px;
+  gap: 24px;
 }
 .steps li {
   display: flex;
@@ -410,40 +414,37 @@
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border: 1px solid var(--tint-line);
   background: var(--tint);
   border-radius: 50%;
   font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
 }
 .steps h3 {
   font-size: var(--text-lg);
-  margin: 7px 0 10px;
+  font-weight: 600;
+  margin: 8px 0 8px;
 }
 .steps p {
   font-size: var(--text-base);
   line-height: var(--leading-relaxed);
   color: var(--muted);
 }
+/* The panel holds the honest answer to "who can read this", not a decoration. */
 .privacy-section {
   display: grid;
-  grid-template-columns: 180px 1fr;
-  gap: 60px;
-  align-items: center;
-  padding: 50px 65px;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: start;
+  padding: 48px 56px;
   background: var(--tint);
   border: 1px solid var(--tint-line);
   border-radius: var(--radius-lg);
 }
-.privacy-symbol {
-  font-size: 150px;
-  color: #7b925f;
-  text-align: center;
-  line-height: 1;
-}
 .privacy-section h2 {
-  margin: 15px 0;
+  margin: 16px 0;
 }
 .privacy-section p {
   max-width: 680px;
@@ -454,16 +455,16 @@
     --text-base
   ); /* the most honest sentence on the page is read at the size of the rest */
   color: var(--fg);
-  margin-top: 15px;
+  margin-top: 16px;
 }
 .faq-section {
   display: grid;
   grid-template-columns: 1fr 1.2fr;
-  gap: 90px;
-  padding-block: 95px;
+  gap: 88px;
+  padding-block: 96px;
 }
 .faq-section h2 {
-  margin: var(--space-5) 0;
+  margin: var(--space-4) 0;
 }
 .faq-list details {
   border-bottom: 1px solid var(--line);
@@ -472,15 +473,33 @@
 .faq-list details:first-child {
   padding-top: 0;
 }
+/* The answer opens at the pace of the rest of the page, where the browser can interpolate it. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports selector(::details-content) {
+    .faq-list details {
+      interpolate-size: allow-keywords;
+    }
+    .faq-list details::details-content {
+      block-size: 0;
+      overflow: clip;
+      transition:
+        block-size var(--dur) var(--ease),
+        content-visibility var(--dur) allow-discrete;
+    }
+    .faq-list details[open]::details-content {
+      block-size: auto;
+    }
+  }
+}
 .faq-list summary {
   min-height: 44px;
   cursor: pointer;
-  font-weight: 700;
   list-style: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
+  gap: 16px;
+  font-weight: 500;
 }
 .faq-list summary::-webkit-details-marker {
   display: none;
@@ -503,18 +522,18 @@
   text-align: center;
   align-items: center;
   justify-items: center;
-  padding: 60px var(--space-6);
+  padding: 56px var(--space-6);
   background: #203c31;
   color: #f5f6ed;
   border-radius: var(--radius-lg);
-  gap: 17px;
+  gap: 16px;
 }
 .closing h2 {
   font-size: clamp(36px, 5vw, 62px);
   margin: 0;
 }
 .closing .eyebrow {
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   color: #c1d1b9;
 }
 .closing > p:not(.eyebrow) {
@@ -522,7 +541,7 @@
   font-size: var(--text-md);
 }
 .closing .p-button {
-  margin-top: 10px;
+  margin-top: 12px;
   background: #e1ebce;
   color: #203c31 !important;
   border-color: #e1ebce;
@@ -530,9 +549,9 @@
 .site-footer {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 22px;
+  gap: 24px;
   align-items: center;
-  padding-block: 45px 25px;
+  padding-block: 44px 24px;
 }
 .site-footer p {
   font-size: var(--text-sm);
@@ -540,7 +559,7 @@
 }
 .site-footer > div {
   display: flex;
-  gap: 23px;
+  gap: 24px;
   font-size: var(--text-sm);
 }
 .site-footer small {
@@ -574,35 +593,20 @@
   font-size: clamp(44px, 5vw, 65px);
   margin: 23px 0;
 }
-.auth-story > p:not(.eyebrow):not(.auth-story-title) {
+.auth-story > p:not(.eyebrow):not(.auth-story-title):not(.auth-note) {
   font-size: var(--text-md);
   line-height: var(--leading-relaxed);
   max-width: 370px;
   color: var(--muted);
 }
-.auth-art {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 280px;
-  height: 190px;
-  margin: 38px 0;
-  background: var(--tint);
-  border-radius: 50% 50% 45% 45%;
-  color: #7c9565;
-  font-size: 125px;
-}
-.auth-art span {
+/* The sign-in aside carries its sentence as a pull quote: no blob, no star, no tilted card. */
+.presence .auth-note {
+  margin: 24px 0 0;
+  max-width: 340px;
   font-family: var(--display);
-  font-size: var(--text-base);
-  position: absolute;
-  right: -35px;
-  bottom: 16px;
-  padding: 15px var(--space-5);
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  transform: rotate(-5deg);
+  font-weight: 500;
+  font-size: var(--text-lg);
+  line-height: var(--leading-snug);
   color: var(--fg);
 }
 .auth-main.login {
@@ -625,7 +629,7 @@
   display: grid;
   align-content: start;
   gap: var(--space-4);
-  padding: var(--space-8);
+  padding: 32px;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: var(--card);
@@ -635,12 +639,9 @@
 }
 .choice-status {
   justify-self: start;
-  padding: 6px 10px;
-  border-radius: var(--radius-xs);
-  background: color-mix(in srgb, var(--accent) 16%, var(--bg));
   font-size: var(--text-xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-weight: 500;
+  color: var(--muted);
 }
 .choice-card h3 {
   margin: var(--space-1) 0 0;
@@ -654,6 +655,9 @@
   color: var(--fg);
   font-weight: 700;
   font-size: var(--text-md);
+}
+.choice-card .p-button {
+  justify-self: start;
 }
 .choice-card .choice-detail {
   padding-top: var(--space-4);
@@ -813,14 +817,6 @@
 .p-button svg {
   display: block;
 }
-.privacy-symbol svg {
-  width: 130px;
-  max-width: 100%;
-}
-.auth-art > svg {
-  width: 110px;
-}
-
 .auth-main .primary {
   width: 100%;
   font-weight: 700;
@@ -832,29 +828,76 @@
 .presence .quiet-note {
   font-size: var(--text-sm);
 }
-@media (max-width: 1050px) {
-  .hero-art {
-    overflow: clip;
-  }
-}
 @media (max-width: 760px) {
-  .hero-art {
-    overflow: clip;
+}
+/* One entrance, used by everything that arrives: a short fade and a 12px rise on one curve. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
   }
-  .privacy-symbol svg {
-    width: 65px;
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
-@media (min-width: 1100px) {
-  .hero-copy {
-    animation: copy-enter 0.7s ease both;
+/* The first screen arrives together, a beat apart, so nothing jolts in on its own. */
+@media (min-width: 761px) and (prefers-reduced-motion: no-preference) {
+  .hero-copy > * {
+    animation: rise-in var(--dur-slow) var(--ease) both;
   }
-  @keyframes copy-enter {
-    from {
-      transform: translateY(15px);
+  .hero-copy > .eyebrow {
+    animation-delay: 40ms;
+  }
+  .hero-copy > h1 {
+    animation-delay: 90ms;
+  }
+  .hero-copy > .hero-description {
+    animation-delay: 140ms;
+  }
+  .hero-copy > .hero-actions {
+    animation-delay: 190ms;
+  }
+  .hero-copy > .hero-availability {
+    animation-delay: 240ms;
+  }
+  .hero-shot {
+    animation: rise-in var(--dur-slow) var(--ease) 120ms both;
+  }
+  .auth-story,
+  .auth-main .panel {
+    animation: rise-in var(--dur-slow) var(--ease) both;
+  }
+  .auth-main .panel {
+    animation-delay: 80ms;
+  }
+}
+/* Each block settles once as it first comes into view. A browser without scroll timelines
+   simply shows the page: the motion is the enhancement, never the content. */
+@media screen and (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .principles,
+    .section-heading,
+    .spoon-copy,
+    .feature-card,
+    .choice-card,
+    .steps li,
+    .privacy-section,
+    .faq-list details,
+    .closing {
+      animation: rise-in linear both;
+      animation-timeline: view();
+      animation-range: entry 10% entry 55%;
     }
-    to {
-      transform: none;
+    .feature-card:nth-child(2),
+    .steps li:nth-child(2),
+    .faq-list details:nth-child(2n) {
+      animation-range: entry 18% entry 63%;
+    }
+    .feature-card:nth-child(3),
+    .steps li:nth-child(3),
+    .faq-list details:nth-child(3n) {
+      animation-range: entry 26% entry 71%;
     }
   }
 }
@@ -881,10 +924,10 @@
     gap: 45px;
   }
   .feature-card {
-    padding: 23px;
+    padding: 24px;
   }
   .privacy-section {
-    gap: 25px;
+    gap: 32px;
     padding: var(--space-10);
   }
   .site-footer {
@@ -941,14 +984,11 @@
     max-width: 460px;
     margin-inline: auto;
   }
-  .hero-art:before {
-    inset: 10px 0;
-  }
   .principles {
-    gap: 17px;
+    gap: 16px;
     font-size: var(--text-xs);
   }
-  .principles > span:first-child {
+  .principles-title {
     width: 100%;
   }
   .features {
@@ -966,7 +1006,7 @@
     margin-top: 25px;
   }
   .feature-card {
-    padding: 26px;
+    padding: 24px;
   }
   .mini-checkin,
   .mini-budget,
@@ -974,6 +1014,11 @@
     max-width: 240px;
     height: 50px;
     margin-bottom: 22px;
+  }
+  /* The three levels wrap on a 320px phone instead of pushing the card wide. */
+  .mini-checkin {
+    height: auto;
+    min-height: 48px;
   }
   .how-section,
   .privacy-section,
@@ -987,10 +1032,6 @@
   .privacy-section {
     padding: 30px;
     gap: var(--space-3);
-  }
-  .privacy-symbol {
-    text-align: left;
-    font-size: 80px;
   }
   .faq-section {
     padding-block: 60px;
@@ -1007,9 +1048,10 @@
     padding-top: 35px;
   }
   .site-footer > p {
-    max-width: 145px;
+    grid-column: 1/-1;
+    max-width: none;
     font-size: var(--text-xs);
-    text-align: right;
+    text-align: left;
   }
   .site-footer > div {
     gap: var(--space-5);
@@ -1021,9 +1063,6 @@
   }
   /* The form is why someone is here: on a phone it comes first, without a second pitch above it. */
   .auth-story {
-    display: none;
-  }
-  .auth-art {
     display: none;
   }
   .auth-main .panel {
@@ -1050,8 +1089,8 @@
 
 .trust-box {
   list-style: none;
-  margin: 18px 0 0;
-  padding: 14px 18px;
+  margin: 16px 0 0;
+  padding: 16px;
   display: grid;
   gap: var(--space-2);
   border: 1px solid var(--line);
@@ -1064,7 +1103,7 @@
 /* The hero shows the real Today screen (example data), not an illustration. */
 .hero-shot {
   margin: 0;
-  gap: 10px;
+  gap: 16px;
   align-content: center;
 }
 .hero-shot img {
@@ -1074,12 +1113,15 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
   background: var(--card);
-  box-shadow: 0 18px 40px #203c3118;
+  box-shadow: var(--shadow-md);
 }
+/* The signature detail: the dotted rule the app draws under a recorded day. */
 .hero-shot figcaption {
   text-align: center;
   font-size: var(--text-sm);
   color: var(--muted);
+  padding-top: 8px;
+  border-top: 1px dotted color-mix(in srgb, var(--fg) 28%, transparent);
 }
 
 /* The "check your inbox" state after asking for a link. */

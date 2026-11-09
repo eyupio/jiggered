@@ -12,7 +12,7 @@ authOptions
     if (signedIn) return;
     const open = options.registration === true;
     const status = document.getElementById("registration-status");
-    if (status) status.textContent = open ? "OPEN FOR REGISTRATION" : "REGISTRATION CLOSED";
+    if (status) status.textContent = open ? "Open for registration" : "Registration closed";
     document.querySelectorAll("[data-registration-copy]").forEach((el) => {
       el.textContent = open ? el.dataset.open : el.dataset.closed;
     });
@@ -26,7 +26,7 @@ authOptions
   .catch(() => {
     if (signedIn) return;
     const status = document.getElementById("registration-status");
-    if (status) status.textContent = "SIGNUP AVAILABILITY UNKNOWN";
+    if (status) status.textContent = "Signup availability unknown";
     document.querySelectorAll("[data-registration-copy]").forEach((el) => {
       el.textContent =
         "We couldn’t check registration availability. Open the account page to try again.";
