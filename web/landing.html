@@ -20,9 +20,7 @@
       {{if .URL}}<link itemprop="url" href="{{.URL}}" />{{end}}
       <section class="hero shell" aria-labelledby="hero-title">
         <div class="hero-copy">
-          <p class="eyebrow">
-            <span class="status-dot"></span> A little clarity. A little more you.
-          </p>
+          <p class="eyebrow">For days that vary</p>
           <h1 id="hero-title">
             Track your energy<br />and symptoms.<br /><span>At your pace.</span>
           </h1>
@@ -42,12 +40,19 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                   /></svg></span></a
-            ><a class="demo-link" href="#preview">Take a look <span aria-hidden="true">↓</span></a>
+            ><a class="demo-link" href="#preview"
+              >Take a look
+              <span aria-hidden="true"
+                ><svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
+                  <path
+                    d="M12 5v14M6 13l6 6 6-6"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  /></svg></span
+            ></a>
           </div>
-          <p class="quiet-note">
-            A personal log, not a medical device. Developed by
-            <a href="https://eyup.io">EyUp.io</a>.
-          </p>
           <p
             class="quiet-note hero-availability"
             data-registration-copy
@@ -68,12 +73,13 @@
         </figure>
       </section>
       <div class="principles shell">
-        <span>Made for real life</span><span>✦ Quick daily check-ins</span
-        ><span>✦ Your own energy budget</span><span>✦ Private by design</span>
+        <span class="principles-title">Made for real life</span>
+        <span>Quick daily check-ins</span><span>Your own energy budget</span
+        ><span>Private by design</span>
       </div>
       <section class="features shell" id="features" aria-labelledby="features-title">
         <div class="section-heading">
-          <p class="eyebrow">THE LITTLE THINGS ADD UP</p>
+          <p class="eyebrow">The little things add up</p>
           <h2 id="features-title">Less guesswork.<br />More understanding.</h2>
           <p>
             You don’t need another thing to keep up with. Just a simple way to notice what gives,
@@ -83,9 +89,11 @@
         <div class="feature-grid">
           <article class="feature-card">
             <div class="mini-checkin" aria-hidden="true">
-              <span></span><span></span><span></span>
+              <span class="level level-green"><span>Green</span><span>0</span></span>
+              <span class="level level-amber"><span>Amber</span><span>−3</span></span>
+              <span class="level level-red"><span>Red</span><span>−6</span></span>
             </div>
-            <span class="feature-number">01 / CHECK IN</span>
+            <span class="feature-label">Check in</span>
             <h3>Start where you are.</h3>
             <p>
               A quick energy check-in helps you set a budget for today. No perfect streaks. No
@@ -98,7 +106,7 @@
               <span></span><span></span><span></span><span></span><span></span><span></span
               ><span></span><span></span>
             </div>
-            <span class="feature-number">02 / FIND BALANCE</span>
+            <span class="feature-label">Find balance</span>
             <h3>Make room for rest.</h3>
             <p>
               Log the activities that spend your energy and the moments that restore it. Make your
@@ -114,7 +122,7 @@
                 stroke-width="3"
                 stroke-linecap="round"
               /></svg
-            ><span class="feature-number">03 / NOTICE PATTERNS</span>
+            ><span class="feature-label">Notice patterns</span>
             <h3>Connect the dots.</h3>
             <p>
               Record symptom episodes and possible triggers. Explore your history to build a picture
@@ -125,29 +133,33 @@
         </div>
       </section>
       <section class="spoon-note shell" aria-labelledby="spoon-title">
-        <h2 id="spoon-title">Think about your energy in spoons?</h2>
-        <p>
-          Spoon Theory, created by Christine Miserandino, uses spoons as a metaphor for limited
-          daily energy. If that idea helps you, Jiggered can record your own budget and activities
-          using personal points.
-        </p>
-        <p>
-          Read
-          <a
-            href="https://www.butyoudontlooksick.com/articles/written-by-christine/the-spoon-theory/"
-            target="_blank"
-            rel="noopener"
-            >Christine Miserandino's original Spoon Theory essay<span class="sr-only">
-              (opens in a new tab)</span
-            ></a
-          >
-          and our <a href="/guides/spoon-theory">guide to Spoon Theory and energy budgets</a>.
-          Points are personal estimates, not a medical measurement or a fixed spoon scale.
-        </p>
+        <div class="spoon-heading">
+          <h2 id="spoon-title">Think about your energy in spoons?</h2>
+        </div>
+        <div class="spoon-copy">
+          <p>
+            Spoon Theory, created by Christine Miserandino, uses spoons as a metaphor for limited
+            daily energy. If that idea helps you, Jiggered can record your own budget and activities
+            using personal points.
+          </p>
+          <p>
+            Read
+            <a
+              href="https://www.butyoudontlooksick.com/articles/written-by-christine/the-spoon-theory/"
+              target="_blank"
+              rel="noopener"
+              >Christine Miserandino's original Spoon Theory essay<span class="sr-only">
+                (opens in a new tab)</span
+              ></a
+            >
+            and our <a href="/guides/spoon-theory">guide to Spoon Theory and energy budgets</a>.
+            Points are personal estimates, not a medical measurement or a fixed spoon scale.
+          </p>
+        </div>
       </section>
       <section class="choice-section shell" id="your-choice" aria-labelledby="choice-title">
         <div class="section-heading">
-          <p class="eyebrow">TWO WAYS TO MAKE IT YOURS</p>
+          <p class="eyebrow">Two ways to make it yours</p>
           <h2 id="choice-title">Your rhythm.<br />Your choice.</h2>
           <p>
             Jiggered is free to use. Its MIT-licensed source lets you run your own server.
@@ -174,11 +186,20 @@
               {{.Availability}}
             </p>
             <a class="p-button small" href="{{.CTA}}" data-register-link
-              >{{.CTALabel}} <span aria-hidden="true">→</span></a
-            >
+              >{{.CTALabel}}
+              <span aria-hidden="true"
+                ><svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
+                  <path
+                    d="M5 12h14M13 6l6 6-6 6"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  /></svg></span
+            ></a>
           </article>
           <article class="choice-card">
-            <span class="choice-status">MIT LICENSED</span>
+            <span class="choice-status">MIT licensed</span>
             <h3>A space you make your own.</h3>
             <p class="choice-price">Open source. Self-hosted.</p>
             <p>
@@ -192,7 +213,16 @@
               href="https://github.com/eyupio/jiggered"
               target="_blank"
               rel="noopener"
-              >Source &amp; setup <span aria-hidden="true">↗</span
+              >Source &amp; setup
+              <span aria-hidden="true"
+                ><svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
+                  <path
+                    d="M7 17 17 7M8 7h9v9"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  /></svg></span
               ><span class="sr-only"> (opens in a new tab)</span></a
             >
           </article>
@@ -200,7 +230,7 @@
       </section>
       <section class="how-section shell" id="how-it-works" aria-labelledby="how-title">
         <div>
-          <p class="eyebrow">A SMALL RITUAL, AT YOUR PACE</p>
+          <p class="eyebrow">A small ritual, at your pace</p>
           <h2 id="how-title">A minute for today.<br />A little insight for tomorrow.</h2>
           <p>
             Jiggered means “worn out” in Yorkshire. We made a space for those days, and all the days
@@ -235,21 +265,16 @@
         </ol>
       </section>
       <section class="privacy-section shell" id="privacy" aria-labelledby="privacy-title">
-        <div class="privacy-symbol" aria-hidden="true">
-          <svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
-            <g stroke="currentColor" stroke-width="7" stroke-linecap="round">
-              <path d="M50 7v86M7 50h86M20 20l60 60M20 80l60-60" />
-            </g>
-          </svg>
-        </div>
-        <div>
-          <p class="eyebrow">PERSONAL MEANS PERSONAL</p>
+        <div class="privacy-intro">
+          <p class="eyebrow">Personal means personal</p>
           <h2 id="privacy-title">Your story stays yours.</h2>
           <p>
             Separate personal logs for each account, with MIT-licensed source for people who want to
             run their own server. No third-party trackers or external fonts. Export your records
             whenever you need them.
           </p>
+        </div>
+        <div class="privacy-record">
           <p class="privacy-detail">
             Admins manage accounts without viewing logs in the app. Server operators can access the
             database and backups, so use an instance you trust.
@@ -273,7 +298,7 @@
       </section>
       <section class="faq-section shell" aria-labelledby="faq-title">
         <div>
-          <p class="eyebrow">A FEW THINGS TO KNOW</p>
+          <p class="eyebrow">A few things to know</p>
           <h2 id="faq-title">A little more clarity.</h2>
         </div>
         <div class="faq-list">
@@ -330,7 +355,7 @@
         </div>
       </section>
       <section class="closing shell">
-        <p class="eyebrow">YOU DON’T HAVE TO FIGURE IT ALL OUT TODAY</p>
+        <p class="eyebrow">You don’t have to figure it all out today</p>
         <h2>Start with how you feel.</h2>
         <p>One small check-in. Your own pace.</p>
         <a class="p-button" href="{{.CTA}}" data-register-link

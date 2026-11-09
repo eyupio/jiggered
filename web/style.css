@@ -299,8 +299,8 @@ section {
   border-radius: var(--radius-md);
   cursor: pointer;
   transition:
-    background 0.2s,
-    border-color 0.2s;
+    background-color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
 }
 .switch-text {
   display: grid;
@@ -330,7 +330,7 @@ section {
   height: 30px;
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--muted) 45%, var(--surface));
-  transition: background 0.2s;
+  transition: background-color var(--dur) var(--ease);
 }
 .switch-ui::after {
   content: "";
@@ -342,7 +342,7 @@ section {
   border-radius: 50%;
   background: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-  transition: transform 0.2s;
+  transition: transform var(--dur) var(--ease);
 }
 .switch:checked + .switch-ui {
   background: var(--accent);
@@ -640,7 +640,7 @@ textarea {
 }
 .sync {
   color: var(--muted);
-  transition: opacity 0.2s ease;
+  transition: opacity var(--dur) var(--ease);
 }
 button:focus-visible {
   outline: 2px solid var(--accent);
@@ -1627,15 +1627,15 @@ input[type="search"] {
 .cell,
 .act {
   transition:
-    background-color 0.18s ease,
-    border-color 0.18s ease,
-    color 0.18s ease,
-    transform 0.1s ease;
+    background-color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    transform var(--dur-fast) var(--ease);
 }
 .cell {
   transition:
-    background-color 0.25s ease,
-    border-color 0.25s ease;
+    background-color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
 }
 @media (prefers-reduced-motion: reduce) {
   .sync,
@@ -3008,7 +3008,7 @@ input[type="search"] {
 .list-section > summary::before {
   content: "▸";
   color: var(--accent);
-  transition: transform 0.15s;
+  transition: transform var(--dur-fast) var(--ease);
 }
 .list-section[open] > summary::before {
   transform: rotate(90deg);

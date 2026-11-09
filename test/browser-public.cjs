@@ -187,7 +187,7 @@ process.on("exit", () => server.kill());
     await page.goto(base + "/welcome");
     await page
       .locator("#registration-status")
-      .filter({ hasText: "OPEN FOR REGISTRATION" })
+      .filter({ hasText: "Open for registration" })
       .waitFor();
     assert.equal(
       await page.locator(".hero-actions [data-register-link]").getAttribute("href"),
@@ -202,7 +202,7 @@ process.on("exit", () => server.kill());
     );
     assert.match(
       await (await fetch(base + "/welcome")).text(),
-      /REGISTRATION CLOSED/,
+      /Registration closed/,
       "mock must not alter server source",
     );
     await context.close();

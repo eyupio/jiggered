@@ -130,7 +130,7 @@ func TestSignupAndSpoonTheoryAreInInitialHTML(t *testing.T) {
 	e := newTestServer(t)
 	anon := e.newClient()
 	_, body := anon.req("GET", "/welcome", nil)
-	if !strings.Contains(string(body), "REGISTRATION CLOSED") || !strings.Contains(string(body), "currently closed") || strings.Contains(string(body), "CHECKING SIGNUP AVAILABILITY") {
+	if !strings.Contains(string(body), "Registration closed") || !strings.Contains(string(body), "currently closed") || strings.Contains(string(body), "CHECKING SIGNUP AVAILABILITY") {
 		t.Fatal("initial HTML does not resolve closed signup")
 	}
 	if !strings.Contains(string(body), "Christine Miserandino") || !strings.Contains(string(body), `href="https://www.butyoudontlooksick.com/articles/written-by-christine/the-spoon-theory/"`) {
@@ -142,8 +142,8 @@ func TestSignupAndSpoonTheoryAreInInitialHTML(t *testing.T) {
 	}
 	for _, route := range []string{"/welcome", "/pricing"} {
 		_, body = anon.req("GET", route, nil)
-		// The landing page names the state in a pill; /pricing says it in its heading and button instead.
-		if (route == "/welcome" && !strings.Contains(string(body), "OPEN FOR REGISTRATION")) || !strings.Contains(string(body), `href="/register"`) || !strings.Contains(string(body), "confirm your address") {
+		// The landing page names the state in a quiet status line; /pricing says it in its heading and button instead.
+		if (route == "/welcome" && !strings.Contains(string(body), "Open for registration")) || !strings.Contains(string(body), `href="/register"`) || !strings.Contains(string(body), "confirm your address") {
 			t.Fatalf("%s does not resolve open signup", route)
 		}
 	}
@@ -152,7 +152,7 @@ func TestSignupAndSpoonTheoryAreInInitialHTML(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, body = anon.req("GET", "/welcome", nil)
-	if !strings.Contains(string(body), "SIGNUP AVAILABILITY UNKNOWN") || !strings.Contains(string(body), "could not be checked") || strings.Contains(string(body), `href="/register"`) {
+	if !strings.Contains(string(body), "Signup availability unknown") || !strings.Contains(string(body), "could not be checked") || strings.Contains(string(body), `href="/register"`) {
 		t.Fatal("unavailable settings imply signup is open")
 	}
 }

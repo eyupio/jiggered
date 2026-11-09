@@ -39,6 +39,12 @@
   --space-10: 40px;
   --space-12: 48px;
 
+  /* Motion. One curve and three durations. Only colour, opacity and transform ever move. */
+  --ease: cubic-bezier(0.2, 0.6, 0.2, 1);
+  --dur-fast: 120ms; /* feedback: hover, press */
+  --dur: 200ms; /* a small state change */
+  --dur-slow: 320ms; /* something entering */
+
   /* Elevation. --shadow-ink is set by the colour theme (dark ink on light, black on dark). */
   --shadow-sm: 0 2px 6px color-mix(in srgb, var(--shadow-ink, #000) 8%, transparent);
   --shadow-md: 0 4px 12px color-mix(in srgb, var(--shadow-ink, #000) 14%, transparent);
