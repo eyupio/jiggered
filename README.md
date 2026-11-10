@@ -115,7 +115,7 @@ The default image is `ghcr.io/eyupio/jiggered:latest`, built for **amd64** and *
 | `APP_PUBLIC_ORIGIN`   | Unset               | Canonical origin for public pages. Falls back to the Admin public application URL.                                |
 | `APP_PUBLIC_INDEXING` | Unset               | Optional override of the Admin indexing setting: `true` forces it on (needs an origin), `false` forces `noindex`. |
 
-Account, proxy, email and backup settings are stored in the database. Legacy environment settings seed missing values once; they do not override saved settings.
+Account, proxy, email and backup settings are stored in the database. Legacy environment settings seed missing values once; they do not override saved settings. The legacy names are `APP_USERNAME` with `APP_PASSWORD_HASH` (or `APP_PASSWORD`), which create the first admin only while no accounts exist (otherwise they are ignored and the start-up log says so), and `APP_SECURE_COOKIE`, `APP_TRUST_PROXY`, `APP_PROXY_HOPS` and `APP_TRUSTED_PROXY_CIDRS` for proxy settings. After the first start you can delete them.
 
 Check container health with `docker compose ps`. Before upgrading, take a consistent backup and preserve the separate credential key. Schema-changing upgrades create a local safety copy; do not run an older build against an upgraded database.
 
