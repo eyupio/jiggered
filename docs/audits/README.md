@@ -7,6 +7,7 @@ acting on an old recommendation. Embedded paths and commands may describe the
 repository before these documents were archived.
 
 - [Repository review](REPO_AUDIT.md)
+- [Repository review, 7 Oct 2026](REPO_AUDIT-2026-10-07.md)
 - [Feature review](FEATURES_AUDIT.md)
 - [SEO review](SEO_AUDIT.md)
 - [UI review, 1 Oct 2026](UI_AUDIT.md)
