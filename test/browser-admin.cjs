@@ -141,11 +141,9 @@ runBrowser(
     assert.match(await page.locator("#reveal-pw").textContent(), /Temporary password: \S+/);
     await page.keyboard.press("Escape");
     await page.locator("#reveal").waitFor({ state: "hidden" });
-    assert.equal(
-      await page.locator("#reveal-pw").textContent(),
-      "",
-      "the password goes with the dialog",
-    );
+    // The dialog's "close" event (which clears the password) is queued separately from the attribute
+    // change that hides it, so give it a tick rather than racing it.
+    await page.waitForFunction(() => document.getElementById("reveal-pw").textContent === "");
     const row = page.locator('[data-name="newmember"]');
     assert.equal(await row.locator('[data-act="reset"]').isVisible(), false);
     await row.locator("summary").click();
