@@ -386,7 +386,7 @@ func (s *server) changePassword(ctx context.Context, a *authInfo, hash, ip, ua s
 			return "", time.Time{}, err
 		}
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO sessions(token_hash,sid,user_id,created_at,last_seen_at,expires_at,ip,user_agent) VALUES(?,?,?,?,?,?,?,?)`, hashToken(token), sid, a.u.ID, now.Unix(), now.Unix(), exp.Unix(), ip, cleanText(ua, 200)); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO sessions(token_hash,sid,user_id,created_at,last_seen_at,expires_at,ip,user_agent) VALUES(?,?,?,?,?,?,?,?)`, hashToken(token), sid, a.u.ID, now.Unix(), now.Unix(), exp.Unix(), ip, cleanText(ua, maxUserAgentLen)); err != nil {
 		return "", time.Time{}, err
 	}
 	return token, exp, tx.Commit()

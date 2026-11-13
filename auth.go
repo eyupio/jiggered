@@ -135,11 +135,15 @@ func (s *server) lookupState(r *http.Request) (a *authInfo, unavailable bool) {
 		return nil, false
 	}
 	a.u.Disabled, a.u.MustChange = false, must != 0
-	if now-seen > 300 {
+	if now-seen > sessionTouchSeconds {
 		s.db.ExecContext(r.Context(), "UPDATE sessions SET last_seen_at = ? WHERE token_hash = ?", now, a.hash)
 	}
 	return a, false
 }
+
+// sessionTouchSeconds is how stale a session's last_seen_at may get before a request refreshes it. Writing on
+// every request would queue each one behind the single SQLite connection for a value only shown as "last active".
+const sessionTouchSeconds = 300
 
 // While a password change is pending, these are the only API calls that work.
 var mustChangeAllowed = map[string]bool{"GET /api/me": true, "POST /api/me/password": true}
@@ -439,7 +443,7 @@ func (s *server) newSession(ctx context.Context, userID int64, verified []byte, 
 	exp := now.Add(sessionTTL)
 	res, err := s.db.ExecContext(ctx, `INSERT INTO sessions(token_hash, sid, user_id, created_at, last_seen_at, expires_at, ip, user_agent)
 		SELECT ?, ?, id, ?, ?, ?, ?, ? FROM users WHERE id = ? AND password_hash = ? AND disabled = 0 AND NOT EXISTS (SELECT 1 FROM account_security a WHERE a.user_id=users.id AND a.enabled=1)`,
-		hashToken(token), sid, now.Unix(), now.Unix(), exp.Unix(), ip, cleanText(ua, 200), userID, string(verified))
+		hashToken(token), sid, now.Unix(), now.Unix(), exp.Unix(), ip, cleanText(ua, maxUserAgentLen), userID, string(verified))
 	if err != nil {
 		return "", time.Time{}, err
 	}
