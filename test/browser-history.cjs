@@ -1,5 +1,5 @@
-// Real-browser check of History search on a large account: typing a word updates the view once (after a short pause),
-// says so while it waits, ends with the right results, and the other filters still react at once.
+// Real-browser check of History: search on a large account (typing a word updates the view once, after a short pause,
+// says so while it waits, and ends with the right results; the other filters react at once) and a read-only tab refusing a delete.
 // Needs Playwright (see the README); run with `node test/browser-history.cjs`. It builds a temporary binary and database.
 const assert = require("node:assert/strict");
 const { runBrowser } = require("./support/browser.cjs");
@@ -9,9 +9,8 @@ const EPISODES = 900;
 runBrowser({ name: "history", portEnv: "JIGGERED_HISTORY_PORT" }, async (harness) => {
   const browser = await harness.launchBrowser();
   const { base } = harness;
-  const page = await (
-    await browser.newContext({ viewport: { width: 1100, height: 900 } })
-  ).newPage();
+  const context = await browser.newContext({ viewport: { width: 1100, height: 900 } });
+  const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
 
@@ -327,6 +326,29 @@ runBrowser({ name: "history", portEnv: "JIGGERED_HISTORY_PORT" }, async (harness
     new RegExp(`^${Math.floor(DAYS / 3)} days? and`),
     "a select changes the view at once, without the search pause",
   );
+
+  // A second tab is read-only but may still browse History. Deleting an episode there is a write: it must be refused
+  // with a reason, not throw and leave the person guessing.
+  const reader = await context.newPage();
+  const readerErrors = [];
+  reader.on("pageerror", (e) => readerErrors.push(e.message));
+  await reader.goto(base);
+  await reader.locator("#tab-reload").waitFor();
+  await reader.locator("#t-history").click();
+  await reader.locator("#history-panel").waitFor();
+  await reader.locator("#history-range").selectOption("all");
+  await reader.locator("#history-records > summary").click();
+  await reader.locator("#eps .del").first().waitFor();
+  const before = await reader.locator("#eps .del").count();
+  await reader.locator("#eps .del").first().click();
+  await reader.locator("#toastbar:not([hidden])").waitFor();
+  assert.match(
+    await reader.locator("#toastbar").textContent(),
+    /active Jiggered tab/,
+    "a read-only tab says why an episode can't be deleted",
+  );
+  assert.equal(await reader.locator("#eps .del").count(), before, "nothing was deleted");
+  assert.deepEqual(readerErrors, [], "refusing the delete is not an uncaught error");
 
   assert.deepEqual(errors, []);
   console.log(
