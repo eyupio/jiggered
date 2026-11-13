@@ -44,6 +44,9 @@ const (
 	cookieName  = "jiggered_session"
 	sessionTTL  = 30 * 24 * time.Hour
 	maxBodySize = 256 << 10
+
+	// maxUserAgentLen caps the user agent stored with a session, which the sessions list shows back to its owner.
+	maxUserAgentLen = 200
 )
 
 // Throttle budgets for the server's limiters, all counted over one window. Recovery paths (register by
