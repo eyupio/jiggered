@@ -256,7 +256,12 @@ export function init(ctx) {
     if (b.classList.contains("del")) {
       const body = ctx.store.view(id);
       if (!body) return;
-      ctx.store.dispatch({ id, type: "remove" });
+      try {
+        ctx.store.dispatch({ id, type: "remove" });
+      } catch (error) {
+        ctx.toast(error.message); // a read-only tab or a restore in progress refuses writes, and says why
+        return;
+      }
       ctx.toast("Episode deleted.", {
         label: "Undo",
         fn: () => ctx.store.dispatch({ id, type: "replace", arg: body }),
