@@ -93,7 +93,7 @@ check the relevant view in a local browser. Use this same sequence for code:
 ```sh
 gofmt -w path/to/changed.go        # for Go changes
 npm --prefix test run format      # frontend, tooling and current contributor docs
-npm --prefix test run check       # formatter, ESLint, frontend logic tests
+npm --prefix test run check       # formatter, ESLint, Stylelint, frontend logic tests
 go vet ./...
 staticcheck ./...                 # bug checks only, see staticcheck.conf
 CGO_ENABLED=0 go build ./...
@@ -112,6 +112,9 @@ export PATH="$HOME/go/bin:$PATH"
 
 CI runs the same script before `staticcheck ./...`; drop the override once a
 staticcheck release carries it.
+
+Stylelint (`stylelint.config.mjs`) requires spacing values that have a token to use it in the app stylesheets that
+have been tokenised; `web/presence.css` and the public pages keep their own responsive scale for now.
 
 `make check` runs the Go and frontend checks above; `make browser` runs the browser scenarios.
 `.node-version` names the Node major CI uses.
