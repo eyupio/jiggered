@@ -139,10 +139,10 @@
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   white-space: nowrap;
   min-height: 56px;
-  padding: 16px 24px;
+  padding: var(--space-4) var(--space-6);
   border-radius: var(--radius-sm);
   background: var(--accent);
   color: var(--on-accent) !important;
@@ -161,11 +161,21 @@
   background: var(--accent-hover);
   border-color: var(--accent-hover);
 }
+/* Secondary is a component variant, not a page-level override: keep it beside the base button. */
+.p-button.secondary {
+  background: transparent;
+  color: var(--fg) !important;
+  border-color: var(--line);
+  box-shadow: none;
+}
+.p-button.secondary:hover {
+  background: var(--accent-soft);
+}
 .p-button.small {
   min-height: 44px;
-  padding: 8px 16px;
+  padding: var(--space-2) var(--space-4);
   font-size: var(--text-sm);
-  gap: 8px;
+  gap: var(--space-2);
 }
 .hero {
   display: grid;
@@ -916,7 +926,7 @@
     transform-origin: center;
   }
   .hero h1 {
-    font-size: 70px;
+    font-size: var(--text-7xl);
   }
   .how-section,
   .faq-section,

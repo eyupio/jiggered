@@ -21,15 +21,15 @@
   background: var(--surface);
 }
 .admin-sidebar > h2 {
-  margin: 0 10px var(--space-6);
+  margin: 0 var(--space-2-5) var(--space-6);
   font-size: var(--text-xl);
 }
 .admin-sidebar > .eyebrow {
-  margin: 0 10px var(--space-2);
+  margin: 0 var(--space-2-5) var(--space-2);
 }
 .admin-nav {
   display: grid;
-  gap: 6px;
+  gap: var(--space-1-5);
 }
 .admin-nav button {
   display: flex;
@@ -37,7 +37,7 @@
   align-items: center;
   width: 100%;
   min-height: 68px;
-  padding: var(--space-3) 10px;
+  padding: var(--space-3) var(--space-2-5);
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: transparent;
@@ -61,7 +61,7 @@
 }
 .admin-nav small {
   display: block;
-  margin-top: 3px;
+  margin-top: var(--space-1);
   color: var(--muted);
   font-size: var(--text-xs);
   line-height: var(--leading-snug);
@@ -80,7 +80,7 @@
   opacity: 1;
 }
 .admin-nav-note {
-  margin: var(--space-6) 10px 0;
+  margin: var(--space-6) var(--space-2-5) 0;
   padding-top: var(--space-5);
   border-top: 1px solid var(--line);
   color: var(--muted);
@@ -96,10 +96,10 @@
   align-items: start;
   justify-content: space-between;
   gap: var(--space-4);
-  padding: var(--space-3) 0 6px;
+  padding: var(--space-3) 0 var(--space-1-5);
 }
 .admin-intro h2 {
-  margin: var(--space-2) 0 10px;
+  margin: var(--space-2) 0 var(--space-2-5);
   font-size: clamp(26px, 3vw, 36px);
   letter-spacing: -0.04em;
   line-height: var(--leading-tight);
@@ -111,7 +111,7 @@
 }
 .admin-intro .badge {
   flex-shrink: 0;
-  margin-top: 28px;
+  margin-top: var(--space-7);
 }
 .app-shell .admin-confirmation {
   padding: var(--space-4) var(--space-5);
@@ -123,7 +123,7 @@
 }
 .admin-confirmation input {
   max-width: 360px;
-  margin-top: 6px;
+  margin-top: var(--space-1-5);
 }
 .admin-confirmation .hint {
   margin: 0;
@@ -139,13 +139,13 @@
 .admin-section .people > li {
   display: grid;
   gap: var(--space-3);
-  padding-block: 18px;
+  padding-block: var(--space-4-5);
 }
 .admin-user-actions {
   border-top: 1px solid var(--line);
 }
 .admin-user-actions summary {
-  padding: 10px 0;
+  padding: var(--space-2-5) 0;
   min-height: 44px;
   color: var(--accent);
   font-size: var(--text-sm);
@@ -166,7 +166,7 @@
 @media (max-width: 959px) {
   .admin-workspace {
     grid-template-columns: minmax(0, 1fr);
-    gap: 22px;
+    gap: var(--space-5-5);
   }
   .admin-sidebar {
     position: static;
@@ -197,7 +197,7 @@
   }
   .admin-nav button {
     gap: var(--space-2);
-    padding: 10px var(--space-2);
+    padding: var(--space-2-5) var(--space-2);
   }
   .admin-intro {
     flex-direction: column;
@@ -207,7 +207,7 @@
     margin: 0;
   }
   .admin-workspace {
-    gap: 18px;
+    gap: var(--space-4-5);
   }
 }
 @media print {

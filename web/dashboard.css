@@ -11,6 +11,7 @@
   --amber: #a77a24;
   --red: #b55f4b;
   --red-text: #a14b38; /* 5.8:1 on the header; --red is 4.4:1 and less on the selected day */
+  --err: var(--red-text);
   --spent: #e2e7da;
   --ring-track: #e8ecdf;
   --matrix-green: #56734d;
@@ -96,7 +97,7 @@
   transform: none;
 }
 .app-shell .title {
-  gap: 10px;
+  gap: var(--space-2-5);
 }
 .app-shell .title img {
   width: 34px;
@@ -109,14 +110,14 @@
 }
 .app-shell .date {
   font-size: var(--text-xs);
-  margin-top: 5px;
+  margin-top: var(--space-1-5);
 }
 .app-shell .head-actions {
-  gap: 18px;
+  gap: var(--space-4-5);
 }
 .app-shell header .ghost {
   min-height: 44px;
-  padding: 9px 14px;
+  padding: var(--space-2-5) var(--space-3-5);
   background: var(--surface);
 }
 .app-shell .avatar {
@@ -135,7 +136,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 35px;
+  gap: var(--space-9);
   padding: var(--space-6) 0;
 }
 /* Every view shares one masthead size, so the tab bar and the content below it start at the same height whichever
@@ -179,7 +180,7 @@
   font-size: var(--text-xs);
   font-weight: 700;
   color: var(--fg);
-  padding: 9px var(--space-3);
+  padding: var(--space-2-5) var(--space-3);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -187,12 +188,12 @@
   white-space: nowrap;
 }
 .app-shell #tabs {
-  gap: 7px;
+  gap: var(--space-2);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: var(--surface);
-  padding: 7px;
-  margin: 0 0 27px;
+  padding: var(--space-2);
+  margin: 0 0 var(--space-7);
   top: 12px;
   box-shadow: 0 3px 14px #203c3105;
 }
@@ -201,7 +202,7 @@
   font-size: var(--text-sm);
   background: transparent;
   border-color: transparent;
-  padding: 10px 17px;
+  padding: var(--space-2-5) var(--space-4-5);
 }
 .app-shell #tabs button[aria-selected="true"] {
   background: var(--accent-soft);
@@ -215,12 +216,12 @@
   background: var(--accent-soft);
 }
 .app-shell section {
-  gap: 22px;
+  gap: var(--space-5-5);
 }
 .app-shell .panel {
   border-radius: var(--radius-lg);
-  padding: 25px;
-  gap: 17px;
+  padding: var(--space-6);
+  gap: var(--space-4-5);
   box-shadow: 0 3px 12px #203c3103;
 }
 .app-shell .panel > p {
@@ -238,7 +239,7 @@
 }
 .app-shell .panel > .label-row {
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--space-2-5);
 }
 .app-shell .primary {
   min-height: 46px;
@@ -246,11 +247,11 @@
   font-weight: 700;
   background: var(--accent);
   color: var(--bg);
-  padding: var(--space-3) 19px;
+  padding: var(--space-3) var(--space-5);
 }
 .app-shell .secondary {
   min-height: 44px;
-  padding: 10px 15px;
+  padding: var(--space-2-5) var(--space-4);
   border-radius: var(--radius-sm);
   background: var(--surface);
 }
@@ -266,7 +267,7 @@
 .app-shell select {
   border-radius: var(--radius-sm);
   background: var(--surface);
-  padding: 11px var(--space-3);
+  padding: var(--space-3);
   border-color: var(--line);
   min-height: 44px;
 }
@@ -309,7 +310,7 @@
   width: 62px;
 }
 .app-shell .daynav {
-  padding-bottom: 13px;
+  padding-bottom: var(--space-3-5);
   border-bottom: 1px solid var(--line);
   margin-bottom: 0;
 }
@@ -331,17 +332,17 @@
   gap: var(--space-2);
 }
 .app-shell .checkin button {
-  padding: 17px 7px 13px;
+  padding: var(--space-4-5) var(--space-2) var(--space-3-5);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  gap: 9px;
+  gap: var(--space-2-5);
 }
 .app-shell .checkin button b {
   font-size: var(--text-sm);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-2-5);
 }
 .app-shell .checkin button b::before {
   width: 19px;
@@ -356,7 +357,7 @@
 }
 .app-shell .checkin button .cost {
   font-size: var(--text-xs);
-  padding: var(--space-1) 6px;
+  padding: var(--space-1) var(--space-1-5);
 }
 .app-shell .checkin button[aria-pressed="true"] {
   border-color: var(--dot);
@@ -367,7 +368,7 @@
 }
 .app-shell .checkin-done {
   margin: 0;
-  padding: 14px;
+  padding: var(--space-3-5);
   background: var(--accent-soft);
 }
 .app-shell .advice {
@@ -378,7 +379,7 @@
   min-height: 3.3em;
 }
 .app-shell .today-side {
-  gap: 22px;
+  gap: var(--space-5-5);
   position: static;
   min-width: 0;
 }
@@ -436,11 +437,11 @@
   max-width: 160px;
 }
 .app-shell .energy-readout .big {
-  font-size: 58px;
+  font-size: var(--text-6xl);
   letter-spacing: -0.045em;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-0-5);
   margin: 0;
 }
 .app-shell .energy-readout .big small {
@@ -466,14 +467,14 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: 13px 0;
+  padding: var(--space-3-5) 0;
   border-block: 1px solid var(--line);
 }
 .energy-summary .meta {
   font-size: var(--text-xs);
 }
 .energy-activities > .meta {
-  margin: 0 0 10px;
+  margin: 0 0 var(--space-2-5);
   font-size: var(--text-xs);
 }
 .energy-activity-pills {
@@ -505,9 +506,9 @@
 .app-shell .energy-activity-edit {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2-5);
   min-width: 0;
-  padding: var(--space-2) 10px var(--space-2) 15px;
+  padding: var(--space-2) var(--space-2-5) var(--space-2) var(--space-4);
   border-radius: 24px 0 0 24px;
   font-size: var(--text-xs);
   text-align: left;
@@ -567,7 +568,7 @@
 }
 .app-shell .act-group,
 .app-shell .act-fav {
-  gap: 15px;
+  gap: var(--space-4);
 }
 .app-shell .act-group > summary {
   padding: var(--space-3) 0;
@@ -577,12 +578,12 @@
   font-size: var(--text-md);
 }
 .app-shell .acts {
-  gap: 11px;
+  gap: var(--space-3);
 }
 .app-shell .act {
   background: var(--surface);
   border-radius: var(--radius-md);
-  padding: 13px;
+  padding: var(--space-3-5);
   grid-template-rows: minmax(3.6em, auto) 44px;
   font-size: var(--text-sm);
 }
@@ -591,7 +592,7 @@
   border-color: var(--accent);
 }
 .app-shell .act .c {
-  padding: 5px 7px;
+  padding: var(--space-1-5) var(--space-2);
   background: var(--bg);
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
@@ -602,7 +603,7 @@
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: 9px;
+  gap: var(--space-2-5);
   color: var(--muted);
 }
 .activity-add > span {
@@ -646,12 +647,12 @@
 }
 .app-shell .metric {
   background: var(--surface);
-  padding: 23px;
+  padding: var(--space-6);
   border-radius: var(--radius-md);
-  gap: 14px;
+  gap: var(--space-3-5);
 }
 .app-shell .metric b {
-  font-size: 39px;
+  font-size: var(--text-5xl);
   letter-spacing: -0.05em;
 }
 .app-shell .chart-grid {
@@ -688,7 +689,7 @@
   overflow-wrap: anywhere;
 }
 .app-shell .profile-stats {
-  padding-top: 22px;
+  padding-top: var(--space-5-5);
 }
 .app-shell .list-section {
   background: var(--surface);

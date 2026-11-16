@@ -14,6 +14,9 @@
   --text-2xl: 1.75rem; /* 28px */
   --text-3xl: 2rem; /* 32px */
   --text-4xl: 2.25rem; /* 36px */
+  --text-5xl: 2.5rem; /* 40px: large numerals */
+  --text-6xl: 3.625rem; /* 58px: display numerals */
+  --text-7xl: 4.375rem; /* 70px: display headings on small screens */
 
   --leading-tight: 1.2; /* headings and big numerals */
   --leading-snug: 1.45; /* UI text */
@@ -28,16 +31,26 @@
   --radius-xl: 24px; /* sheets */
   --radius-pill: 999px;
 
-  /* Space, on a 4px grid. Off-grid values (6, 10, 14px and so on) are still literal in older rules. */
+  /* Space, on a 4px grid with 2px half-steps for tight UI. Optically nudged values stay literal. */
+  --space-0-5: 2px;
   --space-1: 4px;
+  --space-1-5: 6px;
   --space-2: 8px;
+  --space-2-5: 10px;
   --space-3: 12px;
+  --space-3-5: 14px;
   --space-4: 16px;
+  --space-4-5: 18px;
   --space-5: 20px;
+  --space-5-5: 22px;
   --space-6: 24px;
+  --space-7: 28px;
   --space-8: 32px;
+  --space-9: 36px;
   --space-10: 40px;
+  --space-11: 44px;
   --space-12: 48px;
+  --space-20: 80px;
 
   /* Motion. One curve and three durations. Only colour, opacity and transform ever move. */
   --ease: cubic-bezier(0.2, 0.6, 0.2, 1);
