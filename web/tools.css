@@ -11,9 +11,9 @@
   font: inherit;
   text-align: left;
   display: grid;
-  gap: 6px;
+  gap: var(--space-1-5);
   align-content: start;
-  padding: 18px;
+  padding: var(--space-4-5);
   border-radius: var(--radius-lg);
   border: 1px solid var(--line);
   background: var(--surface);
@@ -63,7 +63,7 @@
   line-height: var(--leading-snug);
 }
 .tool-card-open {
-  margin-top: 6px;
+  margin-top: var(--space-1-5);
   font-weight: 700;
   color: var(--accent);
   font-size: var(--text-sm);
@@ -71,7 +71,7 @@
 .tool-head {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 14px;
+  gap: var(--space-3-5);
   align-items: start;
 }
 .tool-head h2 {
@@ -87,7 +87,7 @@
 }
 @media (min-width: 700px) {
   .tool-body {
-    padding: 18px;
+    padding: var(--space-4-5);
   }
 }
 
@@ -103,29 +103,29 @@
 .fb-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2) 14px;
+  gap: var(--space-2) var(--space-3-5);
   align-items: center;
   justify-content: space-between;
 }
 .fb-tools {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-1-5);
   align-items: center;
 }
 .fb-legend {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1);
-  margin-left: 6px;
+  margin-left: var(--space-1-5);
 }
 .fb-legend-item {
   font: inherit;
   font-size: var(--text-xs);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 9px;
+  gap: var(--space-1-5);
+  padding: var(--space-1-5) var(--space-2-5);
   border-radius: var(--radius-pill);
   border: 1px solid var(--line);
   background: var(--surface);
@@ -171,13 +171,13 @@
 .fb-board {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 6px;
+  gap: var(--space-1-5);
   min-width: 0;
 }
 .fb-row {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
-  gap: 6px;
+  gap: var(--space-1-5);
 }
 .fb-axis {
   display: flex;
@@ -196,7 +196,7 @@
   flex-direction: column;
   justify-content: center;
   width: 28px;
-  gap: 6px;
+  gap: var(--space-1-5);
 }
 .fb-axis-rule {
   flex: 1 1 auto;
@@ -230,7 +230,7 @@
   background: none;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  padding: 2px 6px;
+  padding: var(--space-0-5) var(--space-1-5);
   cursor: text;
   white-space: nowrap;
   max-width: 40vw;
@@ -261,7 +261,7 @@
   transform: rotate(180deg);
   max-width: none;
   max-height: 40vh;
-  padding: 6px 2px;
+  padding: var(--space-1-5) var(--space-0-5);
 }
 .fb-axis-y .fb-axis-input {
   height: 14ch;
@@ -320,7 +320,7 @@
   .fb-axis-label {
     font-size: var(--text-xs);
     letter-spacing: 0;
-    padding: 2px var(--space-1);
+    padding: var(--space-0-5) var(--space-1);
     max-width: 100%;
   }
 }
@@ -347,7 +347,7 @@
   height: 50%;
   display: flex;
   align-items: flex-end;
-  padding: 10px var(--space-3);
+  padding: var(--space-2-5) var(--space-3);
   pointer-events: none;
   color: var(--muted);
   font-size: var(--text-xs);
@@ -391,10 +391,10 @@
   position: absolute;
   display: inline-flex;
   align-items: flex-start;
-  gap: 7px;
+  gap: var(--space-2);
   max-width: min(34%, 260px);
   min-width: 56px;
-  padding: 7px 10px 7px var(--space-2);
+  padding: var(--space-2) var(--space-2-5) var(--space-2) var(--space-2);
   border-radius: var(--radius-sm);
   background: var(--surface);
   border: 1px solid var(--line);
@@ -541,7 +541,7 @@
 }
 .fb-empty button {
   pointer-events: auto;
-  margin: 10px auto 0;
+  margin: var(--space-2-5) auto 0;
 }
 .fb.is-readonly .fb-canvas {
   cursor: default;
@@ -553,9 +553,9 @@
 /* today's three */
 .fb-tray {
   display: grid;
-  gap: 10px;
+  gap: var(--space-2-5);
   align-content: start;
-  padding: 14px;
+  padding: var(--space-3-5);
   border-radius: var(--radius-lg);
   border: 1px solid var(--line);
   background: linear-gradient(
@@ -583,7 +583,7 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 6px;
+  gap: var(--space-1-5);
   counter-reset: three;
 }
 .fb-three-item {
@@ -592,7 +592,7 @@
   grid-template-columns: auto auto minmax(0, 1fr) auto;
   gap: var(--space-1) var(--space-2);
   align-items: center;
-  padding: var(--space-2) 10px;
+  padding: var(--space-2) var(--space-2-5);
   border-radius: var(--radius-md);
   background: var(--surface);
   border: 1px solid var(--line);
@@ -664,7 +664,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2) 10px;
+  gap: var(--space-2) var(--space-2-5);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--accent);
   border-radius: var(--radius-md);
@@ -682,16 +682,16 @@
 .fb-set {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-1-5);
 }
 .fb-set-button {
   font: inherit;
   font-size: var(--text-sm);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1-5);
   min-height: 36px;
-  padding: var(--space-1) 10px;
+  padding: var(--space-1) var(--space-2-5);
   border-radius: var(--radius-pill);
   border: 1px solid var(--line);
   background: var(--surface);
@@ -718,10 +718,6 @@
 .fb-status {
   margin: 0;
 }
-.fb-status.err {
-  color: var(--red-text, var(--red));
-  font-weight: 700;
-}
 .fb-three-item .fb-chip {
   grid-column: 3;
   justify-self: start;
@@ -729,7 +725,7 @@
 .fb-chip {
   font: inherit;
   font-size: var(--text-xs);
-  padding: 2px var(--space-2);
+  padding: var(--space-0-5) var(--space-2);
   border-radius: var(--radius-pill);
   border: 1px solid var(--line);
   background: var(--accent-soft);
@@ -745,7 +741,7 @@
   cursor: pointer;
   font-size: var(--text-md);
   line-height: 1;
-  padding: 2px var(--space-1);
+  padding: var(--space-0-5) var(--space-1);
   border-radius: var(--radius-sm);
 }
 .fb-three-remove:hover {
@@ -759,7 +755,7 @@
 .fb-three-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 6px;
+  gap: var(--space-1-5);
 }
 .fb-three-form input {
   min-width: 0;
@@ -778,7 +774,7 @@
   position: fixed;
   z-index: var(--z-overlay);
   min-width: 220px;
-  padding: 6px;
+  padding: var(--space-1-5);
   border-radius: var(--radius-md);
   border: 1px solid var(--line);
   background: var(--surface);
@@ -789,10 +785,10 @@
 .fb-menu hr {
   border: 0;
   border-top: 1px solid var(--line);
-  margin: var(--space-1) 2px;
+  margin: var(--space-1) var(--space-0-5);
 }
 .fb-menu-heading {
-  margin: var(--space-1) 10px 2px;
+  margin: var(--space-1) var(--space-2-5) var(--space-0-5);
   font-size: var(--text-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -808,7 +804,7 @@
   gap: var(--space-4);
   width: 100%;
   text-align: left;
-  padding: 7px 10px;
+  padding: var(--space-2) var(--space-2-5);
   border: 0;
   border-radius: var(--radius-sm);
   background: none;
@@ -839,7 +835,7 @@
   color: var(--muted);
   border: 1px solid var(--line);
   border-radius: var(--radius-xs);
-  padding: 0 5px;
+  padding: 0 var(--space-1-5);
 }
 
 /* Fingers: every control is a 44px target, and the menu stops advertising keys that a phone does not have. */

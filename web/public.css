@@ -9,15 +9,6 @@
 .public-header [hidden] {
   display: none;
 }
-.public-header .p-button.secondary {
-  background: transparent;
-  color: var(--fg) !important;
-  border-color: var(--line);
-  box-shadow: none;
-}
-.public-header .p-button.secondary:hover {
-  background: var(--accent-soft);
-}
 .public-header .p-button span {
   font-size: inherit;
   font-weight: inherit;

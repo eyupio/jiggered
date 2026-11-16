@@ -32,7 +32,7 @@
   flex-direction: column;
   gap: var(--space-3);
   height: 100%;
-  padding: 18px;
+  padding: var(--space-4-5);
   border: 2px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--surface);
@@ -54,7 +54,7 @@
 .energy-theme-top {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2-5);
   color: var(--fg);
 }
 .energy-theme-top b {
@@ -105,7 +105,7 @@
 .energy-theme-preview {
   display: grid;
   gap: var(--space-1);
-  padding: 14px 18px;
+  padding: var(--space-3-5) var(--space-4-5);
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);

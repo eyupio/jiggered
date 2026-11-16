@@ -12,7 +12,7 @@
   --tone-ink: #101710;
 }
 .app-shell #history-panel > details:not([open]) {
-  padding-block: 10px;
+  padding-block: var(--space-2-5);
 }
 /* A closed disclosure is only its summary: the panel's row gap would otherwise leave a blank strip beneath it, where
    the browser keeps the hidden content. */
@@ -25,7 +25,7 @@
 }
 /* The cards of the overview sit one section gap apart, the same as every other History panel. */
 .app-shell .history-overview {
-  gap: 22px;
+  gap: var(--space-5-5);
 }
 @media (min-width: 960px) {
   .app-shell #today-panel {
@@ -35,7 +35,7 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .app-shell .onboarding {
-    padding: var(--space-5) 25px;
+    padding: var(--space-5) var(--space-6);
   }
 }
 @media (min-width: 1180px) {
@@ -59,10 +59,10 @@
 }
 @media (max-width: 600px) {
   .app-shell .wrap {
-    padding: 21px 20px calc(105px + env(safe-area-inset-bottom, 0px));
+    padding: var(--space-5-5) var(--space-5) calc(105px + env(safe-area-inset-bottom, 0));
   }
   .app-shell .head-actions {
-    gap: 10px;
+    gap: var(--space-2-5);
   }
   .app-shell header .ghost {
     background: transparent;
@@ -95,7 +95,7 @@
     left: 12px;
     right: 12px;
     margin: 0;
-    padding: 6px;
+    padding: var(--space-1-5);
     box-shadow: 0 6px 30px #203c3120;
   }
   .app-shell #tabs {
@@ -105,7 +105,7 @@
   }
   .app-shell #tabs button {
     flex: 1 0 auto; /* never narrower than its own label */
-    padding: var(--space-2) 2px;
+    padding: var(--space-2) var(--space-0-5);
     min-height: 48px;
     font-size: var(--text-xs);
   }
@@ -118,7 +118,7 @@
     font-size: var(--text-xl);
   }
   .app-shell .panel > .label-row {
-    gap: 9px;
+    gap: var(--space-2-5);
   }
   .app-shell .save-bar {
     margin-inline: -20px;
@@ -129,7 +129,7 @@
     bottom: calc(86px + env(safe-area-inset-bottom, 0px));
   }
   .app-shell .metric {
-    padding: 17px;
+    padding: var(--space-4-5);
   }
   .app-shell .metric b {
     font-size: var(--text-3xl);
@@ -137,7 +137,7 @@
 }
 @media (max-width: 360px) {
   .app-shell .wrap {
-    padding-inline: 14px;
+    padding-inline: var(--space-3-5);
   }
   .app-shell .panel {
     padding: var(--space-4);
@@ -149,7 +149,7 @@
     font-size: var(--text-xs);
   }
   .app-shell .act {
-    padding: 10px;
+    padding: var(--space-2-5);
   }
 }
 @media (prefers-reduced-motion: reduce) {
