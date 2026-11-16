@@ -139,10 +139,10 @@
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   white-space: nowrap;
   min-height: 56px;
-  padding: 16px 24px;
+  padding: var(--space-4) var(--space-6);
   border-radius: var(--radius-sm);
   background: var(--accent);
   color: var(--on-accent) !important;

@@ -50,10 +50,7 @@
   --space-10: 40px;
   --space-11: 44px;
   --space-12: 48px;
-  --space-14: 56px;
-  --space-16: 64px;
   --space-20: 80px;
-  --space-24: 96px;
 
   /* Motion. One curve and three durations. Only colour, opacity and transform ever move. */
   --ease: cubic-bezier(0.2, 0.6, 0.2, 1);

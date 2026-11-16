@@ -267,7 +267,7 @@
 .app-shell select {
   border-radius: var(--radius-sm);
   background: var(--surface);
-  padding: var(--space-3) var(--space-3);
+  padding: var(--space-3);
   border-color: var(--line);
   min-height: 44px;
 }
