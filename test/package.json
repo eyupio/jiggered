@@ -8,15 +8,17 @@
     "test": "node --test \"*.test.mjs\"",
     "browser": "node support/run-browser.cjs",
     "browser:install": "playwright install chromium",
-    "format": "prettier --write --ignore-path ../.prettierignore ../web . ../.github ../CONTRIBUTING.md ../AGENTS.md ../CLAUDE.md ../README.md ../.prettierrc.json",
-    "format:check": "prettier --check --ignore-path ../.prettierignore ../web . ../.github ../CONTRIBUTING.md ../AGENTS.md ../CLAUDE.md ../README.md ../.prettierrc.json",
+    "format": "prettier --write --ignore-path ../.prettierignore ../web . ../.github ../CONTRIBUTING.md ../AGENTS.md ../CLAUDE.md ../README.md ../.prettierrc.json ../stylelint.config.mjs",
+    "format:check": "prettier --check --ignore-path ../.prettierignore ../web . ../.github ../CONTRIBUTING.md ../AGENTS.md ../CLAUDE.md ../README.md ../.prettierrc.json ../stylelint.config.mjs",
     "lint": "cd .. && test/node_modules/.bin/eslint --config test/eslint.config.mjs web test",
-    "check": "npm run format:check && npm run lint && npm test"
+    "lint:css": "cd .. && test/node_modules/.bin/stylelint --config stylelint.config.mjs \"web/*.css\"",
+    "check": "npm run format:check && npm run lint && npm run lint:css && npm test"
   },
   "devDependencies": {
     "eslint": "10.14.0",
     "globals": "17.14.0",
     "playwright": "1.65.0",
-    "prettier": "3.9.10"
+    "prettier": "3.9.10",
+    "stylelint": "17.16.0"
   }
 }

@@ -394,7 +394,7 @@ section {
 .act {
   font: inherit;
   text-align: left;
-  padding: var(--space-3);
+  padding: 11px var(--space-3);
   border-radius: var(--radius-md);
   border: 1px solid var(--line);
   background: var(--bg);
@@ -1285,7 +1285,7 @@ input[type="search"] {
     grid-template-columns: minmax(6.5rem, 38%) 1fr;
     gap: var(--space-2);
     border: 0;
-    padding: var(--space-1) 0;
+    padding: 3px 0;
     overflow-wrap: anywhere;
   }
   #summary-preview td::before {
@@ -1766,7 +1766,7 @@ input[type="search"] {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  padding: var(--space-1) var(--space-2-5);
+  padding: 3px 9px;
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--fg) 8%, transparent);
   color: var(--fg);
@@ -1788,10 +1788,10 @@ input[type="search"] {
 }
 @media (max-width: 360px) {
   .checkin {
-    gap: var(--space-1-5);
+    gap: 5px;
   }
   .checkin button .cost {
-    padding: var(--space-1) var(--space-2);
+    padding: 3px 7px;
   }
 }
 
@@ -2123,7 +2123,7 @@ input[type="search"] {
 }
 .pattern-ranking li {
   display: grid;
-  gap: var(--space-1-5);
+  gap: 5px;
   min-width: 0;
 }
 .pattern-link {
@@ -2781,7 +2781,7 @@ input[type="search"] {
 .matrix-calendar[data-layout="calendar"] .matrix-cell {
   grid-template-rows: auto 1fr;
   place-items: stretch;
-  padding: var(--space-2) var(--space-2-5);
+  padding: 7px 9px;
   border-radius: var(--radius-sm);
   text-align: left;
 }
@@ -2842,7 +2842,7 @@ input[type="search"] {
 }
 .matrix-dense .matrix-calendar .matrix-grid,
 .matrix-dense .matrix-calendar .matrix-weekdays {
-  gap: var(--space-1);
+  gap: 3px;
 }
 .matrix-dense .matrix-calendar .matrix-cell,
 .matrix-dense .matrix-calendar .matrix-blank {
@@ -2958,10 +2958,10 @@ input[type="search"] {
     margin-inline: -8px;
   }
   .matrix-calendar[data-layout="heatmap"] .matrix-grid {
-    gap: var(--space-1);
+    gap: 3px;
   }
   .matrix-calendar[data-layout="heatmap"] .matrix-weekdays {
-    gap: var(--space-1);
+    gap: 3px;
   }
   .matrix-dense .matrix-calendar .matrix-grid,
   .matrix-dense .matrix-calendar .matrix-weekdays {
@@ -3433,7 +3433,7 @@ input[type="search"] {
   font-weight: 700;
   letter-spacing: 0.12em;
   color: var(--muted);
-  margin: 0 0 var(--space-1-5);
+  margin: 0 0 5px;
 }
 .service-stats {
   display: grid;
@@ -3488,7 +3488,7 @@ input[type="search"] {
   align-items: start;
 }
 .service-runs p {
-  margin-block: var(--space-1-5);
+  margin-block: 5px;
 }
 .service-panel form {
   gap: var(--space-3);

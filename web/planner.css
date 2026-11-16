@@ -112,7 +112,7 @@
   display: block;
   color: var(--muted);
   font-size: var(--text-sm);
-  margin-top: var(--space-1);
+  margin-top: 3px;
 }
 .energy-flow-list b {
   text-align: right;
@@ -211,7 +211,7 @@
 }
 .plan-activity-info .meta {
   display: block;
-  margin-top: var(--space-1-5);
+  margin-top: 5px;
 }
 .plan-cost {
   flex-shrink: 0;
@@ -360,10 +360,10 @@
     display: flex;
     overflow-x: auto;
     margin-inline: -8px; /* cancels the padding below, so the days stay aligned with the text above */
-    /* Room for the selected day's 3px ring, which the scroller would clip. */
-    padding: var(--space-1-5) var(--space-2);
-    /* Snapping to the first day must not scroll that padding away. */
-    scroll-padding-inline: var(--space-2);
+    padding: var(--space-1-5) var(--space-2); /* room for the selected day's 3px ring, which the scroller would clip */
+    scroll-padding-inline: var(
+      --space-2
+    ); /* snapping to the first day must not scroll that padding away */
     scroll-snap-type: x proximity;
   }
   .app-shell .plan-day {
@@ -611,7 +611,7 @@
   display: flex;
   flex-direction: column;
   gap: 1px;
-  padding: var(--space-1) var(--space-1-5);
+  padding: 3px var(--space-1-5);
   overflow: hidden;
   border: 1px dashed var(--accent);
   border-radius: var(--radius-sm);
