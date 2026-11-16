@@ -35,7 +35,7 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .app-shell .onboarding {
-    padding: var(--space-5) var(--space-6);
+    padding: var(--space-5) 25px;
   }
 }
 @media (min-width: 1180px) {
@@ -59,7 +59,7 @@
 }
 @media (max-width: 600px) {
   .app-shell .wrap {
-    padding: var(--space-5-5) var(--space-5) calc(105px + env(safe-area-inset-bottom, 0));
+    padding: 21px var(--space-5) calc(105px + env(safe-area-inset-bottom, 0));
   }
   .app-shell .head-actions {
     gap: var(--space-2-5);
@@ -118,7 +118,7 @@
     font-size: var(--text-xl);
   }
   .app-shell .panel > .label-row {
-    gap: var(--space-2-5);
+    gap: 9px;
   }
   .app-shell .save-bar {
     margin-inline: -20px;
@@ -129,7 +129,7 @@
     bottom: calc(86px + env(safe-area-inset-bottom, 0px));
   }
   .app-shell .metric {
-    padding: var(--space-4-5);
+    padding: 17px;
   }
   .app-shell .metric b {
     font-size: var(--text-3xl);
