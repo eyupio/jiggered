@@ -67,6 +67,13 @@ func TestSecurityHeaders(t *testing.T) {
 			t.Errorf("Permissions-Policy lacks %q: %s", want, pp)
 		}
 	}
+	// Cross-origin openers keep no reference into Jiggered: every response, signed-in or not, API or page, declares it.
+	for _, p := range []string{"/login", "/welcome", "/robots.txt", "/api/me"} {
+		resp, _ := e.newClient().req("GET", p, nil)
+		if got := resp.Header.Get("Cross-Origin-Opener-Policy"); got != "same-origin" {
+			t.Errorf("GET %s: Cross-Origin-Opener-Policy = %q, want same-origin", p, got)
+		}
+	}
 }
 
 func TestStaticFilesAreRevalidated(t *testing.T) {
