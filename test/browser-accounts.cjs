@@ -289,8 +289,8 @@ runBrowser(
     await join.locator("[aria-controls=register-password]").click();
     assert.equal(await join.locator("#register-password").getAttribute("type"), "text");
     assert.equal(
-      await join.locator("[aria-controls=register-password]").getAttribute("aria-pressed"),
-      "true",
+      await join.locator("[aria-controls=register-password]").getAttribute("aria-label"),
+      "Hide password",
     );
     const toggleBox = await join.locator("[aria-controls=register-password]").boundingBox();
     assert.ok(toggleBox.height >= 44, "the Show button is a full-size target");
