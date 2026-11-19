@@ -3,13 +3,14 @@ import { energyAmount, themeOf } from "./energy-theme.js";
 import { energyFlow } from "./planner-model.js";
 
 const previous = new WeakMap();
-export function renderEnergyFlow(ctx, day, settings) {
+export function renderEnergyFlow(ctx, day, settings, committed = 0) {
   const f = energyFlow(day, settings),
+    remaining = f.remaining - committed,
     word = (n) => energyAmount(n, themeOf(ctx));
   const last = previous.get(ctx);
   if (
     last?.date === day.date &&
-    last.remaining !== f.remaining &&
+    last.remaining !== remaining &&
     !matchMedia("(prefers-reduced-motion: reduce)").matches
   ) {
     document
@@ -19,10 +20,10 @@ export function renderEnergyFlow(ctx, day, settings) {
         { duration: 360, easing: "ease-out" },
       );
   }
-  previous.set(ctx, { date: day.date, remaining: f.remaining });
+  previous.set(ctx, { date: day.date, remaining });
   setHTML(
     document.getElementById("energy-breakdown"),
-    html`<dl class="energy-breakdown"><div><dt>Starting allowance</dt><dd>${f.allowance}</dd></div><div class="is-spending"><dt>Used</dt><dd>${signed(f.spent)}</dd></div><div class="is-recovery"><dt>Recovered</dt><dd>${signed(-f.recovered)}</dd></div><div><dt>Remaining</dt><dd>${f.remaining}</dd></div></dl><p class="sr-only">${word(f.allowance)} to start, ${word(f.spent)} used, ${word(f.recovered)} recovered, ${word(f.remaining)} remaining.</p>`,
+    html`<dl class="energy-breakdown"><div><dt>Starting allowance</dt><dd>${f.allowance}</dd></div><div class="is-spending"><dt>Used</dt><dd>${signed(f.spent)}</dd></div><div class="is-recovery"><dt>Recovered</dt><dd>${signed(-f.recovered)}</dd></div>${committed > 0 ? html`<div class="is-planned"><dt>Planned</dt><dd>${signed(committed)}</dd></div>` : ""}<div><dt>Remaining</dt><dd>${remaining}</dd></div></dl><p class="sr-only">${word(f.allowance)} to start, ${word(f.spent)} used, ${word(f.recovered)} recovered${committed > 0 ? `, ${word(committed)} planned` : ""}, ${word(remaining)} remaining.</p>`,
   );
   let balance = f.allowance;
   const changes = day.entries.map((e) => {

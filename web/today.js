@@ -917,7 +917,9 @@ export function init(ctx) {
     const budget = d.budget ?? S.budget,
       spent = used(d),
       cap = capOf(d, S),
-      left = cap - spent;
+      committed = forecast(ctx.store.all(), k, S).committed,
+      left = cap - spent - committed,
+      beforeWork = left + committed;
 
     $("day-label").textContent = past ? fmtLongDay(k, S.locale) : "Today";
     $("day-pick").value = k;
@@ -983,9 +985,8 @@ export function init(ctx) {
     $("energy-entry-count").textContent =
       `${d.entries.length} ${d.entries.length === 1 ? "activity" : "activities"} logged`;
 
-    renderEnergyFlow(ctx, d, S);
+    renderEnergyFlow(ctx, d, S, committed);
     renderTodayPlan(ctx, k);
-    const reserved = forecast(ctx.store.all(), k, S).committed;
     const cells = $("cells");
     // Updated in place so the bar eases between states instead of being rebuilt (which looked like a flash).
     cells.style.gridTemplateColumns = `repeat(${Math.min(budget, 15)},1fr)`;
@@ -999,9 +1000,9 @@ export function init(ctx) {
       c.className =
         i >= cap
           ? "cell lost"
-          : i >= Math.max(0, left)
+          : i >= Math.max(0, beforeWork)
             ? "cell spent"
-            : i >= Math.max(0, left - reserved)
+            : i >= Math.max(0, left)
               ? "cell reserved"
               : "cell";
     });

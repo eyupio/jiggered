@@ -478,7 +478,7 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
     // What is drawn: logged blocks solid, planned ones dashed with a cue, the header says what is left.
     assert.equal(await page.locator(`${T} .cal-logged`).count(), 2);
     assert.equal(await page.locator(`${T} .cal-plan`).count(), 2);
-    assert.match(await page.locator(`${T} .cal-day-head`).textContent(), /\d+ left/);
+    assert.match(await page.locator(`${T} .cal-day-head`).textContent(), /4 left/);
     assert.match(await block(page, "plan:p1", T).textContent(), /tap to finish/);
 
     // Tapping a planned block finishes it where it is (no form, no tab change); Undo takes it back.

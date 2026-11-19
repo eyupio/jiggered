@@ -179,7 +179,9 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     await page.locator("#plan-submit").click();
     assert.match(await page.locator("#plan-forecast").textContent(), /Projected balance\s*5/);
     await page.locator("#t-today").click();
-    assert.match(await page.locator("#left").textContent(), /10/);
+    assert.match((await page.locator("#left").textContent()).trim(), /^3\s/);
+    assert.match(await page.locator("#energy-breakdown").textContent(), /Planned\s*−7/);
+    assert.match(await page.locator("#energy-breakdown").textContent(), /Remaining\s*3/);
     assert.equal(await page.locator("#cells .reserved").count(), 7);
     // Done on Today logs the planned activity in place: no tab change, no form, and Undo takes it back.
     await page.locator("#today-plan [data-plan-action=complete]").first().click();
@@ -195,7 +197,7 @@ runBrowser({ name: "planner", startServer: false }, async (harness) => {
     );
     await page.locator("#toastbar button").click();
     assert.equal(await page.locator("#today-plan [data-plan-action=complete]").count(), 2);
-    assert.match((await page.locator("#left").textContent()).trim(), /^10\s/);
+    assert.match((await page.locator("#left").textContent()).trim(), /^3\s/);
     // Done again, then correct what actually happened from the day's logged activities.
     await page.locator("#today-plan [data-plan-action=complete]").first().click();
     await page.locator("#energy-activity-pills [data-action=edit]").first().click();
