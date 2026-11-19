@@ -41,7 +41,7 @@ What a particular Day actually has to spend: its Budget less the Poor-sleep and 
 _Avoid_: Cap, quota
 
 **Remaining**:
-A Day's Allowance less its net spending, where Recoveries add energy back.
+A Day's Allowance less its net spending, where logged Recoveries add energy back. Pending Planned entry costs are held aside from it; planned Recoveries are not added until they are Done.
 _Avoid_: Balance left, available
 
 ### Activities
@@ -95,7 +95,7 @@ The cost of a date's pending Planned entries.
 _Avoid_: Reserved total
 
 **Projected**:
-A date's Remaining after its pending Planned entries and pending Recoveries.
+A date's Remaining after its pending planned Recoveries. Pending Planned entry costs are already held out of Remaining.
 _Avoid_: Forecast balance
 
 **Shortfall**:
