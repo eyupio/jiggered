@@ -151,14 +151,12 @@ function initAuth() {
     toggle.textContent = "Show";
     toggle.setAttribute("aria-label", "Show password");
     toggle.setAttribute("aria-controls", input.id);
-    toggle.setAttribute("aria-pressed", "false");
     wrap.append(toggle);
     toggle.addEventListener("click", () => {
       const visible = input.type === "password";
       input.type = visible ? "text" : "password";
       toggle.textContent = visible ? "Hide" : "Show";
       toggle.setAttribute("aria-label", visible ? "Hide password" : "Show password");
-      toggle.setAttribute("aria-pressed", String(visible));
     });
   });
   let token = "";
