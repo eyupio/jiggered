@@ -715,6 +715,15 @@ function fatal(text, { retry = false } = {}) {
     $("toastbar").hidden = true;
     lastUndo = null;
   };
+  // An Undo is a write, and the store refuses writes in a read-only tab, during a restore and after sign-out.
+  // Ctrl+Z reaches here without the click guard above, so say why nothing happened instead of throwing.
+  const runUndo = (fn) => {
+    try {
+      fn();
+    } catch (error) {
+      toast(error.message);
+    }
+  };
   document.addEventListener("keydown", (e) => {
     if (
       !lastUndo ||
@@ -729,7 +738,7 @@ function fatal(text, { retry = false } = {}) {
     e.preventDefault();
     const { fn } = lastUndo;
     hideToast();
-    fn();
+    runUndo(fn);
   });
   function toast(message, undo) {
     const bar = $("toastbar");
@@ -742,8 +751,8 @@ function fatal(text, { retry = false } = {}) {
         ...(undo.plain ? {} : { title: `${undo.label} (Ctrl or ⌘ + Z)` }),
       });
       b.addEventListener("click", () => {
-        undo.fn();
         hideToast();
+        runUndo(undo.fn);
       });
       bar.append(b);
     }
