@@ -47,6 +47,10 @@ const (
 
 	// maxUserAgentLen caps the user agent stored with a session, which the sessions list shows back to its owner.
 	maxUserAgentLen = 200
+
+	// maintenanceInterval is how often maintain prunes expired sessions and old audit entries and sweeps the
+	// limiters. It is well under limiterWindow, so a stale limiter key never outlives its window by much.
+	maintenanceInterval = 10 * time.Minute
 )
 
 // Throttle budgets for the server's limiters, all counted over one window. Recovery paths (register by
@@ -227,7 +231,7 @@ func (s *server) ensureFirstAdmin(ctx context.Context) error {
 // maintain tidies up in the background: expired sessions, old audit entries, stale limiter keys. It stops
 // with ctx, so a graceful shutdown does not leave it holding the database.
 func (s *server) maintain(ctx context.Context) {
-	t := time.NewTicker(10 * time.Minute)
+	t := time.NewTicker(maintenanceInterval)
 	defer t.Stop()
 	for {
 		s.prune()
