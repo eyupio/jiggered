@@ -42,7 +42,10 @@ func migrateSecurityAccounts(tx *sql.Tx, _ *seedAdmin) error {
 	return err
 }
 func (s *server) authPublic(w http.ResponseWriter, r *http.Request) bool {
-	if r.Method != "GET" && (r.Header.Get("X-Requested-With") != "jiggered" || !s.sameSiteLogin(r)) {
+	if r.Method == http.MethodGet {
+		return true // the availability read on a page load must not spend the form budget
+	}
+	if r.Header.Get("X-Requested-With") != "jiggered" || !s.sameSiteLogin(r) {
 		http.Error(w, "forbidden", 403)
 		return false
 	}
