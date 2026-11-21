@@ -79,6 +79,25 @@ func TestAuthOptionsReportAvailability(t *testing.T) {
 	}
 }
 
+// The availability read that every sign-in page load makes must not spend the budget meant for form submissions.
+func TestAuthOptionsDoesNotSpendThePublicBudget(t *testing.T) {
+	e := newTestServer(t)
+	e.s.publicLimit = newLoginLimiter(1, 15*time.Minute)
+	c := e.newClient()
+	for i := 0; i < 3; i++ {
+		if r, b := c.req("GET", "/api/auth/options", nil); r.StatusCode != 200 {
+			t.Fatalf("options %d = %d %s", i, r.StatusCode, b)
+		}
+	}
+	// The one permitted form submission is still available.
+	if st := c.do("POST", "/api/auth/verify", `{"token":"x"}`); st != 400 {
+		t.Fatalf("the first form submission = %d, want 400 (allowed to try)", st)
+	}
+	if st := c.do("POST", "/api/auth/verify", `{"token":"x"}`); st != 429 {
+		t.Fatalf("the second form submission = %d, want 429", st)
+	}
+}
+
 // A duplicate of a *pending* registration is re-queued by design (the newer link replaces the older one), but a
 // duplicate of a verified address must answer exactly like an unknown one and send no mail. A taken username is
 // reported (409), since the person chose it and mail for it could never come.
