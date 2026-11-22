@@ -333,6 +333,8 @@ runBrowser({ name: "history", portEnv: "JIGGERED_HISTORY_PORT" }, async (harness
   const readerErrors = [];
   reader.on("pageerror", (e) => readerErrors.push(e.message));
   await reader.goto(base);
+  // The read-only notice appears during start-up, before the tabs are wired: wait for the app to be ready.
+  await reader.waitForFunction(() => !document.body.classList.contains("app-loading"));
   await reader.locator("#tab-reload").waitFor();
   await reader.locator("#t-history").click();
   await reader.locator("#history-panel").waitFor();
