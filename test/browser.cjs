@@ -35,6 +35,11 @@ runBrowser({ name: "walkthrough", username: "auditadmin" }, async (harness) => {
   await page.locator("#other-activity").hover();
   await page.locator("#jiggered-tooltip").waitFor();
   assert.match(await page.locator("#jiggered-tooltip").textContent(), /one-off activity/);
+  assert.equal(
+    await page.locator("#jiggered-tooltip").evaluate((el) => getComputedStyle(el).pointerEvents),
+    "none",
+    "a tooltip never takes a click meant for the control beneath it",
+  );
   await page.locator("#other-activity").focus();
   assert.equal(
     await page.locator("#other-activity").getAttribute("aria-describedby"),

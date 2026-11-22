@@ -139,8 +139,7 @@ export function initTooltips(ctx) {
   const laterHide = () => {
     clearTimeout(hideTimer);
     hideTimer = setTimeout(() => {
-      if (!tip.matches(":hover") && !active?.matches(":hover") && document.activeElement !== active)
-        hide();
+      if (!active?.matches(":hover") && document.activeElement !== active) hide();
     }, 180);
   };
   document.addEventListener("pointerover", (e) => {
@@ -173,7 +172,7 @@ export function initTooltips(ctx) {
         show(el);
         el.dataset.tipPinned = "true";
       }
-    } else if (!tip.contains(e.target)) hide();
+    } else hide();
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && active) {
@@ -181,8 +180,6 @@ export function initTooltips(ctx) {
       e.stopPropagation();
     }
   });
-  tip.addEventListener("pointerenter", () => clearTimeout(hideTimer));
-  tip.addEventListener("pointerleave", laterHide);
   window.addEventListener("resize", position);
   window.addEventListener(
     "scroll",
