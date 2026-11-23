@@ -115,6 +115,21 @@ process.on("exit", () => server.kill());
                 .getByRole("link", { name: /Christine Miserandino's original Spoon Theory essay/ })
                 .count(),
             );
+          if (route.startsWith("/alternatives/")) {
+            const comparison = page.locator(".public-table-wrap");
+            assert.equal(
+              await comparison.getAttribute("tabindex"),
+              "0",
+              route + " comparison is not keyboard reachable",
+            );
+            assert.equal(await comparison.getAttribute("role"), "region", route);
+            assert.ok(await comparison.getAttribute("aria-label"), route);
+            assert.equal(
+              await page.locator(".table-hint").isVisible(),
+              width <= 760,
+              `${route} swipe hint at ${width}px`,
+            );
+          }
           if (
             process.env.JIGGERED_SCREENSHOT_DIR &&
             ["/welcome", "/guides/spoon-theory"].includes(route)

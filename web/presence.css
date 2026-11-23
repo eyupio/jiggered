@@ -188,6 +188,7 @@
 .eyebrow {
   font-size: var(--text-sm);
   font-weight: 500;
+  letter-spacing: normal;
   color: var(--muted);
   display: flex;
   align-items: center;
