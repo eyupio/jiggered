@@ -152,17 +152,6 @@ export function init(ctx) {
       original: raw,
     });
   }
-  // Points or spoons: the same numbers, in the words the person thinks in. Chosen here or in Account.
-  $("onboarding").addEventListener("click", (e) => {
-    const pick = e.target.closest("[data-wording]");
-    if (!pick || !writable()) return;
-    const raw = ctx.store.view("settings");
-    if (!raw) return;
-    patchSettings({
-      profile: { ...normaliseProfile(raw.profile), energyTheme: pick.dataset.wording },
-    });
-    render();
-  });
   // Someone who came from the Spoon Theory guide starts in spoons, once, if they have not chosen yet.
   function applyWelcomeWording() {
     try {
@@ -173,48 +162,15 @@ export function init(ctx) {
       if (!raw.profile?.energyTheme)
         patchSettings({ profile: { ...normaliseProfile(raw.profile), energyTheme: "spoons" } });
     } catch {
-      /* storage can be blocked; the checklist step still works */
+      /* storage can be blocked; Account still offers the choice */
     }
   }
-  $("onboarding-keep").addEventListener("click", () => {
-    patchSettings({
-      onboarding: { ...(ctx.store.view("settings")?.onboarding || {}), budget: true },
-    });
-    render();
-  });
   $("onboarding-dismiss").addEventListener("click", () => {
     patchSettings({
       onboarding: { ...(ctx.store.view("settings")?.onboarding || {}), dismissed: true },
     });
     onboardingSeen = false;
     render();
-  });
-  $("onboarding-budget").addEventListener("change", (e) => {
-    const n = Math.round(Number(e.target.value)),
-      S = ctx.settings();
-    if (!Number.isInteger(n) || n < 1 || n > 30) {
-      e.target.value = S.budget;
-      return;
-    }
-    if (n === S.budget) return;
-    // Penalties may not exceed the budget, so they shrink with it.
-    patchSettings({
-      budget: n,
-      sleepPenalty: Math.min(S.sleepPenalty, n),
-      amberPenalty: Math.min(S.amberPenalty, n),
-      redPenalty: Math.min(S.redPenalty, n),
-      onboarding: { ...(ctx.store.view("settings")?.onboarding || {}), budget: true },
-    });
-    const today = dayId(ctx.today());
-    if (ctx.store.view(today))
-      ctx.store.dispatch({
-        id: today,
-        type: "restamp",
-        arg: { budget: n, sleepPenalty: Math.min(S.sleepPenalty, n) },
-      });
-    ctx.toast(
-      `Daily ${energyWords(themeOf(ctx)).plural} set to ${n}. Change it any time in Account.`,
-    );
   });
   $("act-filter").addEventListener("click", (e) => {
     const b = e.target.closest("[data-filter]");
@@ -508,7 +464,8 @@ export function init(ctx) {
   // A grid inside a closed disclosure cannot be measured, so it is drawn again when the disclosure is opened.
   const timeline = $("today-timeline-panel");
   let timelineArgs = null;
-  // It starts closed so the activity tiles follow the check-in; it opens by itself once there is something to draw.
+  // It starts closed on a phone so the activity tiles follow the check-in; a wide screen may open it once there is
+  // something to draw.
   let timelineTouched = false;
   timeline.addEventListener("toggle", () => {
     if (timeline.open && timelineArgs) renderTimeline(...timelineArgs);
@@ -519,7 +476,8 @@ export function init(ctx) {
     const k = key(),
       past = k !== ctx.today(),
       pending = forecast(ctx.store.all(), k, S).pending;
-    if (!timeline.open && !timelineTouched && (d.entries.length || pending.length)) {
+    const narrow = matchMedia("(max-width: 760px)").matches;
+    if (!timeline.open && !timelineTouched && !narrow && (d.entries.length || pending.length)) {
       timeline.open = true;
       return; // the toggle event draws it
     }
@@ -966,7 +924,7 @@ export function init(ctx) {
     $("balance-label").textContent = copy(balanceLabel(left, cap));
     document.querySelector(".energy-spoon").toggleAttribute("hidden", themeOf(ctx) !== "spoons");
     renderOngoing(ctx, $("today-ongoing"));
-    $("spentline").textContent = spent >= 0 ? `${spent} net used` : `${-spent} net recovered`;
+    $("spentline").textContent = `Net ${signed(spent)}`;
 
     // The ring is a view of the saved allowance, not a target. Keep the actual
     // number unbounded when recovery takes it above the allowance or spending below zero.
@@ -1009,7 +967,7 @@ export function init(ctx) {
     cells.className = "cells" + (left <= 0 ? " out" : left <= 3 ? " low" : "");
 
     renderActivities(S);
-    renderOnboarding(S, past);
+    renderOnboarding(past);
     renderWeekly(past);
     renderTimeline(d, S, left);
 
@@ -1082,7 +1040,7 @@ export function init(ctx) {
       });
     }
   });
-  function renderOnboarding(S, past) {
+  function renderOnboarding(past) {
     const raw = ctx.store.view("settings"),
       ob = raw?.onboarding || {},
       days = listDays(ctx.store.all());
@@ -1095,20 +1053,9 @@ export function init(ctx) {
     $("onboarding").hidden = !show;
     if (!show) return;
     onboardingSeen = true;
-    $("onboarding-title").textContent = done
-      ? "Your first records are ready. Allowance review is optional."
-      : "Get started in under a minute";
+    $("onboarding-title").textContent = done ? "You're set for today." : "Get started";
     $("step-checkin").classList.toggle("done", checked);
     $("step-activity").classList.toggle("done", logged);
-    $("step-budget").classList.toggle("done", !!ob.budget);
-    for (const b of $("step-wording").querySelectorAll("[data-wording]"))
-      b.setAttribute(
-        "aria-pressed",
-        String(
-          b.dataset.wording === (raw?.profile?.energyTheme === "spoons" ? "spoons" : "points"),
-        ),
-      );
-    if (document.activeElement !== $("onboarding-budget")) $("onboarding-budget").value = S.budget;
   }
 
   return {

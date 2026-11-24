@@ -35,7 +35,7 @@ export function renderEnergyFlow(ctx, day, settings, committed = 0) {
   const wasOpen = document.querySelector("#energy-flow details")?.open;
   setHTML(
     document.getElementById("energy-flow"),
-    html`<details><summary>How your energy changed${changes.length ? ` · ${changes.length} activities` : ""}</summary><ol class="energy-flow-list"><li><span>${changes.length > 5 ? "Before the latest 5 activities" : "Starting allowance"}</span><b>${startingBalance}</b></li>${recent.map((e) => html`<li class="${e.c < 0 ? "is-recovery" : "is-spending"}"><span>${e.a}<small>${e.t || "Time not set"}${e.c === 0 ? " · recorded only" : e.c < 0 ? ` · +${word(-e.c)} recovered` : ` · −${word(e.c)} used`}</small></span><b>${e.balance}<small>left</small></b></li>`)}</ol>${changes.length > 5 ? html`<p class="hint">Showing the latest 5 changes. The full activity log is below.</p>` : ""}</details>`,
+    html`<details><summary>How your energy changed${changes.length ? ` · ${changes.length} ${changes.length === 1 ? "activity" : "activities"}` : ""}</summary><ol class="energy-flow-list"><li><span>${changes.length > 5 ? "Before the latest 5 activities" : "Starting allowance"}</span><b>${startingBalance}</b></li>${recent.map((e) => html`<li class="${e.c < 0 ? "is-recovery" : "is-spending"}"><span>${e.a}<small>${e.t || "Time not set"}${e.c === 0 ? " · recorded only" : e.c < 0 ? ` · +${word(-e.c)} recovered` : ` · −${word(e.c)} used`}</small></span><b>${e.balance}<small>left</small></b></li>`)}</ol>${changes.length > 5 ? html`<p class="hint">Showing the latest 5 changes. The full activity log is below.</p>` : ""}</details>`,
   );
   document.querySelector("#energy-flow details").open = !!wasOpen;
 }

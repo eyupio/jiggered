@@ -286,7 +286,7 @@
   border-left: 1px solid var(--line);
 }
 .app-shell .onboarding .steps {
-  gap: var(--space-4);
+  gap: var(--space-2) var(--space-5);
 }
 .app-shell .onboarding .steps li {
   align-items: center;
@@ -301,13 +301,6 @@
 }
 .app-shell .onboarding li.done .tick {
   background: var(--accent);
-}
-.app-shell .onboarding .step-budget {
-  margin: 0;
-  font-size: var(--text-sm);
-}
-.app-shell .onboarding input {
-  width: 62px;
 }
 .app-shell .daynav {
   padding-bottom: 13px;
@@ -380,7 +373,6 @@
 }
 .app-shell .today-side {
   gap: var(--space-5-5);
-  position: static;
   min-width: 0;
 }
 .app-shell .energy-panel {
@@ -550,6 +542,7 @@
   height: 16px;
   border-radius: var(--radius-xs);
 }
+.app-shell .checkin-panel .switch-row,
 .app-shell .energy-panel .switch-row {
   padding: var(--space-3);
   margin: 0;

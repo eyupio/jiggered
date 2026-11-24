@@ -35,16 +35,9 @@ runBrowser({ name: "today", portEnv: "JIGGERED_TODAY_PORT" }, async (harness) =>
     "nothing is ticked before anything is logged",
   );
 
-  // The optional wording step switches the whole app between points and spoons, and back.
-  await page.locator('#onboarding [data-wording="spoons"]').click();
-  await page.waitForFunction(() => document.documentElement.dataset.energyTheme === "spoons");
-  assert.equal(
-    await page.locator('#onboarding [data-wording="spoons"]').getAttribute("aria-pressed"),
-    "true",
-  );
-  await page.locator('#onboarding [data-wording="points"]').click();
-  await page.waitForFunction(() => document.documentElement.dataset.energyTheme === "points");
-  await saved(page);
+  // The compact setup strip leaves the check-in on the first phone screen.
+  const checkin = await page.locator("#checkin").boundingBox();
+  assert.ok(checkin && checkin.y + checkin.height <= 844, "the check-in is on the first screen");
 
   // The check-in collapses to one line once chosen; changing or clearing it offers Undo.
   await page.locator('#checkin [data-s="amber"]').click();
@@ -104,7 +97,7 @@ runBrowser({ name: "today", portEnv: "JIGGERED_TODAY_PORT" }, async (harness) =>
   assert.equal(await page.locator("#onboarding li.done").count(), 2, "both first steps are ticked");
   assert.match(
     await page.locator("#onboarding-title").textContent(),
-    /first records are ready.*Allowance review is optional/,
+    /set for today/,
     "the finished checklist stays up for now",
   );
   assert.equal((await card.locator(".count").textContent()).trim(), "×1");

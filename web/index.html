@@ -179,43 +179,15 @@
           aria-labelledby="onboarding-title"
         >
           <div class="label-row">
-            <h2 id="onboarding-title">Get started in under a minute</h2>
+            <h2 id="onboarding-title">Get started</h2>
             <button class="x" id="onboarding-dismiss">Hide</button>
           </div>
           <ol class="steps">
             <li id="step-checkin">
-              <span class="tick" aria-hidden="true"></span
-              ><span>Pick green, amber or red for how you're starting today</span>
+              <span class="tick" aria-hidden="true"></span><span>Pick a check-in</span>
             </li>
             <li id="step-activity">
-              <span class="tick" aria-hidden="true"></span
-              ><span>Tap one thing you've done so far</span>
-            </li>
-            <li id="step-budget">
-              <span class="tick" aria-hidden="true"></span
-              ><label class="step-budget"
-                ><span data-energy-copy="Optional: points you plan around each day "
-                  >Optional: points you plan around each day </span
-                ><input
-                  type="number"
-                  id="onboarding-budget"
-                  min="1"
-                  max="30"
-                  inputmode="numeric" /></label
-              ><button type="button" class="secondary small" id="onboarding-keep">Save</button>
-            </li>
-            <li id="step-wording">
-              <span class="tick" aria-hidden="true"></span
-              ><span class="step-wording-line"
-                ><span>Optional: count your energy in</span>
-                <span class="step-wording" role="group" aria-label="Count your energy in"
-                  ><button type="button" class="secondary small" data-wording="points">
-                    Points</button
-                  ><button type="button" class="secondary small" data-wording="spoons">
-                    Spoons
-                  </button></span
-                ></span
-              >
+              <span class="tick" aria-hidden="true"></span><span>Log one activity</span>
             </li>
           </ol>
         </div>
@@ -265,6 +237,15 @@
               </button>
             </div>
             <p class="advice" id="advice">How are you starting today? Pick one.</p>
+            <label class="switch-row" for="sleep"
+              ><span class="switch-text"
+                ><b id="sleep-title">Slept badly last night</b
+                ><small id="sleep-label">Takes 3 points off today</small></span
+              ><input type="checkbox" role="switch" id="sleep" class="switch" /><span
+                class="switch-ui"
+                aria-hidden="true"
+              ></span
+            ></label>
           </div>
 
           <div class="panel energy-panel">
@@ -326,15 +307,6 @@
             </p>
             <div id="energy-flow" class="energy-flow"></div>
             <div id="today-plan" class="today-plan"></div>
-            <label class="switch-row" for="sleep"
-              ><span class="switch-text"
-                ><b id="sleep-title">Slept badly last night</b
-                ><small id="sleep-label">Takes 3 points off today</small></span
-              ><input type="checkbox" role="switch" id="sleep" class="switch" /><span
-                class="switch-ui"
-                aria-hidden="true"
-              ></span
-            ></label>
             <details class="hint" id="sleep-explanation">
               <summary><span data-energy-copy="How points work">How points work</span></summary>
               <p>
@@ -357,22 +329,6 @@
           </div>
         </div>
 
-        <details class="panel history-disclosure today-timeline-panel" id="today-timeline-panel">
-          <summary>
-            <h2>Your day on a timeline</h2>
-            <span class="meta" id="today-timeline-summary"></span>
-          </summary>
-          <div class="history-section-body">
-            <p class="meta" id="today-timeline-help"></p>
-            <div id="today-palette" class="cal-palette" aria-label="Your saved activities"></div>
-            <p class="placing" id="today-placing" role="status" hidden>
-              <span id="today-placing-text"></span>
-              <button type="button" class="x" id="today-placing-now">Log it now</button>
-              <button type="button" class="x" id="today-placing-cancel">Cancel</button>
-            </p>
-            <div id="today-board" class="cal"></div>
-          </div>
-        </details>
         <div class="panel activities-panel">
           <div class="label-row">
             <h2>The little things in your day.</h2>
@@ -456,6 +412,22 @@
             <p id="entry-msg" class="msg" role="status"></p>
           </form>
         </div>
+        <details class="panel history-disclosure today-timeline-panel" id="today-timeline-panel">
+          <summary>
+            <h2>Your day on a timeline</h2>
+            <span class="meta" id="today-timeline-summary"></span>
+          </summary>
+          <div class="history-section-body">
+            <p class="meta" id="today-timeline-help"></p>
+            <div id="today-palette" class="cal-palette" aria-label="Your saved activities"></div>
+            <p class="placing" id="today-placing" role="status" hidden>
+              <span id="today-placing-text"></span>
+              <button type="button" class="x" id="today-placing-now">Log it now</button>
+              <button type="button" class="x" id="today-placing-cancel">Cancel</button>
+            </p>
+            <div id="today-board" class="cal"></div>
+          </div>
+        </details>
       </section>
 
       <section role="tabpanel" aria-labelledby="t-episode" id="episode-panel" hidden>

@@ -3091,6 +3091,15 @@ input[type="search"] {
   display: grid;
   gap: var(--space-2-5);
 }
+/* First-run setup is a strip, not a wall: the check-in is the first thing to do. */
+.onboarding .steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+}
+#onboarding-dismiss {
+  min-height: 44px;
+}
 .steps li {
   display: flex;
   gap: var(--space-2-5);
@@ -3120,20 +3129,6 @@ input[type="search"] {
   color: var(--muted);
   text-decoration: line-through;
 }
-#step-wording .tick {
-  visibility: hidden; /* a choice, not a step to finish */
-}
-.step-wording-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1-5) var(--space-3);
-}
-.step-wording {
-  display: inline-flex;
-  gap: var(--space-2);
-}
-.app-shell .step-wording button[aria-pressed="true"],
 .app-shell .plan-daytype button[aria-pressed="true"] {
   background: var(--accent);
   border-color: var(--accent);
@@ -3146,16 +3141,6 @@ input[type="search"] {
   gap: var(--space-2);
   margin: var(--space-1-5) 0 var(--space-3);
 }
-.step-budget {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-.step-budget input {
-  width: 5.5rem;
-}
-
 /* Help is a view opened from the header, not a tab: Back returns to where you were. */
 #help-back {
   justify-self: start;
@@ -3225,11 +3210,6 @@ input[type="search"] {
   #today-panel > .today-side {
     grid-column: 1;
     grid-row: span 2;
-    position: sticky;
-    top: 76px;
-    max-height: calc(100vh - 92px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
   }
 }
 
