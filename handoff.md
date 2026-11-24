@@ -7,9 +7,9 @@ the phone ordering and the follow-up polish.
 
 ## Current state
 
-- Branch: `fix/signed-in-critique`
-- PR: [#193](https://github.com/eyupio/jiggered/pull/193)
-- Phase: implementation complete, local validation green, awaiting CI and review
+- Branch: `fix/signed-in-critique` (merged)
+- PR: [#193](https://github.com/eyupio/jiggered/pull/193), squashed as `4f81a67`
+- Phase: merged into `main` on 2026-11-24; all required checks passed
 
 ## Completed
 
@@ -37,9 +37,14 @@ the phone ordering and the follow-up polish.
 - Visual checks at 390×844, 320×700 and 1280×900 in light.
 - The design detector reports only the side-tab treatment DESIGN.md specifies.
 
+## Merge outcome
+
+- PR #193 squashed into `main` as `4f81a67` on 2026-11-24.
+- `test`, `browser`, `image`, CodeQL and the Codex review passed before merge.
+- The remote branch was deleted after the merge.
+
 ## Outstanding
 
-- Merge this PR after CI is green.
 - Deferred by the critique scope: the seven-tab admin bar (P2) and the detached
   Episode symptom error (P2).
 - The timeline palette remains for the tested drag and tap-to-place path; if it
