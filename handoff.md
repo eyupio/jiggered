@@ -7,9 +7,9 @@ recovery pages, and record the product and design context they build on.
 
 ## Current state
 
-- Branch: `reet/jiggered-31a0ee07c50b43f98789d6b0426c4f93`
-- PR: [#192](https://github.com/eyupio/jiggered/pull/192)
-- Phase: implementation complete, local validation green, awaiting CI and review
+- Branch: `reet/jiggered-31a0ee07c50b43f98789d6b0426c4f93` (merged)
+- PR: [#192](https://github.com/eyupio/jiggered/pull/192), squashed as `6a20c43`
+- Phase: merged into `main` on 2026-11-24; all required checks passed
 
 ## Completed
 
@@ -41,11 +41,16 @@ recovery pages, and record the product and design context they build on.
 - The design detector reports only raw-template false positives and pre-existing
   token advisories.
 
+## Merge outcome
+
+- PR #192 squashed into `main` as `6a20c43` on 2026-11-24.
+- `test`, `browser`, `image` and CodeQL passed before merge.
+- The remote branch was deleted after the merge.
+
 ## Outstanding
 
-- Merge this PR after CI is green.
-- After merge, re-run `$impeccable critique` on `/welcome` and `/login` to
-  confirm the score has moved.
+- Re-run `$impeccable critique` on `/welcome` and `/login` to confirm the score
+  has moved.
 - Verify links use the static "This link is for the account that requested it"
   sentence; a verify-token info endpoint was deliberately not added.
 
