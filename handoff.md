@@ -8,7 +8,7 @@ recovery pages, and record the product and design context they build on.
 ## Current state
 
 - Branch: `reet/jiggered-31a0ee07c50b43f98789d6b0426c4f93`
-- PR: to be opened
+- PR: [#192](https://github.com/eyupio/jiggered/pull/192)
 - Phase: implementation complete, local validation green, awaiting CI and review
 
 ## Completed
