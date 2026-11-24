@@ -15,6 +15,19 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// A failed sign-in renders its message into the page so it is explained without JavaScript.
+func TestSignInErrorsRenderWithoutJavaScript(t *testing.T) {
+	e := newTestServer(t)
+	r, b := e.newClient().req("GET", "/login?e=bad", nil)
+	if r.StatusCode != 200 || !strings.Contains(string(b), "That username or password") {
+		t.Fatalf("the sign-in page did not explain the failure: %d %s", r.StatusCode, b)
+	}
+	r, b = e.newClient().req("GET", "/login?e=deleted", nil)
+	if r.StatusCode != 200 || !strings.Contains(string(b), `class="msg" id="err"`) {
+		t.Fatalf("a deleted account is not news: %d %s", r.StatusCode, b)
+	}
+}
+
 func TestLoginAndLogout(t *testing.T) {
 	e := newTestServer(t)
 	c := e.newClient()

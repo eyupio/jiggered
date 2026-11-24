@@ -1,4 +1,7 @@
 /* Public content only; the authenticated dashboard keeps its own styles. */
+.landing-page :is(p, li, figcaption) {
+  text-wrap: pretty;
+}
 .public-header {
   flex-wrap: wrap;
 }

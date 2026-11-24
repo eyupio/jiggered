@@ -56,19 +56,22 @@
           <p
             class="quiet-note hero-availability"
             data-registration-copy
-            data-open="No card needed. We’ll email you a link to confirm your address, then you’re on Today in about a minute."
+            data-open="No card needed. We’ll email you a link to confirm your address, then you can make your first check-in."
             data-closed="Registration is currently closed. Existing members can sign in."
           >
             {{.Availability}}
           </p>
         </div>
         <figure class="hero-art hero-shot" id="preview">
-          <img
-            src="/shots/today.webp"
-            width="390"
-            height="850"
-            alt="The Today screen on a phone: an Amber morning check-in, and 6 of 7 points left after two activities."
-          />
+          <picture>
+            <source srcset="/shots/today-dark.webp" media="(prefers-color-scheme: dark)" />
+            <img
+              src="/shots/today.webp"
+              width="390"
+              height="850"
+              alt="The Today screen on a phone: an Amber morning check-in, and 6 of 7 points left after two activities."
+            />
+          </picture>
           <figcaption>Today, after a morning check-in and two activities. Example data.</figcaption>
         </figure>
       </section>

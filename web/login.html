@@ -42,11 +42,14 @@
     </header>
     <div class="auth-layout shell">
       <aside class="auth-story">
-        <p class="eyebrow">A little space for you</p>
-        <p class="auth-story-title">Your day.<br />Your story.<br />Your own pace.</p>
-        <p>A quiet place to check in, notice patterns and get to know your energy.</p>
-        <p class="auth-note">Small moments. A clearer picture.</p>
-        <p class="quiet-note">Personal. At your pace. Made for real life.</p>
+        <p class="eyebrow">Energy, not a score</p>
+        <p class="auth-story-title">A record of<br />what a day<br />could hold.</p>
+        <p id="auth-aside-note">
+          Check in with green, amber or red. Your day gets an allowance in points or spoons;
+          activities spend it and recovery adds it back.
+        </p>
+        <p class="auth-note">Private to your account. Export it or leave whenever you want.</p>
+        <p class="quiet-note">No streak to keep. No score to chase.</p>
       </aside>
       <main class="login auth-main" id="auth-main">
         <p id="auth-options-status" class="auth-state" hidden role="status"></p>
@@ -173,6 +176,7 @@
         <form class="panel" id="reset-form" hidden>
           <h1>Choose a new password</h1>
           <p class="meta">Your devices will be signed out. Two-step verification stays enabled.</p>
+          <p class="meta" id="reset-account" hidden></p>
           <label
             >New password<input
               id="reset-password"
@@ -188,15 +192,13 @@
               autocomplete="new-password"
               required
           /></label>
-          <label
+          <label id="reset-code-label"
             >Authenticator or recovery code<input
               id="reset-code"
               autocomplete="one-time-code"
               autocapitalize="none"
               spellcheck="false"
               enterkeyhint="done"
-              autocapitalize="none"
-              spellcheck="false"
               aria-describedby="reset-code-hint"
           /></label>
           <p id="reset-code-hint" class="meta">
@@ -209,8 +211,8 @@
         <form class="panel" id="verify-form" hidden>
           <h1>Verify your email</h1>
           <p class="meta">
-            Confirm this address for your Jiggered account. Verification links work once and expire
-            in 30 minutes.
+            Confirm this address for your Jiggered account. This link is for the account that
+            requested it. Verification links work once and expire in 30 minutes.
           </p>
           <button class="primary" type="submit">Verify email address</button>
           <p class="msg" role="status" id="verify-msg"></p>

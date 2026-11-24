@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"io/fs"
 	"log"
@@ -328,6 +329,16 @@ func envOr(k, def string) string {
 	return def
 }
 
+// Rendered into the sign-in page so a failed sign-in explains itself without JavaScript.
+var loginErrors = map[string]struct{ text, class string }{
+	"bad":      {"That username or password didn't match. Try again. (After ten wrong tries an account is paused for 15 minutes.)", "err"},
+	"locked":   {"Too many attempts. Wait 15 minutes, then try again.", "err"},
+	"disabled": {"This account has been switched off. Ask whoever runs this Jiggered to turn it back on.", "err"},
+	"busy":     {"Lots of people are signing in at once. Try again in a moment.", "err"},
+	"expired":  {"You were signed out: your session ended or was revoked. Changes that had not been sent were not kept.", "err"},
+	"deleted":  {"Your account and its data were deleted from this server.", "msg"},
+}
+
 // Files the sign-in page and the home-screen icon need before anyone is signed in.
 var publicAssets = []string{"/manifest.webmanifest", "/icon.svg", "/tokens.css", "/style.css", "/presence.css", "/public-base.css", "/public.css", "/login.js", "/robots.txt", "/favicon-32.png", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png", "/favicon.ico"}
 
@@ -366,6 +377,9 @@ func (s *server) sitePages(mux *http.ServeMux, static fs.FS, files *static, publ
 			// Nobody has an account yet: say how to make the first one.
 			page = bytes.Replace(page, []byte(`id="setup" hidden`), []byte(`id="setup"`), 1)
 		}
+		if msg, ok := loginErrors[r.URL.Query().Get("e")]; ok {
+			page = bytes.Replace(page, []byte(`<p class="err" id="err" aria-live="polite"></p>`), []byte(`<p class="`+msg.class+`" id="err" aria-live="polite">`+html.EscapeString(msg.text)+`</p>`), 1)
+		}
 		serveHTML(w, r, files, files.versionPage(page))
 	}
 	mux.HandleFunc("GET /login", loginPage)
@@ -376,6 +390,7 @@ func (s *server) sitePages(mux *http.ServeMux, static fs.FS, files *static, publ
 	mux.HandleFunc("POST /api/auth/register", s.registerAccount)
 	mux.HandleFunc("POST /api/auth/forgot-password", s.forgotPassword)
 	mux.HandleFunc("POST /api/auth/reset-password", s.resetPasswordToken)
+	mux.HandleFunc("POST /api/auth/reset-info", s.resetTokenInfo)
 	mux.HandleFunc("POST /api/auth/verify", s.verifyEmailToken)
 	mux.HandleFunc("POST /api/auth/two-step", s.finishTwoFactor)
 	mux.HandleFunc("POST /logout", s.handleLogout)

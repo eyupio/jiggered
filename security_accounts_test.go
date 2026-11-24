@@ -32,6 +32,7 @@ func TestPublicAuthWritesNeedThePageHeaderAndSameOrigin(t *testing.T) {
 		{"/api/auth/register", `{"username":"x","email":"x@example.com","password":"password1"}`},
 		{"/api/auth/forgot-password", `{"email":"x@example.com"}`},
 		{"/api/auth/reset-password", `{"token":"x","password":"password1"}`},
+		{"/api/auth/reset-info", `{"token":"x"}`},
 		{"/api/auth/verify", `{"token":"x"}`},
 		{"/api/auth/two-step", `{"code":"123456"}`},
 	}
@@ -253,6 +254,53 @@ func TestAResetLinkDiesWhenThePasswordChanges(t *testing.T) {
 	}
 	if where := c.login("newperson", "thirdchange1"); where != "/" {
 		t.Fatal("the stale-bound link changed the password", where)
+	}
+}
+
+// A reset link can name its account and say whether a code is needed without being spent.
+func TestAResetLinkCanBeInspectedWithoutBeingSpent(t *testing.T) {
+	e := newTestServer(t)
+	admin := e.signedInAdmin()
+	mails := configureAccounts(t, e, admin, accountSettings{Registration: true, Recovery: true, PublicURL: "https://example.com"})
+	c := e.newClient()
+	if st := c.do("POST", "/api/auth/register", map[string]string{"username": "infoperson", "email": "person@example.com", "password": "newpassword1"}); st != 200 {
+		t.Fatal(st)
+	}
+	if st := c.do("POST", "/api/auth/verify", map[string]string{"token": tokenFromMail(t, mails, "verify")}); st != 200 {
+		t.Fatal(st)
+	}
+	e.s.serviceJobs.Wait()
+	if st := c.do("POST", "/api/auth/forgot-password", map[string]string{"email": "person@example.com"}); st != 200 {
+		t.Fatal(st)
+	}
+	token := tokenFromMail(t, mails, "reset")
+	info := func(token string) string {
+		r, b := c.req("POST", "/api/auth/reset-info", map[string]string{"token": token})
+		if r.StatusCode != 200 {
+			t.Fatalf("reset-info = %d %s", r.StatusCode, b)
+		}
+		return string(b)
+	}
+	if b := info(token); !strings.Contains(b, `"account":"p•••@example.com"`) || !strings.Contains(b, `"two_factor":false`) {
+		t.Fatalf("reset-info = %s", b)
+	}
+	// Inspecting the link must not spend it.
+	if st := c.do("POST", "/api/auth/reset-password", map[string]string{"token": token, "password": "replacement1"}); st != 200 {
+		t.Fatalf("the link was spent by reset-info: %d", st)
+	}
+	if st := c.do("POST", "/api/auth/forgot-password", map[string]string{"email": "person@example.com"}); st != 200 {
+		t.Fatal(st)
+	}
+	token = tokenFromMail(t, mails, "reset")
+	who, err := e.s.userByName(context.Background(), "infoperson")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.s.db.Exec(`UPDATE account_security SET enabled=1 WHERE user_id=?`, who.ID); err != nil {
+		t.Fatal(err)
+	}
+	if b := info(token); !strings.Contains(b, `"two_factor":true`) {
+		t.Fatalf("two-step not reported: %s", b)
 	}
 }
 
