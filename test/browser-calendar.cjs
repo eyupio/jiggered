@@ -126,6 +126,11 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
       board.scrollIntoView({ block: "center" });
       board.querySelector(".cal-scroll").scrollTop = 56;
     }, scope);
+  // Today's picker sits above the timeline; centre it so the tile is clear of the sticky navigation.
+  const showPicker = (page) =>
+    page.evaluate(() =>
+      document.querySelector(".activities-panel").scrollIntoView({ block: "center" }),
+    );
   const block = (page, id, scope = "#plan-board") =>
     page.locator(`${scope} .cal-block[data-id="${id}"]`);
   async function drag(page, from, to) {
@@ -470,7 +475,9 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
     );
     const logged = () => docs["d-" + today].body.entries,
       find = (id) => logged().find((e) => e.id === id),
-      tile = () => page.locator("#acts button.act", { hasText: "Deep focus (2 hours)" }).first();
+      tile = () => page.locator("#acts button.act", { hasText: "Deep focus (2 hours)" }).first(),
+      deepChip = () =>
+        page.locator("#today-palette .cal-preset", { hasText: "Deep focus (2 hours)" }).first();
     assert.equal(await page.locator("#today-timeline-panel").evaluate((d) => d.open), true);
     assert.match(await page.locator("#today-timeline-summary").textContent(), /2 logged · 2 to do/);
     await show(page, T);
@@ -527,9 +534,9 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
       ["14:15", 60],
     );
 
-    // Drag an activity from the list onto the timeline: logged at that time, with the length from its name.
+    // Drag an activity from the list above the timeline: logged at that time, with the length from its name.
     await show(page, T);
-    let from = await box(tile());
+    let from = await box(deepChip());
     const drop = await slot(page, today, 10 * 60 + 45, T);
     await drag(page, { x: from.x + 30, y: from.y + 10 }, { x: drop.x, y: drop.y + 4 });
     await until(
@@ -546,7 +553,7 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
       docs["p-" + today].body.entries.filter((e) => e.a === "Deep focus (2 hours)");
     await context.clock.setSystemTime(new Date(`${today}T08:00:00Z`));
     await show(page, T);
-    from = await box(tile());
+    from = await box(deepChip());
     const early = await slot(page, today, 10 * 60 + 45, T);
     await drag(page, { x: from.x + 30, y: from.y + 10 }, { x: early.x, y: early.y + 4 });
     await until(() => planned().length === 1, "a drop on a later time today is planned");
@@ -562,6 +569,7 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
 
     // Putting an activity back where it came from logs nothing, and is not mistaken for a tap.
     const count = logged().length;
+    await showPicker(page);
     from = await box(tile());
     await drag(page, { x: from.x + 30, y: from.y + 10 }, { x: from.x + 60, y: from.y + 60 });
     await page.waitForTimeout(250);
@@ -841,7 +849,14 @@ runBrowser({ name: "calendar", startServer: false }, async (harness) => {
       "today",
       loggedDay(),
     );
-    // Open to begin with, with what it needs to place something: the activities, and a short window onto the day.
+    // It waits to be opened on a phone, then offers what it needs to place something: the activities and a short
+    // window onto the day.
+    assert.equal(
+      await page.locator("#today-timeline-panel").evaluate((d) => d.open),
+      false,
+      "the phone timeline starts closed",
+    );
+    await page.locator("#today-timeline-panel > summary").click();
     assert.equal(await page.locator("#today-timeline-panel").evaluate((d) => d.open), true);
     assert.match(
       await page.locator("#today-timeline-help").textContent(),
