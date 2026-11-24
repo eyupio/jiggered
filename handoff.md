@@ -2,65 +2,54 @@
 
 ## Objective
 
-Ship the Impeccable critique fixes for the public landing, sign-in and account
-recovery pages, and record the product and design context they build on.
+Ship the signed-in critique fixes: Today's first run, the desktop energy sidebar,
+the phone ordering and the follow-up polish.
 
 ## Current state
 
-- Branch: `reet/jiggered-31a0ee07c50b43f98789d6b0426c4f93` (merged)
-- PR: [#192](https://github.com/eyupio/jiggered/pull/192), squashed as `6a20c43`
-- Phase: merged into `main` on 2026-11-24; all required checks passed
+- Branch: `fix/signed-in-critique`
+- PR: to be opened
+- Phase: implementation complete, local validation green, awaiting CI and review
 
 ## Completed
 
-- `PRODUCT.md` records the product truth from `impeccable init`.
-- `DESIGN.md` and `.impeccable/design.json` record the incumbent visual system
-  from `impeccable document`.
-- P1 contrast: `--field-line` is at least 3:1 in light and dark themes.
-- P1 recovery: reset links name the masked account and hide the authenticator
-  field unless two-step is on. `POST /api/auth/reset-info` answers without
-  spending the link; the field reappears if the form cannot learn the state.
-- Sign-in failures render server-side, so a no-JS sign-in explains itself.
-- The help disclosure has a 44px target, "Join free" is in the mobile
-  accessible name, and every auth control uses one focus ring.
-- The auth aside carries product truth and follows the form being shown.
-- Reset and verify screens name the account the link is for.
-- Landing copy no longer says "you're on Today"; the trust list uses dividers
-  instead of a nested card; print reveals are visible; `text-wrap: pretty`
-  removes single-word last lines.
-- A dark Today capture ships through `<picture>` for dark-mode visitors.
+- #192 (merged as `6a20c43`) recorded `PRODUCT.md`, `DESIGN.md` and
+  `.impeccable/design.json`, and fixed the public landing, sign-in and recovery
+  pages: field contrast, reset-link account and authenticator handling, no-JS
+  sign-in errors, accessible targets and focus, landing copy, print reveals and
+  a dark Today capture.
+- Today's first-run setup is a compact two-step strip; the Green/Amber/Red
+  check-in is on the first phone screen. Budget and wording moved to Account.
+- The desktop Today sidebar no longer scrolls inside itself; its content scrolls
+  with the page. The poor-sleep switch now sits in the check-in panel, and
+  Starting, Used, Recovered and Remaining stay together.
+- The phone timeline starts closed; "The little things in your day" follows the
+  energy panel. Desktop still opens the timeline once there is something to draw.
+- The energy summary uses the ledger's sign (`Net −2`), and the flow heading says
+  "activity" for one.
+- Browser tests cover the first-screen check-in, the closed phone timeline and
+  the new picker-before-timeline order.
 
 ## Validation
 
-- `go vet ./...`, `CGO_ENABLED=0 go build ./...`, `go test ./...` pass.
-- `go test -race ./...` passes (148s).
 - `npm --prefix test run check` passes (154 logic tests).
-- `node test/browser-accounts.cjs` and `node test/browser-public.cjs` pass.
-- Visual checks at 1440 and 390 in light and dark, including the mobile
-  accessible name and the 44px help target.
-- The design detector reports only raw-template false positives and pre-existing
-  token advisories.
-
-## Merge outcome
-
-- PR #192 squashed into `main` as `6a20c43` on 2026-11-24.
-- `test`, `browser`, `image` and CodeQL passed before merge.
-- The remote branch was deleted after the merge.
+- The full browser suite passes (`npm --prefix test run browser`).
+- Visual checks at 390×844, 320×700 and 1280×900 in light.
+- The design detector reports only the side-tab treatment DESIGN.md specifies.
 
 ## Outstanding
 
-- Re-run `$impeccable critique` on `/welcome` and `/login` to confirm the score
-  has moved.
-- Verify links use the static "This link is for the account that requested it"
-  sentence; a verify-token info endpoint was deliberately not added.
+- Merge this PR after CI is green.
+- Deferred by the critique scope: the seven-tab admin bar (P2) and the detached
+  Episode symptom error (P2).
+- The timeline palette remains for the tested drag and tap-to-place path; if it
+  is removed later, update `test/browser-calendar.cjs`.
 
 ## Decisions and risks
 
-- Reset info is a POST with the page header and same-origin checks and no public
-  form budget, so reloading the link does not spend the attempts the real
-  submission needs. The token is the capability; the response masks the address.
-- The dark Today capture is 390×932 while the light capture is 390×850, so the
-  hero is slightly taller in dark mode.
-- The documented palette reflects the effective `dashboard.css`/`presence.css`
-  theme; older teal tokens in `style.css` remain in the cascade but are
-  overridden.
+- Chose to remove the sticky Today sidebar rather than compress the energy card;
+  on a 900px desktop the ring starts below the fold, though the arithmetic stays
+  together and the page scrolls normally.
+- The phone timeline auto-opens only above 760px wide.
+- Budget and points/spoons setup remain in Account; the first-run strip teaches
+  only the two daily actions.
