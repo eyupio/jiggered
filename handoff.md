@@ -8,7 +8,7 @@ the phone ordering and the follow-up polish.
 ## Current state
 
 - Branch: `fix/signed-in-critique`
-- PR: to be opened
+- PR: [#193](https://github.com/eyupio/jiggered/pull/193)
 - Phase: implementation complete, local validation green, awaiting CI and review
 
 ## Completed
