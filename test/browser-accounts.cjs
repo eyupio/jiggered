@@ -267,7 +267,7 @@ runBrowser(
       .waitFor();
     assert.equal(
       (await join.locator("[data-registration-copy]").first().textContent()).trim(),
-      "No card needed. We’ll email you a link to confirm your address, then you’re on Today in about a minute.",
+      "No card needed. We’ll email you a link to confirm your address, then you can make your first check-in.",
     );
     assert.equal(
       await join.locator("[data-register-link]").last().getAttribute("href"),
@@ -337,6 +337,9 @@ runBrowser(
     await join.locator("#forgot-form [type=submit]").click();
     const reset = await waitMail("reset");
     await join.goto(base + "/login#reset=" + reset);
+    // The link names its account and hides the code field until two-step is on.
+    await join.locator("#reset-account").filter({ hasText: "m•••@example.com" }).waitFor();
+    await join.locator("#reset-code-label").waitFor({ state: "hidden" });
     await join.locator("#reset-password").fill("replacement-password1");
     await join.locator("#reset-confirm").fill("replacement-password1");
     await join.locator("#reset-form [type=submit]").click();

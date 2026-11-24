@@ -188,7 +188,7 @@ func (p *publicSite) data(r *http.Request, page publicPage) publicData {
 		d.Registration = settings.Accounts.Registration && settings.Email.Enabled
 		if d.Registration {
 			d.Status, d.CTA, d.CTALabel = "Open for registration", "/register", "Create your free account"
-			d.Availability = "No card needed. We’ll email you a link to confirm your address, then you’re on Today in about a minute."
+			d.Availability = "No card needed. We’ll email you a link to confirm your address, then you can make your first check-in."
 			if page.Path == "/guides/spoon-theory" {
 				d.CTA = "/register?w=spoons" // someone who read about spoons should start counting in them
 			}

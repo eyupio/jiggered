@@ -12,7 +12,7 @@
   --tint: #eaf0e2;
   --tint-line: #dbe4d2;
   --field: #fff;
-  --field-line: #bbc9b6;
+  --field-line: #7d8f7a;
   --hl: #64825a;
   --hover: #9b5526;
   --err: #a33423;
@@ -39,7 +39,7 @@
     --tint: #1d2c23;
     --tint-line: #2f4337;
     --field: #15201a;
-    --field-line: #4d6556;
+    --field-line: #6f8a76;
     --hl: #9bbf8b;
     --hover: #e3a674;
     --err: #ff9d8a;
@@ -738,12 +738,28 @@
   gap: 10px;
 }
 .auth-main .auth-links button {
-  padding: var(--space-2) 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0;
   background: none;
   border: 0;
   color: var(--accent);
   cursor: pointer;
   font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* Secondary actions read as the same text link on every auth form, not a second full-width button. */
+.auth-main .secondary {
+  justify-self: start;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 400;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -767,6 +783,9 @@
   color: var(--muted);
 }
 .auth-main details summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
   cursor: pointer;
   font-size: var(--text-sm);
   color: var(--fg);
@@ -885,6 +904,24 @@
 }
 /* Each block settles once as it first comes into view. A browser without scroll timelines
    simply shows the page: the motion is the enhancement, never the content. */
+/* Print cannot scroll, so an entrance that waits for the viewport would leave sections blank on paper. */
+@media print {
+  .hero-copy > *,
+  .hero-shot,
+  .auth-story,
+  .auth-main .panel,
+  .principles,
+  .section-heading,
+  .spoon-copy,
+  .feature-card,
+  .choice-card,
+  .steps li,
+  .privacy-section,
+  .faq-list details,
+  .closing {
+    animation: none !important;
+  }
+}
 @media screen and (prefers-reduced-motion: no-preference) {
   @supports (animation-timeline: view()) {
     .principles,
@@ -1101,14 +1138,13 @@
 .trust-box {
   list-style: none;
   margin: 16px 0 0;
-  padding: 16px;
-  display: grid;
-  gap: var(--space-2);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: var(--card);
+  padding: 0;
   font-size: var(--text-base);
   line-height: var(--leading-normal);
+}
+.trust-box li {
+  padding-block: var(--space-3);
+  border-top: 1px solid var(--tint-line);
 }
 
 /* The hero shows the real Today screen (example data), not an illustration. */

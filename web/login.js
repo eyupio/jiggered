@@ -36,30 +36,13 @@ authOptions
 if (document.getElementById("signin-form")) initAuth();
 
 function initAuth() {
+  // The page renders the failure message itself, so it is there without JavaScript. This only ties a
+  // refusal to the field being retyped, so a screen reader reads the reason with the password.
   const e = new URLSearchParams(location.search).get("e");
-  const msgs = {
-    bad: "That username or password didn't match. Try again. (After ten wrong tries an account is paused for 15 minutes.)",
-    locked: "Too many attempts. Wait 15 minutes, then try again.",
-    disabled:
-      "This account has been switched off. Ask whoever runs this Jiggered to turn it back on.",
-    busy: "Lots of people are signing in at once. Try again in a moment.",
-    expired:
-      "You were signed out: your session ended or was revoked. Changes that had not been sent were not kept.",
-    deleted: "Your account and its data were deleted from this server.",
-  };
-  const msg = msgs[Object.hasOwn(msgs, e) ? e : ""];
-  if (msg) {
-    const line = document.getElementById("err");
-    line.textContent = msg;
-    // A deleted account is news, not an error.
-    if (e === "deleted") line.className = "msg";
-    // Tie a refusal to the field being retyped, so a screen reader reads the reason with the
-    // password and the field is marked as the one that failed.
-    else if (e !== "expired") {
-      const password = document.getElementById("password");
-      password?.setAttribute("aria-describedby", "err");
-      if (e === "bad") password?.setAttribute("aria-invalid", "true");
-    }
+  if (["bad", "locked", "disabled", "busy"].includes(e)) {
+    const password = document.getElementById("password");
+    password?.setAttribute("aria-describedby", "err");
+    if (e === "bad") password?.setAttribute("aria-invalid", "true");
   }
   // A visitor who came from the Spoon Theory guide starts in spoons. This is best effort: it survives the email
   // round trip only when the link is opened in the same browser; the first-run checklist asks everyone else.
@@ -87,8 +70,23 @@ function initAuth() {
 
   const $ = (id) => document.getElementById(id);
   const forms = ["signin", "register", "forgot", "reset", "verify", "two-step"];
+  // The aside carries product truth, not a generic wellness line, and follows the form being shown.
+  const asideNotes = {
+    signin:
+      "Check in with green, amber or red. Your day gets an allowance in points or spoons; activities spend it and recovery adds it back.",
+    register:
+      "Start with one check-in. Your day gets an allowance; log what you spend and what gives energy back.",
+    forgot:
+      "Recovery keeps your record private: the link goes only to the verified email on your account.",
+    reset:
+      "Recovery keeps your record private: the link goes only to the verified email on your account.",
+    verify: "Verifying your address keeps recovery and sign-in notices going to the right inbox.",
+    "two-step": "Two-step verification keeps your log safe even if your password is guessed.",
+  };
   function show(which, focus = true) {
     for (const name of forms) $(name + "-form").hidden = name !== which;
+    const aside = $("auth-aside-note");
+    if (aside && asideNotes[which]) aside.textContent = asideNotes[which];
     const heading = $(which + "-form").querySelector("h1");
     document.title = heading.textContent + " — Jiggered";
     if (focus) {
@@ -160,12 +158,43 @@ function initAuth() {
     });
   });
   let token = "";
+  // The reset link is a capability its holder already has: name the account and hide the code field unless
+  // two-step is on. If this call fails the field stays visible, so the form never depends on it.
+  async function loadResetInfo(t) {
+    try {
+      const r = await fetch("/api/auth/reset-info", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "X-Requested-With": "jiggered" },
+        body: JSON.stringify({ token: t }),
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!r.ok) return;
+      const info = await r.json();
+      const account = $("reset-account");
+      if (info.account) {
+        account.textContent = `This link is for ${info.account}.`;
+        account.hidden = false;
+      }
+      if (info.two_factor === false) {
+        $("reset-code-label").hidden = true;
+        $("reset-code-hint").hidden = true;
+      } else {
+        $("reset-code-label").hidden = false;
+        $("reset-code-hint").hidden = false;
+        $("reset-code-hint").textContent = "Two-step verification is on for this account.";
+      }
+    } catch {}
+  }
   function readFragment() {
     const fragment = new URLSearchParams(location.hash.slice(1));
     token = fragment.get("reset") || fragment.get("verify") || "";
     if (location.hash) {
       history.replaceState(null, "", location.pathname + location.search);
-      show(fragment.has("reset") ? "reset" : fragment.has("verify") ? "verify" : "signin");
+      if (fragment.has("reset")) {
+        show("reset");
+        loadResetInfo(token);
+      } else show(fragment.has("verify") ? "verify" : "signin");
     } else if (new URLSearchParams(location.search).get("step") === "2") show("two-step");
   }
   readFragment();
@@ -214,6 +243,11 @@ function initAuth() {
       const value = await r.json().catch(() => ({}));
       message.textContent = value.message || value.error || "Request failed. Try again.";
       message.classList.toggle("err", !r.ok);
+      // If the account does need a code after all, show the field rather than leaving the person stuck.
+      if (!r.ok && which === "reset") {
+        $("reset-code-label").hidden = false;
+        $("reset-code-hint").hidden = false;
+      }
       if (!r.ok && which === "register" && r.status === 409) $("register-name")?.focus();
       if (
         !r.ok &&

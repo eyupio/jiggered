@@ -305,6 +305,46 @@ func (s *server) verifyEmailToken(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, 200, map[string]string{"message": "Recovery email verified."})
 }
+
+// A reset link is a capability its holder already has: tell them which account it is for and whether a code is
+// needed, without spending the link. The same header and origin checks as the write, but no rate limit: reloading
+// the page must not use up the budget the real submission needs.
+func (s *server) resetTokenInfo(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("X-Requested-With") != "jiggered" || !s.sameSiteLogin(r) {
+		http.Error(w, "forbidden", 403)
+		return
+	}
+	var in struct {
+		Token string `json:"token"`
+	}
+	if !readJSON(w, r, &in) {
+		return
+	}
+	cfg, err := s.loadServices(r.Context(), false)
+	if err != nil || !cfg.Accounts.Recovery || !cfg.Email.Enabled {
+		jsonError(w, 403, "Email recovery is disabled. Ask the server administrator for help.")
+		return
+	}
+	var email string
+	var twoFactor int
+	err = s.db.QueryRowContext(r.Context(), `SELECT COALESCE(a.email,''),COALESCE(a.enabled,0) FROM auth_tokens t JOIN users u ON u.id=t.user_id LEFT JOIN account_security a ON a.user_id=u.id WHERE t.token_hash=? AND t.purpose='reset' AND t.expires>? AND u.disabled=0 AND u.password_hash=t.payload`, hashToken(in.Token), time.Now().Unix()).Scan(&email, &twoFactor)
+	if err != nil {
+		jsonError(w, 400, "This reset link has expired or was already used. Request a new one.")
+		return
+	}
+	writeJSON(w, 200, map[string]any{"account": maskEmail(email), "two_factor": twoFactor == 1})
+}
+
+// "ada@example.com" -> "a•••@example.com": enough to spot the right account, not the whole address on screen.
+func maskEmail(value string) string {
+	at := strings.IndexByte(value, '@')
+	if at <= 0 {
+		return value
+	}
+	local := []rune(value[:at])
+	return string(local[0]) + "•••" + value[at:]
+}
+
 func (s *server) resetPasswordToken(w http.ResponseWriter, r *http.Request) {
 	if !s.authPublic(w, r) {
 		return
