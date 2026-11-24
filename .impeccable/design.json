@@ -1,0 +1,438 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-24T00:00:00Z",
+  "title": "Design System: Jiggered",
+  "extensions": {
+    "colorMeta": {
+      "accent": {
+        "role": "primary",
+        "displayName": "Deep Sage",
+        "canonical": "oklch(43.2% 0.067 163.5)",
+        "tonalRamp": [
+          "#030e08",
+          "#0e2b1f",
+          "#214c39",
+          "#3b6d57",
+          "#5c8f77",
+          "#84b19b",
+          "#b1d2c2",
+          "#e1f4ea"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Warm Paper",
+        "canonical": "oklch(98.0% 0.007 115.7)",
+        "tonalRamp": [
+          "#0b0b0a",
+          "#252523",
+          "#42423f",
+          "#61625e",
+          "#82837e",
+          "#a5a5a1",
+          "#c9c9c6",
+          "#eeefed"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Cream Surface",
+        "canonical": "oklch(99.7% 0.004 91.4)",
+        "tonalRamp": [
+          "#0b0b0a",
+          "#252524",
+          "#434240",
+          "#62615f",
+          "#838280",
+          "#a6a5a2",
+          "#cac9c7",
+          "#efeeed"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Forest Ink",
+        "canonical": "oklch(33.0% 0.040 166.9)",
+        "tonalRamp": [
+          "#060d0a",
+          "#192922",
+          "#30483e",
+          "#4c695c",
+          "#6c8a7d",
+          "#92aca0",
+          "#bbcfc6",
+          "#e6f2ec"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Sage Grey",
+        "canonical": "oklch(48.7% 0.029 159.7)",
+        "tonalRamp": [
+          "#080c0a",
+          "#1d2822",
+          "#37463d",
+          "#54665c",
+          "#74887c",
+          "#98aaa0",
+          "#c0cdc5",
+          "#e9f1ec"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline Sage",
+        "canonical": "oklch(90.0% 0.019 133.1)",
+        "tonalRamp": [
+          "#0a0c09",
+          "#232620",
+          "#3f443b",
+          "#5d6459",
+          "#7e8579",
+          "#a1a79d",
+          "#c6cbc3",
+          "#edefeb"
+        ]
+      },
+      "sage": {
+        "role": "tertiary",
+        "displayName": "Check-in Sage",
+        "canonical": "oklch(57.2% 0.069 138.0)",
+        "tonalRamp": [
+          "#060e05",
+          "#1a2a15",
+          "#32492a",
+          "#4e6b44",
+          "#6e8c64",
+          "#93ae8a",
+          "#bcd0b5",
+          "#e7f3e3"
+        ]
+      },
+      "amber": {
+        "role": "tertiary",
+        "displayName": "Muted Amber",
+        "canonical": "oklch(61.0% 0.113 79.1)",
+        "tonalRamp": [
+          "#140900",
+          "#371f00",
+          "#5d3a00",
+          "#825800",
+          "#a67926",
+          "#c69e5b",
+          "#e2c494",
+          "#fdecd1"
+        ]
+      },
+      "red": {
+        "role": "tertiary",
+        "displayName": "Earthen Red",
+        "canonical": "oklch(58.2% 0.116 34.2)",
+        "tonalRamp": [
+          "#190402",
+          "#42140a",
+          "#6d2a1b",
+          "#974533",
+          "#bc6753",
+          "#dc8e7b",
+          "#f5b9aa",
+          "#ffe5dd"
+        ]
+      },
+      "terracotta": {
+        "role": "secondary",
+        "displayName": "Terracotta",
+        "canonical": "oklch(59.9% 0.120 54.3)",
+        "tonalRamp": [
+          "#180600",
+          "#401800",
+          "#6a2f00",
+          "#934b0c",
+          "#b86d36",
+          "#d79365",
+          "#f1bd9b",
+          "#ffe8d5"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Landing hero and closing statement only; tight tracking, sub-1 line-height."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Public section headings and the app masthead."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Panel headings, tool titles and detail headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Paragraphs and long-form reading; never set below 16px."
+      },
+      "ui": {
+        "displayName": "UI",
+        "purpose": "Secondary text, metadata, hints, chips and most controls."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Primary and secondary button labels at 700 weight."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "App eyebrows, section labels and badges; uppercase with tracking."
+      },
+      "numeric": {
+        "displayName": "Numeric",
+        "purpose": "Balances and large stat numerals in the display face with tabular figures."
+      }
+    },
+    "shadows": [
+      {
+        "name": "ambient-card",
+        "value": "0 3px 12px #203c3103",
+        "purpose": "Resting panels; barely visible, just enough to lift the cream surface off the paper."
+      },
+      {
+        "name": "ambient-tab",
+        "value": "0 3px 14px #203c3105",
+        "purpose": "The sticky app tab rail."
+      },
+      {
+        "name": "small",
+        "value": "0 2px 6px color-mix(in srgb, var(--shadow-ink, #000) 8%, transparent)",
+        "purpose": "Small lifted details."
+      },
+      {
+        "name": "medium",
+        "value": "0 4px 12px color-mix(in srgb, var(--shadow-ink, #000) 14%, transparent)",
+        "purpose": "Hero screenshot and profile avatar."
+      },
+      {
+        "name": "pop",
+        "value": "0 8px 28px color-mix(in srgb, var(--shadow-ink, #000) 22%, transparent)",
+        "purpose": "Menus, tooltips, toasts and drag previews."
+      },
+      {
+        "name": "sheet",
+        "value": "0 24px 60px color-mix(in srgb, var(--shadow-ink, #000) 30%, transparent)",
+        "purpose": "The floating editor sheet."
+      },
+      {
+        "name": "sheet-backdrop",
+        "value": "0 0 0 100vmax color-mix(in srgb, var(--fg) 45%, transparent)",
+        "purpose": "Backdrop behind a sheet or dialog; pair with backdrop-filter: blur(3px)."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.2, 0.6, 0.2, 1)",
+        "purpose": "The one easing curve for every state change and entrance."
+      },
+      {
+        "name": "dur-fast",
+        "value": "120ms",
+        "purpose": "Hover and press feedback."
+      },
+      {
+        "name": "dur",
+        "value": "200ms",
+        "purpose": "A small state change."
+      },
+      {
+        "name": "dur-slow",
+        "value": "320ms",
+        "purpose": "Something entering, such as the hero copy or a sheet."
+      },
+      {
+        "name": "rise-in",
+        "value": "opacity 0 → 1, translateY(12px) → 0",
+        "purpose": "The single entrance used by content that arrives; disabled under prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      { "name": "small-phone", "value": "480px" },
+      { "name": "phone-nav", "value": "600px" },
+      { "name": "phone", "value": "700px" },
+      { "name": "public-phone", "value": "760px" },
+      { "name": "desktop", "value": "960px" },
+      { "name": "public-narrow", "value": "1050px" },
+      { "name": "public-shell", "value": "1200px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one affirmative action in a panel: save an episode, save settings, add to a plan.",
+      "html": "<button class=\"ds-btn-primary\">Save episode</button>",
+      "css": ".ds-btn-primary { font: 700 16px/1.45 var(--body); min-height: 46px; padding: 12px 19px; border: 0; border-radius: var(--radius-sm); background: var(--accent); color: var(--bg); cursor: pointer; transition: background-color var(--dur) var(--ease); } .ds-btn-primary:focus-visible { outline: 3px solid var(--amber); outline-offset: 4px; } .ds-btn-primary:disabled { opacity: 0.5; cursor: default; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "A supporting action beside a primary one: cancel, discard, export, clear filters.",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { font: 700 16px/1.45 var(--body); min-height: 44px; padding: 10px 15px; border: 1px solid var(--accent); border-radius: var(--radius-sm); background: var(--surface); color: var(--accent); cursor: pointer; transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease); } .ds-btn-secondary:hover { background: var(--accent-soft); } .ds-btn-secondary:focus-visible { outline: 3px solid var(--amber); outline-offset: 4px; } .ds-btn-secondary:disabled { opacity: 0.5; cursor: default; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "A quiet utility action: Help, Edit, a back link, a day step.",
+      "html": "<button class=\"ds-btn-ghost\">Edit</button>",
+      "css": ".ds-btn-ghost { font: 400 14px/1.45 var(--body); min-height: 44px; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: transparent; color: var(--muted); cursor: pointer; transition: color var(--dur) var(--ease); } .ds-btn-ghost:hover { color: var(--fg); } .ds-btn-ghost:focus-visible { outline: 3px solid var(--amber); outline-offset: 4px; }"
+    },
+    {
+      "name": "Public CTA Button",
+      "kind": "button",
+      "refersTo": "button-public",
+      "description": "The landing and login call to action: larger, 600 weight, with a trailing arrow.",
+      "html": "<a class=\"ds-btn-cta\" href=\"#\">Open Jiggered <svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" aria-hidden=\"true\"><path d=\"M5 12h14M13 6l6 6-6 6\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></a>",
+      "css": ".ds-btn-cta { display: inline-flex; justify-content: center; align-items: center; gap: 12px; white-space: nowrap; min-height: 56px; padding: 16px 24px; border: 1px solid var(--accent); border-radius: var(--radius-sm); background: var(--accent); color: #fff; font: 600 16px/1.45 var(--body); text-decoration: none; transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease); } .ds-btn-cta:hover { background: var(--accent-hover, #1c4735); border-color: var(--accent-hover, #1c4735); } .ds-btn-cta:active { transform: translateY(1px); } .ds-btn-cta:focus-visible { outline: 3px solid #b66a32; outline-offset: 5px; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "A labelled field in an app form; 44px tall so it is comfortable on a phone.",
+      "html": "<label class=\"ds-field\"><span>Points per day</span><input type=\"number\" value=\"12\" /></label>",
+      "css": ".ds-field { display: grid; gap: 6px; font: 700 14px/1.45 var(--body); color: var(--fg); } .ds-field input { font: 400 16px/1.45 var(--body); width: 100%; min-height: 44px; padding: 11px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--fg); } .ds-field input::placeholder { color: var(--muted); opacity: 1; } .ds-field input:focus-visible { outline: 3px solid var(--amber, #a77a24); outline-offset: 4px; } .ds-field input:disabled { opacity: 0.5; }"
+    },
+    {
+      "name": "Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "The default container for every app and public section: cream surface, hairline border, 16px corners.",
+      "html": "<section class=\"ds-panel\"><h2>A little space for today.</h2><p>Check in, make room for rest, and take the day at your pace.</p></section>",
+      "css": ".ds-panel { display: grid; gap: 17px; padding: 25px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); color: var(--fg); box-shadow: 0 3px 12px #203c3103; } .ds-panel h2 { margin: 0; font: 600 24px/1.2 var(--display); letter-spacing: -0.035em; } .ds-panel p { margin: 0; font: 400 16px/1.7 var(--body); }"
+    },
+    {
+      "name": "Check-in Option",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "The signature three-way check-in: status dot, one-word mood and a cost badge; selected turns to a tick.",
+      "html": "<div class=\"ds-checkin\"><button class=\"ds-checkin-option ds-green\" aria-pressed=\"true\"><b>Green</b><span class=\"ds-mood\">Feeling good</span><span class=\"ds-cost\">Full points</span></button><button class=\"ds-checkin-option ds-amber\" aria-pressed=\"false\"><b>Amber</b><span class=\"ds-mood\">In between</span><span class=\"ds-cost\">−3 points</span></button><button class=\"ds-checkin-option ds-red\" aria-pressed=\"false\"><b>Red</b><span class=\"ds-mood\">Low energy</span><span class=\"ds-cost\">−6 points</span></button></div>",
+      "css": ".ds-checkin { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; } .ds-checkin-option { font: inherit; padding: 17px 7px 13px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); color: var(--fg); cursor: pointer; display: grid; gap: 9px; justify-items: center; align-content: start; text-align: center; } .ds-checkin-option b { font: 700 14px/1.45 var(--body); display: flex; flex-direction: column; align-items: center; gap: 10px; } .ds-checkin-option b::before { content: \"\"; width: 19px; height: 19px; border-radius: 50%; background: var(--dot); flex: none; } .ds-green { --dot: var(--green, #64825a); } .ds-amber { --dot: var(--amber, #a77a24); } .ds-red { --dot: var(--red, #b55f4b); } .ds-mood { color: var(--muted); font-size: 12px; line-height: 1.2; } .ds-cost { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; padding: 4px 6px; border-radius: var(--radius-pill); background: color-mix(in srgb, var(--fg) 8%, transparent); color: var(--fg); } .ds-checkin-option[aria-pressed=\"true\"] { border-color: var(--dot); background: color-mix(in srgb, var(--dot) 9%, var(--surface)); } .ds-checkin-option[aria-pressed=\"true\"] b::before { content: \"✓\"; width: 19px; height: 19px; background: none; color: var(--dot); font-weight: 800; line-height: 1; } .ds-checkin-option[aria-pressed=\"true\"] .ds-mood { color: var(--fg); } .ds-checkin-option[aria-pressed=\"true\"] .ds-cost { background: color-mix(in srgb, var(--dot) 28%, transparent); } .ds-checkin-option:focus-visible { outline: 3px solid var(--amber); outline-offset: 4px; }"
+    },
+    {
+      "name": "App Tab",
+      "kind": "nav",
+      "refersTo": "tab",
+      "description": "One tab in the bordered rail that switches the signed-in views; becomes a bottom bar on phones.",
+      "html": "<div class=\"ds-tabs\" role=\"tablist\"><button class=\"ds-tab\" role=\"tab\" aria-selected=\"true\">Today</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\">History</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\">Account</button></div>",
+      "css": ".ds-tabs { display: flex; gap: 7px; padding: 7px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); box-shadow: 0 3px 14px #203c3105; } .ds-tab { flex: 1 1 auto; min-height: 46px; padding: 10px 17px; border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--fg); font: 700 14px/1.45 var(--body); cursor: pointer; transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease); } .ds-tab:hover { background: var(--bg); } .ds-tab[aria-selected=\"true\"] { background: var(--accent-soft); border-color: var(--line); color: var(--accent); } .ds-tab:focus-visible { outline: 3px solid var(--amber); outline-offset: 4px; }"
+    },
+    {
+      "name": "Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "A multi-select symptom, trigger or filter chip; 44px tall on a phone.",
+      "html": "<label class=\"ds-chip\"><input type=\"checkbox\" checked /><span>Headache</span></label>",
+      "css": ".ds-chip { position: relative; display: inline-block; } .ds-chip input { position: absolute; inset: 0; opacity: 0; cursor: pointer; } .ds-chip span { display: inline-flex; align-items: center; min-height: 32px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--surface); color: var(--fg); font: 400 14px/1.45 var(--body); cursor: pointer; } .ds-chip input:checked + span { background: var(--accent-soft); border-color: var(--accent); color: var(--fg); font-weight: 700; } .ds-chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; } @media (max-width: 700px) { .ds-chip span { min-height: 44px; } }"
+    },
+    {
+      "name": "Badge",
+      "kind": "custom",
+      "refersTo": "badge",
+      "description": "A tiny uppercase status label such as Admin, Verified or a period granularity.",
+      "html": "<span class=\"ds-badge\">Admin</span>",
+      "css": ".ds-badge { display: inline-block; padding: 2px 8px; border-radius: var(--radius-xs); background: var(--accent-soft); color: var(--fg); font: 700 12px/1.2 var(--body); letter-spacing: 0.04em; text-transform: uppercase; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Restful Ledger",
+    "overview": "Jiggered is a well-kept personal record, not a dashboard. Its visual world is warm paper, deep sage ink and quiet hairlines: the calm of a ledger someone tends for themselves, where the arithmetic of a day is legible at a glance and never turned into a verdict. The interface is plain-spoken British English in mood as well as copy — no cheerleading, no alarms, no score. Warmth comes from restraint: creamy grounds, softly rounded panels, generous touch targets, and typography chosen so a tired reader can still read it.\n\nThe app and the public pages share one palette, one type pairing and one card language, but they use different registers. Signed in, the surface is an Operate tool: dense enough for daily use, one clear action per panel, status colour reserved for status. Signed out, the same world opens up into a Persuade page: larger display type, wider breathing room, a real screenshot rather than an illustration, and the same quiet green instead of marketing gloss. Neither register is allowed to become clinical or gamified; Jiggered records what happened, and the design must never imply that the person is being measured.\n\nThe character is calm, candid and quietly encouraging. The interface never celebrates a \"streak\", never scolds a gap, and never dresses a record as a target. Absence is drawn honestly with a dashed line. Numbers are steady and tabular. Motion is short and functional: hover, press, and one soft rise as content enters.",
+    "keyCharacteristics": [
+      "Warm paper ground, deep sage accent, soft sage tint for selection.",
+      "Bricolage Grotesque for display and numerals, Atkinson Hyperlegible for everything read or operated.",
+      "Softly rounded, hairline-bordered panels on a 4px spacing grid.",
+      "Status green, amber and red used only to encode recorded state or allowance level.",
+      "Phone-first layout with a bottom tab bar and 44px minimum touch targets.",
+      "Flat at rest; only floating layers carry a pop shadow.",
+      "Dashed hairlines where something is absent, held or reduced."
+    ],
+    "rules": [
+      {
+        "name": "The One Accent Rule",
+        "body": "Deep Sage is the only accent used to mean \"act\" or \"selected\". Status colours never decorate a button, a heading or a marketing flourish; they only describe a recorded state or an allowance level.",
+        "section": "colors"
+      },
+      {
+        "name": "The Honest Status Rule",
+        "body": "Green, amber and red are always paired with a word or a number (Green / Amber / Red, the cost badge, the balance). Colour alone never carries the meaning.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two-Voice Rule",
+        "body": "Bricolage Grotesque is for display, headings and numerals. Every paragraph, label, control and piece of UI text is Atkinson Hyperlegible. Never set readable copy in the display face.",
+        "section": "typography"
+      },
+      {
+        "name": "The Quiet Eyebrow Rule",
+        "body": "Uppercase tracking belongs to the signed-in app's small labels. Public eyebrows are sentence case, medium weight and untracked; they are a quiet signpost, not a badge.",
+        "section": "typography"
+      },
+      {
+        "name": "The Steady Numbers Rule",
+        "body": "Any number that can change — balances, costs, dates, counts — uses tabular figures so a column never shifts as values update.",
+        "section": "typography"
+      },
+      {
+        "name": "The One-Frame Rule",
+        "body": "Every app view shares the same masthead height, tab-bar position and content frame, so switching tabs never makes the interface jump. Each view sets its own content width inside that frame.",
+        "section": "layout"
+      },
+      {
+        "name": "The Thumb-First Rule",
+        "body": "Primary navigation and save actions live at the bottom of the phone screen, inside the safe-area inset, never behind a hover or a top-corner control.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat-At-Rest Rule",
+        "body": "A static panel carries a border and at most an ambient shadow. A pop shadow is a signal that the element floats above the page, so it is reserved for menus, tooltips, toasts, drag previews and sheets.",
+        "section": "elevation"
+      },
+      {
+        "name": "The No-Card-On-Card Rule",
+        "body": "Nested content uses a tinted fill or a hairline divider, not another bordered card with its own shadow.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Dashed-Not-Empty Rule",
+        "body": "When something is absent, held or reduced, draw it with a dashed hairline and a short explanation. Never let an empty state read as a zero.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Soft-Corner Rule",
+        "body": "Panels stop at 16px, inputs and buttons at 8px. Bigger radii belong to sheets (16px) and the hero screenshot (24px); no card gets a 24px+ radius.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do keep the 4px spacing scale and 1px hairline borders; the system's calm comes from consistent rhythm.",
+      "Do use Deep Sage for actions and selection, and warm terracotta for public focus and link hover.",
+      "Do set readable text in Atkinson Hyperlegible and reserve Bricolage Grotesque for display, headings and numerals.",
+      "Do keep touch targets at 44px or more, 48px for the phone tab bar, and respect safe-area insets.",
+      "Do draw absence, held changes and reduced allowance with dashed hairlines and a short explanation.",
+      "Do use tabular numerals for every balance, cost, count and date.",
+      "Do keep the focus ring visible and warm: 2–3px, offset 1–5px, amber in the app and terracotta on public pages.",
+      "Do let public pages use the same world at a larger scale: bigger display type, real screenshots, more space."
+    ],
+    "donts": [
+      "Don't use status green, amber or red as decoration or generic emphasis; they encode recorded state only.",
+      "Don't gamify: no streaks, scores, trophies, confetti, celebratory copy or guilt about a gap.",
+      "Don't introduce clinical-dashboard cues — alert reds everywhere, dense grids, cold greys, medical chrome.",
+      "Don't add a second display face, set body copy in Bricolage, or use uppercase tracking on public eyebrows.",
+      "Don't set UI text below 12px or touch targets below 44px.",
+      "Don't put a pop shadow on a static panel or stack cards inside cards with their own borders.",
+      "Don't use purple gradients, glassmorphism, glossy blobs, glow effects, emoji labels or badge confetti.",
+      "Don't round panels past 16px or use sharp corners on interactive surfaces."
+    ]
+  }
+}
