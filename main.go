@@ -654,6 +654,10 @@ func securityHeaders(next http.Handler) http.Handler {
 		// channel its code might otherwise reach. The app never opens windows that need cross-origin messaging, so
 		// `same-origin` is as strict as it can be without breaking anything.
 		h.Set("Cross-Origin-Opener-Policy", "same-origin")
+		// A cross-origin page cannot load Jiggered's responses as a subresource: no `<img>`, `<script>`, `<iframe>` or
+		// `fetch(no-cors)` from another site can read or time the signed-in app's bytes. Nothing legitimate here is
+		// embedded off-site (link previews fetch server-side), so this blocks a channel without breaking a use.
+		h.Set("Cross-Origin-Resource-Policy", "same-origin")
 		// Powerful browser APIs this app never uses: a stray script (or a future bug slipping past the CSP) can't turn them
 		// on behind the person's back. Each `=()` is an empty allow-list: no origin, not even this one.
 		h.Set("Permissions-Policy", "accelerometer=(), autoplay=(), browsing-topics=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), hid=(), idle-detection=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-create=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), web-share=(), xr-spatial-tracking=()")

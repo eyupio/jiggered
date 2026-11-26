@@ -68,10 +68,15 @@ func TestSecurityHeaders(t *testing.T) {
 		}
 	}
 	// Cross-origin openers keep no reference into Jiggered: every response, signed-in or not, API or page, declares it.
+	// Cross-origin embedders cannot load those responses as a subresource either, so nothing off-site can read or time
+	// the signed-in app's bytes (link previews fetch server-side, so they are unaffected).
 	for _, p := range []string{"/login", "/welcome", "/robots.txt", "/api/me"} {
 		resp, _ := e.newClient().req("GET", p, nil)
 		if got := resp.Header.Get("Cross-Origin-Opener-Policy"); got != "same-origin" {
 			t.Errorf("GET %s: Cross-Origin-Opener-Policy = %q, want same-origin", p, got)
+		}
+		if got := resp.Header.Get("Cross-Origin-Resource-Policy"); got != "same-origin" {
+			t.Errorf("GET %s: Cross-Origin-Resource-Policy = %q, want same-origin", p, got)
 		}
 	}
 }
