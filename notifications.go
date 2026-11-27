@@ -10,10 +10,18 @@ import (
 	"time"
 )
 
-// STARTTLS is mandatory in that mode; never silently fall back to cleartext.
+const (
+	smtpDialTimeout = 10 * time.Second // connecting only; a dead host should fail fast
+	smtpTotalBudget = 25 * time.Second // the whole conversation, unless the caller's context ends sooner
+)
+
+// sendNotification sends a plain notification with no action button.
 func (s *server) sendNotification(ctx context.Context, cfg emailSettings, subject, body string) error {
 	return s.sendBrandedNotification(ctx, cfg, subject, body, "", "")
 }
+
+// sendBrandedNotification delivers one email to every configured recipient. Each failure is reduced to a fixed sentence
+// an admin can act on, so nothing the server said (and no credential) reaches the page.
 func (s *server) sendBrandedNotification(ctx context.Context, cfg emailSettings, subject, body, actionURL, label string) error {
 	if cfg.Host == "" || cfg.From == "" || len(cfg.To) == 0 {
 		return errors.New("Save an SMTP host, sender and recipients first.")
@@ -24,7 +32,7 @@ func (s *server) sendBrandedNotification(ctx context.Context, cfg emailSettings,
 		return err
 	}
 	address := net.JoinHostPort(cfg.Host, fmt.Sprint(cfg.Port))
-	dialer := &net.Dialer{Timeout: 10 * time.Second}
+	dialer := &net.Dialer{Timeout: smtpDialTimeout}
 	var conn net.Conn
 	var err error
 	tlsCfg := &tls.Config{ServerName: cfg.Host, MinVersion: tls.VersionTLS12}
@@ -37,7 +45,7 @@ func (s *server) sendBrandedNotification(ctx context.Context, cfg emailSettings,
 		return errors.New("Could not connect to the SMTP server. Check host, port and TLS mode.")
 	}
 	defer conn.Close()
-	deadline := time.Now().Add(25 * time.Second)
+	deadline := time.Now().Add(smtpTotalBudget)
 	if d, ok := ctx.Deadline(); ok && d.Before(deadline) {
 		deadline = d
 	}
@@ -50,6 +58,7 @@ func (s *server) sendBrandedNotification(ctx context.Context, cfg emailSettings,
 	}
 	defer client.Close()
 	if cfg.TLS == "starttls" {
+		// STARTTLS is mandatory in this mode; never silently fall back to cleartext.
 		if ok, _ := client.Extension("STARTTLS"); !ok {
 			return errors.New("This SMTP server does not offer STARTTLS. Choose the correct port and TLS mode.")
 		}
