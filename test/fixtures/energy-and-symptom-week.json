@@ -1,0 +1,56 @@
+{
+  "starts": "2026-11-16",
+  "ends": "2026-11-22",
+  "clock": "2026-11-19T11:00:00Z",
+  "timeZone": "Europe/London",
+  "baseline": {
+    "settings": {
+      "budget": 10,
+      "locale": "en-GB",
+      "profile": { "energyTheme": "spoons", "theme": "system" },
+      "onboarding": { "dismissed": true },
+      "activities": [
+        { "id": "breakfast", "a": "Make breakfast", "c": 1 },
+        { "id": "call", "a": "Work call", "c": 2 },
+        { "id": "shop", "a": "Food shop", "c": 3 }
+      ],
+      "symptoms": ["Light sensitivity"],
+      "triggers": []
+    },
+    "d-2026-11-19": {
+      "date": "2026-11-19",
+      "budget": 10,
+      "status": "green",
+      "statusPenalty": 0,
+      "entries": [{ "id": "breakfast", "a": "Make breakfast", "c": 1, "t": "08:00" }]
+    },
+    "e-1795015800000": {
+      "when": "2026-11-18T17:30",
+      "whenZone": "Europe/London",
+      "whenOffset": 0,
+      "symptoms": ["Light sensitivity"],
+      "duration": "Still going",
+      "notes": "Dimmed the lights while making tea."
+    },
+    "p-2026-11-19": {
+      "entries": [
+        { "id": "call", "a": "Work call", "c": 2, "t": "12:00", "dur": 30 },
+        { "id": "shop", "a": "Food shop", "c": 3, "t": "16:00", "dur": 45 }
+      ]
+    },
+    "p-2026-11-20": {
+      "entries": [{ "id": "post", "a": "Walk to post box", "c": 1, "t": "10:00", "dur": 15 }]
+    }
+  },
+  "expected": {
+    "unobserved": "2026-11-16",
+    "explicitlySymptomFree": "2026-11-17",
+    "ongoingEpisode": "e-1795015800000",
+    "changeFromUsual": {
+      "capturedAt": "2026-11-19T11:00:00Z",
+      "approximateOnset": "2026-11-19T10:30"
+    },
+    "shopMove": { "entry": "shop", "from": "2026-11-19", "to": "2026-11-20" },
+    "keepCall": { "entry": "call", "date": "2026-11-19" }
+  }
+}

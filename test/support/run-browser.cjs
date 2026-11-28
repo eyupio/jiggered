@@ -17,6 +17,7 @@ try {
     });
   for (const script of [
     "browser-today",
+    "browser-fictional-week",
     "browser-planner",
     "browser-calendar",
     "browser-tools",
