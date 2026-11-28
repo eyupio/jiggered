@@ -320,13 +320,32 @@ runBrowser({ name: "walkthrough", username: "auditadmin" }, async (harness) => {
   await phone.locator("#t-episode").click();
   await phone.locator("#ep-sym input").first().check();
   await phone.locator("#ep-notes").fill("Browser episode capture");
+  const enteredOnset = await phone.locator("#ep-when").inputValue();
+  const beforeCapture = Date.now();
   await phone.locator("#ep-save").click();
   await phone.locator("#eptoast").filter({ hasText: "Saved." }).waitFor();
+  const captureExport = async () => (await phoneContext.request.get(base + "/api/export")).json();
+  const captured = Object.entries(await captureExport()).filter(
+    ([, body]) => body.notes === "Browser episode capture",
+  );
+  assert.equal(captured.length, 1);
+  const [[capturedId, capturedBody]] = captured;
+  assert.equal(capturedBody.when, enteredOnset, "the episode onset keeps its own value");
+  const capturedTime = Date.parse(capturedBody.capturedAt);
+  assert.ok(
+    capturedTime >= beforeCapture && capturedTime <= Date.now(),
+    "capture uses the save tap",
+  );
   await phone.locator("#t-today").click();
   await phone.locator("#today-ongoing [data-finish-episode]").click(); // "Ended earlier…" opens the form
   await phone.locator("#ep-dur").selectOption("Ended (duration unknown)");
   await phone.locator("#ep-save").click();
   await phone.locator("#eptoast").filter({ hasText: "Saved." }).waitFor();
+  assert.equal(
+    (await captureExport())[capturedId].capturedAt,
+    capturedBody.capturedAt,
+    "ending the episode preserves its capture timestamp",
+  );
   // An edit that began on Today offers the way back to Today.
   assert.equal((await phone.locator("#ep-cancel").textContent()).trim(), "Back to Today");
   await phone.locator("#ep-cancel").click();

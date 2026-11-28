@@ -381,6 +381,8 @@ export const gapSignature = (gap) =>
     .join("|");
 
 export function operationConflicts(op, body) {
+  if (op.type === "createEpisode" && body && body.capturedAt !== op.arg.capturedAt)
+    return ["episode identity"];
   if (!op.before) return [];
   if (body == null) return ["deleted record"];
   if (op.type === "editEntry") {
@@ -509,6 +511,7 @@ const DAY_OPS = {
 export function applyOp(op, body) {
   if (op.type === "remove") return undefined;
   if (op.type === "replace") return op.arg;
+  if (op.type === "createEpisode") return body ?? op.arg;
   if (op.type === "settingsPatch") {
     const { activities, ...fields } = op.arg;
     return {

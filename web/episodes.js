@@ -473,8 +473,9 @@ export function init(ctx) {
       value.endZone = "";
       value.endOffset = null;
     }
+    const now = new Date();
     const id =
-      editing || "e-" + Date.now() + String(Math.floor(Math.random() * 10000)).padStart(4, "0");
+      editing || "e-" + now.getTime() + String(Math.floor(Math.random() * 10000)).padStart(4, "0");
     const patch = editing
       ? Object.fromEntries(
           Object.entries(value).filter(
@@ -489,8 +490,8 @@ export function init(ctx) {
     // onChange runs during dispatch; ticket is available once dispatch returns.
     ticket = ctx.store.dispatch({
       id,
-      type: editing ? "patch" : "replace",
-      arg: patch,
+      type: editing ? "patch" : "createEpisode",
+      arg: editing ? patch : { ...patch, capturedAt: now.toISOString() },
       ...(editing
         ? { original, before: Object.fromEntries(Object.keys(patch).map((k) => [k, original[k]])) }
         : {}),

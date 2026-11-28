@@ -270,7 +270,10 @@ export function createStore({
       pending.push({
         ...op,
         ...(f.conflict
-          ? { before: undefined, ...(f.deleted ? { type: "replace", arg: f.body } : {}) }
+          ? {
+              before: undefined,
+              ...(f.deleted || op.type === "createEpisode" ? { type: "replace", arg: f.body } : {}),
+            }
           : {}),
         retryOf: op.retryOf ?? op.n,
         n: ++seq,
@@ -399,6 +402,7 @@ export function createStore({
         const batch = pending.filter((o) => o.id === id);
         const lastN = batch[batch.length - 1].n;
         const desired = batch.reduce((b, op) => {
+          if (op.type === "createEpisode") return op.arg;
           if (
             op.type === "editEntry" &&
             !identifyEntries(b?.entries).some((e) => e.id === op.arg.id)
@@ -454,6 +458,10 @@ export function createStore({
               );
               break;
             }
+          }
+          if (batch.length === 1 && batch[0].type === "createEpisode" && body === base[id]) {
+            settle(id, body, revs[id], lastN); // The earlier create reached the server before the reply was lost.
+            break;
           }
           const res = await send(id, body, revs[id] || 0);
           if (stopped) throw new Stop();
