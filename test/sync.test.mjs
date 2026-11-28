@@ -731,6 +731,55 @@ test("asynchronous persistence must acknowledge before claiming device durabilit
   assert.match(b.store.status().localError, /could not save/);
   assert.equal(b.store.recoveryExport().pending[0].arg, "red");
 });
+test("an Episode create still has one identity after offline reload and a lost reply", async () => {
+  const s = new FakeServer();
+  const phone = device(s);
+  const id = "e-17950860000000001";
+  const capture = { capturedAt: "2026-11-19T11:00:00.123Z", when: "2026-11-19T10:30" };
+  s.down = true;
+  await phone.store.dispatch(op(id, "createEpisode", capture));
+  assert.equal(phone.store.status().durable, true);
+  const reopened = device(s, { storage: phone.storage });
+  assert.deepEqual(reopened.store.view(id), capture);
+  assert.equal(reopened.store.status().pending, 1);
+
+  s.down = false;
+  s.loseReply = 1;
+  await reopened.store.flush();
+  assert.equal(reopened.store.status().pending, 1);
+  assert.deepEqual(s.docs.get(id).body, capture);
+  const laptop = device(s);
+  await laptop.store.load();
+  await laptop.store.dispatch(op(id, "patch", { notes: "Added after capture" }));
+
+  await reopened.store.flush();
+  assert.equal(reopened.store.status().pending, 0);
+  assert.equal(reopened.store.status().failed, 0);
+  assert.equal(s.docs.size, 1);
+  assert.deepEqual(s.docs.get(id), {
+    rev: 2,
+    body: { ...capture, notes: "Added after capture" },
+  });
+  assert.deepEqual(reopened.store.view(id), s.docs.get(id).body);
+});
+
+test("an Episode create with an occupied identity keeps both copies available", async () => {
+  const s = new FakeServer();
+  const phone = device(s);
+  const id = "e-17950860000000002";
+  const existing = { capturedAt: "2026-11-19T11:00:00.120Z", notes: "Existing entry" };
+  const capture = { capturedAt: "2026-11-19T11:00:00.123Z", notes: "New entry" };
+  s.docs.set(id, { rev: 1, body: existing });
+  await phone.store.dispatch(op(id, "createEpisode", capture));
+  assert.deepEqual(s.docs.get(id).body, existing);
+  assert.equal(phone.store.status().failed, 1);
+  const [held] = phone.store.failures();
+  assert.deepEqual(held.body, capture);
+  await phone.store.retryFailed(held.key);
+  assert.equal(phone.store.status().failed, 0);
+  assert.deepEqual(s.docs.get(id).body, capture, "an explicit choice uses the held capture");
+});
+
 test("episode field patches preserve another device's notes while finishing", async () => {
   const server = new FakeServer(),
     a = device(server),
